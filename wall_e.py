@@ -134,7 +134,7 @@ class WallE:
         if reference_git_repo:
             reference_git_repo = '--reference %s'%reference_git_repo
 
-        cmd('git clone %s git@bitbucket.org:scality/%s.git ' % (reference_git_repo, repo_slug))
+        cmd('git clone %s git@bitbucket.org:%s/%s.git' % (reference_git_repo, repo_owner, repo_slug))
 
         os.chdir(repo_slug)
 
