@@ -17,6 +17,11 @@ $ pip install pybitbucket==0.8.0
 ```
 #!bash
 $ python test_wall_e.py <wall_e_password> <your_login> <your_password> <your.email@scality.com> 
+.......
+----------------------------------------------------------------------
+Ran 7 tests in 254.984s
+
+OK
 
 $ python test_wall_e.py --help
 usage: test_wall_e.py [-h] wall_e_password your_login your_password your_mail
@@ -37,7 +42,7 @@ optional arguments:
 
 ```
 #!bash
-$ python python wall_e.py 144 <wall_e_pasword>
+$ python python wall_e.py <pull_request_id> <wall_e_pasword>
 
 $ python wall_e.py --help
 usage: wall_e.py [-h] [--owner OWNER] [--slug SLUG] [--bypass_author_approval]
