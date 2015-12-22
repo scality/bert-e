@@ -58,7 +58,6 @@ class DestinationBranch(Branch):
         assert '/' in name
         self.prefix, self.version = name.split('/', 1)
         assert self.prefix == 'development'
-        print(self.version)
         assert self.version in KNOWN_VERSIONS.keys()
 
 
@@ -235,7 +234,7 @@ class WallE:
 
 import argparse
 def main():
-    parser = argparse.ArgumentParser(description='Process some integers.')
+    parser = argparse.ArgumentParser(description='Merges bitbucket pull requests.')
     parser.add_argument('pullrequest',
                    help='The ID of the pull request')
     parser.add_argument('password',

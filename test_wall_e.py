@@ -106,7 +106,7 @@ import sys
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Process some integers.')
+    parser = argparse.ArgumentParser(description='Launches Wall-E tests.')
     parser.add_argument('wall_e_password',
                         help='Wall-E\'s password [for Jira and Bitbucket]')
     parser.add_argument('your_login',

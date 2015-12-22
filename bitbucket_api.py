@@ -98,7 +98,6 @@ class BitbucketPullRequest(PullRequest):
         )
         payload['reviewers'] = [{'username': reviewer} for reviewer in reviewers]
         json_str = json.dumps(payload)
-        #print(payload)
         response = client.session.post(_api_url, data=json_str)
         Client.expect_ok(response)
         return response.json()['id']
