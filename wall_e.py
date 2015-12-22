@@ -8,6 +8,7 @@ from collections import OrderedDict
 import subprocess
 from cmd import cmd
 from tempfile import mkdtemp
+from urllib import quote
 
 KNOWN_VERSIONS = OrderedDict([
     ('4.3', '4.3.17'),
@@ -134,7 +135,9 @@ class WallE:
         if reference_git_repo:
             reference_git_repo = '--reference %s'%reference_git_repo
 
-        cmd('git clone %s git@bitbucket.org:%s/%s.git' % (reference_git_repo, repo_owner, repo_slug))
+        cmd('git clone %s https://%s:%s@bitbucket.org/%s/%s.git' %
+                (reference_git_repo, quote(self._bbconn.authenticator.user),
+                quote(self._bbconn.authenticator.password), repo_owner, repo_slug))
 
         os.chdir(repo_slug)
 
