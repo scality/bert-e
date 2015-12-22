@@ -101,8 +101,15 @@ class WallE:
         if not self.original_pr:
             return
         all_comments = BitbucketPullRequest.get_list_of_comments(self._bbconn, self.repo_full_name, self.original_pr.id)
-        if all_comments and all_comments[-1] == ('scality_wall-e', msg):
-            raise CommentAlreadyExistsException('The same comment has already been posted by Wall-E in the past. Nothing to do here!')
+        # the last comment is the first
+        if all_comments:
+            for index, comment in enumerate(all_comments):
+                if comment == ('scality_wall-e', msg):
+                    raise CommentAlreadyExistsException('The same comment has already been posted by Wall-E in the past. Nothing to do here!')
+                elif index > 10:
+                    # if wall-e doesn't do anything in the last 10 comments,
+                    # allow him to run again
+                    break
         create_pullrequest_comment(self._bbconn, self.repo_full_name, self.original_pr.id, msg)
 
     def _handle_pull_request(self,
