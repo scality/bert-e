@@ -24,7 +24,7 @@ usage: test_wall_e.py [-h] wall_e_password your_login your_password your_mail
 Launches Wall-E tests.
 
 positional arguments:
-  wall_e_password  Wall-E's password [for Jira and Bitbucket]
+  wall_e_password  Wall-E\'s password [for Jira and Bitbucket]
   your_login       Your Bitbucket login
   your_password    Your Bitbucket password
   your_mail        Your Bitbucket email address
@@ -49,16 +49,16 @@ Merges bitbucket pull requests.
 
 positional arguments:
   pullrequest           The ID of the pull request
-  password              Wall-E's password [for Jira and Bitbucket]
+  password              Wall-E\'s password [for Jira and Bitbucket]
 
 optional arguments:
   -h, --help            show this help message and exit
   --owner OWNER         The owner of the repo (default: scality)
-  --slug SLUG           The repo's slug (default: ring)
+  --slug SLUG           The repo\'s slug (default: ring)
   --bypass_author_approval
-                        Bypass the pull request author's approval
+                        Bypass the pull request author\'s approval
   --bypass_peer_approval
-                        Bypass the pull request peer's approval
+                        Bypass the pull request peer\'s approval
   --reference_git_repo REFERENCE_GIT_REPO
                         Reference to a local version of the git repo to
                         improve cloning delay
