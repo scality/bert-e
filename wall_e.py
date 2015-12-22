@@ -136,7 +136,7 @@ class WallE:
             reference_git_repo = '--reference %s'%reference_git_repo
 
         cmd('git clone %s https://%s:%s@bitbucket.org/%s/%s.git' %
-                (reference_git_repo, quote(self._bbconn.config.user),
+                (reference_git_repo, quote(self._bbconn.config.username),
                 quote(self._bbconn.config.password), repo_owner, repo_slug))
 
         os.chdir(repo_slug)
