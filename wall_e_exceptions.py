@@ -5,6 +5,9 @@ class WallE_Exception(Exception):
     pass
 
 
+class CommentAlreadyExistsException(WallE_Exception):
+    pass
+
 class AuthorApprovalRequiredException(WallE_Exception):
     def __init__(self, child_pull_requests):
         if len(child_pull_requests) == 0:

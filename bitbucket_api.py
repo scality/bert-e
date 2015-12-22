@@ -115,6 +115,15 @@ class BitbucketPullRequest(PullRequest):
         return res
 
     @staticmethod
+    def get_list_of_comments(client, repo_full_name, pr_id):
+        _api_url = 'https://api.bitbucket.org/2.0/repositories/%s/pullrequests/%s/comments'%(repo_full_name, pr_id)
+        print _api_url
+        response = client.session.get(_api_url)
+        Client.expect_ok(response)
+        all_comments = response.json()['values']
+        return [(comment['user']['username'], comment['content']['raw']) for comment in all_comments]
+
+    @staticmethod
     def get_participants(pr):
         return {participant['user']['username']: participant for participant in pr.participants}
 
@@ -128,9 +137,4 @@ def create_pullrequest_comment(connection, repo_full_name, pullrquest_id, msg):
     data = {"content": msg}
     response = connection.session.post(_api_url, json=data)
     Client.expect_ok(response)
-
-
-if __name__ == '__main__':
-    unittest.main()
-
 

@@ -98,8 +98,12 @@ class WallE:
 
     def send_bitbucket_msg(self, pull_request_id, msg):
         print('SENDING MSG %s : %s' % (pull_request_id, msg))
-        if self.original_pr:
-            create_pullrequest_comment(self._bbconn, self.repo_full_name, self.original_pr.id, msg)
+        if not self.original_pr:
+            return
+        all_comments = BitbucketPullRequest.get_list_of_comments(self._bbconn, self.repo_full_name, self.original_pr.id)
+        if all_comments and all_comments[-1] == ('scality_wall-e', msg):
+            raise CommentAlreadyExistsException('The same comment has already been posted by Wall-E in the past. Nothing to do here!')
+        create_pullrequest_comment(self._bbconn, self.repo_full_name, self.original_pr.id, msg)
 
     def _handle_pull_request(self,
                              repo_owner,

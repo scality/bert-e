@@ -58,7 +58,7 @@ class TestWallE(unittest.TestCase):
         pr_id = self.create_feature_branch_and_pull_request(feature_branch, dst_branch)
         with self.assertRaises(AuthorApprovalRequiredException):
             self.wall_e.handle_pull_request('scality', self.repo._slug, pr_id)
-        with self.assertRaises(AuthorApprovalRequiredException):
+        with self.assertRaises(CommentAlreadyExistsException):
             self.wall_e.handle_pull_request('scality', self.repo._slug, pr_id)
 
     def test_handle_automatically_twice(self):
