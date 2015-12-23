@@ -149,8 +149,9 @@ class WallE:
         cmd('git clone %s https://%s:%s@bitbucket.org/%s/%s.git' %
                 (reference_git_repo, quote(self._bbconn.config.username),
                 quote(self._bbconn.config.password), repo_owner, repo_slug))
-
         os.chdir(repo_slug)
+        cmd('git config user.email "%s"' % self._bbconn.config.client_email)
+        cmd('git config user.name "Wall-E"')
 
         try:
             source_branch = FeatureBranch(self.original_pr.source['branch']['name'])
