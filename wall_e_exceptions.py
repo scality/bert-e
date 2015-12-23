@@ -1,12 +1,19 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+
 class WallE_Exception(Exception):
     pass
 
 
-class CommentAlreadyExistsException(WallE_Exception):
+class WallE_InternalException(Exception):
+    # TODO send an email to releng
     pass
+
+
+class CommentAlreadyExistsException(WallE_InternalException):
+    pass
+
 
 class AuthorApprovalRequiredException(WallE_Exception):
     def __init__(self, child_pull_requests):
@@ -51,7 +58,7 @@ class NotMyJobException(WallE_Exception):
         return WallE_Exception.__init__(self, msg)
 
 
-class NothingToDoException(WallE_Exception):
+class NothingToDoException(WallE_InternalException):
     pass
 
 
@@ -100,15 +107,15 @@ class ManualModeException(WallE_Exception):
         return WallE_Exception.__init__(self, msg)
 
 
-class CheckoutFailedException(WallE_Exception):
+class CheckoutFailedException(WallE_InternalException):
     pass
 
 
-class PushFailedException(WallE_Exception):
+class PushFailedException(WallE_InternalException):
     pass
 
 
-class BranchCreationFailedException(WallE_Exception):
+class BranchCreationFailedException(WallE_InternalException):
     pass
 
 
