@@ -82,7 +82,7 @@ class FeatureBranch(Branch):
         for version in KNOWN_VERSIONS.keys():
             if version < destination_branch.version:
                 continue
-            integration_branch = FeatureBranch('%s/%s/%s' % (self.prefix, version, self.subname))
+            integration_branch = FeatureBranch('w/%s/%s/%s' % (self.prefix, version, self.subname))
             integration_branch.update_or_create_and_merge(previous_feature_branch)
             development_branch = DestinationBranch('development/' + version)
             integration_branch.merge_from(development_branch)
@@ -178,6 +178,7 @@ class WallE:
 
         prs = []
         for source_branch, destination_branch in new_pull_requests:
+            title = '[%s] #%s: %s' % (destination_branch.name, pull_request_id, self.original_pr.title)
             description = 'This pull-request has been created automatically by @scality_wall-e.\n\n'
             description += 'It is linked to its parent pull request #%s.\n\n' % self.original_pr.id
             description += 'Please do not edit the contents nor the title!\n\n'
@@ -191,8 +192,7 @@ class WallE:
             description += '$ git push\n'
             description += '```\n'
             pr_id = BitbucketPullRequest.create(self._bbconn, self.repo_full_name, source_branch.name,
-                                                destination_branch.name, reviewers=[],
-                                                title='[child] ' + self.original_pr.title,
+                                                destination_branch.name, reviewers=[], title=title,
                                                 description=description)
             pr = BitbucketPullRequest.find_pullrequest_in_repository_by_id(repo_owner, repo_slug, pr_id,
                                                                            client=self._bbconn)
