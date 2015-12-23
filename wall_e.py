@@ -144,7 +144,7 @@ class WallE:
         os.chdir(tmpdir)
 
         if reference_git_repo:
-            reference_git_repo = '--reference %s'%reference_git_repo
+            reference_git_repo = '--reference ' + reference_git_repo
 
         cmd('git clone %s https://%s:%s@bitbucket.org/%s/%s.git' %
                 (reference_git_repo, quote(self._bbconn.config.username),
@@ -240,7 +240,7 @@ class WallE:
                             reference_git_repo=''):
         # TODO : This method should be a decorator instead
         try:
-            self._handle_pull_request(repo_owner, repo_slug, pull_request_id, bypass_peer_approval, bypass_author_approval)
+            self._handle_pull_request(repo_owner, repo_slug, pull_request_id, bypass_peer_approval, bypass_author_approval, reference_git_repo)
         except WallE_Exception, e:
             self.send_bitbucket_msg(pull_request_id, e.message)
             raise e
