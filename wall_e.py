@@ -30,7 +30,7 @@ class Branch:
         try:
             self.checkout()
             return True
-        except subprocess.CallProcessError:
+        except subprocess.CalledProcessError:
             return False
 
     def checkout(self):
