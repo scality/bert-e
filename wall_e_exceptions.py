@@ -102,7 +102,7 @@ class ManualModeException(WallE_Exception):
 
 class MergeFailedException(WallE_Exception):
     def __init__(self, current_branch, branch_to_be_merged):
-        msg = "Ouch:bangbang: I've encountred a conflict when I tried to merge `%s` into `%s`.\n\n" % (
+        msg = "Ouch:bangbang: I've encountered a conflict when I tried to merge `%s` into `%s`.\n\n" % (
             branch_to_be_merged, current_branch)
         msg += "Steps to resolve :\n"
         msg += '```\n'
