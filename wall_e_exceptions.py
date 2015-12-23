@@ -109,7 +109,7 @@ class MergeFailedException(WallE_Exception):
         msg += "Steps to resolve :\n"
         msg += '```\n'
         msg += '#!bash\n'
-        msg += " $ git fetch %s\n"
+        msg += " $ git fetch\n"
         msg += " $ git checkout %s\n" % current_branch
         msg += " $ git merge origin/%s\n" % branch_to_be_merged
         msg += " $ # intense conflict fixing\n"
