@@ -77,7 +77,6 @@ class FeatureBranch(Branch):
         self.name = name
         assert '/' in name
         self.prefix, self.subname = name.split('/', 1)
-        assert self.prefix in ['feature', 'bugfix', 'improvement']
 
     def merge_cascade(self, destination_branch):
         if destination_branch.prefix != 'development':
@@ -165,6 +164,7 @@ class WallE:
 
         try:
             source_branch = FeatureBranch(self.original_pr.source['branch']['name'])
+            assert source_branch.prefix in ['feature', 'bugfix', 'improvement']
             destination_branch = DestinationBranch(self.original_pr.destination['branch']['name'])
         except AssertionError:
             raise NotMyJobException(self.original_pr.source['branch']['name'],
