@@ -100,6 +100,18 @@ class ManualModeException(WallE_Exception):
         return WallE_Exception.__init__(self, msg)
 
 
+class CheckoutFailedException(WallE_Exception):
+    pass
+
+
+class PushFailedException(WallE_Exception):
+    pass
+
+
+class BranchCreationFailedException(WallE_Exception):
+    pass
+
+
 class MergeFailedException(WallE_Exception):
     def __init__(self, current_branch, branch_to_be_merged):
         msg = "Ouch:bangbang: I've encountered a conflict when I tried to merge `%s` into `%s`.\n\n" % (

@@ -34,15 +34,25 @@ class Branch:
             return False
 
     def checkout(self):
-        cmd('git checkout ' + self.name)
+        try:
+            cmd('git checkout ' + self.name)
+        except subprocess.CalledProcessError:
+            raise CheckoutFailedException(self.name)
 
     def push(self):
         self.checkout()
-        cmd('git push --set-upstream origin ' + self.name)
+        try:
+            cmd('git push --set-upstream origin ' + self.name)
+        except subprocess.CalledProcessError:
+            raise PushFailedException(self.name)
 
     def create_from(self, source_branch):
         source_branch.checkout()
-        cmd('git checkout -b ' + self.name)
+        try:
+            cmd('git checkout -b ' + self.name)
+        except subprocess.CalledProcessError:
+            msg = "branch:%s source:%s" % (self.name, source_branch.name)
+            raise BranchCreationFailedException(msg)
         self.push()
 
     def update_or_create_and_merge(self, source_branch, push=True):
