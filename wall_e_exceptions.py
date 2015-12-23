@@ -52,9 +52,7 @@ class NotMyJobException(WallE_Exception):
 
 
 class NothingToDoException(WallE_Exception):
-    def __init__(self, reason):
-        msg = "Hey! Nothing to do here! %s.\n" % (reason)
-        return WallE_Exception.__init__(self, msg)
+    pass
 
 
 class PrefixCannotBeMergedException(WallE_Exception):
