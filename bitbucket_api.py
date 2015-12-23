@@ -100,7 +100,9 @@ class BitbucketPullRequest(PullRequest):
         json_str = json.dumps(payload)
         response = client.session.post(_api_url, data=json_str)
         Client.expect_ok(response)
-        return response.json()['id']
+        pr_id = response.json()['id']
+        print 'Pull request %r created on %s (%s)' % (title, repo_full_name, pr_id)
+        return pr_id
 
     @staticmethod
     def get_list_of_approving_reviewers(pr):

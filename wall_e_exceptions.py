@@ -18,28 +18,21 @@ class CommentAlreadyExistsException(WallE_InternalException):
 class AuthorApprovalRequiredException(WallE_Exception):
     def __init__(self, child_pull_requests):
         if len(child_pull_requests) == 0:
-            msg = 'You must approve this pull request if you want me to merge it!'
+            msg = 'Waiting for author approval on this PR (manual port) or parent (auto port).'
         else:
-            ids = 'pull request #' + ', pull request #'.join([str(pr.id) for pr in child_pull_requests])
-            msg = 'Your approval on the pull request is missing.\n\n'
-            msg += 'You may either :\n\n'
-            msg += ' * Approve this pull request and let me merge all subsequent versions automagically.\n'
-            msg += ' * Approve child pull requests individually [%s] if you want more control.\n\n' % ids
+            msg = 'The author of this pull request has not approved it.\n\n'
+            msg += 'The author may :\n\n'
+            msg += '* either approve this pull request and let me merge all versions mentionned in the Fix Version/s ticket automatically (auto port).\n'
+            msg += '* or approve child pull requests individually if you want more control (manual port):\n'
+            for pr in child_pull_requests:
+                msg += '    * %s (pull request #%s)' % (data['destination']['branch']['name'], pr.id)
 
         return WallE_Exception.__init__(self, msg)
 
 
 class PeerApprovalRequiredException(WallE_Exception):
     def __init__(self, child_pull_requests):
-        if len(child_pull_requests) == 0:
-            msg = 'A reviewer must approve this pull request before I can merge it!'
-        else:
-            ids = 'pull request #' + ', pull request #'.join([str(pr.id) for pr in child_pull_requests])
-            msg = 'A peer approval on the pull request is missing.\n\n'
-            msg += 'The reviewer may either :\n\n'
-            msg += ' * Approve this pull request and let me merge all subsequent versions automagically\n'
-            msg += ' * Approve child pull requests individually [%s] if you want more control\n' % ids
-
+        msg = 'Waiting for all reviewers to approve this PR.'
         return WallE_Exception.__init__(self, msg)
 
 
