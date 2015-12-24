@@ -79,6 +79,24 @@ class PrefixCannotBeMergedException(WallE_Exception):
         return WallE_Exception.__init__(self, msg)
 
 
+class BuildFailedException(WallE_Exception):
+    def __init__(self, pr_id):
+        msg = 'The build on the pull request #%s did not succeed' % pr_id
+        return WallE_Exception.__init__(self, msg)
+
+
+class BuildInProgressException(WallE_Exception):
+    def __init__(self, pr_id):
+        msg = 'The build on the pull request #%s is still in progress...' % pr_id
+        return WallE_Exception.__init__(self, msg)
+
+
+class BuildNotStartedException(WallE_Exception):
+    def __init__(self, pr_id):
+        msg = 'The build on the pull request #%s did not start yet.' % pr_id
+        return WallE_Exception.__init__(self, msg)
+
+
 class BranchDoesNotAcceptFeaturesException(WallE_Exception):
     def __init__(self, branch_to_be_merged):
         msg = ("Sorry buddy! I cannot accept a `feature/*` branch "
@@ -112,7 +130,7 @@ class ManualModeException(WallE_Exception):
                "release.engineering@scality.com so we start again\n\n"
                "Note : This last (annoying) step "
                "will be automated in the next days"
-               % (current_branch, branch_to_be_merged))
+               % (current_branch.name, branch_to_be_merged.name))
         return WallE_Exception.__init__(self, msg)
 
 
@@ -135,6 +153,6 @@ class ConflictException(WallE_Exception):
                "release.engineering@scality.com so we start again\n\n"
                "Note : This last (annoying) step will be automated "
                "in the next days"
-               % (branch_to_be_merged, current_branch,
-                  current_branch, branch_to_be_merged))
+               % (branch_to_be_merged.name, current_branch.name,
+                  current_branch.name, branch_to_be_merged.name))
         return WallE_Exception.__init__(self, msg)
