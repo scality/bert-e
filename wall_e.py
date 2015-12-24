@@ -10,6 +10,7 @@ from git_api import Repository as GitRepository, Branch, MergeFailedException
 from wall_e_exceptions import (NotMyJobException,
                                PrefixCannotBeMergedException,
                                BranchDoesNotAcceptFeaturesException,
+                               BranchNameInvalidException,
                                ConflictException,
                                CommentAlreadyExistsException,
                                NothingToDoException,
@@ -27,7 +28,8 @@ KNOWN_VERSIONS = OrderedDict([
 
 class ScalBranch(Branch):
     def __init__(self, name):
-        assert '/' in name
+        if '/' in name:
+            raise BranchNameInvalidException(name)
         self.name = name
 
 
@@ -35,8 +37,9 @@ class DestinationBranch(ScalBranch):
     def __init__(self, name):
         super(DestinationBranch, self).__init__(name)
         self.prefix, self.version = name.split('/', 1)
-        assert self.prefix == 'development'
-        assert self.version in KNOWN_VERSIONS.keys()
+        if (not self.prefix == 'development'
+                or not self.version in KNOWN_VERSIONS.keys()):
+            raise BranchNameInvalidException(name)
 
 
 class FeatureBranch(ScalBranch):
@@ -140,21 +143,26 @@ class WallE:
             source_branch = FeatureBranch(self
                                           .original_pr
                                           ['source']['branch']['name'])
-            if source_branch.prefix == 'hotfix':
-                # hotfix branches are ignored, nothing todo
-                print("Ignore branch %r" % source_branch.name)
-                return
-            assert source_branch.prefix in ['feature', 'bugfix', 'improvement']
+        except BranchNameInvalidException as e:
+            raise PrefixCannotBeMergedException(e.branch)
+
+        if source_branch.prefix == 'hotfix':
+            # hotfix branches are ignored, nothing todo
+            print("Ignore branch %r" % source_branch.name)
+            return
+
+        if source_branch.prefix not in ['feature', 'bugfix', 'improvement']:
+            raise PrefixCannotBeMergedException(source_branch.name)
+
+        try:
             destination_branch = DestinationBranch(self
                                                    .original_pr
-                                                   ['destination']['branch']
-                                                   ['name'])
-        except AssertionError:
-            raise NotMyJobException(self
-                                    .original_pr['source']['branch']['name'],
-                                    self
-                                    .original_pr
-                                    ['destination']['branch']['name'])
+                                                   ['destination']['branch']['name'])
+        except BranchNameInvalidException as e:
+            print('Destination branch %r not handled, ignore PR %s'
+                    % (e.name, pull_request_id))
+            # Nothing to do
+            return
 
         new_pull_requests = source_branch.merge_cascade(destination_branch)
 
