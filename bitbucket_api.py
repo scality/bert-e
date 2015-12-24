@@ -1,12 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from pybitbucket import auth
-from pybitbucket.bitbucket import Client
 from string import Template
 import json
-
-
+from pybitbucket import auth
+from pybitbucket.bitbucket import Client
 
 def get_bitbucket_client(bitbucket_login, bitbucket_password, bitbucket_mail):
     authenticator = auth.BasicAuthenticator(

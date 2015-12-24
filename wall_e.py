@@ -1,15 +1,21 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import os
-from wall_e_exceptions import *
-from bitbucket_api import Repository as BitBucketRepository, get_bitbucket_client
-from git_api import *
-from collections import OrderedDict
-from tempfile import mkdtemp
-from git_api import Repository as GitRepository
-from urllib import quote
 import argparse
+from collections import OrderedDict
+from urllib import quote
+
+from bitbucket_api import Repository as BitBucketRepository, get_bitbucket_client
+from git_api import Repository as GitRepository, Branch, MergeFailedException
+from wall_e_exceptions import NotMyJobException, \
+    PrefixCannotBeMergedException, \
+    BranchDoesNotAcceptFeaturesException, \
+    ConflictException, \
+    CommentAlreadyExistsException, \
+    NothingToDoException, \
+    AuthorApprovalRequiredException, \
+    PeerApprovalRequiredException, \
+    WallE_Exception
 
 
 KNOWN_VERSIONS = OrderedDict([
@@ -73,7 +79,6 @@ class WallE:
             return
         # the last comment is the first
         for index, comment in enumerate(self.original_pr.get_comments()):
-            print(comment._json_data)
             if comment['user']['username'] == 'scality_wall-e' and \
                             comment['content']['raw'] == msg:
                 raise CommentAlreadyExistsException(
@@ -111,18 +116,11 @@ class WallE:
 
         # TODO: make it idempotent
 
-
-        tmpdir = mkdtemp('git_ring_')
-        os.chdir(tmpdir)
-
-        if reference_git_repo:
-            reference_git_repo = '--reference ' + reference_git_repo
-
         git_repo = GitRepository('https://%s:%s@bitbucket.org/%s/%s.git' % (
             quote(self._bbconn.config.username),
             quote(self._bbconn.config.password),
             owner, repo_slug))
-        git_repo.clone()
+        git_repo.clone(reference_git_repo)
 
         git_repo.config('user.email', '"%s"' % self._bbconn.config.client_email)
         git_repo.config('user.name', '"Wall-E"')
@@ -176,8 +174,6 @@ class WallE:
                     reviewers=[{'username': author}],
                     description=description
             )
-            # pr = BitbucketPullRequest.find_pullrequest_in_repository_by_id(owner, repo_slug, pr_id,
-            #                                                               client=self._bbconn)
             prs.append(pr)
             if original_pr_is_approved_by_author and original_pr_is_approved_by_peer:
                 continue
