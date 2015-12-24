@@ -3,8 +3,9 @@
 
 import subprocess
 
+
 def cmd(_):
     print('')
-    print('#'*50)
-    print('# BASH : %s'%_)
+    print('#' * 50)
+    print('# BASH : %s' % _)
     subprocess.check_call(_, shell=True)
