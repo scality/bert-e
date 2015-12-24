@@ -3,10 +3,15 @@
 
 from string import Template
 import json
-from urllib import quote
+import six
+import urllib
 from pybitbucket import auth
 from pybitbucket.bitbucket import Client
 
+if six.PY3:
+    quote = urllib.parse.quote
+else:
+    quote = urllib.quote
 
 def get_bitbucket_client(bitbucket_login, bitbucket_password, bitbucket_mail):
     authenticator = auth.BasicAuthenticator(
