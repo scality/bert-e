@@ -276,7 +276,9 @@ class WallE:
                             no_comment=False):
         # TODO : This method should be a decorator instead
         try:
-            self._handle_pull_request(repo_owner, repo_slug, pull_request_id,
+            self._handle_pull_request(repo_owner,
+                                      repo_slug,
+                                      pull_request_id,
                                       bypass_peer_approval,
                                       bypass_author_approval,
                                       bypass_build_status,
