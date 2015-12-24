@@ -3,8 +3,7 @@
 
 import argparse
 from collections import OrderedDict
-import six
-import urllib
+
 from bitbucket_api import Repository as BitBucketRepository, get_bitbucket_client
 from git_api import Repository as GitRepository, Branch, MergeFailedException
 from wall_e_exceptions import NotMyJobException, \
@@ -17,10 +16,6 @@ from wall_e_exceptions import NotMyJobException, \
     PeerApprovalRequiredException, \
     WallE_Exception
 
-if six.PY3:
-    quote = urllib.parse.quote
-else:
-    quote = urllib.quote
 
 KNOWN_VERSIONS = OrderedDict([
     ('4.3', '4.3.17'),
@@ -120,10 +115,7 @@ class WallE:
 
         # TODO: make it idempotent
 
-        git_repo = GitRepository('https://%s:%s@bitbucket.org/%s/%s.git' % (
-            quote(self._bbconn.config.username),
-            quote(self._bbconn.config.password),
-            owner, repo_slug))
+        git_repo = GitRepository(self.bbrepo.get_git_url())
         git_repo.clone(reference_git_repo)
 
         git_repo.config('user.email', '"%s"' % self._bbconn.config.client_email)

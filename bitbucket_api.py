@@ -3,8 +3,15 @@
 
 from string import Template
 import json
+import six
+import urllib
 from pybitbucket import auth
 from pybitbucket.bitbucket import Client
+
+if six.PY3:
+    quote = urllib.parse.quote
+else:
+    quote = urllib.quote
 
 def get_bitbucket_client(bitbucket_login, bitbucket_password, bitbucket_mail):
     authenticator = auth.BasicAuthenticator(
@@ -69,6 +76,11 @@ class Repository(BitBucketObject):
         BitBucketObject.delete(self)
 
     def get_git_url(self):
+        url = 'https://%s:%s@bitbucket.org/%s/%s.git' % (
+            quote(self.client.config.username),
+            quote(self.client.config.password),
+            self['owner'],
+            self['repo_slug'])
         return 'git@bitbucket.org:%s/%s' % (self['owner'], self['repo_slug'])
 
     def create_pull_request(self, **kwargs):
