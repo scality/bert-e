@@ -136,6 +136,10 @@ class WallE:
             source_branch = FeatureBranch(self
                                           .original_pr
                                           ['source']['branch']['name'])
+            if source_branch.prefix == 'hotfix':
+                # hotfix branches are ignored, nothing todo
+                print("Ignore branch %r" % source_branch.name)
+                return
             assert source_branch.prefix in ['feature', 'bugfix', 'improvement']
             destination_branch = DestinationBranch(self
                                                    .original_pr
