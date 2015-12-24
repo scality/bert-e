@@ -57,7 +57,7 @@ class FeatureBranch(Branch):
         for version in KNOWN_VERSIONS.keys():
             if version < destination_branch.version:
                 continue
-            integration_branch = FeatureBranch('w/%s/%s/%s' % (self.prefix, version, self.subname))
+            integration_branch = FeatureBranch('w/%s/%s/%s' % (version, self.prefix, self.subname))
             try:
                 integration_branch.update_or_create_and_merge(previous_feature_branch)
             except MergeFailedException:
