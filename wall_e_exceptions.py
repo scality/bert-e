@@ -51,6 +51,24 @@ class PrefixCannotBeMergedException(WallE_Exception):
     template = 'forbidden_branch.md'
 
 
+class BuildFailedException(WallE_Exception):
+    def __init__(self, pr_id):
+        msg = 'The build on the pull request #%s did not succeed' % pr_id
+        return WallE_Exception.__init__(self, msg)
+
+
+class BuildInProgressException(WallE_Exception):
+    def __init__(self, pr_id):
+        msg = 'The build on the pull request #%s is still in progress...' % pr_id
+        return WallE_Exception.__init__(self, msg)
+
+
+class BuildNotStartedException(WallE_Exception):
+    def __init__(self, pr_id):
+        msg = 'The build on the pull request #%s did not start yet.' % pr_id
+        return WallE_Exception.__init__(self, msg)
+
+
 class BranchDoesNotAcceptFeaturesException(WallE_Exception):
     template = 'forbidden_branch_in_maintenance.md'
 
