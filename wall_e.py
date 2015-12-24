@@ -185,7 +185,8 @@ class WallE:
                            '$ # do interesting stuff\n'
                            '$ git push\n'
                            '```\n'
-                           % (self.original_pr['id'], source_branch.name))
+                           % (self.original_pr['id'], source_branch.name,
+                              source_branch.name))
             pr = (self.bbrepo
                   .create_pull_request(title=title,
                                        name='name',
@@ -235,7 +236,8 @@ class WallE:
                             pull_request_id,
                             bypass_peer_approval=False,
                             bypass_author_approval=False,
-                            reference_git_repo=''):
+                            reference_git_repo='',
+                            description=''):
         # TODO : This method should be a decorator instead
         try:
             self._handle_pull_request(repo_owner, repo_slug, pull_request_id,
