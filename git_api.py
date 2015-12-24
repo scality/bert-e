@@ -20,7 +20,7 @@ class Repository:
         cmd('git remote add origin ' + self._url)
         cmd('git push --set-upstream origin master')
 
-    def clone(self, reference = ''):
+    def clone(self, reference=''):
         if reference:
             reference = '--reference ' + reference
         cmd('git clone %s %s' % (reference, self._url))
@@ -29,7 +29,7 @@ class Repository:
         self.directory += '/' + repo_slug
 
     def config(self, key, value):
-        cmd('git config %s %s'%(key, value))
+        cmd('git config %s %s' % (key, value))
 
     @staticmethod
     def create_branch(name, from_branch=None, file=False, do_push=True):
@@ -39,17 +39,17 @@ class Repository:
         if file:
             if file is True:
                 file = name.replace('/', '-')
-            cmd('echo %s >  a.%s'%(name, file))
+            cmd('echo %s >  a.%s' % (name, file))
             cmd('git add a.'+file)
-            cmd('git commit -m "commit %s"'%file)
+            cmd('git commit -m "commit %s"' % file)
         if do_push:
             cmd('git push --set-upstream origin '+name)
 
     def create_ring_branching_model(self):
         for version in ['4.3', '5.1', '6.0', 'trunk']:
             self.create_branch('release/'+version)
-            self.create_branch('development/'+version, 'release/'+version, file=True)
-
+            self.create_branch('development/'+version,
+                               'release/'+version, file=True)
 
 
 class Branch:
@@ -60,7 +60,8 @@ class Branch:
         source_branch.checkout()
         self.checkout()
         try:
-            cmd('git merge --no-edit %s' % (source_branch.name))  # <- May fail if conflict
+            cmd('git merge --no-edit %s'
+                % (source_branch.name))  # <- May fail if conflict
         except subprocess.CalledProcessError:
             raise MergeFailedException(self.name, source_branch.name)
 
@@ -104,14 +105,18 @@ class Branch:
 class GitException(Exception):
     pass
 
+
 class MergeFailedException(GitException):
     pass
+
 
 class CheckoutFailedException(GitException):
     pass
 
+
 class PushFailedException(GitException):
     pass
+
 
 class BranchCreationFailedException(GitException):
     pass
