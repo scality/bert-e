@@ -25,7 +25,7 @@ class AuthorApprovalRequiredException(WallE_Exception):
             msg += '* either approve this pull request and let me merge all versions mentionned in the Fix Version/s ticket automatically (auto port).\n'
             msg += '* or approve child pull requests individually if you want more control (manual port):\n'
             for pr in child_pull_requests:
-                msg += '    * %s (pull request #%s)' % (data['destination']['branch']['name'], pr.id)
+                msg += '    * %s (pull request #%s)' % (pr['destination']['branch']['name'], pr['id'])
 
         return WallE_Exception.__init__(self, msg)
 
@@ -100,19 +100,8 @@ class ManualModeException(WallE_Exception):
         return WallE_Exception.__init__(self, msg)
 
 
-class CheckoutFailedException(WallE_InternalException):
-    pass
 
-
-class PushFailedException(WallE_InternalException):
-    pass
-
-
-class BranchCreationFailedException(WallE_InternalException):
-    pass
-
-
-class MergeFailedException(WallE_Exception):
+class ConflictException(WallE_Exception):
     def __init__(self, current_branch, branch_to_be_merged):
         msg = "Ouch:bangbang: I've encountered a conflict when I tried to merge `%s` into `%s`.\n\n" % (
             branch_to_be_merged, current_branch)

@@ -3,64 +3,20 @@
 
 import os
 from wall_e_exceptions import *
-from bitbucket_api import BitbucketPullRequest, get_bitbucket_client, create_pullrequest_comment
+from bitbucket_api import Repository as BitBucketRepository, get_bitbucket_client
+from git_api import *
 from collections import OrderedDict
-import subprocess
-from cmd import cmd
 from tempfile import mkdtemp
+from git_api import Repository as GitRepository
 from urllib import quote
+import argparse
+
 
 KNOWN_VERSIONS = OrderedDict([
     ('4.3', '4.3.17'),
     ('5.1', '5.1.4'),
     ('6.0', '6.0.0'),
     ('trunk', None)])
-
-
-class Branch:
-    def merge_from(self, source_branch):
-        source_branch.checkout()
-        self.checkout()
-        try:
-            cmd('git merge --no-edit %s' % (source_branch.name))  # <- May fail if conflict
-        except subprocess.CalledProcessError:
-            raise MergeFailedException(self.name, source_branch.name)
-
-    def exists(self):
-        try:
-            self.checkout()
-            return True
-        except CheckoutFailedException:
-            return False
-
-    def checkout(self):
-        try:
-            cmd('git checkout ' + self.name)
-        except subprocess.CalledProcessError:
-            raise CheckoutFailedException(self.name)
-
-    def push(self):
-        self.checkout()
-        try:
-            cmd('git push --set-upstream origin ' + self.name)
-        except subprocess.CalledProcessError:
-            raise PushFailedException(self.name)
-
-    def create_from(self, source_branch):
-        source_branch.checkout()
-        try:
-            cmd('git checkout -b ' + self.name)
-        except subprocess.CalledProcessError:
-            msg = "branch:%s source:%s" % (self.name, source_branch.name)
-            raise BranchCreationFailedException(msg)
-        self.push()
-
-    def update_or_create_and_merge(self, source_branch, push=True):
-        if self.exists():
-            self.merge_from(source_branch)
-        else:
-            self.create_from(source_branch)
-        self.push()
 
 
 class DestinationBranch(Branch):
@@ -92,9 +48,15 @@ class FeatureBranch(Branch):
             if version < destination_branch.version:
                 continue
             integration_branch = FeatureBranch('w/%s/%s/%s' % (self.prefix, version, self.subname))
-            integration_branch.update_or_create_and_merge(previous_feature_branch)
+            try:
+                integration_branch.update_or_create_and_merge(previous_feature_branch)
+            except MergeFailedException:
+                raise ConflictException(self, previous_feature_branch)
             development_branch = DestinationBranch('development/' + version)
-            integration_branch.merge_from(development_branch)
+            try:
+                integration_branch.merge(development_branch)
+            except MergeFailedException:
+                raise ConflictException(self, previous_feature_branch)
             new_pull_requests.append((integration_branch, development_branch))
             previous_feature_branch = integration_branch
         return new_pull_requests
@@ -109,32 +71,33 @@ class WallE:
         print('SENDING MSG %s : %s' % (pull_request_id, msg))
         if not self.original_pr:
             return
-        all_comments = BitbucketPullRequest.get_list_of_comments(self._bbconn, self.repo_full_name, self.original_pr.id)
         # the last comment is the first
-        if all_comments:
-            for index, comment in enumerate(all_comments):
-                if comment == ('scality_wall-e', msg):
-                    raise CommentAlreadyExistsException('The same comment has already been posted by Wall-E in the past. Nothing to do here!')
-                elif index > 10:
-                    # if wall-e doesn't do anything in the last 10 comments,
-                    # allow him to run again
-                    break
-        create_pullrequest_comment(self._bbconn, self.repo_full_name, self.original_pr.id, msg)
+        for index, comment in enumerate(self.original_pr.get_comments()):
+            print(comment._json_data)
+            if comment['user']['username'] == 'scality_wall-e' and \
+                            comment['content']['raw'] == msg:
+                raise CommentAlreadyExistsException(
+                        'The same comment has already been posted by Wall-E in the past. Nothing to do here!')
+            elif index > 10:
+                # if wall-e doesn't do anything in the last 10 comments,
+                # allow him to run again
+                break
+        self.original_pr.add_comment(msg)
 
     def _handle_pull_request(self,
-                             repo_owner,
+                             owner,
                              repo_slug,
                              pull_request_id,
                              bypass_peer_approval=False,
                              bypass_author_approval=False,
                              reference_git_repo=''):
-        self.repo_full_name = repo_owner + '/' + repo_slug
-        self.original_pr = BitbucketPullRequest.find_pullrequest_in_repository_by_id(repo_owner, repo_slug,
-                                                                                     pull_request_id,
-                                                                                     client=self._bbconn)
-        author = self.original_pr.author['username']
-        if self.original_pr.state != 'OPEN':  # REJECTED or FULFILLED
-            raise NothingToDoException('The pull-request\'s state is "%s"' % self.original_pr.state)
+
+        self.bbrepo = BitBucketRepository(self._bbconn, owner=owner, repo_slug=repo_slug)
+        self.repo_full_name = owner + '/' + repo_slug
+        self.original_pr = self.bbrepo.get_pull_request(pull_request_id=pull_request_id)
+        author = self.original_pr['author']['username']
+        if self.original_pr['state'] != 'OPEN':  # REJECTED or FULFILLED
+            raise NothingToDoException('The pull-request\'s state is "%s"' % self.original_pr['state'])
 
         # TODO: Check the size of the diff and issue warnings
 
@@ -155,26 +118,28 @@ class WallE:
         if reference_git_repo:
             reference_git_repo = '--reference ' + reference_git_repo
 
-        cmd('git clone %s https://%s:%s@bitbucket.org/%s/%s.git' %
-                (reference_git_repo, quote(self._bbconn.config.username),
-                quote(self._bbconn.config.password), repo_owner, repo_slug))
-        os.chdir(repo_slug)
-        cmd('git config user.email "%s"' % self._bbconn.config.client_email)
-        cmd('git config user.name "Wall-E"')
+        git_repo = GitRepository('https://%s:%s@bitbucket.org/%s/%s.git' % (
+            quote(self._bbconn.config.username),
+            quote(self._bbconn.config.password),
+            owner, repo_slug))
+        git_repo.clone()
+
+        git_repo.config('user.email', '"%s"' % self._bbconn.config.client_email)
+        git_repo.config('user.name', '"Wall-E"')
 
         try:
-            source_branch = FeatureBranch(self.original_pr.source['branch']['name'])
+            source_branch = FeatureBranch(self.original_pr['source']['branch']['name'])
             assert source_branch.prefix in ['feature', 'bugfix', 'improvement']
-            destination_branch = DestinationBranch(self.original_pr.destination['branch']['name'])
+            destination_branch = DestinationBranch(self.original_pr['destination']['branch']['name'])
         except AssertionError:
-            raise NotMyJobException(self.original_pr.source['branch']['name'],
-                                    self.original_pr.destination['branch']['name'])
+            raise NotMyJobException(self.original_pr['source']['branch']['name'],
+                                    self.original_pr['destination']['branch']['name'])
 
         new_pull_requests = source_branch.merge_cascade(destination_branch)
 
         original_pr_is_approved_by_author = bypass_author_approval
         original_pr_is_approved_by_peer = bypass_peer_approval
-        for participant in self.original_pr.participants:
+        for participant in self.original_pr['participants']:
             if not participant['approved']:
                 continue
             if participant['user']['username'] == author:
@@ -189,9 +154,9 @@ class WallE:
 
         prs = []
         for source_branch, destination_branch in new_pull_requests:
-            title = '[%s] #%s: %s' % (destination_branch.name, pull_request_id, self.original_pr.title)
+            title = '[%s] #%s: %s' % (destination_branch.name, pull_request_id, self.original_pr['title'])
             description = 'This pull-request has been created automatically by @scality_wall-e.\n\n'
-            description += 'It is linked to its parent pull request #%s.\n\n' % self.original_pr.id
+            description += 'It is linked to its parent pull request #%s.\n\n' % self.original_pr['id']
             description += 'Please do not edit the contents nor the title!\n\n'
             description += 'The only actions allowed are "Approve" or "Comment"!\n\n'
             description += 'You may want to refactor the branch `%s` manually :\n\n' % source_branch.name
@@ -202,18 +167,24 @@ class WallE:
             description += '$ # do interesting stuff\n'
             description += '$ git push\n'
             description += '```\n'
-            pr_id = BitbucketPullRequest.create(self._bbconn, self.repo_full_name, source_branch.name,
-                                                destination_branch.name, reviewers=[], title=title,
-                                                description=description)
-            pr = BitbucketPullRequest.find_pullrequest_in_repository_by_id(repo_owner, repo_slug, pr_id,
-                                                                           client=self._bbconn)
+            pr = self.bbrepo.create_pull_request(
+                    title=title,
+                    name='name',
+                    source={'branch': {'name': source_branch.name}},
+                    destination={'branch': {'name': destination_branch.name}},
+                    close_source_branch=True,
+                    reviewers=[{'username': author}],
+                    description=description
+            )
+            # pr = BitbucketPullRequest.find_pullrequest_in_repository_by_id(owner, repo_slug, pr_id,
+            #                                                               client=self._bbconn)
             prs.append(pr)
             if original_pr_is_approved_by_author and original_pr_is_approved_by_peer:
                 continue
 
             approved_by_author = original_pr_is_approved_by_author
             approved_by_peer = original_pr_is_approved_by_peer
-            for participant in pr.participants:
+            for participant in pr['participants']:
                 if not participant['approved']:
                     continue
                 if participant['user']['username'] == author:
@@ -224,7 +195,6 @@ class WallE:
             if not approved_by_author:
                 all_child_prs_approved_by_author = False
 
-
             if not approved_by_peer:
                 all_child_prs_approved_by_peer = False
 
@@ -234,13 +204,8 @@ class WallE:
         if not all_child_prs_approved_by_peer:
             raise PeerApprovalRequiredException(prs)
 
-
         for pr in prs:
-            pr.merge(json={
-                'owner': repo_owner,
-                'repo_slug': repo_slug,
-                'pull_request_id': pr.id
-            })
+            pr.merge()
 
     def handle_pull_request(self,
                             repo_owner,
@@ -251,29 +216,31 @@ class WallE:
                             reference_git_repo=''):
         # TODO : This method should be a decorator instead
         try:
-            self._handle_pull_request(repo_owner, repo_slug, pull_request_id, bypass_peer_approval, bypass_author_approval, reference_git_repo)
+            self._handle_pull_request(repo_owner, repo_slug, pull_request_id, bypass_peer_approval,
+                                      bypass_author_approval, reference_git_repo)
         except WallE_Exception, e:
             self.send_bitbucket_msg(pull_request_id, e.message)
             raise e
 
 
-import argparse
+
+
 def main():
     parser = argparse.ArgumentParser(description='Merges bitbucket pull requests.')
     parser.add_argument('pullrequest',
-                   help='The ID of the pull request')
+                        help='The ID of the pull request')
     parser.add_argument('password',
-                   help='Wall-E\'s password [for Jira and Bitbucket]')
+                        help='Wall-E\'s password [for Jira and Bitbucket]')
     parser.add_argument('--owner', default='scality',
-                   help='The owner of the repo (default: scality)')
+                        help='The owner of the repo (default: scality)')
     parser.add_argument('--slug', default='ring',
-                   help='The repo\'s slug (default: ring)')
+                        help='The repo\'s slug (default: ring)')
     parser.add_argument('--bypass_author_approval', action='store_true',
-                   help='Bypass the pull request author\'s approval')
+                        help='Bypass the pull request author\'s approval')
     parser.add_argument('--bypass_peer_approval', action='store_true',
-                   help='Bypass the pull request peer\'s approval')
+                        help='Bypass the pull request peer\'s approval')
     parser.add_argument('--reference_git_repo', default='',
-                   help='Reference to a local version of the git repo to improve cloning delay')
+                        help='Reference to a local version of the git repo to improve cloning delay')
 
     args = parser.parse_args()
     wall_e = WallE('scality_wall-e', args.password, 'wall_e@scality.com')
@@ -286,8 +253,6 @@ def main():
             reference_git_repo=args.reference_git_repo
     )
 
+
 if __name__ == '__main__':
     main()
-
-
-
