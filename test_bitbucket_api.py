@@ -4,6 +4,7 @@
 import unittest
 from bitbucket_api import (get_bitbucket_client,
                            Repository as BitBucketRepository)
+
 from git_api import Repository as GitRepository
 
 
