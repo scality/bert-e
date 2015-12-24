@@ -2,6 +2,8 @@
 # -*- coding: utf-8 -*-
 
 import unittest
+import argparse
+import sys
 
 from bitbucket_api import (Repository as BitbucketRepository,
                            get_bitbucket_client)
@@ -14,8 +16,6 @@ from wall_e_exceptions import (NotMyJobException,
                                ConflictException,
                                PeerApprovalRequiredException)
 from git_api import Repository as GitRepository
-import argparse
-import sys
 from cmd import cmd
 
 

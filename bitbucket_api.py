@@ -5,6 +5,7 @@ from string import Template
 import json
 import six
 import urllib
+
 from pybitbucket import auth
 from pybitbucket.bitbucket import Client
 
