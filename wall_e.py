@@ -226,6 +226,7 @@ class WallE:
                                        description=description))
             prs.append(pr)
 
+        for pr in prs:
             if not bypass_build_status:
                 try:
                     build_state = self.bbrepo.get_build_status(
