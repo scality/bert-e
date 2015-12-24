@@ -25,19 +25,23 @@ KNOWN_VERSIONS = OrderedDict([
     ('trunk', None)])
 
 
-class DestinationBranch(Branch):
+class ScalBranch(Branch):
     def __init__(self, name):
-        self.name = name
         assert '/' in name
+        self.name = name
+
+
+class DestinationBranch(ScalBranch):
+    def __init__(self, name):
+        super(DestinationBranch, self).__init__(name)
         self.prefix, self.version = name.split('/', 1)
         assert self.prefix == 'development'
         assert self.version in KNOWN_VERSIONS.keys()
 
 
-class FeatureBranch(Branch):
+class FeatureBranch(ScalBranch):
     def __init__(self, name):
-        self.name = name
-        assert '/' in name
+        super(FeatureBranch, self).__init__(name)
         self.prefix, self.subname = name.split('/', 1)
 
     def merge_cascade(self, destination_branch):
