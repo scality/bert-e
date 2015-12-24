@@ -1,10 +1,12 @@
 from jira import JIRA
 from os import sys
 
+
 class JiraIssue:
     def __init__(self, login, passwd):
         self._credentials = (login, passwd)
-        self._jira = JIRA('https://scality.atlassian.net', basic_auth=self._credentials)
+        self._jira = JIRA('https://scality.atlassian.net',
+                          basic_auth=self._credentials)
 
     def issue_info(self, issue_id):
         issue = self._jira.issue(issue_id)
