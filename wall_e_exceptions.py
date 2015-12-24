@@ -58,6 +58,12 @@ class NothingToDoException(WallE_InternalException):
     pass
 
 
+class BranchNameInvalidException(WallE_Exception):
+    def __init__(self, name):
+        self.branch = name
+        return WallE_Exception.__init__(self, 'Invalid name: %r' % name)
+
+
 class PrefixCannotBeMergedException(WallE_Exception):
     def __init__(self, branch_to_be_merged):
         msg = ("Sorry buddy! I cannot merge the branch `%s` into "
