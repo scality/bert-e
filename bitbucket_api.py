@@ -13,11 +13,11 @@ if six.PY3:
 else:
     quote = urllib.quote
 
+
 def get_bitbucket_client(bitbucket_login, bitbucket_password, bitbucket_mail):
-    authenticator = auth.BasicAuthenticator(
-            bitbucket_login,
-            bitbucket_password,
-            bitbucket_mail)
+    authenticator = auth.BasicAuthenticator(bitbucket_login,
+                                            bitbucket_password,
+                                            bitbucket_mail)
 
     return Client(authenticator)
 
@@ -47,21 +47,24 @@ class BitBucketObject:
 
     @classmethod
     def get_list(cls, client, **kwargs):
-        response = client.session.get(Template(cls.main_url).substitute(kwargs))
+        response = client.session.get(Template(cls.main_url)
+                                      .substitute(kwargs))
         client.expect_ok(response)
-        return [cls(client, **obj) for obj in response.json()['values'] if obj]  # FIXME: This code does not handle pagination!!!
+        return [cls(client, **obj)
+                for obj in response.json()['values']
+                if obj]  # FIXME: This code does not handle pagination!!!
 
     def create(self):
         json_str = json.dumps(self._json_data)
-        response = self.client.session.post(
-                Template(self.main_url).substitute(self._json_data),
-                json_str
-        )
+        response = self.client.session.post(Template(self.main_url)
+                                            .substitute(self._json_data),
+                                            json_str)
         self.client.expect_ok(response)
         return self.__class__(self.client, **response.json())
 
     def delete(self):
-        response = self.client.session.delete(Template(self.main_url).substitute(self._json_data))
+        response = self.client.session.delete(Template(self.main_url)
+                                              .substitute(self._json_data))
         self.client.expect_ok(response)
 
 
@@ -98,37 +101,43 @@ class Repository(BitBucketObject):
 
 
 class PullRequest(BitBucketObject):
-    main_url = 'https://api.bitbucket.org/2.0/repositories/$full_name/pullrequests'
-    get_url = 'https://api.bitbucket.org/2.0/repositories/$full_name/pullrequests/$pull_request_id'
+    main_url = ('https://api.bitbucket.org/2.0/repositories/'
+                '$full_name/pullrequests')
+    get_url = ('https://api.bitbucket.org/2.0/repositories/'
+               '$full_name/pullrequests/$pull_request_id')
 
     def full_name(self):
         return self['destination']['repository']['full_name']
 
     def add_comment(self, msg):
-        return Comment(self.client, content=msg, full_name=self.full_name(), pull_request_id=self['id']).create()
+        return Comment(self.client, content=msg, full_name=self.full_name(),
+                       pull_request_id=self['id']).create()
 
     def get_comments(self):
-        return Comment.get_list(self.client, full_name=self.full_name(), pull_request_id=self['id'])
+        return Comment.get_list(self.client, full_name=self.full_name(),
+                                pull_request_id=self['id'])
 
     def merge(self):
         self._json_data['full_name'] = self.full_name()
         self._json_data['pull_request_id'] = self['id']
         json_str = json.dumps(self._json_data)
-        response = self.client.session.post(
-                Template(self.get_url + '/merge').substitute(self._json_data),
-                json_str)
+        response = self.client.session.post(Template(self.get_url + '/merge')
+                                            .substitute(self._json_data),
+                                            json_str)
         self.client.expect_ok(response)
 
 
 class Comment(BitBucketObject):
-    main_url = 'https://api.bitbucket.org/2.0/repositories/$full_name/pullrequests/$pull_request_id/comments'
+    main_url = ('https://api.bitbucket.org/2.0/repositories/'
+                '$full_name/pullrequests/$pull_request_id/comments')
 
     def create(self):
         json_str = json.dumps({'content': self._json_data['content']})
-        response = self.client.session.post(
-                Template(self.main_url).substitute(self._json_data).replace('/2.0/', '/1.0/'),
-                # The 2.0 API does not create comments :(
-                json_str
-        )
+        response = self.client.session.post(Template(self.main_url)
+                                            .substitute(self._json_data)
+                                            .replace('/2.0/', '/1.0/'),
+                                            # The 2.0 API does not create
+                                            # comments :(
+                                            json_str)
         self.client.expect_ok(response)
         return self.__class__(self.client, **response.json())
