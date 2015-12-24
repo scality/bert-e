@@ -3,8 +3,8 @@
 
 import argparse
 from collections import OrderedDict
-from urllib import quote
-
+import six
+import urllib
 from bitbucket_api import Repository as BitBucketRepository, get_bitbucket_client
 from git_api import Repository as GitRepository, Branch, MergeFailedException
 from wall_e_exceptions import NotMyJobException, \
@@ -17,6 +17,10 @@ from wall_e_exceptions import NotMyJobException, \
     PeerApprovalRequiredException, \
     WallE_Exception
 
+if six.PY3:
+    quote = urllib.parse.quote
+else:
+    quote = urllib.quote
 
 KNOWN_VERSIONS = OrderedDict([
     ('4.3', '4.3.17'),
@@ -214,9 +218,9 @@ class WallE:
         try:
             self._handle_pull_request(repo_owner, repo_slug, pull_request_id, bypass_peer_approval,
                                       bypass_author_approval, reference_git_repo)
-        except WallE_Exception, e:
-            self.send_bitbucket_msg(pull_request_id, e.message)
-            raise e
+        except WallE_Exception as e:
+            self.send_bitbucket_msg(pull_request_id, str(e))
+            raise
 
 
 
