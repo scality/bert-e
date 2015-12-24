@@ -29,7 +29,7 @@ class AuthorApprovalRequiredException(WallE_Exception):
                    '* or approve child pull requests individually '
                    'if you want more control (manual port):\n')
             for pr in child_pull_requests:
-                msg += ('    * %s (pull request #%s)'
+                msg += ('    * %s (pull request #%s)\n'
                         % (pr['destination']['branch']['name'], pr['id']))
 
         return WallE_Exception.__init__(self, msg)
