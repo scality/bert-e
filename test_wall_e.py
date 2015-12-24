@@ -206,8 +206,7 @@ def main():
                         help='Your Bitbucket email address')
     TestWallE.args = parser.parse_args()
     sys.argv = [sys.argv[0]]
-    unittest.main(defaultTest='test_build_status_inprogress')
-    #unittest.main()
+    unittest.main()
 
 
 if __name__ == '__main__':

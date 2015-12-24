@@ -232,7 +232,7 @@ class WallE:
                         revision=pr['source']['commit']['hash'],
                         key='jenkins_utest'
                     )['state']
-                except requests.exceptions.HTTPError, e:
+                except requests.exceptions.HTTPError as e:
                     if e.response.status_code == 404:
                         raise BuildNotStartedException(pr['id'])
                     raise e
