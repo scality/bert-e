@@ -140,9 +140,18 @@ class WallE:
         git_repo.config('user.name', '"Wall-E"')
 
         try:
-            source_branch = FeatureBranch(self
-                                          .original_pr
-                                          ['source']['branch']['name'])
+            destination_branch = DestinationBranch(self
+                                                   .original_pr
+                                                   ['destination']['branch']
+                                                   ['name'])
+        except BranchNameInvalidException as e:
+            print('Destination branch %r not handled, ignore PR %s'
+                    % (e.name, pull_request_id))
+            # Nothing to do
+            return
+
+        try:
+            source_branch = FeatureBranch(self.original_pr['source']['branch']['name'])
         except BranchNameInvalidException as e:
             raise PrefixCannotBeMergedException(e.branch)
 
@@ -153,16 +162,6 @@ class WallE:
 
         if source_branch.prefix not in ['feature', 'bugfix', 'improvement']:
             raise PrefixCannotBeMergedException(source_branch.name)
-
-        try:
-            destination_branch = DestinationBranch(self
-                                                   .original_pr
-                                                   ['destination']['branch']['name'])
-        except BranchNameInvalidException as e:
-            print('Destination branch %r not handled, ignore PR %s'
-                    % (e.name, pull_request_id))
-            # Nothing to do
-            return
 
         new_pull_requests = source_branch.merge_cascade(destination_branch)
 
