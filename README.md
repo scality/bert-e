@@ -14,6 +14,10 @@ $ pip install pybitbucket==0.8.0
 ```
 ### How to launch tests? ###
 
+You should check that you have set a password to your bitbucket account.
+If the text input `Old password` doesn't appear here:
+`https://bitbucket.org/account/password/change/<your_login>/`, you must set a password.
+
 ```
 #!bash
 $ python test_wall_e.py <wall_e_password> <your_login> <your_password> <your.email@scality.com> 
