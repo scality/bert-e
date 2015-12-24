@@ -1,22 +1,12 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+from string import Template
+import json
 from pybitbucket import auth
 from pybitbucket.bitbucket import Client
-from pybitbucket.pullrequest import PullRequest
-from pybitbucket.repository import Repository
-import json
-import os
-import unittest
-from cmd import cmd
-
-from tempfile import mkdtemp
-
-
-
 
 def get_bitbucket_client(bitbucket_login, bitbucket_password, bitbucket_mail):
-
     authenticator = auth.BasicAuthenticator(
             bitbucket_login,
             bitbucket_password,
@@ -24,119 +14,110 @@ def get_bitbucket_client(bitbucket_login, bitbucket_password, bitbucket_mail):
 
     return Client(authenticator)
 
-class BitbucketRepo:
-    def __init__(self, client, owner, slug):
-        self._client = client
-        self._owner = owner
-        self._slug = slug
-        self._full_name = owner + '/' + slug
-        self._api_url = 'https://api.bitbucket.org/2.0/repositories/' + self._full_name
-        self._git_url = 'git@bitbucket.org:'+self._full_name
 
-    def delete(self):
-        assert self._slug != 'ring' # This is a security, do not remove
-        response = self._client.session.delete(self._api_url)
-        self._client.expect_ok(response)
+class BitBucketObject:
+    main_url = None
+    get_url = None
+
+    def __init__(self, client, **kwargs):
+        self.client = client
+        self.reinit_json_data(kwargs)
+
+    def reinit_json_data(self, json_data):
+        self._json_data = json_data
+
+    def __getitem__(self, item):
+        return self._json_data[item]
+
+    def __setitem__(self, item, value):
+        self._json_data[item] = value
+
+    @classmethod
+    def get(cls, client, **kwargs):
+        response = client.session.get(Template(cls.get_url).substitute(kwargs))
+        client.expect_ok(response)
+        return cls(client, **response.json())
+
+    @classmethod
+    def get_list(cls, client, **kwargs):
+        response = client.session.get(Template(cls.main_url).substitute(kwargs))
+        client.expect_ok(response)
+        return [cls(client, **obj) for obj in response.json()['values'] if obj]  # FIXME: This code does not handle pagination!!!
 
     def create(self):
-        payload = Repository.make_new_repository_payload(
-            fork_policy='no_forks',
-            is_private=True,
-            scm='git',
+        json_str = json.dumps(self._json_data)
+        response = self.client.session.post(
+                Template(self.main_url).substitute(self._json_data),
+                json_str
         )
-        json_str = json.dumps(payload)
-        response = self._client.session.post(self._api_url, data=json_str)
-        self._client.expect_ok(response)
+        self.client.expect_ok(response)
+        return self.__class__(self.client, **response.json())
 
-    def init(self):
-        #resetting the repo
-        assert self._slug != 'ring' # This is a security, do not remove
-        tmpdir = mkdtemp(self._slug)
-        os.mkdir(tmpdir +'/' + self._slug)
-        os.chdir(tmpdir +'/' + self._slug)
-        cmd('git init')
-        cmd('touch a')
-        cmd('git add a')
-        cmd('git commit -m "Initial commit"')
-        cmd('git remote add origin ' + self._git_url)
-        cmd('git push --set-upstream origin master')
-
-    @staticmethod
-    def create_branch(name, from_branch=None, file=False, do_push=True):
-        if from_branch:
-            cmd('git checkout '+from_branch)
-        cmd('git checkout -b '+name)
-        if file:
-            if file is True:
-                file = name.replace('/', '-')
-            cmd('echo %s >  a.%s'%(name, file))
-            cmd('git add a.'+file)
-            cmd('git commit -m "commit %s"'%file)
-        if do_push:
-            cmd('git push --set-upstream origin '+name)
-
-    def create_ring_branching_model(self):
-        for version in ['4.3', '5.1', '6.0', 'trunk']:
-            self.create_branch('release/'+version)
-            self.create_branch('development/'+version, 'release/'+version, file=True)
+    def delete(self):
+        response = self.client.session.delete(Template(self.main_url).substitute(self._json_data))
+        self.client.expect_ok(response)
 
 
+class Repository(BitBucketObject):
+    main_url = 'https://api.bitbucket.org/2.0/repositories/$owner/$repo_slug'
 
-class BitbucketPullRequest(PullRequest):
+    def delete(self):
+        try:
+            assert self['slug'] != 'ring'  # This is a security, do not remove
+        except KeyError:
+            pass
+        BitBucketObject.delete(self)
 
-    @staticmethod
-    def create(client, repo_full_name, source_branch_name, destination_branch_name, reviewers, title, description=''):
-        _api_url = 'https://api.bitbucket.org/2.0/repositories/' + repo_full_name + '/pullrequests'
-        payload = BitbucketPullRequest.make_new_pullrequest_payload(
-            title=title,
-            source_branch_name=source_branch_name,
-            source_repository_full_name=repo_full_name,
-            destination_branch_name=destination_branch_name,
-            close_source_branch=True,
-            description=description,
-            #reviewers=['scality_wall-e']
+    def get_git_url(self):
+        return 'git@bitbucket.org:%s/%s' % (self['owner'], self['repo_slug'])
+
+    def create_pull_request(self, **kwargs):
+        # Documentation here
+        # https://confluence.atlassian.com/bitbucket/pullrequests-resource-423626332.html#pullrequestsResource-POST(create)anewpullrequest
+        kwargs['full_name'] = self['owner'] + '/' + self['repo_slug']
+        return PullRequest(self.client, **kwargs).create()
+
+    def get_pull_requests(self, **kwargs):
+        kwargs['full_name'] = self['owner'] + '/' + self['repo_slug']
+        return PullRequest.get_list(self.client, **kwargs)
+
+    def get_pull_request(self, **kwargs):
+        kwargs['full_name'] = self['owner'] + '/' + self['repo_slug']
+        return PullRequest.get(self.client, **kwargs)
+
+
+class PullRequest(BitBucketObject):
+    main_url = 'https://api.bitbucket.org/2.0/repositories/$full_name/pullrequests'
+    get_url = 'https://api.bitbucket.org/2.0/repositories/$full_name/pullrequests/$pull_request_id'
+
+    def full_name(self):
+        return self['destination']['repository']['full_name']
+
+    def add_comment(self, msg):
+        return Comment(self.client, content=msg, full_name=self.full_name(), pull_request_id=self['id']).create()
+
+    def get_comments(self):
+        return Comment.get_list(self.client, full_name=self.full_name(), pull_request_id=self['id'])
+
+    def merge(self):
+        self._json_data['full_name'] = self.full_name()
+        self._json_data['pull_request_id'] = self['id']
+        json_str = json.dumps(self._json_data)
+        response = self.client.session.post(
+                Template(self.get_url + '/merge').substitute(self._json_data),
+                json_str)
+        self.client.expect_ok(response)
+
+
+class Comment(BitBucketObject):
+    main_url = 'https://api.bitbucket.org/2.0/repositories/$full_name/pullrequests/$pull_request_id/comments'
+
+    def create(self):
+        json_str = json.dumps({'content': self._json_data['content']})
+        response = self.client.session.post(
+                Template(self.main_url).substitute(self._json_data).replace('/2.0/', '/1.0/'),
+                # The 2.0 API does not create comments :(
+                json_str
         )
-        payload['reviewers'] = [{'username': reviewer} for reviewer in reviewers]
-        json_str = json.dumps(payload)
-        response = client.session.post(_api_url, data=json_str)
-        Client.expect_ok(response)
-        pr_id = response.json()['id']
-        print 'Pull request %r created on %s (%s)' % (title, repo_full_name, pr_id)
-        return pr_id
-
-    @staticmethod
-    def get_list_of_approving_reviewers(pr):
-        res = []
-        for participant in pr.participants:
-            if not participant['role'] == 'REVIEWER':
-                continue
-            if not participant['approved']:
-                continue
-            res.append(participant['user']['username'])
-
-        return res
-
-    @staticmethod
-    def get_list_of_comments(client, repo_full_name, pr_id):
-        _api_url = 'https://api.bitbucket.org/2.0/repositories/%s/pullrequests/%s/comments'%(repo_full_name, pr_id)
-        print _api_url
-        response = client.session.get(_api_url)
-        Client.expect_ok(response)
-        all_comments = response.json()['values']
-        return [(comment['user']['username'], comment['content']['raw']) for comment in all_comments]
-
-    @staticmethod
-    def get_participants(pr):
-        return {participant['user']['username']: participant for participant in pr.participants}
-
-
-
-
-def create_pullrequest_comment(connection, repo_full_name, pullrquest_id, msg):
-    _api_url = 'https://bitbucket.org/api/1.0/repositories/%s/pullrequests/%s/comments'%(
-        repo_full_name,
-        pullrquest_id)
-    data = {"content": msg}
-    response = connection.session.post(_api_url, json=data)
-    Client.expect_ok(response)
-
+        self.client.expect_ok(response)
+        return self.__class__(self.client, **response.json())
