@@ -88,7 +88,7 @@ class WallE:
                                             bitbucket_password, bitbucket_mail)
         self.original_pr = None
 
-    def send_bitbucket_msg(self, pull_request_id, msg, dry_run=False):
+    def send_bitbucket_msg(self, pull_request_id, msg, no_comment=False):
         print('SENDING MSG %s : %s' % (pull_request_id, msg))
         if not self.original_pr:
             return
@@ -104,7 +104,7 @@ class WallE:
                 # if wall-e doesn't do anything in the last 10 comments,
                 # allow him to run again
                 break
-        if dry_run:
+        if no_comment:
             return
         self.original_pr.add_comment(msg)
 
@@ -293,7 +293,7 @@ class WallE:
                                       reference_git_repo,
                                       no_comment)
         except WallE_Exception as e:
-            self.send_bitbucket_msg(pull_request_id, str(e), dry_run=no_comment)
+            self.send_bitbucket_msg(pull_request_id, str(e), no_comment=no_comment)
             raise
 
 
