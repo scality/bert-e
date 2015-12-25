@@ -10,7 +10,7 @@ $ git clone git@bitbucket.org:scality/wall-e.git
 $ cd wall-e
 $ virtualenv venv
 $ source venv/bin/activate
-$ pip install pybitbucket==0.8.0
+$ pip install requests==2.9.1 six-1.10.0
 ```
 ### How to launch tests? ###
 

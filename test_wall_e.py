@@ -6,7 +6,7 @@ import argparse
 import sys
 
 from bitbucket_api import (Repository as BitbucketRepository,
-                           get_bitbucket_client)
+                           Client)
 from wall_e import WallE
 from wall_e_exceptions import (NotMyJobException,
                                BranchDoesNotAcceptFeaturesException,
@@ -22,7 +22,7 @@ from cmd import cmd
 class TestWallE(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        client = get_bitbucket_client(cls.args.your_login,
+        client = Client(cls.args.your_login,
                                       cls.args.your_password,
                                       cls.args.your_mail)
         cls.bbrepo = BitbucketRepository(client,
