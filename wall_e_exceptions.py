@@ -15,16 +15,43 @@ class CommentAlreadyExistsException(WallE_InternalException):
     pass
 
 
+APPROVAL_SINGLE_PR_TEMPLATE = """
+Hi $author and `reviewers`, you 'll need to approve this PR if you think that
+it is **ready to be merged** into $destination_branches.
+"""
+
+APPROVAL_MULTI_PR_TEMPLATE = APPROVAL_SINGLE_PR_TEMPLATE + """
+
+Before approving, you should double check the diffs of the auto-generated
+pull requests to ensure that the changesets I'm about to merge into the
+development branches is correct :
+$child_pull_requests
+
+If you think that one of the auto-generated changesets is not OK, you can
+modify the `w/*` integration branches accordingly. To do so, you'll need to :
+```
+#!bash
+ $ git fetch
+ $ git checkout $first_integration_branch
+ $ # Modify the changeset to suit your needs.
+ $ # You can change history or even revert **all** the changes not meant to be
+ $ # upmerged in newer versions through these commands :
+ $ git log  # to have the sha1 of the commit(s) you need to revert
+ $ git revert <sha1>
+ $ git push  # add --force if you've rewritten history
+
+```
+"""
+
 class AuthorApprovalRequiredException(WallE_Exception):
     def __init__(self, child_pull_requests):
-        if len(child_pull_requests) == 0:
+        if len(child_pull_requests) == 1:
             msg = ('Waiting for author approval on this PR (manual port)'
                    ' or parent (auto port).')
         else:
             msg = ('The author of this pull request has not approved it.\n\n'
                    'The author may :\n\n'
-                   '* either approve this pull request and let me merge'
-                   'all versions mentionned in the Fix Version/s ticket '
+                   '* either approve this pull request and let me merge '
                    'automatically (auto port).\n'
                    '* or approve child pull requests individually '
                    'if you want more control (manual port):\n')
@@ -37,7 +64,7 @@ class AuthorApprovalRequiredException(WallE_Exception):
 
 class PeerApprovalRequiredException(WallE_Exception):
     def __init__(self, child_pull_requests):
-        msg = 'Waiting for all reviewers to approve this PR.'
+        msg = 'Waiting for a reviewer to approve this PR.'
         return WallE_Exception.__init__(self, msg)
 
 
