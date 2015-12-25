@@ -48,12 +48,20 @@ class BitBucketObject:
 
     @classmethod
     def get_list(cls, client, **kwargs):
-        response = client.session.get(Template(cls.main_url)
+        res = []
+        for page in xrange(1, 100):  # Max 100 pages retrieved
+            kwargs['page'] = page
+            response = client.session.get(Template(cls.main_url)
                                       .substitute(kwargs))
-        client.expect_ok(response)
-        return [cls(client, **obj)
-                for obj in response.json()['values']
-                if obj]  # FIXME: This code does not handle pagination!!!
+            client.expect_ok(response)
+            for obj in response.json()['values']:
+                if obj:
+                    yield cls(client, **obj)
+            try:
+                response.json()['next']
+            except KeyError:
+                return
+
 
     def create(self):
         json_str = json.dumps(self._json_data)
@@ -103,7 +111,7 @@ class Repository(BitBucketObject):
 
 class PullRequest(BitBucketObject):
     main_url = ('https://api.bitbucket.org/2.0/repositories/'
-                '$full_name/pullrequests')
+                '$full_name/pullrequests?page=$page')
     get_url = ('https://api.bitbucket.org/2.0/repositories/'
                '$full_name/pullrequests/$pull_request_id')
 
@@ -130,7 +138,7 @@ class PullRequest(BitBucketObject):
 
 class Comment(BitBucketObject):
     main_url = ('https://api.bitbucket.org/2.0/repositories/'
-                '$full_name/pullrequests/$pull_request_id/comments')
+                '$full_name/pullrequests/$pull_request_id/comments?page=$page')
 
     def create(self):
         json_str = json.dumps({'content': self._json_data['content']})
