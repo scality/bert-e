@@ -70,7 +70,7 @@ class TestWallE(unittest.TestCase):
         with self.assertRaises(AuthorApprovalRequiredException):
             self.wall_e.handle_pull_request('scality',
                                             self.bbrepo['repo_slug'], pr_id)
-        with self.assertRaises(PeerApprovalRequiredException):
+        with self.assertRaises(CommentAlreadyExistsException):
             self.wall_e.handle_pull_request('scality',
                                             self.bbrepo['repo_slug'], pr_id,
                                             bypass_author_approval=True)
@@ -166,7 +166,7 @@ def main():
                         help='Your Bitbucket email address')
     TestWallE.args = parser.parse_args()
     sys.argv = [sys.argv[0]]
-    unittest.main()
+    unittest.main(failfast=True)
 
 
 if __name__ == '__main__':
