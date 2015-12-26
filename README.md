@@ -11,6 +11,8 @@ $ cd wall-e
 $ virtualenv venv
 $ source venv/bin/activate
 $ pip install pybitbucket==0.8.0
+$ pip install jira==1.0.3
+
 ```
 ### How to launch tests? ###
 

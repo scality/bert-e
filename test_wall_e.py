@@ -1,12 +1,14 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import unittest
 import argparse
 import sys
+import unittest
 
 from bitbucket_api import (Repository as BitbucketRepository,
                            get_bitbucket_client)
+from cmd import cmd
+from git_api import Repository as GitRepository
 from wall_e import WallE
 from wall_e_exceptions import (NotMyJobException,
                                BranchDoesNotAcceptFeaturesException,
@@ -15,8 +17,6 @@ from wall_e_exceptions import (NotMyJobException,
                                AuthorApprovalRequiredException,
                                ConflictException,
                                PeerApprovalRequiredException)
-from git_api import Repository as GitRepository
-from cmd import cmd
 
 
 class TestWallE(unittest.TestCase):
@@ -166,7 +166,7 @@ def main():
                         help='Your Bitbucket email address')
     TestWallE.args = parser.parse_args()
     sys.argv = [sys.argv[0]]
-    unittest.main()
+    unittest.main(failfast=True)
 
 
 if __name__ == '__main__':

@@ -32,26 +32,26 @@ class AuthorApprovalRequiredException(WallE_Exception):
                 msg += ('    * %s (pull request #%s)\n'
                         % (pr['destination']['branch']['name'], pr['id']))
 
-        return WallE_Exception.__init__(self, msg)
+        WallE_Exception.__init__(self, msg)
 
 
 class PeerApprovalRequiredException(WallE_Exception):
     def __init__(self, child_pull_requests):
         msg = 'Waiting for all reviewers to approve this PR.'
-        return WallE_Exception.__init__(self, msg)
+        WallE_Exception.__init__(self, msg)
 
 
 class UnrecognizedBranchPatternException(WallE_Exception):
     pass
 
 
-class NotMyJobException(WallE_Exception):
+class NotMyJobException(WallE_InternalException):
     def __init__(self, current_branch, branch_to_be_merged):
         msg = ("Sorry! It is not my job to merge `%s` into `%s`.\n\n"
                "You can do it by yourself! The button is in the top-right "
                "corner :arrow_heading_up:"
                % (branch_to_be_merged, current_branch))
-        return WallE_Exception.__init__(self, msg)
+        WallE_Exception.__init__(self, msg)
 
 
 class NothingToDoException(WallE_InternalException):
@@ -61,7 +61,7 @@ class NothingToDoException(WallE_InternalException):
 class BranchNameInvalidException(WallE_Exception):
     def __init__(self, name):
         self.branch = name
-        return WallE_Exception.__init__(self, 'Invalid name: %r' % name)
+        WallE_Exception.__init__(self, 'Invalid name: %r' % name)
 
 
 class PrefixCannotBeMergedException(WallE_Exception):
@@ -76,7 +76,7 @@ class PrefixCannotBeMergedException(WallE_Exception):
                "```"
                "You should rename your branch and retry!"
                % branch_to_be_merged)
-        return WallE_Exception.__init__(self, msg)
+        WallE_Exception.__init__(self, msg)
 
 
 class BranchDoesNotAcceptFeaturesException(WallE_Exception):
@@ -89,7 +89,7 @@ class BranchDoesNotAcceptFeaturesException(WallE_Exception):
                "enhancement/RING-*\n"
                "```\n"
                "You should rename your branch and retry!\n")
-        return WallE_Exception.__init__(self, msg)
+        WallE_Exception.__init__(self, msg)
 
 
 # TODO: remove the following exception
@@ -113,7 +113,7 @@ class ManualModeException(WallE_Exception):
                "Note : This last (annoying) step "
                "will be automated in the next days"
                % (current_branch, branch_to_be_merged))
-        return WallE_Exception.__init__(self, msg)
+        WallE_Exception.__init__(self, msg)
 
 
 class ConflictException(WallE_Exception):
@@ -137,4 +137,4 @@ class ConflictException(WallE_Exception):
                "in the next days"
                % (branch_to_be_merged, current_branch,
                   current_branch, branch_to_be_merged))
-        return WallE_Exception.__init__(self, msg)
+        WallE_Exception.__init__(self, msg)
