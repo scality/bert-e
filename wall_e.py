@@ -42,8 +42,8 @@ class DestinationBranch(ScalBranch):
     def __init__(self, name):
         super(DestinationBranch, self).__init__(name)
         self.prefix, self.version = name.split('/', 1)
-        if (self.prefix != 'development'
-                or self.version not in KNOWN_VERSIONS.keys()):
+        if (self.prefix != 'development' or
+                self.version not in KNOWN_VERSIONS.keys()):
             raise BranchNameInvalidException(name)
 
 
@@ -228,7 +228,7 @@ class WallE:
                 except requests.exceptions.HTTPError as e:
                     if e.response.status_code == 404:
                         raise BuildNotStartedException(pr['id'])
-                    raise e
+                    raise
                 else:
                     if build_state == 'FAILED':
                         raise BuildFailedException(pr['id'])
@@ -286,7 +286,8 @@ class WallE:
                                       reference_git_repo,
                                       no_comment)
         except WallE_Exception as e:
-            self.send_bitbucket_msg(pull_request_id, str(e), no_comment=no_comment)
+            self.send_bitbucket_msg(pull_request_id, str(e),
+                                    no_comment=no_comment)
             raise
 
 
