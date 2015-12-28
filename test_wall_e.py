@@ -183,12 +183,10 @@ class TestWallE(unittest.TestCase):
         dst_branch = 'bugfix/RING-%s' % issue_id
         pr = self.create_feature_branch_and_pull_request(dst_branch,
                                                          'development/4.3')
-        self.bbrepo.set_build_status(
-                    state=state,
-                    url='http://example.com',
-                    revision=pr['source']['commit']['hash'],
-                    key='jenkins_utest'
-        )
+        self.bbrepo.set_build_status(state=state,
+                                     url='http://example.com',
+                                     revision=pr['source']['commit']['hash'],
+                                     key='jenkins_utest')
         self.wall_e.handle_pull_request('scality', self.bbrepo['repo_slug'],
                                         pr['id'])
 
