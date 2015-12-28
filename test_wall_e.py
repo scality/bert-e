@@ -7,13 +7,13 @@ import sys
 
 from bitbucket_api import (Repository as BitbucketRepository,
                            get_bitbucket_client)
-from wall_e import WallE
-from wall_e_exceptions import (NotMyJobException,
-                               BranchDoesNotAcceptFeaturesException,
+from wall_e import (WallE, DestinationBranch)
+from wall_e_exceptions import (BranchDoesNotAcceptFeaturesException,
                                CommentAlreadyExistsException,
                                NothingToDoException,
                                AuthorApprovalRequiredException,
                                ConflictException,
+                               BranchNameInvalidException,
                                PeerApprovalRequiredException)
 from git_api import Repository as GitRepository
 from simplecmd import cmd
@@ -122,16 +122,10 @@ class TestWallE(unittest.TestCase):
             self.wall_e.handle_pull_request('scality',
                                             self.bbrepo['repo_slug'], pr_id)
 
-    def test_not_my_job(self):
+    def test_branch_name_invalid(self):
         dst_branch = 'feature/RING-0005'
-        self.create_feature_branch_and_pull_request(dst_branch,
-                                                    'development/4.3')
-        feature_branch = 'user/4.3/RING-0005'
-        pr_id = self.create_feature_branch_and_pull_request(feature_branch,
-                                                            dst_branch)
-        with self.assertRaises(NotMyJobException):
-            self.wall_e.handle_pull_request('scality',
-                                            self.bbrepo['repo_slug'], pr_id)
+        with self.assertRaises(BranchNameInvalidException):
+                DestinationBranch(dst_branch)
 
     def test_conflict(self):
         feature_branch = 'bugfix/RING-0006'
