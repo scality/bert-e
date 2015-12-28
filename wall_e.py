@@ -3,6 +3,7 @@
 
 import argparse
 from collections import OrderedDict
+import re
 
 from template_loader import render
 import requests
@@ -64,9 +65,9 @@ class FeatureBranch(ScalBranch):
         ScalBranch.__init__(self, name)
         self.prefix, self.subname = name.split('/', 1)
         self.jira_issue_id = None
-        if self.subname.startswith('RING-') and \
-                self.subname.split(' ')[0].replace('RING-', '').isdigit():
-            self.jira_issue_id = self.subname.split(' ')[0]
+        match = re.match('(?P<issue_id>[A-Z]+-\d+)-.*', self.subname)
+        if match:
+            self.jira_issue_id = match.group('issue_id')
         else:
             print('Warning : %s does not contain a correct '
                   'issue id number' % self.name)
@@ -146,8 +147,8 @@ class WallE:
                 # FIXME : versions should not be hardcoded
                 return
 
-            raise WallE_Exception('You want to merge %s into a maintenance'
-                                  'branch but this branch does not specify a'
+            raise WallE_Exception('You want to merge `%s` into a maintenance '
+                                  'branch but this branch does not specify a '
                                   'Jira issue id' % (source_branch.name))
 
         issue = JiraIssue(issue_id=source_branch.jira_issue_id,
@@ -168,7 +169,7 @@ class WallE:
 
         if not bypass_jira_type_check:
             if JIRA_ISSUE_BRANCH_PREFIX_CORRESP[str(issue.fields.issuetype)] != \
-                    destination_branch.prefix:
+                    source_branch.prefix:
                 raise WallE_Exception('branch prefix name mismatches '
                                       'jira issue type field')
 
