@@ -24,7 +24,8 @@ def get_bitbucket_client(bitbucket_login, bitbucket_password, bitbucket_mail):
 
 
 class BitBucketObject(object):
-    main_url = None
+    list_url = None
+    add_url = None
     get_url = None
 
     def __init__(self, client, **kwargs):
@@ -48,29 +49,36 @@ class BitBucketObject(object):
 
     @classmethod
     def get_list(cls, client, **kwargs):
-        response = client.session.get(Template(cls.main_url)
-                                      .substitute(kwargs))
-        client.expect_ok(response)
-        return [cls(client, **obj)
-                for obj in response.json()['values']
-                if obj]  # FIXME: This code does not handle pagination!!!
+        for page in xrange(1, 100):  # Max 100 pages retrieved
+            kwargs['page'] = page
+            response = client.session.get(Template(cls.list_url)
+                                          .substitute(kwargs))
+            client.expect_ok(response)
+            for obj in response.json()['values']:
+                if obj:
+                    yield cls(client, **obj)
+            try:
+                response.json()['next']
+            except KeyError:
+                return
 
     def create(self):
         json_str = json.dumps(self._json_data)
-        response = self.client.session.post(Template(self.main_url)
+        response = self.client.session.post(Template(self.add_url)
                                             .substitute(self._json_data),
                                             json_str)
         self.client.expect_ok(response)
         return self.__class__(self.client, **response.json())
 
     def delete(self):
-        response = self.client.session.delete(Template(self.main_url)
+        response = self.client.session.delete(Template(self.get_url)
                                               .substitute(self._json_data))
         self.client.expect_ok(response)
 
 
 class Repository(BitBucketObject):
-    main_url = 'https://api.bitbucket.org/2.0/repositories/$owner/$repo_slug'
+    add_url = 'https://api.bitbucket.org/2.0/repositories/$owner/$repo_slug'
+    get_url = add_url
 
     def delete(self):
         try:
@@ -112,8 +120,9 @@ class Repository(BitBucketObject):
 
 
 class PullRequest(BitBucketObject):
-    main_url = ('https://api.bitbucket.org/2.0/repositories/'
-                '$full_name/pullrequests')
+    add_url = ('https://api.bitbucket.org/2.0/repositories/'
+               '$full_name/pullrequests')
+    list_url = add_url + '?page=$page'
     get_url = ('https://api.bitbucket.org/2.0/repositories/'
                '$full_name/pullrequests/$pull_request_id')
 
@@ -139,12 +148,13 @@ class PullRequest(BitBucketObject):
 
 
 class Comment(BitBucketObject):
-    main_url = ('https://api.bitbucket.org/2.0/repositories/'
-                '$full_name/pullrequests/$pull_request_id/comments')
+    add_url = ('https://api.bitbucket.org/2.0/repositories/'
+               '$full_name/pullrequests/$pull_request_id/comments')
+    list_url = add_url + '?page=$page'
 
     def create(self):
         json_str = json.dumps({'content': self._json_data['content']})
-        response = self.client.session.post(Template(self.main_url)
+        response = self.client.session.post(Template(self.add_url)
                                             .substitute(self._json_data)
                                             .replace('/2.0/', '/1.0/'),
                                             # The 2.0 API does not create
@@ -157,5 +167,6 @@ class Comment(BitBucketObject):
 class BuildStatus(BitBucketObject):
     get_url = 'https://api.bitbucket.org/2.0/repositories/$owner/$repo_slug/' \
         'commit/$revision/statuses/build/$key'
-    main_url = 'https://api.bitbucket.org/2.0/repositories/$owner/' \
+    list_url = 'https://api.bitbucket.org/2.0/repositories/$owner/' \
         '$repo_slug/commit/$revision/statuses/build'
+    add_url = list_url
