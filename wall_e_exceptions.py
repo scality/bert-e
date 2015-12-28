@@ -1,9 +1,17 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+from template_loader import render
+
 
 class WallE_Exception(Exception):
     pass
+
+
+class WallE_TemplateException(Exception):
+    def __init__(self, **kwargs):
+        msg = render(self.template, **kwargs)
+        Exception.__init__(self, msg)
 
 
 class WallE_InternalException(Exception):
@@ -15,30 +23,12 @@ class CommentAlreadyExistsException(WallE_InternalException):
     pass
 
 
-class AuthorApprovalRequiredException(WallE_Exception):
-    def __init__(self, child_pull_requests):
-        if len(child_pull_requests) == 0:
-            msg = ('Waiting for author approval on this PR (manual port)'
-                   ' or parent (auto port).')
-        else:
-            msg = ('The author of this pull request has not approved it.\n\n'
-                   'The author may :\n\n'
-                   '* either approve this pull request and let me merge'
-                   'all versions mentionned in the Fix Version/s ticket '
-                   'automatically (auto port).\n'
-                   '* or approve child pull requests individually '
-                   'if you want more control (manual port):\n')
-            for pr in child_pull_requests:
-                msg += ('    * %s (pull request #%s)\n'
-                        % (pr['destination']['branch']['name'], pr['id']))
-
-        return WallE_Exception.__init__(self, msg)
+class AuthorApprovalRequiredException(WallE_TemplateException):
+    template = 'need_approval.md'
 
 
-class PeerApprovalRequiredException(WallE_Exception):
-    def __init__(self, child_pull_requests):
-        msg = 'Waiting for all reviewers to approve this PR.'
-        return WallE_Exception.__init__(self, msg)
+class PeerApprovalRequiredException(WallE_TemplateException):
+    template = 'need_approval.md'
 
 
 class UnrecognizedBranchPatternException(WallE_Exception):
@@ -47,11 +37,9 @@ class UnrecognizedBranchPatternException(WallE_Exception):
 
 class NotMyJobException(WallE_Exception):
     def __init__(self, current_branch, branch_to_be_merged):
-        msg = ("Sorry! It is not my job to merge `%s` into `%s`.\n\n"
-               "You can do it by yourself! The button is in the top-right "
-               "corner :arrow_heading_up:"
+        msg = ("Not my job to merge `%s` into `%s`."
                % (branch_to_be_merged, current_branch))
-        return WallE_Exception.__init__(self, msg)
+        WallE_Exception.__init__(self, msg)
 
 
 class NothingToDoException(WallE_InternalException):
@@ -61,98 +49,34 @@ class NothingToDoException(WallE_InternalException):
 class BranchNameInvalidException(WallE_Exception):
     def __init__(self, name):
         self.branch = name
-        return WallE_Exception.__init__(self, 'Invalid name: %r' % name)
+        WallE_Exception.__init__(self, 'Invalid name: %r' % name)
 
 
-class PrefixCannotBeMergedException(WallE_Exception):
-    def __init__(self, branch_to_be_merged):
-        msg = ("Sorry buddy! I cannot merge the branch `%s` into "
-               "`development/*` branches\n\n"
-               "The only patterns accepted are :\n"
-               "```"
-               "feature/RING-*\n"
-               "bugfix/RING-*\n"
-               "enhancement/RING-*\n"
-               "```"
-               "You should rename your branch and retry!"
-               % branch_to_be_merged)
-        return WallE_Exception.__init__(self, msg)
+class PrefixCannotBeMergedException(WallE_TemplateException):
+    template = 'forbidden_branch.md'
+
+
+class BranchDoesNotAcceptFeaturesException(WallE_TemplateException):
+    template = 'forbidden_branch_in_maintenance.md'
+
+
+class ConflictException(WallE_TemplateException):
+    template = 'conflict.md'
 
 
 class BuildFailedException(WallE_Exception):
     def __init__(self, pr_id):
         msg = 'The build on the pull request #%s did not succeed' % pr_id
-        return WallE_Exception.__init__(self, msg)
+        WallE_Exception.__init__(self, msg)
 
 
 class BuildInProgressException(WallE_Exception):
     def __init__(self, pr_id):
         msg = 'The build on the pull request #%s is still in progress...'
-        return WallE_Exception.__init__(self, msg % pr_id)
+        WallE_Exception.__init__(self, msg % pr_id)
 
 
 class BuildNotStartedException(WallE_Exception):
     def __init__(self, pr_id):
         msg = 'The build on the pull request #%s did not start yet.' % pr_id
-        return WallE_Exception.__init__(self, msg)
-
-
-class BranchDoesNotAcceptFeaturesException(WallE_Exception):
-    def __init__(self, branch_to_be_merged):
-        msg = ("Sorry buddy! I cannot accept a `feature/*` branch "
-               "in a maintenance branch\n\n"
-               "The only patterns accepted are :\n\n"
-               "```\n"
-               "bugfix/RING-*\n"
-               "enhancement/RING-*\n"
-               "```\n"
-               "You should rename your branch and retry!\n")
-        return WallE_Exception.__init__(self, msg)
-
-
-# TODO: remove the following exception
-class ManualModeException(WallE_Exception):
-    def __init__(self, current_branch, branch_to_be_merged):
-        msg = ("You have requested the manual mode."
-               "I've prepared the integration branch but "
-               "you need to merge manually.\n"
-               "Next steps :\n"
-               '```\n'
-               '#!bash\n'
-               " $ git checkout %s\n"
-               " $ git merge %s\n"
-               " $ # fix the conflicts if any.\n"
-               " $ git add <any modified file>\n"
-               " $ git commit\n"
-               " $ git push\n"
-               '```\n'
-               "After that, send your pull request id to "
-               "release.engineering@scality.com so we start again\n\n"
-               "Note : This last (annoying) step "
-               "will be automated in the next days"
-               % (current_branch.name, branch_to_be_merged.name))
-        return WallE_Exception.__init__(self, msg)
-
-
-class ConflictException(WallE_Exception):
-    def __init__(self, current_branch, branch_to_be_merged):
-        msg = ("Ouch:bangbang: I've encountered a conflict when I tried "
-               "to merge `%s` into `%s`.\n\n"
-               "Steps to resolve :\n"
-               '```\n'
-               '#!bash\n'
-               " $ git fetch\n"
-               " $ git checkout %s\n"
-               " $ git merge origin/%s\n"
-               " $ # intense conflict fixing\n"
-               " $ git add <any modified file>\n"
-               " $ git commit\n"
-               " $ git push\n"
-               '```\n'
-               "After that, send your pull request id to "
-               "release.engineering@scality.com so we start again\n\n"
-               "Note : This last (annoying) step will be automated "
-               "in the next days"
-               % (branch_to_be_merged.name, current_branch.name,
-                  current_branch.name, branch_to_be_merged.name))
-        return WallE_Exception.__init__(self, msg)
+        WallE_Exception.__init__(self, msg)
