@@ -146,7 +146,7 @@ class WallE:
                                                    ['name'])
         except BranchNameInvalidException as e:
             print('Destination branch %r not handled, ignore PR %s'
-                    % (e.name, pull_request_id))
+                    % (e.branch, pull_request_id))
             # Nothing to do
             return
 
