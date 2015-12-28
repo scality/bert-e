@@ -1,5 +1,5 @@
 import os
-from cmd import cmd
+from simplecmd import cmd
 from tempfile import mkdtemp
 import subprocess
 

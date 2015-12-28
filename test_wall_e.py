@@ -16,7 +16,7 @@ from wall_e_exceptions import (NotMyJobException,
                                ConflictException,
                                PeerApprovalRequiredException)
 from git_api import Repository as GitRepository
-from cmd import cmd
+from simplecmd import cmd
 
 
 class TestWallE(unittest.TestCase):
