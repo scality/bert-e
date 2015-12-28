@@ -12,12 +12,14 @@ from git_api import Repository as GitRepository, Branch, MergeFailedException
 from wall_e_exceptions import (NotMyJobException,
                                PrefixCannotBeMergedException,
                                BranchDoesNotAcceptFeaturesException,
+                               BranchNameInvalidException,
                                ConflictException,
                                CommentAlreadyExistsException,
                                NothingToDoException,
                                AuthorApprovalRequiredException,
                                PeerApprovalRequiredException,
-                               WallE_Exception)
+                               WallE_Exception,
+                               WallE_TemplateException)
 
 
 KNOWN_VERSIONS = OrderedDict([
@@ -27,28 +29,33 @@ KNOWN_VERSIONS = OrderedDict([
     ('trunk', None)])
 
 
-class DestinationBranch(Branch):
+class ScalBranch(Branch):
     def __init__(self, name):
+        if '/' not in name:
+            raise BranchNameInvalidException(name)
         self.name = name
-        assert '/' in name
+
+
+class DestinationBranch(ScalBranch):
+    def __init__(self, name):
+        super(DestinationBranch, self).__init__(name)
         self.prefix, self.version = name.split('/', 1)
-        assert self.prefix == 'development'
-        assert self.version in KNOWN_VERSIONS.keys()
+        if (self.prefix != 'development'
+                or self.version not in KNOWN_VERSIONS.keys()):
+            raise BranchNameInvalidException(name)
 
 
-class FeatureBranch(Branch):
+class FeatureBranch(ScalBranch):
     def __init__(self, name):
-        self.name = name
-        assert '/' in name
+        super(FeatureBranch, self).__init__(name)
         self.prefix, self.subname = name.split('/', 1)
 
     def merge_cascade(self, destination_branch):
         if destination_branch.prefix != 'development':
             raise NotMyJobException(self.name, destination_branch.name)
         if self.prefix not in ['feature', 'bugfix', 'improvement']:
-            raise PrefixCannotBeMergedException(
-                    source=self,
-                    destination=destination_branch)
+            raise PrefixCannotBeMergedException(source=self,
+                                                destination=destination_branch)
         if (self.prefix == 'feature' and
                 destination_branch.version in ['4.3', '5.1']):
             raise BranchDoesNotAcceptFeaturesException(
@@ -141,20 +148,29 @@ class WallE:
         git_repo.config('user.name', '"Wall-E"')
 
         try:
-            source_branch = FeatureBranch(self
-                                          .original_pr
-                                          ['source']['branch']['name'])
-            assert source_branch.prefix in ['feature', 'bugfix', 'improvement']
             destination_branch = DestinationBranch(self
                                                    .original_pr
                                                    ['destination']['branch']
                                                    ['name'])
-        except AssertionError:
-            raise NotMyJobException(self
-                                    .original_pr['source']['branch']['name'],
-                                    self
-                                    .original_pr
-                                    ['destination']['branch']['name'])
+        except BranchNameInvalidException as e:
+            print('Destination branch %r not handled, ignore PR %s'
+                  % (e.branch, pull_request_id))
+            # Nothing to do
+            return
+
+        try:
+            source_branch = FeatureBranch(self.original_pr
+                                          ['source']['branch']['name'])
+        except BranchNameInvalidException as e:
+            raise PrefixCannotBeMergedException(e.branch)
+
+        if source_branch.prefix == 'hotfix':
+            # hotfix branches are ignored, nothing todo
+            print("Ignore branch %r" % source_branch.name)
+            return
+
+        if source_branch.prefix not in ['feature', 'bugfix', 'improvement']:
+            raise PrefixCannotBeMergedException(source_branch.name)
 
         new_pull_requests = source_branch.merge_cascade(destination_branch)
 
@@ -179,7 +195,8 @@ class WallE:
                      % (destination_branch.name,
                         pull_request_id, self.original_pr['title']))
 
-            description = render('pull_request_description.md', pr=self.original_pr)
+            description = render('pull_request_description.md',
+                                 pr=self.original_pr)
             pr = (self.bbrepo
                   .create_pull_request(title=title,
                                        name='name',
@@ -237,7 +254,7 @@ class WallE:
                                       bypass_peer_approval,
                                       bypass_author_approval,
                                       reference_git_repo)
-        except WallE_Exception as e:
+        except (WallE_Exception, WallE_TemplateException) as e:
             self.send_bitbucket_msg(pull_request_id, str(e))
             raise
 
