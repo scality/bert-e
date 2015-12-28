@@ -168,7 +168,8 @@ class WallE:
                                       ' contain %s' % expect_versions)
 
         if not bypass_jira_type_check:
-            if JIRA_ISSUE_BRANCH_PREFIX_CORRESP[str(issue.fields.issuetype)] != \
+            if JIRA_ISSUE_BRANCH_PREFIX_CORRESP[
+                str(issue.fields.issuetype)] != \
                     source_branch.prefix:
                 raise WallE_Exception('branch prefix name mismatches '
                                       'jira issue type field')
