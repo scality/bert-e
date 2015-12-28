@@ -48,11 +48,10 @@ class BitBucketObject(object):
 
     @classmethod
     def get_list(cls, client, **kwargs):
-        res = []
         for page in xrange(1, 100):  # Max 100 pages retrieved
             kwargs['page'] = page
             response = client.session.get(Template(cls.main_url)
-                                      .substitute(kwargs))
+                                          .substitute(kwargs))
             client.expect_ok(response)
             for obj in response.json()['values']:
                 if obj:
@@ -61,7 +60,6 @@ class BitBucketObject(object):
                 response.json()['next']
             except KeyError:
                 return
-
 
     def create(self):
         json_str = json.dumps(self._json_data)
