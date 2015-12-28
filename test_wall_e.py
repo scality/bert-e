@@ -23,8 +23,8 @@ class TestWallE(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         client = Client(cls.args.your_login,
-                                      cls.args.your_password,
-                                      cls.args.your_mail)
+                        cls.args.your_password,
+                        cls.args.your_mail)
         cls.bbrepo = BitbucketRepository(client,
                                          owner='scality',
                                          repo_slug=('test_wall_e_%s'

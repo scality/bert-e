@@ -54,7 +54,7 @@ class BitBucketObject:
     @classmethod
     def get_list(cls, client, **kwargs):
         response = client.get(Template(cls.main_url)
-                                      .substitute(kwargs))
+                              .substitute(kwargs))
         response.raise_for_status()
         return [cls(client, **obj)
                 for obj in response.json()['values']
@@ -63,14 +63,14 @@ class BitBucketObject:
     def create(self):
         json_str = json.dumps(self._json_data)
         response = self.client.post(Template(self.main_url)
-                                            .substitute(self._json_data),
-                                            json_str)
+                                    .substitute(self._json_data),
+                                    json_str)
         response.raise_for_status()
         return self.__class__(self.client, **response.json())
 
     def delete(self):
         response = self.client.delete(Template(self.main_url)
-                                              .substitute(self._json_data))
+                                      .substitute(self._json_data))
         response.raise_for_status()
 
 
@@ -128,8 +128,8 @@ class PullRequest(BitBucketObject):
         self._json_data['pull_request_id'] = self['id']
         json_str = json.dumps(self._json_data)
         response = self.client.post(Template(self.get_url + '/merge')
-                                            .substitute(self._json_data),
-                                            json_str)
+                                    .substitute(self._json_data),
+                                    json_str)
         response.raise_for_status()
 
 
@@ -140,10 +140,10 @@ class Comment(BitBucketObject):
     def create(self):
         json_str = json.dumps({'content': self._json_data['content']})
         response = self.client.post(Template(self.main_url)
-                                            .substitute(self._json_data)
-                                            .replace('/2.0/', '/1.0/'),
-                                            # The 2.0 API does not create
-                                            # comments :(
-                                            json_str)
+                                    .substitute(self._json_data)
+                                    .replace('/2.0/', '/1.0/'),
+                                    # The 2.0 API does not create
+                                    # comments :(
+                                    json_str)
         response.raise_for_status()
         return self.__class__(self.client, **response.json())

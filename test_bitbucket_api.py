@@ -12,7 +12,7 @@ class TestBitbucketApi(unittest.TestCase):
 
     def setUp(self):
         client = Client('<your login here>',
-                                      '<your pass here>', '<your mail here>')
+                        '<your pass here>', '<your mail here>')
         self.bbrepo = BitBucketRepository(client, owner='scality',
                                           repo_slug='test_wall_e')
         self.bbrepo.delete()
