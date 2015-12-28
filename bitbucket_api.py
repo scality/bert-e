@@ -23,7 +23,7 @@ def get_bitbucket_client(bitbucket_login, bitbucket_password, bitbucket_mail):
     return Client(authenticator)
 
 
-class BitBucketObject:
+class BitBucketObject(object):
     main_url = None
     get_url = None
 
@@ -155,5 +155,7 @@ class Comment(BitBucketObject):
 
 
 class BuildStatus(BitBucketObject):
-    get_url = 'https://api.bitbucket.org/2.0/repositories/$owner/$repo_slug/commit/$revision/statuses/build/$key'
-    main_url = 'https://api.bitbucket.org/2.0/repositories/$owner/$repo_slug/commit/$revision/statuses/build'
+    get_url = 'https://api.bitbucket.org/2.0/repositories/$owner/$repo_slug/' \
+        'commit/$revision/statuses/build/$key'
+    main_url = 'https://api.bitbucket.org/2.0/repositories/$owner/' \
+        '$repo_slug/commit/$revision/statuses/build'

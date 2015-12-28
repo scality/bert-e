@@ -87,8 +87,8 @@ class BuildFailedException(WallE_Exception):
 
 class BuildInProgressException(WallE_Exception):
     def __init__(self, pr_id):
-        msg = 'The build on the pull request #%s is still in progress...' % pr_id
-        return WallE_Exception.__init__(self, msg)
+        msg = 'The build on the pull request #%s is still in progress...'
+        return WallE_Exception.__init__(self, msg % pr_id)
 
 
 class BuildNotStartedException(WallE_Exception):
