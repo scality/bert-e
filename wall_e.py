@@ -28,7 +28,7 @@ KNOWN_VERSIONS = OrderedDict([
 
 class ScalBranch(Branch):
     def __init__(self, name):
-        if '/' in name:
+        if '/' not in name:
             raise BranchNameInvalidException(name)
         self.name = name
 
@@ -37,8 +37,8 @@ class DestinationBranch(ScalBranch):
     def __init__(self, name):
         super(DestinationBranch, self).__init__(name)
         self.prefix, self.version = name.split('/', 1)
-        if (not self.prefix == 'development'
-                or not self.version in KNOWN_VERSIONS.keys()):
+        if (self.prefix != 'development'
+                or self.version not in KNOWN_VERSIONS.keys()):
             raise BranchNameInvalidException(name)
 
 
@@ -146,12 +146,13 @@ class WallE:
                                                    ['name'])
         except BranchNameInvalidException as e:
             print('Destination branch %r not handled, ignore PR %s'
-                    % (e.name, pull_request_id))
+                  % (e.branch, pull_request_id))
             # Nothing to do
             return
 
         try:
-            source_branch = FeatureBranch(self.original_pr['source']['branch']['name'])
+            source_branch = FeatureBranch(self.original_pr
+                                          ['source']['branch']['name'])
         except BranchNameInvalidException as e:
             raise PrefixCannotBeMergedException(e.branch)
 
