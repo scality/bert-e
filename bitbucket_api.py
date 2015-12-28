@@ -19,10 +19,10 @@ class Client(Session):
     def __init__(self, bitbucket_login, bitbucket_password, bitbucket_mail):
         Session.__init__(self)
         headers = {
-                'Accept': 'application/json',
-                'User-Agent': 'Wall-E',
-                'Content-type': 'application/json',
-                'From': bitbucket_mail}
+            'Accept': 'application/json',
+            'User-Agent': 'Wall-E',
+            'Content-type': 'application/json',
+            'From': bitbucket_mail}
         self.mail = bitbucket_mail
         self.headers.update(headers)
         self.auth = HTTPBasicAuth(bitbucket_login, bitbucket_password)
