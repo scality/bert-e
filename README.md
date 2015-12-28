@@ -10,8 +10,16 @@ $ git clone git@bitbucket.org:scality/wall-e.git
 $ cd wall-e
 $ virtualenv venv
 $ source venv/bin/activate
+$ pip install flake8
 $ pip install pybitbucket==0.8.0
 ```
+
+### How to Launch Static Checker File?
+
+```
+$ flake8 *.py
+```
+
 ### How to launch tests? ###
 
 You should check that you have set a password to your bitbucket account.
