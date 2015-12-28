@@ -22,7 +22,8 @@ from wall_e_exceptions import (NotMyJobException,
                                BuildFailedException,
                                BuildNotStartedException,
                                BuildInProgressException,
-                               WallE_Exception)
+                               WallE_Exception,
+                               WallE_TemplateException)
 
 
 KNOWN_VERSIONS = OrderedDict([
@@ -56,9 +57,8 @@ class FeatureBranch(ScalBranch):
         if destination_branch.prefix != 'development':
             raise NotMyJobException(self.name, destination_branch.name)
         if self.prefix not in ['feature', 'bugfix', 'improvement']:
-            raise PrefixCannotBeMergedException(
-                    source=self,
-                    destination=destination_branch)
+            raise PrefixCannotBeMergedException(source=self,
+                                                destination=destination_branch)
         if (self.prefix == 'feature' and
                 destination_branch.version in ['4.3', '5.1']):
             raise BranchDoesNotAcceptFeaturesException(
@@ -202,7 +202,8 @@ class WallE:
                      % (destination_branch.name,
                         pull_request_id, self.original_pr['title']))
 
-            description = render('pull_request_description.md', pr=self.original_pr)
+            description = render('pull_request_description.md',
+                                 pr=self.original_pr)
             pr = (self.bbrepo
                   .create_pull_request(title=title,
                                        name='name',
@@ -218,7 +219,7 @@ class WallE:
                                        description=description))
             self.child_prs.append(pr)
 
-        for pr in prs:
+        for pr in self.child_prs:
             if not bypass_build_status:
                 try:
                     build_state = self.bbrepo.get_build_status(
@@ -285,7 +286,7 @@ class WallE:
                                       bypass_build_status,
                                       reference_git_repo,
                                       no_comment)
-        except WallE_Exception as e:
+        except (WallE_Exception, WallE_TemplateException) as e:
             self.send_bitbucket_msg(pull_request_id, str(e),
                                     no_comment=no_comment)
             raise
