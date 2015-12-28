@@ -4,6 +4,7 @@
 import argparse
 from collections import OrderedDict
 
+from template_loader import render
 import requests
 
 from bitbucket_api import (Repository as BitBucketRepository,
@@ -22,7 +23,8 @@ from wall_e_exceptions import (NotMyJobException,
                                BuildFailedException,
                                BuildNotStartedException,
                                BuildInProgressException,
-                               WallE_Exception)
+                               WallE_Exception,
+                               WallE_TemplateException)
 
 KNOWN_VERSIONS = OrderedDict([
     ('4.3', '4.3.17'),
@@ -74,10 +76,13 @@ class FeatureBranch(ScalBranch):
         if destination_branch.prefix != 'development':
             raise NotMyJobException(self.name, destination_branch.name)
         if self.prefix not in ['feature', 'bugfix', 'improvement']:
-            raise PrefixCannotBeMergedException(self.name)
+            raise PrefixCannotBeMergedException(source=self,
+                                                destination=destination_branch)
         if (self.prefix == 'feature' and
                 destination_branch.version in ['4.3', '5.1']):
-            raise BranchDoesNotAcceptFeaturesException(destination_branch.name)
+            raise BranchDoesNotAcceptFeaturesException(
+                source=self,
+                destination=destination_branch)
 
         previous_feature_branch = self
         new_pull_requests = []
@@ -88,12 +93,14 @@ class FeatureBranch(ScalBranch):
                 (integration_branch
                  .update_or_create_and_merge(previous_feature_branch))
             except MergeFailedException:
-                raise ConflictException(self, previous_feature_branch)
+                raise ConflictException(source=self,
+                                        destination=previous_feature_branch)
             development_branch = DestinationBranch('development/' + version)
             try:
                 integration_branch.merge(development_branch)
             except MergeFailedException:
-                raise ConflictException(self, previous_feature_branch)
+                raise ConflictException(source=self,
+                                        destination=previous_feature_branch)
             new_pull_requests.append((integration_branch, development_branch))
             previous_feature_branch = integration_branch
         return new_pull_requests
@@ -244,28 +251,14 @@ class WallE:
 
         # TODO : Add build status
 
-        prs = []
+        self.child_prs = []
         for source_branch, destination_branch in new_pull_requests:
             title = ('[%s] #%s: %s'
                      % (destination_branch.name,
                         pull_request_id, self.original_pr['title']))
-            description = ('This pull-request has been created automatically '
-                           'by @scality_wall-e.\n\n'
-                           'It is linked to its parent pull request #%s.\n\n'
-                           'Please do not edit the contents nor the title!\n\n'
-                           'The only actions allowed are '
-                           '"Approve" or "Comment"!\n\n'
-                           'You may want to refactor the branch '
-                           '`%s` manually :\n\n'
-                           '```\n'
-                           '#!bash\n'
-                           '$ git checkout %s\n'
-                           '$ git pull\n'
-                           '$ # do interesting stuff\n'
-                           '$ git push\n'
-                           '```\n'
-                           % (self.original_pr['id'], source_branch.name,
-                              source_branch.name))
+
+            description = render('pull_request_description.md',
+                                 pr=self.original_pr)
             pr = (self.bbrepo
                   .create_pull_request(title=title,
                                        name='name',
@@ -279,9 +272,9 @@ class WallE:
                                        close_source_branch=True,
                                        reviewers=[{'username': author}],
                                        description=description))
-            prs.append(pr)
+            self.child_prs.append(pr)
 
-        for pr in prs:
+        for pr in self.child_prs:
             if not bypass_build_status:
                 try:
                     build_state = self.bbrepo.get_build_status(
@@ -321,12 +314,12 @@ class WallE:
                 all_child_prs_approved_by_peer = False
 
         if not all_child_prs_approved_by_author:
-            raise AuthorApprovalRequiredException(prs)
+            raise AuthorApprovalRequiredException(wall_e=self)
 
         if not all_child_prs_approved_by_peer:
-            raise PeerApprovalRequiredException(prs)
+            raise PeerApprovalRequiredException(wall_e=self)
 
-        for pr in prs:
+        for pr in self.child_prs:
             pr.merge()
 
     def handle_pull_request(self,
@@ -352,7 +345,7 @@ class WallE:
                                       bypass_build_status,
                                       reference_git_repo,
                                       no_comment)
-        except WallE_Exception as e:
+        except (WallE_Exception, WallE_TemplateException) as e:
             self.send_bitbucket_msg(pull_request_id, str(e),
                                     no_comment=no_comment)
             raise

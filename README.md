@@ -10,8 +10,8 @@ $ git clone git@bitbucket.org:scality/wall-e.git
 $ cd wall-e
 $ virtualenv venv
 $ source venv/bin/activate
-$ pip install pybitbucket==0.8.0
-$ pip install jira==1.0.3
+$ pip install pybitbucket==0.8.0 jira==1.0.3 Jinja2==2.7.1
+>>>>>>> master
 
 ```
 ### How to launch tests? ###
