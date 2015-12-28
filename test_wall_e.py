@@ -7,7 +7,7 @@ import sys
 
 from bitbucket_api import (Repository as BitbucketRepository,
                            get_bitbucket_client)
-from wall_e import (WallE, DestinationBranch)
+from wall_e import (DestinationBranch, FeatureBranch, WallE)
 from wall_e_exceptions import (BranchDoesNotAcceptFeaturesException,
                                CommentAlreadyExistsException,
                                NothingToDoException,
@@ -124,8 +124,10 @@ class TestWallE(unittest.TestCase):
 
     def test_branch_name_invalid(self):
         dst_branch = 'feature/RING-0005'
+        src_branch = 'user/4.3/RING-0005'
         with self.assertRaises(BranchNameInvalidException):
-                DestinationBranch(dst_branch)
+            DestinationBranch(dst_branch)
+            FeatureBranch(src_branch)
 
     def test_conflict(self):
         feature_branch = 'bugfix/RING-0006'
