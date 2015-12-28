@@ -35,6 +35,7 @@ JIRA_ISSUE_BRANCH_PREFIX_CORRESP = {
     'Bug': 'bugfix',
     'Improvement': ' improvement'}
 
+
 class ScalBranch(Branch):
     def __init__(self, name):
         Branch.__init__(self, name)
@@ -51,10 +52,9 @@ class DestinationBranch(ScalBranch):
             raise BranchNameInvalidException(name)
 
         self.impacted_versions = OrderedDict(
-                [(version, release) for (version, release) in
-                 KNOWN_VERSIONS.items()
-                 if version >= self.version])
-
+            [(version, release) for (version, release) in
+                KNOWN_VERSIONS.items()
+                if version >= self.version])
 
 
 class FeatureBranch(ScalBranch):
@@ -69,7 +69,6 @@ class FeatureBranch(ScalBranch):
             print('Warning : %s does not contain a correct '
                   'issue id number' % self.name)
             # Fixme : send a comment instead ? or ignore the jira checks ?
-
 
     def merge_cascade(self, destination_branch):
         if destination_branch.prefix != 'development':
@@ -154,7 +153,8 @@ class WallE:
         if not bypass_jira_version_check:
             issue_versions = set([str(version) for version in
                                   issue.fields.fixVersions])
-            expect_versions = set(destination_branch.impacted_versions.values())
+            expect_versions = set(
+                destination_branch.impacted_versions.values())
             if issue_versions != expect_versions:
                 raise WallE_Exception('The issue fixVersions field must'
                                       ' contain %s' % expect_versions)
@@ -162,9 +162,8 @@ class WallE:
         if not bypass_jira_type_check:
             if JIRA_ISSUE_BRANCH_PREFIX_CORRESP[str(issue.fields.issuetype)] != \
                     destination_branch.prefix:
-                raise WallE_Exception('branch prefix name mismatches jira issue'
-                                      'type field')
-
+                raise WallE_Exception('branch prefix name mismatches '
+                                      'jira issue type field')
 
     def _handle_pull_request(self,
                              owner,
@@ -204,10 +203,9 @@ class WallE:
             # Nothing to do
             raise NotMyJobException(src_brnch_name, dst_brnch_name)
 
-
         try:
             source_branch = FeatureBranch(
-                    self.original_pr['source']['branch']['name'])
+                self.original_pr['source']['branch']['name'])
         except BranchNameInvalidException as e:
             raise PrefixCannotBeMergedException(e.branch)
 
@@ -230,7 +228,6 @@ class WallE:
         git_repo.config('user.name', '"Wall-E"')
 
         new_pull_requests = source_branch.merge_cascade(destination_branch)
-
 
         original_pr_is_approved_by_author = bypass_author_approval
         original_pr_is_approved_by_peer = bypass_peer_approval
@@ -388,20 +385,18 @@ def main():
     parser.add_argument('--no_comment', action='store_true',
                         help='Do not add any comment to the pull request page')
 
-
-
     args = parser.parse_args()
     wall_e = WallE('scality_wall-e', args.password, 'wall_e@scality.com')
     wall_e.handle_pull_request(repo_owner=args.owner,
                                repo_slug=args.slug,
                                pull_request_id=args.pullrequest,
-                               bypass_author_approval=
-                               args.bypass_author_approval,
+                               bypass_author_approval=args.
+                               bypass_author_approval,
                                bypass_peer_approval=args.bypass_peer_approval,
-                               bypass_jira_version_check=
-                               args.bypass_jira_version_check,
-                               bypass_jira_type_check=
-                               args.bypass_jira_type_check,
+                               bypass_jira_version_check=args.
+                               bypass_jira_version_check,
+                               bypass_jira_type_check=args.
+                               bypass_jira_type_check,
                                bypass_build_status=args.bypass_build_status,
                                reference_git_repo=args.reference_git_repo,
                                no_comment=args.no_comment)

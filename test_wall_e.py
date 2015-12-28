@@ -24,7 +24,6 @@ from git_api import Repository as GitRepository
 from simplecmd import cmd
 
 
-
 class TestWallE(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
