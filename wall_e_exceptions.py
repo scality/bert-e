@@ -5,8 +5,7 @@ from template_loader import render
 
 
 class WallE_Exception(Exception):
-    def __init__(self, msg):
-        Exception.__init__(self, msg)
+    pass
 
 
 class WallE_TemplateException(Exception):
@@ -63,3 +62,21 @@ class BranchDoesNotAcceptFeaturesException(WallE_TemplateException):
 
 class ConflictException(WallE_TemplateException):
     template = 'conflict.md'
+
+
+class BuildFailedException(WallE_Exception):
+    def __init__(self, pr_id):
+        msg = 'The build on the pull request #%s did not succeed' % pr_id
+        WallE_Exception.__init__(self, msg)
+
+
+class BuildInProgressException(WallE_Exception):
+    def __init__(self, pr_id):
+        msg = 'The build on the pull request #%s is still in progress...'
+        WallE_Exception.__init__(self, msg % pr_id)
+
+
+class BuildNotStartedException(WallE_Exception):
+    def __init__(self, pr_id):
+        msg = 'The build on the pull request #%s did not start yet.' % pr_id
+        WallE_Exception.__init__(self, msg)
