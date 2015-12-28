@@ -77,14 +77,15 @@ class TestWallE(unittest.TestCase):
             self.wall_e.handle_pull_request('scality',
                                             self.bbrepo['repo_slug'], pr['id'],
                                             bypass_build_status=True)
-        # PeerApprovalRequiredException and AuthorApprovalRequiredException have
-        # the same message, so CommentAlreadyExistsException is used
+        # PeerApprovalRequiredException and AuthorApprovalRequiredException
+        # have the same message, so CommentAlreadyExistsException is used
         with self.assertRaises(CommentAlreadyExistsException):
             self.wall_e.handle_pull_request('scality',
                                             self.bbrepo['repo_slug'], pr['id'],
                                             bypass_author_approval=True,
                                             bypass_build_status=True)
         self.wall_e.handle_pull_request('scality', self.bbrepo['repo_slug'],
+                                        pr['id'],
                                         bypass_peer_approval=True,
                                         bypass_author_approval=True,
                                         bypass_build_status=True)

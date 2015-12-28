@@ -83,5 +83,5 @@ def main():
 
 
 if __name__ == '__main__':
-    sys.stdout = codecs.getwriter('utf8')(sys.stdout) # required for piping
+    sys.stdout = codecs.getwriter('utf8')(sys.stdout)  # required for piping
     main()

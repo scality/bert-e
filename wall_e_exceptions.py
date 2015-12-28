@@ -7,6 +7,7 @@ from template_loader import render
 class WallE_Exception(Exception):
     pass
 
+
 class WallE_TemplateException(Exception):
     def __init__(self, **kwargs):
         msg = render(self.template, **kwargs)
