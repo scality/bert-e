@@ -4,7 +4,7 @@ from tempfile import mkdtemp
 import subprocess
 
 
-class Repository:
+class Repository(object):
     def __init__(self, url):
         self._url = url
         self.directory = mkdtemp()
@@ -52,7 +52,7 @@ class Repository:
                                'release/'+version, file=True)
 
 
-class Branch:
+class Branch(object):
     def __init__(self, name):
         self.name = name
 

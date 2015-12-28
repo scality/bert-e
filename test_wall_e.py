@@ -1,8 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import unittest
 import argparse
+import requests
+import unittest
 import sys
 
 from bitbucket_api import (Repository as BitbucketRepository,
@@ -14,7 +15,9 @@ from wall_e_exceptions import (BranchDoesNotAcceptFeaturesException,
                                AuthorApprovalRequiredException,
                                ConflictException,
                                BranchNameInvalidException,
-                               PeerApprovalRequiredException)
+                               BuildNotStartedException,
+                               BuildInProgressException,
+                               BuildFailedException)
 from git_api import Repository as GitRepository
 from simplecmd import cmd
 
@@ -32,8 +35,10 @@ class TestWallE(unittest.TestCase):
                                          is_private=True)
         try:
             cls.bbrepo.delete()
-        except:
-            pass
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code != 404:
+                raise
+
         cls.bbrepo.create()
         cls.wall_e = WallE('scality_wall-e', cls.args.wall_e_password,
                            'wall_e@scality.com')
@@ -47,6 +52,7 @@ class TestWallE(unittest.TestCase):
             from_branch,
             reviewers=['scality_wall-e'],
             file=True):
+
         self.gitrepo.create_branch(feature_branch, from_branch=from_branch,
                                    file=file)
         return self.bbrepo.create_pull_request(title='title',
@@ -60,67 +66,80 @@ class TestWallE(unittest.TestCase):
                                                close_source_branch=True,
                                                reviewers=[{'username':
                                                            'scality_wall-e'}],
-                                               description='')['id']
+                                               description='')
 
     def test_bugfix_full_merge_manual(self):
         feature_branch = 'bugfix/RING-0000'
         dst_branch = 'development/4.3'
-        pr_id = self.create_feature_branch_and_pull_request(feature_branch,
-                                                            dst_branch)
+        pr = self.create_feature_branch_and_pull_request(feature_branch,
+                                                         dst_branch)
         with self.assertRaises(AuthorApprovalRequiredException):
             self.wall_e.handle_pull_request('scality',
-                                            self.bbrepo['repo_slug'], pr_id)
-        with self.assertRaises(PeerApprovalRequiredException):
+                                            self.bbrepo['repo_slug'], pr['id'],
+                                            bypass_build_status=True)
+        # PeerApprovalRequiredException and AuthorApprovalRequiredException have
+        # the same message, so CommentAlreadyExistsException is used
+        with self.assertRaises(CommentAlreadyExistsException):
             self.wall_e.handle_pull_request('scality',
-                                            self.bbrepo['repo_slug'], pr_id,
-                                            bypass_author_approval=True)
+                                            self.bbrepo['repo_slug'], pr['id'],
+                                            bypass_author_approval=True,
+                                            bypass_build_status=True)
         self.wall_e.handle_pull_request('scality', self.bbrepo['repo_slug'],
-                                        pr_id, bypass_peer_approval=True,
-                                        bypass_author_approval=True)
+                                        pr['id'],
+                                        bypass_peer_approval=True,
+                                        bypass_author_approval=True,
+                                        bypass_build_status=True)
 
     def test_bugfix_full_merge_automatic(self):
         feature_branch = 'bugfix/RING-0001'
         dst_branch = 'development/4.3'
-        pr_id = (self.create_feature_branch_and_pull_request
-                 (feature_branch, dst_branch, reviewers=['scality_wall-e']))
+        reviewers = ['scality_wall-e']
+        pr = self.create_feature_branch_and_pull_request(feature_branch,
+                                                         dst_branch,
+                                                         reviewers=reviewers)
         self.wall_e.handle_pull_request('scality', self.bbrepo['repo_slug'],
-                                        pr_id, bypass_author_approval=True,
-                                        bypass_peer_approval=True)
+                                        pr['id'], bypass_author_approval=True,
+                                        bypass_peer_approval=True,
+                                        bypass_build_status=True)
 
     def test_handle_manually_twice(self):
         feature_branch = 'bugfix/RING-0002'
         dst_branch = 'development/4.3'
-        pr_id = self.create_feature_branch_and_pull_request(feature_branch,
-                                                            dst_branch)
+        pr = self.create_feature_branch_and_pull_request(feature_branch,
+                                                         dst_branch)
         with self.assertRaises(AuthorApprovalRequiredException):
             self.wall_e.handle_pull_request('scality',
-                                            self.bbrepo['repo_slug'], pr_id)
+                                            self.bbrepo['repo_slug'], pr['id'],
+                                            bypass_build_status=True)
         with self.assertRaises(CommentAlreadyExistsException):
             self.wall_e.handle_pull_request('scality',
-                                            self.bbrepo['repo_slug'], pr_id)
+                                            self.bbrepo['repo_slug'], pr['id'],
+                                            bypass_build_status=True)
 
     def test_handle_automatically_twice(self):
         feature_branch = 'bugfix/RING-0003'
         dst_branch = 'development/4.3'
-        pr_id = self.create_feature_branch_and_pull_request(feature_branch,
-                                                            dst_branch)
+        pr = self.create_feature_branch_and_pull_request(feature_branch,
+                                                         dst_branch)
         self.wall_e.handle_pull_request('scality', self.bbrepo['repo_slug'],
-                                        pr_id, bypass_peer_approval=True,
-                                        bypass_author_approval=True)
+                                        pr['id'], bypass_peer_approval=True,
+                                        bypass_author_approval=True,
+                                        bypass_build_status=True)
         with self.assertRaises(NothingToDoException):
             self.wall_e.handle_pull_request('scality',
-                                            self.bbrepo['repo_slug'], pr_id,
+                                            self.bbrepo['repo_slug'], pr['id'],
                                             bypass_peer_approval=True,
-                                            bypass_author_approval=True)
+                                            bypass_author_approval=True,
+                                            bypass_build_status=True)
 
     def test_refuse_feature_on_maintenance_branch(self):
         feature_branch = 'feature/RING-0004'
         dst_branch = 'development/4.3'
-        pr_id = self.create_feature_branch_and_pull_request(feature_branch,
-                                                            dst_branch)
+        pr = self.create_feature_branch_and_pull_request(feature_branch,
+                                                         dst_branch)
         with self.assertRaises(BranchDoesNotAcceptFeaturesException):
             self.wall_e.handle_pull_request('scality',
-                                            self.bbrepo['repo_slug'], pr_id)
+                                            self.bbrepo['repo_slug'], pr['id'])
 
     def test_branch_name_invalid(self):
         dst_branch = 'feature/RING-0005'
@@ -132,22 +151,58 @@ class TestWallE(unittest.TestCase):
     def test_conflict(self):
         feature_branch = 'bugfix/RING-0006'
         dst_branch = 'development/4.3'
-        pr_id1 = self.create_feature_branch_and_pull_request(feature_branch,
-                                                             dst_branch,
-                                                             file='toto.txt')
+        pr1 = self.create_feature_branch_and_pull_request(feature_branch,
+                                                          dst_branch,
+                                                          file='toto.txt')
         feature_branch = 'improvement/4.3/RING-0006'
-        pr_id2 = self.create_feature_branch_and_pull_request(feature_branch,
-                                                             dst_branch,
-                                                             file='toto.txt')
+        pr2 = self.create_feature_branch_and_pull_request(feature_branch,
+                                                          dst_branch,
+                                                          file='toto.txt')
         self.wall_e.handle_pull_request('scality', self.bbrepo['repo_slug'],
-                                        pr_id1, bypass_peer_approval=True,
-                                        bypass_author_approval=True)
+                                        pr1['id'], bypass_peer_approval=True,
+                                        bypass_author_approval=True,
+                                        bypass_build_status=True)
         with self.assertRaises(ConflictException):
             self.wall_e.handle_pull_request('scality',
-                                            self.bbrepo['repo_slug'], pr_id2,
+                                            self.bbrepo['repo_slug'],
+                                            pr2['id'],
                                             bypass_peer_approval=True,
-                                            bypass_author_approval=True)
+                                            bypass_author_approval=True,
+                                            bypass_build_status=True)
         cmd('git merge --abort')
+
+    def test_build_status_not_there_yet(self):
+        feature_branch = 'bugfix/RING-0007'
+        dst_branch = 'development/4.3'
+        pr = self.create_feature_branch_and_pull_request(feature_branch,
+                                                         dst_branch)
+        with self.assertRaises(BuildNotStartedException):
+            self.wall_e.handle_pull_request('scality',
+                                            self.bbrepo['repo_slug'],
+                                            pr['id'])
+
+    def set_build_status(self, issue_id, state):
+        dst_branch = 'bugfix/RING-%s' % issue_id
+        pr = self.create_feature_branch_and_pull_request(dst_branch,
+                                                         'development/4.3')
+        self.bbrepo.set_build_status(state=state,
+                                     url='http://example.com',
+                                     revision=pr['source']['commit']['hash'],
+                                     key='jenkins_utest')
+        self.wall_e.handle_pull_request('scality', self.bbrepo['repo_slug'],
+                                        pr['id'])
+
+    def test_build_status_fail(self):
+        with self.assertRaises(BuildFailedException):
+            self.set_build_status('0008', 'FAILED')
+
+    def test_build_status_inprogress(self):
+        with self.assertRaises(BuildInProgressException):
+            self.set_build_status('0009', 'INPROGRESS')
+
+    # FIXME: Find a way to test the successful state
+    # def test_build_status_success(self):
+    #     self.set_build_status('0010', 'SUCCESSFUL')
 
 
 def main():
@@ -162,7 +217,7 @@ def main():
                         help='Your Bitbucket email address')
     TestWallE.args = parser.parse_args()
     sys.argv = [sys.argv[0]]
-    unittest.main()
+    unittest.main(failfast=True)
 
 
 if __name__ == '__main__':

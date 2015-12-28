@@ -28,7 +28,7 @@ class Client(Session):
         self.auth = HTTPBasicAuth(bitbucket_login, bitbucket_password)
 
 
-class BitBucketObject:
+class BitBucketObject(object):
     main_url = None
     get_url = None
 
@@ -105,6 +105,16 @@ class Repository(BitBucketObject):
         kwargs['full_name'] = self['owner'] + '/' + self['repo_slug']
         return PullRequest.get(self.client, **kwargs)
 
+    def get_build_status(self, **kwargs):
+        kwargs['owner'] = self['owner']
+        kwargs['repo_slug'] = self['repo_slug']
+        return BuildStatus.get(self.client, **kwargs)
+
+    def set_build_status(self, **kwargs):
+        kwargs['owner'] = self['owner']
+        kwargs['repo_slug'] = self['repo_slug']
+        return BuildStatus(self.client, **kwargs).create()
+
 
 class PullRequest(BitBucketObject):
     main_url = ('https://api.bitbucket.org/2.0/repositories/'
@@ -147,3 +157,10 @@ class Comment(BitBucketObject):
                                     json_str)
         response.raise_for_status()
         return self.__class__(self.client, **response.json())
+
+
+class BuildStatus(BitBucketObject):
+    get_url = 'https://api.bitbucket.org/2.0/repositories/$owner/$repo_slug/' \
+        'commit/$revision/statuses/build/$key'
+    main_url = 'https://api.bitbucket.org/2.0/repositories/$owner/' \
+        '$repo_slug/commit/$revision/statuses/build'

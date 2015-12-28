@@ -4,6 +4,9 @@
 import argparse
 from collections import OrderedDict
 
+from template_loader import render
+import requests
+
 from bitbucket_api import (Repository as BitBucketRepository,
                            Client)
 from git_api import Repository as GitRepository, Branch, MergeFailedException
@@ -16,14 +19,17 @@ from wall_e_exceptions import (NotMyJobException,
                                NothingToDoException,
                                AuthorApprovalRequiredException,
                                PeerApprovalRequiredException,
-                               WallE_Exception)
+                               BuildFailedException,
+                               BuildNotStartedException,
+                               BuildInProgressException,
+                               WallE_Exception,
+                               WallE_TemplateException)
 
 
 KNOWN_VERSIONS = OrderedDict([
     ('4.3', '4.3.17'),
     ('5.1', '5.1.4'),
-    ('6.0', '6.0.0'),
-    ('trunk', None)])
+    ('6.0', '6.0.0')])
 
 
 class ScalBranch(Branch):
@@ -37,8 +43,8 @@ class DestinationBranch(ScalBranch):
     def __init__(self, name):
         super(DestinationBranch, self).__init__(name)
         self.prefix, self.version = name.split('/', 1)
-        if (self.prefix != 'development'
-                or self.version not in KNOWN_VERSIONS.keys()):
+        if (self.prefix != 'development' or
+                self.version not in KNOWN_VERSIONS.keys()):
             raise BranchNameInvalidException(name)
 
 
@@ -51,10 +57,13 @@ class FeatureBranch(ScalBranch):
         if destination_branch.prefix != 'development':
             raise NotMyJobException(self.name, destination_branch.name)
         if self.prefix not in ['feature', 'bugfix', 'improvement']:
-            raise PrefixCannotBeMergedException(self.name)
+            raise PrefixCannotBeMergedException(source=self,
+                                                destination=destination_branch)
         if (self.prefix == 'feature' and
                 destination_branch.version in ['4.3', '5.1']):
-            raise BranchDoesNotAcceptFeaturesException(destination_branch.name)
+            raise BranchDoesNotAcceptFeaturesException(
+                source=self,
+                destination=destination_branch)
 
         previous_feature_branch = self
         new_pull_requests = []
@@ -67,12 +76,14 @@ class FeatureBranch(ScalBranch):
                 (integration_branch
                  .update_or_create_and_merge(previous_feature_branch))
             except MergeFailedException:
-                raise ConflictException(self, previous_feature_branch)
+                raise ConflictException(source=self,
+                                        destination=previous_feature_branch)
             development_branch = DestinationBranch('development/' + version)
             try:
                 integration_branch.merge(development_branch)
             except MergeFailedException:
-                raise ConflictException(self, previous_feature_branch)
+                raise ConflictException(source=self,
+                                        destination=previous_feature_branch)
             new_pull_requests.append((integration_branch, development_branch))
             previous_feature_branch = integration_branch
         return new_pull_requests
@@ -84,7 +95,7 @@ class WallE:
                               bitbucket_password, bitbucket_mail)
         self.original_pr = None
 
-    def send_bitbucket_msg(self, pull_request_id, msg):
+    def send_bitbucket_msg(self, pull_request_id, msg, no_comment=False):
         print('SENDING MSG %s : %s' % (pull_request_id, msg))
         if not self.original_pr:
             return
@@ -100,6 +111,8 @@ class WallE:
                 # if wall-e doesn't do anything in the last 10 comments,
                 # allow him to run again
                 break
+        if no_comment:
+            return
         self.original_pr.add_comment(msg)
 
     def _handle_pull_request(self,
@@ -108,7 +121,9 @@ class WallE:
                              pull_request_id,
                              bypass_peer_approval=False,
                              bypass_author_approval=False,
-                             reference_git_repo=''):
+                             bypass_build_status=False,
+                             reference_git_repo='',
+                             no_comment=False):
 
         self.bbrepo = BitBucketRepository(self._bbconn, owner=owner,
                                           repo_slug=repo_slug)
@@ -181,28 +196,14 @@ class WallE:
 
         # TODO : Add build status
 
-        prs = []
+        self.child_prs = []
         for source_branch, destination_branch in new_pull_requests:
             title = ('[%s] #%s: %s'
                      % (destination_branch.name,
                         pull_request_id, self.original_pr['title']))
-            description = ('This pull-request has been created automatically '
-                           'by @scality_wall-e.\n\n'
-                           'It is linked to its parent pull request #%s.\n\n'
-                           'Please do not edit the contents nor the title!\n\n'
-                           'The only actions allowed are '
-                           '"Approve" or "Comment"!\n\n'
-                           'You may want to refactor the branch '
-                           '`%s` manually :\n\n'
-                           '```\n'
-                           '#!bash\n'
-                           '$ git checkout %s\n'
-                           '$ git pull\n'
-                           '$ # do interesting stuff\n'
-                           '$ git push\n'
-                           '```\n'
-                           % (self.original_pr['id'], source_branch.name,
-                              source_branch.name))
+
+            description = render('pull_request_description.md',
+                                 pr=self.original_pr)
             pr = (self.bbrepo
                   .create_pull_request(title=title,
                                        name='name',
@@ -216,7 +217,27 @@ class WallE:
                                        close_source_branch=True,
                                        reviewers=[{'username': author}],
                                        description=description))
-            prs.append(pr)
+            self.child_prs.append(pr)
+
+        for pr in self.child_prs:
+            if not bypass_build_status:
+                try:
+                    build_state = self.bbrepo.get_build_status(
+                        revision=pr['source']['commit']['hash'],
+                        key='jenkins_utest'
+                    )['state']
+                except requests.exceptions.HTTPError as e:
+                    if e.response.status_code == 404:
+                        raise BuildNotStartedException(pr['id'])
+                    raise
+                else:
+                    if build_state == 'FAILED':
+                        raise BuildFailedException(pr['id'])
+                    elif build_state == 'INPROGRESS':
+                        raise BuildInProgressException(pr['id'])
+
+                    assert build_state == 'SUCCESSFUL'
+
             if (original_pr_is_approved_by_author and
                     original_pr_is_approved_by_peer):
                 continue
@@ -238,12 +259,12 @@ class WallE:
                 all_child_prs_approved_by_peer = False
 
         if not all_child_prs_approved_by_author:
-            raise AuthorApprovalRequiredException(prs)
+            raise AuthorApprovalRequiredException(wall_e=self)
 
         if not all_child_prs_approved_by_peer:
-            raise PeerApprovalRequiredException(prs)
+            raise PeerApprovalRequiredException(wall_e=self)
 
-        for pr in prs:
+        for pr in self.child_prs:
             pr.merge()
 
     def handle_pull_request(self,
@@ -252,16 +273,22 @@ class WallE:
                             pull_request_id,
                             bypass_peer_approval=False,
                             bypass_author_approval=False,
+                            bypass_build_status=False,
                             reference_git_repo='',
-                            description=''):
+                            no_comment=False):
         # TODO : This method should be a decorator instead
         try:
-            self._handle_pull_request(repo_owner, repo_slug, pull_request_id,
+            self._handle_pull_request(repo_owner,
+                                      repo_slug,
+                                      pull_request_id,
                                       bypass_peer_approval,
                                       bypass_author_approval,
-                                      reference_git_repo)
-        except WallE_Exception as e:
-            self.send_bitbucket_msg(pull_request_id, str(e))
+                                      bypass_build_status,
+                                      reference_git_repo,
+                                      no_comment)
+        except (WallE_Exception, WallE_TemplateException) as e:
+            self.send_bitbucket_msg(pull_request_id, str(e),
+                                    no_comment=no_comment)
             raise
 
 
@@ -280,6 +307,10 @@ def main():
                         help='Bypass the pull request author\'s approval')
     parser.add_argument('--bypass_peer_approval', action='store_true',
                         help='Bypass the pull request peer\'s approval')
+    parser.add_argument('--bypass_build_status', action='store_true',
+                        help='Bypass the build and test status')
+    parser.add_argument('--no_comment', action='store_true',
+                        help='Do not add any comment to the pull request page')
     parser.add_argument('--reference_git_repo', default='',
                         help='Reference to a local version of the git repo '
                              'to improve cloning delay')
@@ -292,8 +323,9 @@ def main():
                                bypass_author_approval=args
                                .bypass_author_approval,
                                bypass_peer_approval=args.bypass_peer_approval,
-                               reference_git_repo=args.reference_git_repo)
-
+                               bypass_build_status=args.bypass_build_status,
+                               reference_git_repo=args.reference_git_repo,
+                               no_comment=args.no_comment)
 
 if __name__ == '__main__':
     main()
