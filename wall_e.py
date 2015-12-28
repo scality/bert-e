@@ -10,6 +10,7 @@ from git_api import Repository as GitRepository, Branch, MergeFailedException
 from wall_e_exceptions import (NotMyJobException,
                                PrefixCannotBeMergedException,
                                BranchDoesNotAcceptFeaturesException,
+                               BranchNameInvalidException,
                                ConflictException,
                                CommentAlreadyExistsException,
                                NothingToDoException,
@@ -25,19 +26,25 @@ KNOWN_VERSIONS = OrderedDict([
     ('trunk', None)])
 
 
-class DestinationBranch(Branch):
+class ScalBranch(Branch):
     def __init__(self, name):
+        if '/' not in name:
+            raise BranchNameInvalidException(name)
         self.name = name
-        assert '/' in name
+
+
+class DestinationBranch(ScalBranch):
+    def __init__(self, name):
+        super(DestinationBranch, self).__init__(name)
         self.prefix, self.version = name.split('/', 1)
-        assert self.prefix == 'development'
-        assert self.version in KNOWN_VERSIONS.keys()
+        if (self.prefix != 'development'
+                or self.version not in KNOWN_VERSIONS.keys()):
+            raise BranchNameInvalidException(name)
 
 
-class FeatureBranch(Branch):
+class FeatureBranch(ScalBranch):
     def __init__(self, name):
-        self.name = name
-        assert '/' in name
+        super(FeatureBranch, self).__init__(name)
         self.prefix, self.subname = name.split('/', 1)
 
     def merge_cascade(self, destination_branch):
@@ -133,20 +140,29 @@ class WallE:
         git_repo.config('user.name', '"Wall-E"')
 
         try:
-            source_branch = FeatureBranch(self
-                                          .original_pr
-                                          ['source']['branch']['name'])
-            assert source_branch.prefix in ['feature', 'bugfix', 'improvement']
             destination_branch = DestinationBranch(self
                                                    .original_pr
                                                    ['destination']['branch']
                                                    ['name'])
-        except AssertionError:
-            raise NotMyJobException(self
-                                    .original_pr['source']['branch']['name'],
-                                    self
-                                    .original_pr
-                                    ['destination']['branch']['name'])
+        except BranchNameInvalidException as e:
+            print('Destination branch %r not handled, ignore PR %s'
+                  % (e.branch, pull_request_id))
+            # Nothing to do
+            return
+
+        try:
+            source_branch = FeatureBranch(self.original_pr
+                                          ['source']['branch']['name'])
+        except BranchNameInvalidException as e:
+            raise PrefixCannotBeMergedException(e.branch)
+
+        if source_branch.prefix == 'hotfix':
+            # hotfix branches are ignored, nothing todo
+            print("Ignore branch %r" % source_branch.name)
+            return
+
+        if source_branch.prefix not in ['feature', 'bugfix', 'improvement']:
+            raise PrefixCannotBeMergedException(source_branch.name)
 
         new_pull_requests = source_branch.merge_cascade(destination_branch)
 

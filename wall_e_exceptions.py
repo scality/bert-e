@@ -45,10 +45,6 @@ class UnrecognizedBranchPatternException(WallE_Exception):
     pass
 
 
-class VersionMismatchException(WallE_Exception):
-    pass
-
-
 class NotMyJobException(WallE_Exception):
     def __init__(self, current_branch, branch_to_be_merged):
         msg = ("Sorry! It is not my job to merge `%s` into `%s`.\n\n"
@@ -60,6 +56,12 @@ class NotMyJobException(WallE_Exception):
 
 class NothingToDoException(WallE_InternalException):
     pass
+
+
+class BranchNameInvalidException(WallE_Exception):
+    def __init__(self, name):
+        self.branch = name
+        return WallE_Exception.__init__(self, 'Invalid name: %r' % name)
 
 
 class PrefixCannotBeMergedException(WallE_Exception):
