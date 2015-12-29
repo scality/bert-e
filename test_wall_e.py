@@ -7,7 +7,7 @@ import unittest
 import sys
 
 from bitbucket_api import (Repository as BitbucketRepository,
-                           get_bitbucket_client)
+                           Client)
 from wall_e import (DestinationBranch, FeatureBranch, WallE)
 from wall_e_exceptions import (BranchDoesNotAcceptFeaturesException,
                                CommentAlreadyExistsException,
@@ -25,9 +25,9 @@ from simplecmd import cmd
 class TestWallE(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        client = get_bitbucket_client(cls.args.your_login,
-                                      cls.args.your_password,
-                                      cls.args.your_mail)
+        client = Client(cls.args.your_login,
+                        cls.args.your_password,
+                        cls.args.your_mail)
         cls.bbrepo = BitbucketRepository(client,
                                          owner='scality',
                                          repo_slug=('test_wall_e_%s'

@@ -10,10 +10,7 @@ $ git clone git@bitbucket.org:scality/wall-e.git
 $ cd wall-e
 $ virtualenv venv
 $ source venv/bin/activate
-$ pip install flake8
-$ pip install pybitbucket==0.8.0
-$ pip install Jinja2==2.8
-
+$ pip install flake8 requests==2.9.1 six-1.10.0 Jinja2==2.7.1
 ```
 
 ### How to Launch Static Checker File?

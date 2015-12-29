@@ -3,7 +3,7 @@
 
 import unittest
 
-from bitbucket_api import (get_bitbucket_client,
+from bitbucket_api import (Client,
                            Repository as BitBucketRepository)
 from git_api import Repository as GitRepository
 
@@ -11,8 +11,8 @@ from git_api import Repository as GitRepository
 class TestBitbucketApi(unittest.TestCase):
 
     def setUp(self):
-        client = get_bitbucket_client('<your login here>',
-                                      '<your pass here>', '<your mail here>')
+        client = Client('<your login here>',
+                        '<your pass here>', '<your mail here>')
         self.bbrepo = BitBucketRepository(client, owner='scality',
                                           repo_slug='test_wall_e')
         self.bbrepo.delete()
