@@ -6,7 +6,7 @@ import re
 import sys
 import codecs
 from bitbucket_api import (Repository as BitBucketRepository,
-                           get_bitbucket_client)
+                           Client)
 
 fields = {
     'author': ['author/username', 'author/display_name'],
@@ -23,7 +23,7 @@ fields = {
 def filter_pr(your_login, your_password, your_mail, owner, slug, **kwargs):
     """Because Atlassian does not have a pull request search feature"""
 
-    client = get_bitbucket_client(your_login, your_password, your_mail)
+    client = Client(your_login, your_password, your_mail)
     bbrepo = BitBucketRepository(client, owner=owner, repo_slug=slug)
 
     for pr in bbrepo.get_pull_requests():
