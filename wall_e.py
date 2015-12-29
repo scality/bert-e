@@ -65,7 +65,7 @@ class FeatureBranch(ScalBranch):
         ScalBranch.__init__(self, name)
         self.prefix, self.subname = name.split('/', 1)
         self.jira_issue_id = None
-        match = re.match('(?P<issue_id>[A-Z]+-\d+).*', self.subname)
+        match = re.match('.*(?P<issue_id>[A-Z]+-\d+).*', self.subname)
         if match:
             self.jira_issue_id = match.group('issue_id')
         else:
@@ -151,7 +151,7 @@ class WallE:
 
         issue = JiraIssue(issue_id=source_branch.jira_issue_id,
                           login='wall_e',
-                          passwd=self._bbconn.password)
+                          passwd=self._bbconn.auth.password)
         # Fixme : add proper error handling
         # What happens when the issue does not exist ? -> comment on PR ?
         # What happens in case of network failure ? -> fail silently ?
