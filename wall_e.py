@@ -25,6 +25,7 @@ from wall_e_exceptions import (NotMyJobException,
                                BuildNotStartedException,
                                BuildInProgressException,
                                WallE_Exception,
+                               WallE_InternalException,
                                WallE_TemplateException)
 
 KNOWN_VERSIONS = OrderedDict([
@@ -32,7 +33,7 @@ KNOWN_VERSIONS = OrderedDict([
     ('5.1', '5.1.4'),
     ('6.0', '6.0.0')])
 
-JIRA_ISSUE_BRANCH_PREFIX_CORRESP = {
+JIRA_ISSUE_BRANCH_PREFIX = {
     'Epic': 'project',
     'Story': 'feature',
     'Bug': 'bugfix',
@@ -171,12 +172,30 @@ class WallE:
         issue = JiraIssue(issue_id=source_branch.jira_issue_id,
                           login='wall_e',
                           passwd=self._bbconn.auth.password)
+
+        # Use parent task instead
+        if issue.fields.issuetype.name == 'Sub-task':
+            issue = JiraIssue(issue_id=issue.fields.parent.key,
+                              login='wall_e',
+                              passwd=self._bbconn.auth.password)
+
         # Fixme : add proper error handling
         # What happens when the issue does not exist ? -> comment on PR ?
         # What happens in case of network failure ? -> fail silently ?
         # What else can happen ?
+        if not bypass_jira_type_check:
+            issuetype = issue.fields.issuetype.name
+            expected_prefix = JIRA_ISSUE_BRANCH_PREFIX.get(issuetype)
+            if expected_prefix is None:
+                raise WallE_InternalException('Jira issue: unknow type %r' %
+                                              issuetype)
+            if expected_prefix != source_branch.prefix:
+                raise WallE_Exception('branch prefix name %r mismatches '
+                                      'jira issue type field %r' %
+                                      (source_branch.prefix, expected_prefix))
+
         if not bypass_jira_version_check:
-            issue_versions = set([str(version) for version in
+            issue_versions = set([version.name for version in
                                   issue.fields.fixVersions])
             expect_versions = set(
                 destination_branch.impacted_versions.values())
@@ -184,13 +203,6 @@ class WallE:
                 raise WallE_Exception('The issue fixVersions %s field must'
                                       ' contain %s' % (list(issue_versions),
                                                        list(expect_versions)))
-
-        if not bypass_jira_type_check:
-            if JIRA_ISSUE_BRANCH_PREFIX_CORRESP[
-                str(issue.fields.issuetype)] != \
-                    source_branch.prefix:
-                raise WallE_Exception('branch prefix name mismatches '
-                                      'jira issue type field')
 
     def _handle_pull_request(self,
                              owner,
