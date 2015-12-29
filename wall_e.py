@@ -40,6 +40,11 @@ JIRA_ISSUE_BRANCH_PREFIX = {
     'Improvement': 'improvement'}
 
 
+def confirm(question):
+    input_ = raw_input(question + " Enter (y)es or (n)o: ")
+    return input_ == "yes" or input_ == "y"
+
+
 class ScalBranch(Branch):
     def __init__(self, name):
         Branch.__init__(self, name)
@@ -131,7 +136,8 @@ class WallE:
 
             assert build_state == 'SUCCESSFUL'
 
-    def send_bitbucket_msg(self, pull_request_id, msg, no_comment=False):
+    def send_bitbucket_msg(self, pull_request_id, msg, no_comment=False,
+                           interactive=False):
         print('SENDING MSG %s : %s' % (pull_request_id, msg))
         if not self.original_pr:
             return
@@ -148,6 +154,8 @@ class WallE:
                 # allow him to run again
                 break
         if no_comment:
+            return
+        if interactive and not confirm('Do you want to send this comment ?'):
             return
         self.original_pr.add_comment(msg)
 
@@ -214,7 +222,8 @@ class WallE:
                              bypass_jira_type_check=False,
                              bypass_build_status=False,
                              reference_git_repo='',
-                             no_comment=False):
+                             no_comment=False,
+                             interactive=False):
 
         self.bbrepo = BitBucketRepository(self._bbconn, owner=owner,
                                           repo_slug=repo_slug)
@@ -337,6 +346,8 @@ class WallE:
         if not all_child_prs_approved_by_peer:
             raise PeerApprovalRequiredException(wall_e=self)
 
+        if interactive and not confirm('Do you want to merge ?'):
+            return
         for pr in self.child_prs:
             pr.merge()
 
@@ -350,7 +361,8 @@ class WallE:
                             bypass_jira_type_check=False,
                             bypass_build_status=False,
                             reference_git_repo='',
-                            no_comment=False):
+                            no_comment=False,
+                            interactive=False):
         # TODO : This method should be a decorator instead
         try:
             self._handle_pull_request(repo_owner,
@@ -362,10 +374,12 @@ class WallE:
                                       bypass_jira_type_check,
                                       bypass_build_status,
                                       reference_git_repo,
-                                      no_comment)
+                                      no_comment,
+                                      interactive)
         except (WallE_Exception, WallE_TemplateException) as e:
             self.send_bitbucket_msg(pull_request_id, str(e),
-                                    no_comment=no_comment)
+                                    no_comment=no_comment,
+                                    interactive=interactive)
             raise
 
 
@@ -395,6 +409,8 @@ def main():
                              'to improve cloning delay')
     parser.add_argument('--no_comment', action='store_true',
                         help='Do not add any comment to the pull request page')
+    parser.add_argument('--interactive', action='store_true',
+                        help='Ask before merging or sending comments')
 
     args = parser.parse_args()
     wall_e = WallE('scality_wall-e', args.password, 'wall_e@scality.com')
@@ -410,7 +426,8 @@ def main():
                                bypass_jira_type_check,
                                bypass_build_status=args.bypass_build_status,
                                reference_git_repo=args.reference_git_repo,
-                               no_comment=args.no_comment)
+                               no_comment=args.no_comment,
+                               interactive=args.interactive)
 
 if __name__ == '__main__':
     main()
