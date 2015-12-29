@@ -208,9 +208,10 @@ class WallE:
             expect_versions = set(
                 destination_branch.impacted_versions.values())
             if issue_versions != expect_versions:
-                raise WallE_Exception('The issue fixVersions %s field must'
-                                      ' contain %s' % (list(issue_versions),
-                                                       list(expect_versions)))
+                raise WallE_Exception("The issue 'Fix Version/s' field "
+                                      "contains %s. It must contain: %s." %
+                                      (', '.join(issue_versions),
+                                       ', '.join(expect_versions)))
 
     def _handle_pull_request(self,
                              owner,
