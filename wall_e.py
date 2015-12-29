@@ -112,6 +112,24 @@ class WallE:
                               bitbucket_password, bitbucket_mail)
         self.original_pr = None
 
+    def check_build_status(self, pr, key):
+        try:
+            build_state = self.bbrepo.get_build_status(
+                revision=pr['source']['commit']['hash'],
+                key=key
+            )['state']
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 404:
+                raise BuildNotStartedException(pr['id'])
+            raise
+        else:
+            if build_state == 'FAILED':
+                raise BuildFailedException(pr['id'])
+            elif build_state == 'INPROGRESS':
+                raise BuildInProgressException(pr['id'])
+
+            assert build_state == 'SUCCESSFUL'
+
     def send_bitbucket_msg(self, pull_request_id, msg, no_comment=False):
         print('SENDING MSG %s : %s' % (pull_request_id, msg))
         if not self.original_pr:
@@ -277,22 +295,8 @@ class WallE:
 
         for pr in self.child_prs:
             if not bypass_build_status:
-                try:
-                    build_state = self.bbrepo.get_build_status(
-                        revision=pr['source']['commit']['hash'],
-                        key='jenkins_utest'
-                    )['state']
-                except requests.exceptions.HTTPError as e:
-                    if e.response.status_code == 404:
-                        raise BuildNotStartedException(pr['id'])
-                    raise
-                else:
-                    if build_state == 'FAILED':
-                        raise BuildFailedException(pr['id'])
-                    elif build_state == 'INPROGRESS':
-                        raise BuildInProgressException(pr['id'])
-
-                    assert build_state == 'SUCCESSFUL'
+                self.check_build_status(pr, 'jenkins_build')
+                self.check_build_status(pr, 'jenkins_utest')
 
             if (original_pr_is_approved_by_author and
                     original_pr_is_approved_by_peer):

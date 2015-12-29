@@ -212,7 +212,7 @@ class TestWallE(unittest.TestCase):
         pass
 
     # FIXME: Find a way to test successful build
-    def test_build_status_suceess(self):
+    def test_build_status_success(self):
         pass
 
 
