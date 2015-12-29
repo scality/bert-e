@@ -3,10 +3,14 @@
 
 import argparse
 import re
-import sys
-import codecs
+import six
+
 from bitbucket_api import (Repository as BitBucketRepository,
                            Client)
+
+if six.PY2:
+    import sys
+    import codecs
 
 fields = {
     'author': ['author/username', 'author/display_name'],
@@ -82,5 +86,7 @@ def main():
 
 
 if __name__ == '__main__':
-    sys.stdout = codecs.getwriter('utf8')(sys.stdout)  # required for piping
+    if six.PY2:
+        sys.stdout = (codecs
+                      .getwriter('utf8')(sys.stdout))  # required for piping
     main()
