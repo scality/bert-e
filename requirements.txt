@@ -1,3 +1,5 @@
+flake8
+jira==1.0.3
 requests==2.9.1
 six-1.10.0
 Jinja2==2.7.1

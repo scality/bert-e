@@ -35,7 +35,7 @@ class UnrecognizedBranchPatternException(WallE_Exception):
     pass
 
 
-class NotMyJobException(WallE_Exception):
+class NotMyJobException(WallE_InternalException):
     def __init__(self, current_branch, branch_to_be_merged):
         msg = ("Not my job to merge `%s` into `%s`."
                % (branch_to_be_merged, current_branch))
