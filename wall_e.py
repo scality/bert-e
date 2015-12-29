@@ -65,7 +65,7 @@ class FeatureBranch(ScalBranch):
         ScalBranch.__init__(self, name)
         self.prefix, self.subname = name.split('/', 1)
         self.jira_issue_id = None
-        match = re.match('.*(?P<issue_id>[A-Z]+-\d+).*', self.subname)
+        match = re.match('(?P<issue_id>[A-Z]+-\d+).*', self.subname)
         if match:
             self.jira_issue_id = match.group('issue_id')
         else:
