@@ -100,6 +100,7 @@ class FeatureBranch(ScalBranch):
             except MergeFailedException:
                 raise ConflictException(source=integration_branch,
                                         destination=development_branch)
+            integration_branch.push()
             new_pull_requests.append((integration_branch, development_branch))
             previous_feature_branch = integration_branch
         return new_pull_requests
