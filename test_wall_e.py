@@ -77,6 +77,8 @@ class TestWallE(unittest.TestCase):
         with self.assertRaises(AuthorApprovalRequiredException):
             self.wall_e.handle_pull_request('scality',
                                             self.bbrepo['repo_slug'], pr['id'],
+                                            bypass_jira_version_check=True,
+                                            bypass_jira_type_check=True,
                                             bypass_build_status=True)
         # PeerApprovalRequiredException and AuthorApprovalRequiredException
         # have the same message, so CommentAlreadyExistsException is used
@@ -84,11 +86,15 @@ class TestWallE(unittest.TestCase):
             self.wall_e.handle_pull_request('scality',
                                             self.bbrepo['repo_slug'], pr['id'],
                                             bypass_author_approval=True,
+                                            bypass_jira_version_check=True,
+                                            bypass_jira_type_check=True,
                                             bypass_build_status=True)
         self.wall_e.handle_pull_request('scality', self.bbrepo['repo_slug'],
                                         pr['id'],
                                         bypass_peer_approval=True,
                                         bypass_author_approval=True,
+                                        bypass_jira_version_check=True,
+                                        bypass_jira_type_check=True,
                                         bypass_build_status=True)
 
     def test_bugfix_full_merge_automatic(self):
@@ -101,6 +107,8 @@ class TestWallE(unittest.TestCase):
         self.wall_e.handle_pull_request('scality', self.bbrepo['repo_slug'],
                                         pr['id'], bypass_author_approval=True,
                                         bypass_peer_approval=True,
+                                        bypass_jira_version_check=True,
+                                        bypass_jira_type_check=True,
                                         bypass_build_status=True)
 
     def test_handle_manually_twice(self):
@@ -111,10 +119,14 @@ class TestWallE(unittest.TestCase):
         with self.assertRaises(AuthorApprovalRequiredException):
             self.wall_e.handle_pull_request('scality',
                                             self.bbrepo['repo_slug'], pr['id'],
+                                            bypass_jira_version_check=True,
+                                            bypass_jira_type_check=True,
                                             bypass_build_status=True)
         with self.assertRaises(CommentAlreadyExistsException):
             self.wall_e.handle_pull_request('scality',
                                             self.bbrepo['repo_slug'], pr['id'],
+                                            bypass_jira_version_check=True,
+                                            bypass_jira_type_check=True,
                                             bypass_build_status=True)
 
     def test_handle_automatically_twice(self):
@@ -125,12 +137,16 @@ class TestWallE(unittest.TestCase):
         self.wall_e.handle_pull_request('scality', self.bbrepo['repo_slug'],
                                         pr['id'], bypass_peer_approval=True,
                                         bypass_author_approval=True,
+                                        bypass_jira_version_check=True,
+                                        bypass_jira_type_check=True,
                                         bypass_build_status=True)
         with self.assertRaises(NothingToDoException):
             self.wall_e.handle_pull_request('scality',
                                             self.bbrepo['repo_slug'], pr['id'],
                                             bypass_peer_approval=True,
                                             bypass_author_approval=True,
+                                            bypass_jira_version_check=True,
+                                            bypass_jira_type_check=True,
                                             bypass_build_status=True)
 
     def test_refuse_feature_on_maintenance_branch(self):
@@ -140,7 +156,9 @@ class TestWallE(unittest.TestCase):
                                                          dst_branch)
         with self.assertRaises(BranchDoesNotAcceptFeaturesException):
             self.wall_e.handle_pull_request('scality',
-                                            self.bbrepo['repo_slug'], pr['id'])
+                                            self.bbrepo['repo_slug'], pr['id'],
+                                            bypass_jira_version_check=True,
+                                            bypass_jira_type_check=True)
 
     def test_branch_name_invalid(self):
         dst_branch = 'feature/RING-0005'
@@ -162,6 +180,8 @@ class TestWallE(unittest.TestCase):
         self.wall_e.handle_pull_request('scality', self.bbrepo['repo_slug'],
                                         pr1['id'], bypass_peer_approval=True,
                                         bypass_author_approval=True,
+                                        bypass_jira_version_check=True,
+                                        bypass_jira_type_check=True,
                                         bypass_build_status=True)
         with self.assertRaises(ConflictException):
             self.wall_e.handle_pull_request('scality',
@@ -169,6 +189,8 @@ class TestWallE(unittest.TestCase):
                                             pr2['id'],
                                             bypass_peer_approval=True,
                                             bypass_author_approval=True,
+                                            bypass_jira_version_check=True,
+                                            bypass_jira_type_check=True,
                                             bypass_build_status=True)
         cmd('git merge --abort')
 
@@ -180,7 +202,9 @@ class TestWallE(unittest.TestCase):
         with self.assertRaises(BuildNotStartedException):
             self.wall_e.handle_pull_request('scality',
                                             self.bbrepo['repo_slug'],
-                                            pr['id'])
+                                            pr['id'],
+                                            bypass_jira_version_check=True,
+                                            bypass_jira_type_check=True)
 
     def set_build_status(self, issue_id, state):
         dst_branch = 'bugfix/RING-%s' % issue_id
@@ -191,7 +215,9 @@ class TestWallE(unittest.TestCase):
                                      revision=pr['source']['commit']['hash'],
                                      key='jenkins_utest')
         self.wall_e.handle_pull_request('scality', self.bbrepo['repo_slug'],
-                                        pr['id'])
+                                        pr['id'],
+                                        bypass_jira_version_check=True,
+                                        bypass_jira_type_check=True)
 
     def test_build_status_fail(self):
         with self.assertRaises(BuildFailedException):

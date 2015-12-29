@@ -7,8 +7,8 @@ Here are the steps to resolve this conflict:
 ```
 #!bash\n
  $ git fetch
- $ git checkout {{ destination }}
- $ git merge origin/{{ source }}
+ $ git checkout {{ source.name }}
+ $ git merge origin/{{ destination.name }}
  $ # intense conflict fixing
  $ git add <any modified file>
  $ git commit

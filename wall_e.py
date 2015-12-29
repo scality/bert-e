@@ -36,7 +36,7 @@ JIRA_ISSUE_BRANCH_PREFIX_CORRESP = {
     'Epic': 'project',
     'Story': 'feature',
     'Bug': 'bugfix',
-    'Improvement': ' improvement'}
+    'Improvement': 'improvement'}
 
 
 class ScalBranch(Branch):
@@ -65,7 +65,7 @@ class FeatureBranch(ScalBranch):
         ScalBranch.__init__(self, name)
         self.prefix, self.subname = name.split('/', 1)
         self.jira_issue_id = None
-        match = re.match('(?P<issue_id>[A-Z]+-\d+)-.*', self.subname)
+        match = re.match('(?P<issue_id>[A-Z]+-\d+).*', self.subname)
         if match:
             self.jira_issue_id = match.group('issue_id')
         else:
@@ -94,14 +94,14 @@ class FeatureBranch(ScalBranch):
                 (integration_branch
                  .update_or_create_and_merge(previous_feature_branch))
             except MergeFailedException:
-                raise ConflictException(source=self,
+                raise ConflictException(source=integration_branch,
                                         destination=previous_feature_branch)
             development_branch = DestinationBranch('development/' + version)
             try:
                 integration_branch.merge(development_branch)
             except MergeFailedException:
-                raise ConflictException(source=self,
-                                        destination=previous_feature_branch)
+                raise ConflictException(source=integration_branch,
+                                        destination=development_branch)
             new_pull_requests.append((integration_branch, development_branch))
             previous_feature_branch = integration_branch
         return new_pull_requests
@@ -165,7 +165,7 @@ class WallE:
                 destination_branch.impacted_versions.values())
             if issue_versions != expect_versions:
                 raise WallE_Exception('The issue fixVersions field must'
-                                      ' contain %s' % expect_versions)
+                                      ' contain %s' % list(expect_versions))
 
         if not bypass_jira_type_check:
             if JIRA_ISSUE_BRANCH_PREFIX_CORRESP[
@@ -180,8 +180,8 @@ class WallE:
                              pull_request_id,
                              bypass_peer_approval=False,
                              bypass_author_approval=False,
-                             bypass_jira_version_check=True,
-                             bypass_jira_type_check=True,
+                             bypass_jira_version_check=False,
+                             bypass_jira_type_check=False,
                              bypass_build_status=False,
                              reference_git_repo='',
                              no_comment=False):
@@ -330,8 +330,8 @@ class WallE:
                             pull_request_id,
                             bypass_peer_approval=False,
                             bypass_author_approval=False,
-                            bypass_jira_version_check=True,
-                            bypass_jira_type_check=True,
+                            bypass_jira_version_check=False,
+                            bypass_jira_type_check=False,
                             bypass_build_status=False,
                             reference_git_repo='',
                             no_comment=False):
