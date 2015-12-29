@@ -136,8 +136,6 @@ class WallE:
         if input_ == "yes" or input_ == "y":
             return True
 
-
-
     def send_bitbucket_msg(self, pull_request_id, msg, no_comment=False,
                            interactive=False):
         print('SENDING MSG %s : %s' % (pull_request_id, msg))
