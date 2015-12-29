@@ -39,6 +39,11 @@ JIRA_ISSUE_BRANCH_PREFIX_CORRESP = {
     'Improvement': 'improvement'}
 
 
+def confirm(question):
+    input_ = raw_input(question + " Enter (y)es or (n)o: ")
+    return input_ == "yes" or input_ == "y"
+
+
 class ScalBranch(Branch):
     def __init__(self, name):
         Branch.__init__(self, name)
@@ -130,12 +135,6 @@ class WallE:
 
             assert build_state == 'SUCCESSFUL'
 
-    @staticmethod
-    def confirm(question):
-        input_ = raw_input(question + " Enter (y)es or (n)o: ")
-        if input_ == "yes" or input_ == "y":
-            return True
-
     def send_bitbucket_msg(self, pull_request_id, msg, no_comment=False,
                            interactive=False):
         print('SENDING MSG %s : %s' % (pull_request_id, msg))
@@ -155,8 +154,7 @@ class WallE:
                 break
         if no_comment:
             return
-        if interactive and not self.confirm(
-                'Do you want to send this comment ?'):
+        if interactive and not confirm('Do you want to send this comment ?'):
             return
         self.original_pr.add_comment(msg)
 
@@ -335,7 +333,7 @@ class WallE:
         if not all_child_prs_approved_by_peer:
             raise PeerApprovalRequiredException(wall_e=self)
 
-        if interactive and not self.confirm('Do you want to merge ?'):
+        if interactive and not confirm('Do you want to merge ?'):
             return
         for pr in self.child_prs:
             pr.merge()
