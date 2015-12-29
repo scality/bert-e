@@ -9,7 +9,7 @@ from template_loader import render
 import requests
 
 from bitbucket_api import (Repository as BitBucketRepository,
-                           get_bitbucket_client)
+                           Client)
 from git_api import Repository as GitRepository, Branch, MergeFailedException
 from jira_api import JiraIssue
 from wall_e_exceptions import (NotMyJobException,
@@ -109,8 +109,8 @@ class FeatureBranch(ScalBranch):
 
 class WallE:
     def __init__(self, bitbucket_login, bitbucket_password, bitbucket_mail):
-        self._bbconn = get_bitbucket_client(bitbucket_login,
-                                            bitbucket_password, bitbucket_mail)
+        self._bbconn = Client(bitbucket_login,
+                              bitbucket_password, bitbucket_mail)
         self.original_pr = None
 
     def send_bitbucket_msg(self, pull_request_id, msg, no_comment=False):
@@ -153,7 +153,7 @@ class WallE:
 
         issue = JiraIssue(issue_id=source_branch.jira_issue_id,
                           login='wall_e',
-                          passwd=self._bbconn.config.password)
+                          passwd=self._bbconn.password)
         # Fixme : add proper error handling
         # What happens when the issue does not exist ? -> comment on PR ?
         # What happens in case of network failure ? -> fail silently ?
@@ -233,7 +233,7 @@ class WallE:
         git_repo.clone(reference_git_repo)
 
         git_repo.config('user.email', '"%s"'
-                        % self._bbconn.config.client_email)
+                        % self._bbconn.mail)
         git_repo.config('user.name', '"Wall-E"')
 
         new_pull_requests = source_branch.merge_cascade(destination_branch)

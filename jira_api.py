@@ -15,6 +15,6 @@ if __name__ == '__main__':
         issue = JiraIssue(sys.argv[1], sys.argv[2], sys.argv[3])
         print(issue.fields.issuetype)
         for fv in issue.fields.fixVersions:
-            print fv
+            print(fv)
     else:
         print('Wrong Usage')

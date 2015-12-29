@@ -6,21 +6,27 @@ import json
 import six
 import urllib
 
-from pybitbucket import auth
-from pybitbucket.bitbucket import Client
+from requests import Session
+from requests.auth import HTTPBasicAuth
 
 if six.PY3:
     quote = urllib.parse.quote
+    from past.builtins import xrange
 else:
     quote = urllib.quote
 
 
-def get_bitbucket_client(bitbucket_login, bitbucket_password, bitbucket_mail):
-    authenticator = auth.BasicAuthenticator(bitbucket_login,
-                                            bitbucket_password,
-                                            bitbucket_mail)
-
-    return Client(authenticator)
+class Client(Session):
+    def __init__(self, bitbucket_login, bitbucket_password, bitbucket_mail):
+        Session.__init__(self)
+        headers = {
+            'Accept': 'application/json',
+            'User-Agent': 'Wall-E',
+            'Content-type': 'application/json',
+            'From': bitbucket_mail}
+        self.mail = bitbucket_mail
+        self.headers.update(headers)
+        self.auth = HTTPBasicAuth(bitbucket_login, bitbucket_password)
 
 
 class BitBucketObject(object):
@@ -43,17 +49,17 @@ class BitBucketObject(object):
 
     @classmethod
     def get(cls, client, **kwargs):
-        response = client.session.get(Template(cls.get_url).substitute(kwargs))
-        client.expect_ok(response)
+        response = client.get(Template(cls.get_url).substitute(kwargs))
+        response.raise_for_status()
         return cls(client, **response.json())
 
     @classmethod
     def get_list(cls, client, **kwargs):
         for page in xrange(1, 100):  # Max 100 pages retrieved
             kwargs['page'] = page
-            response = client.session.get(Template(cls.list_url)
-                                          .substitute(kwargs))
-            client.expect_ok(response)
+            response = client.get(Template(cls.list_url)
+                                  .substitute(kwargs))
+            response.raise_for_status()
             for obj in response.json()['values']:
                 if obj:
                     yield cls(client, **obj)
@@ -64,16 +70,16 @@ class BitBucketObject(object):
 
     def create(self):
         json_str = json.dumps(self._json_data)
-        response = self.client.session.post(Template(self.add_url)
-                                            .substitute(self._json_data),
-                                            json_str)
-        self.client.expect_ok(response)
+        response = self.client.post(Template(self.add_url)
+                                    .substitute(self._json_data),
+                                    json_str)
+        response.raise_for_status()
         return self.__class__(self.client, **response.json())
 
     def delete(self):
-        response = self.client.session.delete(Template(self.get_url)
-                                              .substitute(self._json_data))
-        self.client.expect_ok(response)
+        response = self.client.delete(Template(self.get_url)
+                                      .substitute(self._json_data))
+        response.raise_for_status()
 
 
 class Repository(BitBucketObject):
@@ -89,8 +95,8 @@ class Repository(BitBucketObject):
 
     def get_git_url(self):
         return 'https://%s:%s@bitbucket.org/%s/%s.git' % (
-            quote(self.client.config.username),
-            quote(self.client.config.password),
+            quote(self.client.auth.username),
+            quote(self.client.auth.password),
             self['owner'],
             self['repo_slug'])
 
@@ -141,10 +147,10 @@ class PullRequest(BitBucketObject):
         self._json_data['full_name'] = self.full_name()
         self._json_data['pull_request_id'] = self['id']
         json_str = json.dumps(self._json_data)
-        response = self.client.session.post(Template(self.get_url + '/merge')
-                                            .substitute(self._json_data),
-                                            json_str)
-        self.client.expect_ok(response)
+        response = self.client.post(Template(self.get_url + '/merge')
+                                    .substitute(self._json_data),
+                                    json_str)
+        response.raise_for_status()
 
 
 class Comment(BitBucketObject):
@@ -154,13 +160,13 @@ class Comment(BitBucketObject):
 
     def create(self):
         json_str = json.dumps({'content': self._json_data['content']})
-        response = self.client.session.post(Template(self.add_url)
-                                            .substitute(self._json_data)
-                                            .replace('/2.0/', '/1.0/'),
-                                            # The 2.0 API does not create
-                                            # comments :(
-                                            json_str)
-        self.client.expect_ok(response)
+        response = self.client.post(Template(self.add_url)
+                                    .substitute(self._json_data)
+                                    .replace('/2.0/', '/1.0/'),
+                                    # The 2.0 API does not create
+                                    # comments :(
+                                    json_str)
+        response.raise_for_status()
         return self.__class__(self.client, **response.json())
 
 
