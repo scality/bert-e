@@ -12,6 +12,8 @@ $ virtualenv venv
 $ source venv/bin/activate
 $ pip install flake8
 $ pip install pybitbucket==0.8.0
+$ pip install Jinja2==2.8
+
 ```
 
 ### How to Launch Static Checker File?
