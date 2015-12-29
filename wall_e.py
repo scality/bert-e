@@ -181,8 +181,9 @@ class WallE:
             expect_versions = set(
                 destination_branch.impacted_versions.values())
             if issue_versions != expect_versions:
-                raise WallE_Exception('The issue fixVersions field must'
-                                      ' contain %s' % list(expect_versions))
+                raise WallE_Exception('The issue fixVersions %s field must'
+                                      ' contain %s' % (list(issue_versions),
+                                                       list(expect_versions)))
 
         if not bypass_jira_type_check:
             if JIRA_ISSUE_BRANCH_PREFIX_CORRESP[
