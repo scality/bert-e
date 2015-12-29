@@ -11,6 +11,7 @@ from requests.auth import HTTPBasicAuth
 
 if six.PY3:
     quote = urllib.parse.quote
+    from past.builtins import xrange
 else:
     quote = urllib.quote
 

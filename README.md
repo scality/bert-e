@@ -10,8 +10,15 @@ $ git clone git@bitbucket.org:scality/wall-e.git
 $ cd wall-e
 $ virtualenv venv
 $ source venv/bin/activate
-$ pip install requests==2.9.1 six-1.10.0 Jinja2==2.7.1
+$ pip install flake8 requests==2.9.1 six-1.10.0 Jinja2==2.7.1
 ```
+
+### How to Launch Static Checker File?
+
+```
+$ flake8 *.py
+```
+
 ### How to launch tests? ###
 
 You should check that you have set a password to your bitbucket account.
