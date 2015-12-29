@@ -74,8 +74,6 @@ class FeatureBranch(ScalBranch):
             # Fixme : send a comment instead ? or ignore the jira checks ?
 
     def merge_cascade(self, destination_branch):
-        if destination_branch.prefix != 'development':
-            raise NotMyJobException(self.name, destination_branch.name)
         if self.prefix not in ['feature', 'bugfix', 'improvement']:
             raise PrefixCannotBeMergedException(source=self,
                                                 destination=destination_branch)
