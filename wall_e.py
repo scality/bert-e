@@ -29,7 +29,7 @@ from wall_e_exceptions import (NotMyJobException,
                                WallE_TemplateException)
 
 KNOWN_VERSIONS = OrderedDict([
-    ('4.3', '4.3.17'),
+    ('4.3', '4.3.18'),
     ('5.1', '5.1.4'),
     ('6.0', '6.0.0')])
 
