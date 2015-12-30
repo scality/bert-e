@@ -45,11 +45,16 @@ class Repository(object):
         if do_push:
             cmd('git push --set-upstream origin '+name)
 
+    def push_everything(self):
+        cmd('git push --all origin -u')
+
     def create_ring_branching_model(self):
         for version in ['4.3', '5.1', '6.0', 'trunk']:
-            self.create_branch('release/'+version)
+            self.create_branch('release/'+version, do_push=False)
             self.create_branch('development/'+version,
-                               'release/'+version, file=True)
+                               'release/'+version, file=True, do_push=False)
+
+        self.push_everything()
 
 
 class Branch(object):
