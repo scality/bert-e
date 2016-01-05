@@ -30,7 +30,8 @@ class TestWallE(unittest.TestCase):
                                          owner='scality',
                                          repo_slug=('test_wall_e_%s'
                                                     % cls.args.your_login),
-                                         is_private=True)
+                                         is_private=True,
+                                         scm='git')
         try:
             cls.bbrepo.delete()
         except requests.exceptions.HTTPError as e:
