@@ -40,11 +40,16 @@ JIRA_ISSUE_BRANCH_PREFIX = {
     'Improvement': 'improvement'}
 
 RELEASE_ENGINEERS = [
+    'scality_wall-e',   # we need this for test purposes
+    'anhnp',
+    'bertrand_demiddelaer_scality',
+    'ludovicmaillard',
+    'mcolzi',
+    'mouhamet7',
     'mvaude',
     'pierre_louis_bonicoli',
     'rayene_benrayana',
     'sylvain_killian',
-    # TODO: add the other releng logins
 ]
 
 
@@ -154,6 +159,7 @@ class WallE:
                                max_history=None):
         # the last comment posted is the first in the list
         for index, comment in enumerate(self.original_pr.get_comments()):
+
             u = comment['user']['username']
             raw = comment['content']['raw']
             if username is str and u != username:
@@ -162,7 +168,7 @@ class WallE:
                 continue
             if startswith and not raw.startswith(startswith):
                 continue
-            if index > max_history:
+            if max_history and index > max_history:
                 return
             return comment
 
@@ -380,10 +386,10 @@ class WallE:
         with 'wall-e '.
         """
         cmt = self.find_bitbucket_comment(username=RELEASE_ENGINEERS,
-                                          startswith='wall-e ')
+                                          startswith=u'wall-e')
         if cmt:
-            args = cmt['content']['raw'].split('')
-            args.pop()  # removes the word 'wall-e' from args
+            args = cmt['content']['raw'].split(' ')
+            args.pop(0)  # removes the word 'wall-e' from args
             return args
         return []
 
@@ -431,7 +437,6 @@ def main():
     cmdline_parser.add_argument(
         '--interactive', action='store_true',
         help='Ask before merging or sending comments')
-
     args = cmdline_parser.parse_args()
     wall_e = WallE('scality_wall-e', args.password, 'wall_e@scality.com',
                    args.owner, args.slug, args.pull_request_id)
