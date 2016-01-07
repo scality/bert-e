@@ -29,6 +29,7 @@ def filter_pr(your_login, your_password, your_mail, owner, slug, **kwargs):
 
     client = Client(your_login, your_password, your_mail)
     bbrepo = BitBucketRepository(client, owner=owner, repo_slug=slug)
+    pr_list = []
 
     for pr in bbrepo.get_pull_requests():
         pr_match = True
@@ -51,7 +52,7 @@ def filter_pr(your_login, your_password, your_mail, owner, slug, **kwargs):
         if not pr_match:
             continue
 
-        print('%s (%s) [%s]->[%s]https://bitbucket.org/%s/%s/pull-requests/%s'
+        a =('%s (%s) [%s]->[%s]https://bitbucket.org/%s/%s/pull-requests/%s'
               % (pr['id'],
                  pr['author']['display_name'],
                  pr['source']['branch']['name'],
@@ -59,6 +60,9 @@ def filter_pr(your_login, your_password, your_mail, owner, slug, **kwargs):
                  owner,
                  slug,
                  pr['id']))
+        pr_list.append(a)
+    return pr_list
+
 
 
 def main():
