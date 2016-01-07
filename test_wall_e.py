@@ -20,6 +20,7 @@ from simplecmd import cmd
 
 WALL_E_USERNAME = 'scality_wall-e'
 
+
 class TestWallE(unittest.TestCase):
     @classmethod
     def setUpClass(cls):

@@ -45,6 +45,7 @@ JIRA_ISSUE_BRANCH_PREFIX = {
 
 WALL_E_USERNAME = 'scality_wall-e'
 
+
 def confirm(question):
     input_ = raw_input(question + " Enter (y)es or (n)o: ")
     return input_ == "yes" or input_ == "y"
