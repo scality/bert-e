@@ -226,7 +226,7 @@ def main():
         sys.exit(1)
 
     sys.argv = [sys.argv[0]]
-    unittest.main(failfast=True)
+    unittest.main(failfast=False)
 
 
 if __name__ == '__main__':
