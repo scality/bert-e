@@ -4,6 +4,7 @@
 import argparse
 import re
 import six
+import logging
 
 from bitbucket_api import (Repository as BitBucketRepository,
                            Client)
@@ -51,14 +52,14 @@ def filter_pr(your_login, your_password, your_mail, owner, slug, **kwargs):
         if not pr_match:
             continue
 
-        print('%s (%s) [%s]->[%s]https://bitbucket.org/%s/%s/pull-requests/%s'
-              % (pr['id'],
-                 pr['author']['display_name'],
-                 pr['source']['branch']['name'],
-                 pr['destination']['branch']['name'],
-                 owner,
-                 slug,
-                 pr['id']))
+        logging.info('%s (%s) [%s]->[%s]https://bitbucket.org/%s/%s/pull-requests/%s'
+                     % (pr['id'],
+                        pr['author']['display_name'],
+                        pr['source']['branch']['name'],
+                        pr['destination']['branch']['name'],
+                        owner,
+                        slug,
+                        pr['id']))
 
 
 def main():

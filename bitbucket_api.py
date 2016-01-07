@@ -5,6 +5,7 @@ from string import Template
 import json
 import six
 import urllib
+import logging
 
 from requests import Session
 from requests.auth import HTTPBasicAuth
