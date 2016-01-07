@@ -18,7 +18,7 @@ from wall_e_exceptions import (BranchDoesNotAcceptFeaturesException,
 from git_api import Repository as GitRepository
 from simplecmd import cmd
 
-WALL_E_USERNAME = 'scality_wall-e'
+WALL_E_USERNAME = wall_e.WALL_E_USERNAME
 
 
 def initialize_git_repo(repo):

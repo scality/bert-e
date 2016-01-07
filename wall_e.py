@@ -39,8 +39,10 @@ JIRA_ISSUE_BRANCH_PREFIX = {
     'Bug': 'bugfix',
     'Improvement': 'improvement'}
 
+WALL_E_USERNAME = 'scality_wall-e'
+
 RELEASE_ENGINEERS = [
-    'scality_wall-e',   # we need this for test purposes
+    WALL_E_USERNAME,   # we need this for test purposes
     'anhnp',
     'bertrand_demiddelaer_scality',
     'ludovicmaillard',
@@ -51,8 +53,6 @@ RELEASE_ENGINEERS = [
     'rayene_benrayana',
     'sylvain_killian',
 ]
-
-WALL_E_USERNAME = 'scality_wall-e'
 
 
 def confirm(question):
@@ -181,7 +181,7 @@ class WallE:
 
         # if wall-e doesn't do anything in the last 10 comments,
         # allow him to run again
-        if self.find_bitbucket_comment(username='scality_wall-e',
+        if self.find_bitbucket_comment(username=WALL_E_USERNAME,
                                        startswith=msg,
                                        max_history=10):
 
@@ -400,7 +400,7 @@ class WallE:
 
 
 def main():
-    global_parser = (argparse.ArgumentParser())
+    global_parser = (argparse.ArgumentParser(add_help=False))
     global_parser.add_argument(
         '--bypass_author_approval', action='store_true',
         help='Bypass the pull request author\'s approval')
@@ -416,14 +416,10 @@ def main():
     global_parser.add_argument(
         '--bypass_build_status', action='store_true',
         help='Bypass the build and test status')
-    global_parser.add_argument(
-        '--no_comment', action='store_true',
-        help='Do not add any comment to the pull request page')
 
     cmdline_parser = (argparse.ArgumentParser(
         description='Merges bitbucket pull requests.',
-        parents=[global_parser],
-        conflict_handler='resolve'))
+        parents=[global_parser]))
     cmdline_parser.add_argument(
         'pull_request_id',
         help='The ID of the pull request')
@@ -442,6 +438,9 @@ def main():
     cmdline_parser.add_argument(
         '--interactive', action='store_true',
         help='Ask before merging or sending comments')
+    cmdline_parser.add_argument(
+        '--no_comment', action='store_true',
+        help='Do not add any comment to the pull request page')
     args = cmdline_parser.parse_args()
     wall_e = WallE(WALL_E_USERNAME, args.password, 'wall_e@scality.com',
                    args.owner, args.slug, args.pull_request_id)
