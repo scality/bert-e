@@ -4,6 +4,7 @@
 import argparse
 from collections import OrderedDict
 import re
+import six
 
 from template_loader import render
 import requests
@@ -27,6 +28,9 @@ from wall_e_exceptions import (NotMyJobException,
                                WallE_Exception,
                                WallE_InternalException,
                                WallE_TemplateException)
+
+if six.PY3:
+    raw_input = input
 
 KNOWN_VERSIONS = OrderedDict([
     ('4.3', '4.3.18'),
