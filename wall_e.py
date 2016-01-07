@@ -236,6 +236,16 @@ class WallE:
         self.original_pr = (self.bbrepo
                             .get_pull_request(pull_request_id=pull_request_id))
         author = self.original_pr['author']['username']
+        if 'scality_wall-e' in author:
+            res = re.search('(\d+)',
+                            self.original_pr['description'])
+            if not res.group():
+                raise Exception('Not found')
+            self.pull_request_id = res.group()
+            self.original_pr = (self.bbrepo
+                                .get_pull_request(pull_request_id=res.group()))
+            author = self.original_pr['author']['username']
+
         if self.original_pr['state'] != 'OPEN':  # REJECTED or FULFILLED
             raise NothingToDoException('The pull-request\'s state is "%s"'
                                        % self.original_pr['state'])
@@ -252,7 +262,7 @@ class WallE:
             destination_branch = DestinationBranch(dst_brnch_name)
         except BranchNameInvalidException as e:
             print('Destination branch %r not handled, ignore PR %s'
-                  % (e.branch, pull_request_id))
+                  % (e.branch, self.pull_request_id))
             # Nothing to do
             raise NotMyJobException(src_brnch_name, dst_brnch_name)
 
@@ -309,7 +319,7 @@ class WallE:
         for source_branch, destination_branch in new_pull_requests:
             title = ('[%s] #%s: %s'
                      % (destination_branch.name,
-                        pull_request_id, self.original_pr['title']))
+                        self.pull_request_id, self.original_pr['title']))
 
             description = render('pull_request_description.md',
                                  pr=self.original_pr)
@@ -376,7 +386,7 @@ class WallE:
         try:
             self._handle_pull_request(repo_owner,
                                       repo_slug,
-                                      pull_request_id,
+                                      self.pull_request_id,
                                       bypass_peer_approval,
                                       bypass_author_approval,
                                       bypass_jira_version_check,
@@ -386,7 +396,7 @@ class WallE:
                                       no_comment,
                                       interactive)
         except (WallE_Exception, WallE_TemplateException) as e:
-            self.send_bitbucket_msg(pull_request_id, str(e),
+            self.send_bitbucket_msg(self.pull_request_id, str(e),
                                     no_comment=no_comment,
                                     interactive=interactive)
             raise
@@ -423,6 +433,7 @@ def main():
 
     args = parser.parse_args()
     wall_e = WallE('scality_wall-e', args.password, 'wall_e@scality.com')
+    wall_e.pull_request_id = args.pullrequest
     wall_e.handle_pull_request(repo_owner=args.owner,
                                repo_slug=args.slug,
                                pull_request_id=args.pullrequest,
