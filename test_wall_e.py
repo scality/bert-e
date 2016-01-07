@@ -18,6 +18,7 @@ from wall_e_exceptions import (BranchDoesNotAcceptFeaturesException,
 from git_api import Repository as GitRepository
 from simplecmd import cmd
 
+WALL_E_USERNAME = 'scality_wall-e'
 
 class TestWallE(unittest.TestCase):
     @classmethod
@@ -29,7 +30,8 @@ class TestWallE(unittest.TestCase):
                                          owner='scality',
                                          repo_slug=('test_wall_e_%s'
                                                     % cls.args.your_login),
-                                         is_private=True)
+                                         is_private=True,
+                                         scm='git')
         try:
             cls.bbrepo.delete()
         except requests.exceptions.HTTPError as e:
@@ -37,7 +39,7 @@ class TestWallE(unittest.TestCase):
                 raise
 
         cls.bbrepo.create()
-        cls.wall_e = WallE('scality_wall-e', cls.args.wall_e_password,
+        cls.wall_e = WallE(WALL_E_USERNAME, cls.args.wall_e_password,
                            'wall_e@scality.com')
         cls.gitrepo = GitRepository(cls.bbrepo.get_git_url())
         cls.gitrepo.init()
@@ -47,7 +49,7 @@ class TestWallE(unittest.TestCase):
             self,
             feature_branch,
             from_branch,
-            reviewers=['scality_wall-e'],
+            reviewers=[WALL_E_USERNAME],
             file=True):
 
         self.gitrepo.create_branch(feature_branch, from_branch=from_branch,
@@ -62,7 +64,7 @@ class TestWallE(unittest.TestCase):
                                                              from_branch}},
                                                close_source_branch=True,
                                                reviewers=[{'username':
-                                                           'scality_wall-e'}],
+                                                           WALL_E_USERNAME}],
                                                description='')
 
     def test_bugfix_full_merge_manual(self):
@@ -96,7 +98,7 @@ class TestWallE(unittest.TestCase):
     def test_bugfix_full_merge_automatic(self):
         feature_branch = 'bugfix/RING-0001'
         dst_branch = 'development/4.3'
-        reviewers = ['scality_wall-e']
+        reviewers = [WALL_E_USERNAME]
         pr = self.create_feature_branch_and_pull_request(feature_branch,
                                                          dst_branch,
                                                          reviewers=reviewers)
@@ -218,6 +220,11 @@ def main():
     parser.add_argument('your_mail',
                         help='Your Bitbucket email address')
     TestWallE.args = parser.parse_args()
+
+    if TestWallE.args.your_login == WALL_E_USERNAME:
+        print('Cannot use Wall-e as the tester, please use another login.')
+        sys.exit(1)
+
     sys.argv = [sys.argv[0]]
     unittest.main(failfast=True)
 

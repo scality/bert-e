@@ -39,6 +39,7 @@ JIRA_ISSUE_BRANCH_PREFIX = {
     'Bug': 'bugfix',
     'Improvement': 'improvement'}
 
+WALL_E_USERNAME = 'scality_wall-e'
 
 def confirm(question):
     input_ = raw_input(question + " Enter (y)es or (n)o: ")
@@ -143,7 +144,7 @@ class WallE:
             return
         # the last comment is the first
         for index, comment in enumerate(self.original_pr.get_comments()):
-            if (comment['user']['username'] == 'scality_wall-e' and
+            if (comment['user']['username'] == WALL_E_USERNAME and
                     comment['content']['raw'] == msg):
                 raise CommentAlreadyExistsException('The same comment has '
                                                     'already been posted by '
@@ -418,7 +419,8 @@ def main():
                         help='Ask before merging or sending comments')
 
     args = parser.parse_args()
-    wall_e = WallE('scality_wall-e', args.password, 'wall_e@scality.com')
+
+    wall_e = WallE(WALL_E_USERNAME, args.password, 'wall_e@scality.com')
     wall_e.handle_pull_request(repo_owner=args.owner,
                                repo_slug=args.slug,
                                pull_request_id=args.pullrequest,
