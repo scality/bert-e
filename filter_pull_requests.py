@@ -61,7 +61,7 @@ def filter_pr(your_login, your_password, your_mail, owner, slug, **kwargs):
                 owner,
                 slug,
                 pr['id']))
-        pr_list.append(a)
+        pr_list.append(pr_id)
     return pr_list
 
 
