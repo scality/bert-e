@@ -86,7 +86,7 @@ def main():
                         help='The repo\'s slug (default: ring)')
 
     args = vars(parser.parse_args())
-    filter_pr(**args)
+    print(filter_pr(**args))
 
 
 if __name__ == '__main__':
