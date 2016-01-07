@@ -112,7 +112,15 @@ class Repository(BitBucketObject):
 
     def get_pull_request(self, **kwargs):
         kwargs['full_name'] = self['owner'] + '/' + self['repo_slug']
-        return PullRequest.get(self.client, **kwargs)
+        pr = PullRequest.get(self.client, **kwargs)
+        if pr['author']['username'] == 'scality_wall-e':
+            res = re.search('pull request #(\d+)', pr['description'])
+            if not res:
+                raise Exception('Not found')
+            kwargs['pull_request_id'] = res.groups()[0]
+            pr = PullRequest.get(self.client, **kwargs)
+        return pr
+        # return PullRequest.get(self.client, **kwargs)
 
     def get_build_status(self, **kwargs):
         kwargs['owner'] = self['owner']
