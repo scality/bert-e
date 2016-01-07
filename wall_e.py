@@ -138,7 +138,7 @@ class WallE:
 
     def send_bitbucket_msg(self, pull_request_id, msg, no_comment=False,
                            interactive=False):
-        logging.info('SENDING MSG %s : %s' % (pull_request_id, msg))
+        logging.debug('considering sending %s: %s' % (pull_request_id, msg))
         if not self.original_pr:
             return
         # the last comment is the first
@@ -154,9 +154,14 @@ class WallE:
                 # allow him to run again
                 break
         if no_comment:
+            logging.debug('not sending message due to no_comment being True.')
             return
-        if interactive and not confirm('Do you want to send this comment ?'):
-            return
+        if interactive:
+            print('%s: %s\n' % (pull_request_id, msg))
+            if not confirm('Do you want to send this comment?'):
+                return
+
+        logging.info('SENDING MSG %s: %s' % (pull_request_id, msg))
         self.original_pr.add_comment(msg)
 
     def jira_checks(self, source_branch, destination_branch,
