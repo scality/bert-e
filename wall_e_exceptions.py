@@ -15,7 +15,14 @@ class WallE_TemplateException(Exception):
 
 
 class WallE_InternalException(Exception):
-    # TODO send an email to releng
+    pass
+
+
+class UnableToSendEmailException(WallE_InternalException):
+    pass
+
+
+class ImproperEmailFormatException(WallE_InternalException):
     pass
 
 

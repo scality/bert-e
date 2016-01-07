@@ -1,6 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import smtplib
+import time
+import traceback
+import sys
 import argparse
 from collections import OrderedDict
 import re
@@ -26,7 +30,9 @@ from wall_e_exceptions import (NotMyJobException,
                                BuildInProgressException,
                                WallE_Exception,
                                WallE_InternalException,
-                               WallE_TemplateException)
+                               WallE_TemplateException,
+                               ImproperEmailFormatException,
+                               UnableToSendEmailException)
 
 KNOWN_VERSIONS = OrderedDict([
     ('4.3', '4.3.18'),
@@ -38,6 +44,36 @@ JIRA_ISSUE_BRANCH_PREFIX = {
     'Story': 'feature',
     'Bug': 'bugfix',
     'Improvement': 'improvement'}
+
+
+def setup_email(destination):
+    """Check the capacity to send emails."""
+    match_ = re.match("(?P<short_name>[^@]*)@.*", destination)
+    if not match_:
+        raise ImproperEmailFormatException("The specified email does "
+                                           "not seem valid (%s)" % destination)
+    try:
+        smtplib.SMTP('localhost')
+    except (smtplib.SMTPException, ConnectionRefusedError) as excp:
+        raise UnableToSendEmailException("Unable to send email (%s)" % excp)
+
+
+def send_email(destination, title, content):
+    """Send some data by email."""
+    match_ = re.match("(?P<short_name>[^@]*)@.*", destination)
+    if not match_:
+        raise ImproperEmailFormatException("The specified email does "
+                                           "not seem valid (%s)" % destination)
+    body = render('email_alert.md',
+                  name=match_.group('short_name'),
+                  subject=title,
+                  content=content,
+                  destination=destination)
+    try:
+        smtpObj = smtplib.SMTP('localhost')
+        smtpObj.sendmail('wall_e@scality.com', [destination], body)
+    except (smtplib.SMTPException, ConnectionRefusedError) as excp:
+        raise UnableToSendEmailException("Unable to send email (%s)" % excp)
 
 
 def confirm(question):
@@ -367,7 +403,8 @@ class WallE:
                             bypass_build_status=False,
                             reference_git_repo='',
                             no_comment=False,
-                            interactive=False):
+                            interactive=False,
+                            alert_email=None):
         # TODO : This method should be a decorator instead
         try:
             self._handle_pull_request(repo_owner,
@@ -381,10 +418,21 @@ class WallE:
                                       reference_git_repo,
                                       no_comment,
                                       interactive)
-        except (WallE_Exception, WallE_TemplateException) as e:
-            self.send_bitbucket_msg(pull_request_id, str(e),
+        except (WallE_Exception, WallE_TemplateException) as excp:
+            self.send_bitbucket_msg(pull_request_id, str(excp),
                                     no_comment=no_comment,
                                     interactive=interactive)
+            print("Wall-E stopped")
+            print("--------------")
+            print(excp)
+            # do not raise, normal program termination
+
+        except:
+            if alert_email:
+                send_email(destination=alert_email,
+                           title="[Wall-E] Unexpected termination "
+                                 "(%s)" % time.asctime(),
+                           content=traceback.format_exc())
             raise
 
 
@@ -416,8 +464,23 @@ def main():
                         help='Do not add any comment to the pull request page')
     parser.add_argument('--interactive', action='store_true',
                         help='Ask before merging or sending comments')
+    parser.add_argument('--alert_email', action='store', default=None,
+                        help='Where to send notifications in case of '
+                             'incorrect behaviour')
 
     args = parser.parse_args()
+
+    if args.alert_email:
+        try:
+            setup_email(args.alert_email)
+        except ImproperEmailFormatException:
+            print("Invalid email (%s)" % args.alert_email)
+            sys.exit(1)
+        except UnableToSendEmailException:
+            print("It appears I won't be able to send emails, please check "
+                  "the email server.")
+            sys.exit(1)
+
     wall_e = WallE('scality_wall-e', args.password, 'wall_e@scality.com')
     wall_e.handle_pull_request(repo_owner=args.owner,
                                repo_slug=args.slug,
@@ -432,7 +495,8 @@ def main():
                                bypass_build_status=args.bypass_build_status,
                                reference_git_repo=args.reference_git_repo,
                                no_comment=args.no_comment,
-                               interactive=args.interactive)
+                               interactive=args.interactive,
+                               alert_email=args.alert_email)
 
 if __name__ == '__main__':
     main()
