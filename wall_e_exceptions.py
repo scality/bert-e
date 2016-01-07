@@ -80,3 +80,10 @@ class BuildNotStartedException(WallE_Exception):
     def __init__(self, pr_id):
         msg = 'The build on the pull request #%s did not start yet.' % pr_id
         WallE_Exception.__init__(self, msg)
+
+
+class ParentNotFoundException(WallE_Exception):
+    def __init__(self, pr_id):
+        msg = ("The parent Pull Request from this pull request #%s"
+               " couldn't be found." % pr_id)
+        WallE_Exception.__init__(self, msg)

@@ -27,7 +27,8 @@ from wall_e_exceptions import (NotMyJobException,
                                BuildInProgressException,
                                WallE_Exception,
                                WallE_InternalException,
-                               WallE_TemplateException)
+                               WallE_TemplateException,
+                               ParentNotFoundException)
 
 if six.PY3:
     raw_input = input
@@ -242,7 +243,7 @@ class WallE:
             res = re.search('(\d+)',
                             self.original_pr['description'])
             if not res.group():
-                raise Exception('Not found')
+                raise ParentNotFoundException('Not found')
             self.pull_request_id = res.group()
             self.original_pr = (self.bbrepo
                                 .get_pull_request(pull_request_id=res.group()))
