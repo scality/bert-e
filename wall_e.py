@@ -236,7 +236,7 @@ class WallE:
         self.original_pr = (self.bbrepo
                             .get_pull_request(pull_request_id=pull_request_id))
         author = self.original_pr['author']['username']
-        if 'scality_wall-e' in author:
+        if WALL_E_USERNAME == author:
             res = re.search('(\d+)',
                             self.original_pr['description'])
             if not res.group():
