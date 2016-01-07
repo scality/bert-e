@@ -29,7 +29,7 @@ from wall_e_exceptions import (NotMyJobException,
                                WallE_TemplateException)
 
 KNOWN_VERSIONS = OrderedDict([
-    ('4.3', '4.3.17'),
+    ('4.3', '4.3.18'),
     ('5.1', '5.1.4'),
     ('6.0', '6.0.0')])
 
@@ -304,8 +304,12 @@ class WallE:
 
         new_pull_requests = source_branch.merge_cascade(destination_branch)
 
+        # Check parent PR: approval
         original_pr_is_approved_by_author = bypass_author_approval
         original_pr_is_approved_by_peer = bypass_peer_approval
+
+        # NB: when author hasn't approved the PR, author isn't listed in
+        # 'participants'
         for participant in self.original_pr['participants']:
             if not participant['approved']:
                 continue
@@ -314,12 +318,16 @@ class WallE:
             else:
                 original_pr_is_approved_by_peer = True
 
-        all_child_prs_approved_by_author = True
-        all_child_prs_approved_by_peer = True
+        if not original_pr_is_approved_by_author:
+            raise AuthorApprovalRequiredException(pr=self.original_pr,
+                                                  child_prs=None)
 
-        # TODO : Add build status
+        if not original_pr_is_approved_by_peer:
+            raise PeerApprovalRequiredException(pr=self.original_pr,
+                                                child_prs=None)
 
-        self.child_prs = []
+        # Create integration PR
+        child_prs = []
         for source_branch, destination_branch in new_pull_requests:
             title = ('[%s] #%s: %s'
                      % (destination_branch.name,
@@ -340,19 +348,12 @@ class WallE:
                                        close_source_branch=True,
                                        reviewers=[{'username': author}],
                                        description=description))
-            self.child_prs.append(pr)
+            child_prs.append(pr)
 
-        for pr in self.child_prs:
-            if not bypass_build_status:
-                self.check_build_status(pr, 'jenkins_build')
-                self.check_build_status(pr, 'jenkins_utest')
-
-            if (original_pr_is_approved_by_author and
-                    original_pr_is_approved_by_peer):
-                continue
-
-            approved_by_author = original_pr_is_approved_by_author
-            approved_by_peer = original_pr_is_approved_by_peer
+        # Check integration PR: approval
+        for pr in child_prs:
+            approved_by_author = bypass_author_approval
+            approved_by_peer = bypass_peer_approval
             for participant in pr['participants']:
                 if not participant['approved']:
                     continue
@@ -362,20 +363,23 @@ class WallE:
                     approved_by_peer = True
 
             if not approved_by_author:
-                all_child_prs_approved_by_author = False
+                raise AuthorApprovalRequiredException(pr=self.original_pr,
+                                                      child_prs=child_prs)
 
             if not approved_by_peer:
-                all_child_prs_approved_by_peer = False
+                raise PeerApprovalRequiredException(pr=self.original_pr,
+                                                    child_prs=child_prs)
 
-        if not all_child_prs_approved_by_author:
-            raise AuthorApprovalRequiredException(wall_e=self)
-
-        if not all_child_prs_approved_by_peer:
-            raise PeerApprovalRequiredException(wall_e=self)
+        # Check integration PR: build status
+        for pr in child_prs:
+            if not bypass_build_status:
+                self.check_build_status(pr, 'jenkins_build')
+                self.check_build_status(pr, 'jenkins_utest')
 
         if interactive and not confirm('Do you want to merge ?'):
             return
-        for pr in self.child_prs:
+
+        for pr in child_prs:
             pr.merge()
 
     def get_comment_args(self):
