@@ -30,6 +30,7 @@ from wall_e_exceptions import (NotMyJobException,
                                BuildInProgressException,
                                WallE_Exception,
                                WallE_InternalException,
+                               WallE_SilentException,
                                WallE_TemplateException,
                                ImproperEmailFormatException,
                                UnableToSendEmailException)
