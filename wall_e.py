@@ -452,7 +452,6 @@ def main():
     del vargs['pull_request_id']
     del vargs['owner']
     del vargs['slug']  # TODO : find a prettier way to do this
-    print vargs
     try:
         wall_e.handle_pull_request(**vargs)
     except (WallE_Exception, WallE_TemplateException) as e:

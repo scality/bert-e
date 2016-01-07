@@ -10,16 +10,6 @@ class Repository(object):
         self.directory = mkdtemp()
         os.chdir(self.directory)
 
-    def init(self):
-        """resets the git repo"""
-        assert '/ring/' not in self._url  # This is a security, do not remove
-        cmd('git init')
-        cmd('touch a')
-        cmd('git add a')
-        cmd('git commit -m "Initial commit"')
-        cmd('git remote add origin ' + self._url)
-        cmd('git push --set-upstream origin master')
-
     def clone(self, reference=''):
         if reference:
             reference = '--reference ' + reference
@@ -31,30 +21,8 @@ class Repository(object):
     def config(self, key, value):
         cmd('git config %s %s' % (key, value))
 
-    @staticmethod
-    def create_branch(name, from_branch=None, file=False, do_push=True):
-        if from_branch:
-            cmd('git checkout '+from_branch)
-        cmd('git checkout -b '+name)
-        if file:
-            if file is True:
-                file = name.replace('/', '-')
-            cmd('echo %s >  a.%s' % (name, file))
-            cmd('git add a.'+file)
-            cmd('git commit -m "commit %s"' % file)
-        if do_push:
-            cmd('git push --set-upstream origin '+name)
-
     def push_everything(self):
         cmd('git push --all origin -u')
-
-    def create_ring_branching_model(self):
-        for version in ['4.3', '5.1', '6.0', 'trunk']:
-            self.create_branch('release/'+version, do_push=False)
-            self.create_branch('development/'+version,
-                               'release/'+version, file=True, do_push=False)
-
-        self.push_everything()
 
 
 class Branch(object):

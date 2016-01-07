@@ -19,6 +19,37 @@ from git_api import Repository as GitRepository
 from simplecmd import cmd
 
 
+def initialize_git_repo(repo):
+    """resets the git repo"""
+    assert '/ring/' not in repo._url  # This is a security, do not remove
+    cmd('git init')
+    cmd('touch a')
+    cmd('git add a')
+    cmd('git commit -m "Initial commit"')
+    cmd('git remote add origin ' + repo._url)
+    # cmd('git push --set-upstream origin master')
+    for version in ['4.3', '5.1', '6.0', 'trunk']:
+        create_branch('release/'+version, do_push=False)
+        create_branch('development/'+version,
+                      'release/'+version, file_=True, do_push=False)
+
+        repo.push_everything()
+
+
+def create_branch(name, from_branch=None, file_=False, do_push=True):
+    if from_branch:
+        cmd('git checkout '+from_branch)
+    cmd('git checkout -b '+name)
+    if file_:
+        if file_ is True:
+            file_ = name.replace('/', '-')
+        cmd('echo %s >  a.%s' % (name, file_))
+        cmd('git add a.'+file_)
+        cmd('git commit -m "commit %s"' % file_)
+    if do_push:
+        cmd('git push --set-upstream origin '+name)
+
+
 class TestWallE(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -38,18 +69,16 @@ class TestWallE(unittest.TestCase):
 
         cls.bbrepo.create()
         cls.gitrepo = GitRepository(cls.bbrepo.get_git_url())
-        cls.gitrepo.init()
-        cls.gitrepo.create_ring_branching_model()
+        initialize_git_repo(cls.gitrepo)
 
     def create_pr(
             self,
             feature_branch,
             from_branch,
             reviewers=['scality_wall-e'],
-            file=True):
+            file_=True):
 
-        self.gitrepo.create_branch(feature_branch, from_branch=from_branch,
-                                   file=file)
+        create_branch(feature_branch, from_branch=from_branch, file_=file_)
         return self.bbrepo.create_pull_request(title='title',
                                                name='name',
                                                source={'branch':
@@ -140,10 +169,10 @@ class TestWallE(unittest.TestCase):
 
     def test_conflict(self):
         pr1 = self.create_pr('bugfix/RING-0006', 'development/4.3',
-                             file='toto.txt')
+                             file_='toto.txt')
         self.handle(pr1['id'])
         pr2 = self.create_pr('improvement/RING-0006', 'development/4.3',
-                             file='toto.txt')
+                             file_='toto.txt')
         with self.assertRaises(ConflictException):
             self.handle(pr2['id'])
         cmd('git merge --abort')
