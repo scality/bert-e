@@ -325,26 +325,6 @@ class WallE:
                                        description=description))
             child_prs.append(pr)
 
-        # Check integration PR: approval
-        for pr in child_prs:
-            approved_by_author = bypass_author_approval
-            approved_by_peer = bypass_peer_approval
-            for participant in pr['participants']:
-                if not participant['approved']:
-                    continue
-                if participant['user']['username'] == author:
-                    approved_by_author = True
-                else:
-                    approved_by_peer = True
-
-            if not approved_by_author:
-                raise AuthorApprovalRequiredException(pr=self.original_pr,
-                                                      child_prs=child_prs)
-
-            if not approved_by_peer:
-                raise PeerApprovalRequiredException(pr=self.original_pr,
-                                                    child_prs=child_prs)
-
         # Check integration PR: build status
         for pr in child_prs:
             if not bypass_build_status:
