@@ -1,4 +1,4 @@
-
 *.pyc
-venv
 *.swp
+venv
+__pycache__
