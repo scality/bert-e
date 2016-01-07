@@ -427,6 +427,12 @@ class WallE:
             print(excp)
             # do not raise, normal program termination
 
+        except WallE_SilentException as excp:
+            print("Wall-E stopped")
+            print("--------------")
+            print(excp)
+            # do not raise, normal program termination
+
         except:
             if alert_email:
                 send_email(destination=alert_email,
