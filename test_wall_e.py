@@ -18,6 +18,8 @@ from wall_e_exceptions import (BranchDoesNotAcceptFeaturesException,
 from git_api import Repository as GitRepository
 from simplecmd import cmd
 
+WALL_E_USERNAME = 'scality_wall-e'
+
 
 def initialize_git_repo(repo):
     """resets the git repo"""
@@ -60,7 +62,8 @@ class TestWallE(unittest.TestCase):
                                          owner='scality',
                                          repo_slug=('test_wall_e_%s'
                                                     % cls.args.your_login),
-                                         is_private=True)
+                                         is_private=True,
+                                         scm='git')
         try:
             cls.bbrepo.delete()
         except requests.exceptions.HTTPError as e:
@@ -75,7 +78,7 @@ class TestWallE(unittest.TestCase):
             self,
             feature_branch,
             from_branch,
-            reviewers=['scality_wall-e'],
+            reviewers=[WALL_E_USERNAME],
             file_=True):
 
         create_branch(feature_branch, from_branch=from_branch, file_=file_)
@@ -89,7 +92,7 @@ class TestWallE(unittest.TestCase):
                                                              from_branch}},
                                                close_source_branch=True,
                                                reviewers=[{'username':
-                                                           'scality_wall-e'}],
+                                                           WALL_E_USERNAME}],
                                                description='')
 
     def handle(self,
@@ -221,6 +224,11 @@ def main():
     parser.add_argument('your_mail',
                         help='Your Bitbucket email address')
     TestWallE.args = parser.parse_args()
+
+    if TestWallE.args.your_login == WALL_E_USERNAME:
+        print('Cannot use Wall-e as the tester, please use another login.')
+        sys.exit(1)
+
     sys.argv = [sys.argv[0]]
     loader = unittest.TestLoader()
     loader.testMethodPrefix = "test_"

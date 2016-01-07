@@ -52,6 +52,8 @@ RELEASE_ENGINEERS = [
     'sylvain_killian',
 ]
 
+WALL_E_USERNAME = 'scality_wall-e'
+
 
 def confirm(question):
     input_ = raw_input(question + " Enter (y)es or (n)o: ")
@@ -159,7 +161,6 @@ class WallE:
                                max_history=None):
         # the last comment posted is the first in the list
         for index, comment in enumerate(self.original_pr.get_comments()):
-
             u = comment['user']['username']
             raw = comment['content']['raw']
             if username is str and u != username:
@@ -442,7 +443,7 @@ def main():
         '--interactive', action='store_true',
         help='Ask before merging or sending comments')
     args = cmdline_parser.parse_args()
-    wall_e = WallE('scality_wall-e', args.password, 'wall_e@scality.com',
+    wall_e = WallE(WALL_E_USERNAME, args.password, 'wall_e@scality.com',
                    args.owner, args.slug, args.pull_request_id)
     comment_args = wall_e.get_comment_args()
     args = global_parser.parse_args(args=comment_args, namespace=args)
