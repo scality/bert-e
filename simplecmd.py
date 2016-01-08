@@ -12,10 +12,7 @@ def cmd(_):
         logging.debug('#' * 50)
         logging.debug('# BASH : %s' % _)
 
-        stdout_ = None
-        stderr_ = None
+        subprocess.check_call(_, shell=True)
     else:
-        stdout_ = open(os.devnull, 'wb')
-        stderr_ = open(os.devnull, 'wb')
-
-    subprocess.check_call(_, shell=True, stdout=stdout_, stderr=stderr_)
+        with open(os.devnull, 'wb') as devnull:
+            subprocess.check_call(_, shell=True, stdout=devnull, stderr=devnull)
