@@ -5,6 +5,7 @@ import argparse
 import requests
 import sys
 import unittest
+import logging
 
 from bitbucket_api import (Client, PullRequest,
                            Repository as BitbucketRepository)
@@ -297,11 +298,20 @@ def main():
                         help='Your Bitbucket password')
     parser.add_argument('your_mail',
                         help='Your Bitbucket email address')
+    parser.add_argument('-v', action='store_true', dest='verbose',
+                        help='Verbose mode')
     TestWallE.args = parser.parse_args()
 
     if TestWallE.args.your_login == WALL_E_USERNAME:
         print('Cannot use Wall-e as the tester, please use another login.')
         sys.exit(1)
+
+    if TestWallE.args.verbose:
+        logging.basicConfig(level=logging.DEBUG)
+    else:
+        # it is expected that wall-e issues some warning
+        # during the tests, only report critical stuff
+        logging.basicConfig(level=logging.CRITICAL)
 
     sys.argv = [sys.argv[0]]
     unittest.main(failfast=True)
