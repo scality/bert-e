@@ -2,11 +2,11 @@
 # -*- coding: utf-8 -*-
 
 import argparse
-from collections import OrderedDict
 import re
-
-from template_loader import render
+import logging
 import requests
+from template_loader import render
+from collections import OrderedDict
 
 from bitbucket_api import (Repository as BitBucketRepository,
                            Client)
@@ -40,6 +40,7 @@ JIRA_ISSUE_BRANCH_PREFIX = {
     'Improvement': 'improvement'}
 
 WALL_E_USERNAME = 'scality_wall-e'
+
 
 def confirm(question):
     input_ = raw_input(question + " Enter (y)es or (n)o: ")
@@ -76,8 +77,8 @@ class FeatureBranch(ScalBranch):
         if match:
             self.jira_issue_id = match.group('issue_id')
         else:
-            print('Warning : %s does not contain a correct '
-                  'issue id number' % self.name)
+            logging.warning('%s does not contain a correct '
+                            'issue id number', self.name)
             # Fixme : send a comment instead ? or ignore the jira checks ?
 
     def merge_cascade(self, destination_branch):
@@ -139,7 +140,7 @@ class WallE:
 
     def send_bitbucket_msg(self, pull_request_id, msg, no_comment=False,
                            interactive=False):
-        print('SENDING MSG %s : %s' % (pull_request_id, msg))
+        logging.debug('considering sending %s: %s', pull_request_id, msg)
         if not self.original_pr:
             return
         # the last comment is the first
@@ -155,9 +156,14 @@ class WallE:
                 # allow him to run again
                 break
         if no_comment:
+            logging.debug('not sending message due to no_comment being True.')
             return
-        if interactive and not confirm('Do you want to send this comment ?'):
-            return
+        if interactive:
+            print('%s: %s\n' % (pull_request_id, msg))
+            if not confirm('Do you want to send this comment?'):
+                return
+
+        logging.info('SENDING MSG %s: %s', pull_request_id, msg)
         self.original_pr.add_comment(msg)
 
     def jira_checks(self, source_branch, destination_branch,
@@ -247,8 +253,8 @@ class WallE:
         try:
             destination_branch = DestinationBranch(dst_brnch_name)
         except BranchNameInvalidException as e:
-            print('Destination branch %r not handled, ignore PR %s'
-                  % (e.branch, pull_request_id))
+            logging.info('Destination branch %r not handled, ignore PR %s',
+                         e.branch, pull_request_id)
             # Nothing to do
             raise NotMyJobException(src_brnch_name, dst_brnch_name)
 
@@ -260,7 +266,7 @@ class WallE:
 
         if source_branch.prefix == 'hotfix':
             # hotfix branches are ignored, nothing todo
-            print("Ignore branch %r" % source_branch.name)
+            logging.info("Ignore branch %r", source_branch.name)
             return
 
         if source_branch.prefix not in ['feature', 'bugfix', 'improvement']:
@@ -403,8 +409,15 @@ def main():
                         help='Do not add any comment to the pull request page')
     parser.add_argument('--interactive', action='store_true',
                         help='Ask before merging or sending comments')
+    parser.add_argument('-v', action='store_true', dest='verbose',
+                        help='Verbose mode')
 
     args = parser.parse_args()
+
+    if args.verbose:
+        logging.basicConfig(level=logging.DEBUG)
+    else:
+        logging.basicConfig(level=logging.INFO)
 
     wall_e = WallE(WALL_E_USERNAME, args.password, 'wall_e@scality.com')
     wall_e.handle_pull_request(repo_owner=args.owner,
