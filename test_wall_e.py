@@ -62,8 +62,8 @@ class TestWallE(unittest.TestCase):
                         cls.args.your_mail)
         cls.bbrepo = BitbucketRepository(client,
                                          owner='scality',
-                                         repo_slug=('_test_wall_e_%s'
-                                                    % cls.args.your_login),
+                                         repo_slug=('%s_%s'
+                                                    % (cls.args.repo_prefix, cls.args.your_login)),
                                          is_private=True,
                                          scm='git')
         try:
@@ -290,6 +290,8 @@ def main():
                         help='Your Bitbucket password')
     parser.add_argument('your_mail',
                         help='Your Bitbucket email address')
+    parser.add_argument('--repo_prefix', default="_test_wall_e",
+                        help='Prefix of the test repository')
     parser.add_argument('-v', action='store_true', dest='verbose',
                         help='Verbose mode')
     TestWallE.args = parser.parse_args()
