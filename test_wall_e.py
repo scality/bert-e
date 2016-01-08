@@ -28,7 +28,7 @@ class TestWallE(unittest.TestCase):
                         cls.args.your_mail)
         cls.bbrepo = BitbucketRepository(client,
                                          owner='scality',
-                                         repo_slug=('test_wall_e_%s'
+                                         repo_slug=('_test_wall_e_%s'
                                                     % cls.args.your_login),
                                          is_private=True,
                                          scm='git')
