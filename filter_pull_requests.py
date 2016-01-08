@@ -30,6 +30,7 @@ def filter_pr(your_login, your_password, your_mail, owner, slug, **kwargs):
 
     client = Client(your_login, your_password, your_mail)
     bbrepo = BitBucketRepository(client, owner=owner, repo_slug=slug)
+    pr_list = []
 
     for pr in bbrepo.get_pull_requests():
         pr_match = True
@@ -52,14 +53,17 @@ def filter_pr(your_login, your_password, your_mail, owner, slug, **kwargs):
         if not pr_match:
             continue
 
-        logging.info('%s (%s) [%s]->[%s]https://bitbucket.org/%s/%s/pull-requests/%s',
-                     pr['id'],
-                     pr['author']['display_name'],
-                     pr['source']['branch']['name'],
-                     pr['destination']['branch']['name'],
-                     owner,
-                     slug,
-                     pr['id'])
+        pr_id =('%s (%s) [%s]->[%s]https://bitbucket.org'
+                '/%s/%s/pull-requests/%s'
+                % (pr['id'],
+                pr['author']['display_name'],
+                pr['source']['branch']['name'],
+                pr['destination']['branch']['name'],
+                owner,
+                slug,
+                pr['id']))
+        pr_list.append(pr_id)
+    return pr_list
 
 
 def main():
@@ -83,7 +87,7 @@ def main():
                         help='The repo\'s slug (default: ring)')
 
     args = vars(parser.parse_args())
-    filter_pr(**args)
+    logging.info(filter_pr(**args))
 
 
 if __name__ == '__main__':
