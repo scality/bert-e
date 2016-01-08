@@ -140,12 +140,13 @@ class IntegrationBranch(ScalBranch):
         self.merge_from_branch(self.development_branch)
 
     def update_to_development_branch(self):
-        self.development_branch.merge(self, force_commit=True)
+        self.development_branch.merge(self, force_commit=False)
+        self.development_branch.push()
 
     def create_pull_request(self, parent_pr, bitbucket_repo):
         title = ('[%s] #%s: %s'
-                     % (self.development_branch.name,
-                        parent_pr['id'], parent_pr['title']))
+                 % (self.development_branch.name,
+                    parent_pr['id'], parent_pr['title']))
 
         description = render('pull_request_description.md', pr=parent_pr)
         pr = (bitbucket_repo.create_pull_request(
@@ -157,6 +158,7 @@ class IntegrationBranch(ScalBranch):
             reviewers=[{'username': parent_pr['author']['username']}],
             description=description))
         return pr
+
 
 class FeatureBranch(ScalBranch):
     def __init__(self, name):
@@ -180,32 +182,6 @@ class FeatureBranch(ScalBranch):
             raise BranchDoesNotAcceptFeaturesException(
                 source=self,
                 destination=destination_branch)
-
-
-
-
-    def merge_cascade(self, destination_branch):
-        previous_feature_branch = self
-        new_pull_requests = []
-        for version in destination_branch.impacted_versions:
-            integration_branch = (FeatureBranch('w/%s/%s/%s'
-                                  % (version, self.prefix, self.subname)))
-            try:
-                (integration_branch
-                 .update_or_create_and_merge(previous_feature_branch))
-            except MergeFailedException:
-                raise ConflictException(source=integration_branch,
-                                        destination=previous_feature_branch)
-            development_branch = DestinationBranch('development/' + version)
-            try:
-                integration_branch.merge(development_branch)
-            except MergeFailedException:
-                raise ConflictException(source=integration_branch,
-                                        destination=development_branch)
-            integration_branch.push()
-            new_pull_requests.append((integration_branch, development_branch))
-            previous_feature_branch = integration_branch
-        return new_pull_requests
 
 
 class WallE:
@@ -347,7 +323,7 @@ class WallE:
 
     def create_pull_requests(self, ):
         return [integration_branch.
-                    create_pull_request(self.original_pr, self.bbrepo) for
+                create_pull_request(self.original_pr, self.bbrepo) for
                 integration_branch in self.integration_branches]
 
     def update_integration_branches_from_development_branches(self):
@@ -367,18 +343,15 @@ class WallE:
                         % self._bbconn.mail)
         git_repo.config('user.name', '"Wall-E"')
 
-    def _handle_pull_request(self,
-                             owner,
-                             repo_slug,
-                             pull_request_id,
-                             bypass_peer_approval=False,
-                             bypass_author_approval=False,
-                             bypass_jira_version_check=False,
-                             bypass_jira_type_check=False,
-                             bypass_build_status=False,
-                             reference_git_repo='',
-                             no_comment=False,
-                             interactive=False):
+    def handle_pull_request(self,
+                            bypass_peer_approval=False,
+                            bypass_author_approval=False,
+                            bypass_jira_version_check=False,
+                            bypass_jira_type_check=False,
+                            bypass_build_status=False,
+                            reference_git_repo='',
+                            no_comment=False,
+                            interactive=False):
 
         if self.original_pr['state'] != 'OPEN':  # REJECTED or FULFILLED
             raise NothingToDoException('The pull-request\'s state is "%s"'
@@ -406,12 +379,15 @@ class WallE:
         except BranchNameInvalidException as e:
             raise PrefixCannotBeMergedException(e.branch)
 
+        self.source_branch.check_if_should_handle(self.destination_branch)
+
         if self.source_branch.prefix == 'hotfix':
             # hotfix branches are ignored, nothing todo
             logging.info("Ignore branch %r", self.source_branch.name)
             return
 
-        if self.source_branch.prefix not in ['feature', 'bugfix', 'improvement']:
+        if self.source_branch.prefix not in \
+                ['feature', 'bugfix', 'improvement']:
             raise PrefixCannotBeMergedException(self.source_branch.name)
 
         self.jira_checks(bypass_jira_version_check, bypass_jira_type_check)
@@ -523,8 +499,7 @@ def main():
         help='Verbose mode')
     cmdline_parser.add_argument(
         '--alert_email', action='store', default=None,
-        help='Where to send notifications in case of '
-             'incorrect behaviour')
+        help='Where to send notifications in case of incorrect behaviour')
     args = cmdline_parser.parse_args()
 
     if args.verbose:
@@ -564,7 +539,7 @@ def main():
                                   interactive=args.interactive)
         raise
 
-    except WallE_SilentException as excp:
+    except WallE_SilentException:
         raise
 
     except Exception:

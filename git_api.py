@@ -55,8 +55,9 @@ class Branch(object):
         try:
             cmd('git merge --no-edit %s %s'
                 % ('--no-ff' if force_commit else '',
-                   source_branch.name)) # <- May fail if conflict
+                   source_branch.name))  # <- May fail if conflict
         except subprocess.CalledProcessError:
+            cmd('git merge --abort')
             raise MergeFailedException(self.name, source_branch.name)
         if do_push:
             self.push()
@@ -93,7 +94,6 @@ class Branch(object):
     def create_if_not_exists(self, source_branch):
         if not self.exists():
             self.create(source_branch)
-
 
 
 class GitException(Exception):

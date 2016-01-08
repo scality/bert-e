@@ -63,7 +63,8 @@ class TestWallE(unittest.TestCase):
         cls.bbrepo = BitbucketRepository(client,
                                          owner='scality',
                                          repo_slug=('%s_%s'
-                                                    % (cls.args.repo_prefix, cls.args.your_login)),
+                                                    % (cls.args.repo_prefix,
+                                                       cls.args.your_login)),
                                          is_private=True,
                                          scm='git')
         try:
@@ -165,12 +166,11 @@ class TestWallE(unittest.TestCase):
     def test_conflict(self):
         pr1 = self.create_pr('bugfix/RING-0006', 'development/4.3',
                              file_='toto.txt')
-        self.handle(pr1['id'])
         pr2 = self.create_pr('improvement/RING-0006', 'development/4.3',
                              file_='toto.txt')
+        self.handle(pr1['id'])
         with self.assertRaises(ConflictException):
             self.handle(pr2['id'])
-        cmd('git merge --abort')
 
     def test_approval(self):
         """Test approvals of author and reviewer
@@ -311,7 +311,7 @@ def main():
     loader = unittest.TestLoader()
     loader.testMethodPrefix = "test_"
     # loader.testMethodPrefix = "test_conflict"  # uncomment for single test
-    unittest.main(failfast=True, testLoader=loader)
+    unittest.main(failfast=False, testLoader=loader)
 
 
 if __name__ == '__main__':
