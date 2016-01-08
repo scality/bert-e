@@ -4,6 +4,7 @@
 import argparse
 import re
 import six
+import logging
 
 from bitbucket_api import (Repository as BitBucketRepository,
                            Client)
@@ -65,7 +66,6 @@ def filter_pr(your_login, your_password, your_mail, owner, slug, **kwargs):
     return pr_list
 
 
-
 def main():
     parser = (argparse
               .ArgumentParser(description='Searches for pull requests.'))
@@ -87,7 +87,7 @@ def main():
                         help='The repo\'s slug (default: ring)')
 
     args = vars(parser.parse_args())
-    print(filter_pr(**args))
+    logging.info(filter_pr(**args))
 
 
 if __name__ == '__main__':

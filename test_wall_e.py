@@ -5,9 +5,10 @@ import argparse
 import requests
 import sys
 import unittest
+import logging
 
-from bitbucket_api import (Repository as BitbucketRepository,
-                           Client)
+from bitbucket_api import (Client, PullRequest,
+                           Repository as BitbucketRepository)
 from wall_e import (DestinationBranch, FeatureBranch, WallE)
 from wall_e_exceptions import (BranchDoesNotAcceptFeaturesException,
                                CommentAlreadyExistsException,
@@ -18,6 +19,8 @@ from wall_e_exceptions import (BranchDoesNotAcceptFeaturesException,
 from git_api import Repository as GitRepository
 from simplecmd import cmd
 
+WALL_E_USERNAME = 'scality_wall-e'
+WALL_E_EMAIL = 'wall_e@scality.com'
 
 class TestWallE(unittest.TestCase):
     @classmethod
@@ -27,9 +30,10 @@ class TestWallE(unittest.TestCase):
                         cls.args.your_mail)
         cls.bbrepo = BitbucketRepository(client,
                                          owner='scality',
-                                         repo_slug=('test_wall_e_%s'
+                                         repo_slug=('_test_wall_e_%s'
                                                     % cls.args.your_login),
-                                         is_private=True)
+                                         is_private=True,
+                                         scm='git')
         try:
             cls.bbrepo.delete()
         except requests.exceptions.HTTPError as e:
@@ -37,8 +41,8 @@ class TestWallE(unittest.TestCase):
                 raise
 
         cls.bbrepo.create()
-        cls.wall_e = WallE('scality_wall-e', cls.args.wall_e_password,
-                           'wall_e@scality.com')
+        cls.wall_e = WallE(WALL_E_USERNAME, cls.args.wall_e_password,
+                           WALL_E_EMAIL)
         cls.gitrepo = GitRepository(cls.bbrepo.get_git_url())
         cls.gitrepo.init()
         cls.gitrepo.create_ring_branching_model()
@@ -47,7 +51,7 @@ class TestWallE(unittest.TestCase):
             self,
             feature_branch,
             from_branch,
-            reviewers=['scality_wall-e'],
+            reviewers=[WALL_E_USERNAME],
             file=True):
 
         self.gitrepo.create_branch(feature_branch, from_branch=from_branch,
@@ -62,7 +66,7 @@ class TestWallE(unittest.TestCase):
                                                              from_branch}},
                                                close_source_branch=True,
                                                reviewers=[{'username':
-                                                           'scality_wall-e'}],
+                                                           WALL_E_USERNAME}],
                                                description='')
 
     def test_bugfix_full_merge_manual(self):
@@ -96,7 +100,7 @@ class TestWallE(unittest.TestCase):
     def test_bugfix_full_merge_automatic(self):
         feature_branch = 'bugfix/RING-0001'
         dst_branch = 'development/4.3'
-        reviewers = ['scality_wall-e']
+        reviewers = [WALL_E_USERNAME]
         pr = self.create_feature_branch_and_pull_request(feature_branch,
                                                          dst_branch,
                                                          reviewers=reviewers)
@@ -190,6 +194,84 @@ class TestWallE(unittest.TestCase):
                                             bypass_build_status=True)
         cmd('git merge --abort')
 
+    def test_approval(self):
+        """Test approvals of author and reviewer
+
+        1. Test approval of author
+        2. Test approval of reviewer
+        """
+        feature_branch = 'bugfix/RING-0007'
+        dst_branch = 'development/4.3'
+        reviewers = ['scality_wall-e']
+        pr = self.create_feature_branch_and_pull_request(feature_branch,
+                                                         dst_branch,
+                                                         reviewers=reviewers)
+        with self.assertRaises(AuthorApprovalRequiredException):
+            self.wall_e.handle_pull_request('scality', self.bbrepo['repo_slug'],
+                                            pr['id'],
+                                            bypass_author_approval=False,
+                                            bypass_peer_approval=False,
+                                            bypass_jira_version_check=True,
+                                            bypass_jira_type_check=True,
+                                            bypass_build_status=True)
+
+        # Author
+        pr.approve()
+
+        # PeerApprovalRequiredException and AuthorApprovalRequiredException
+        # have the same message, so CommentAlreadyExistsException is used
+        with self.assertRaises(CommentAlreadyExistsException):
+            self.wall_e.handle_pull_request('scality', self.bbrepo['repo_slug'],
+                                            pr['id'],
+                                            bypass_author_approval=False,
+                                            bypass_peer_approval=False,
+                                            bypass_jira_version_check=True,
+                                            bypass_jira_type_check=True,
+                                            bypass_build_status=True)
+        # Reviewer
+        w_pr = PullRequest(self.wall_e._bbconn, **pr._json_data)
+        w_pr.approve()
+
+        self.wall_e.handle_pull_request('scality', self.bbrepo['repo_slug'],
+                                        pr['id'],
+                                        bypass_author_approval=False,
+                                        bypass_peer_approval=False,
+                                        bypass_jira_version_check=True,
+                                        bypass_jira_type_check=True,
+                                        bypass_build_status=True)
+
+    def test_branches_creation_main_pr_not_approved(self):
+        """Test if Wall-e creates integration pull-requests when the main
+        pull-request isn't approved
+
+        1. Create feature branch and create an unapproved pull request
+        2. Run wall-e on the pull request
+        3. Check existence of integration branches
+        """
+        feature_branch = 'bugfix/RING-0008'
+        dst_branch = 'development/4.3'
+        reviewers = ['scality_wall-e']
+        pr = self.create_feature_branch_and_pull_request(feature_branch,
+                                                         dst_branch,
+                                                         reviewers=reviewers)
+        with self.assertRaises(AuthorApprovalRequiredException):
+            self.wall_e.handle_pull_request('scality', self.bbrepo['repo_slug'],
+                                            pr['id'],
+                                            bypass_author_approval=False,
+                                            bypass_peer_approval=False,
+                                            bypass_jira_version_check=True,
+                                            bypass_jira_type_check=True,
+                                            bypass_build_status=True)
+
+        # check existence of integration branches
+        for version in ['4.3', '5.1', '6.0']:
+            remote = 'w/%s/%s' % (version, feature_branch)
+            ret = self.gitrepo.remote_branch_exists(remote)
+            self.assertTrue(ret)
+
+        # check absence of a missing branch
+        self.assertFalse(self.gitrepo.remote_branch_exists('missing_branch'))
+
     # FIXME: Find a way to test not started build
     def test_build_status_not_there_yet(self):
         pass
@@ -217,7 +299,21 @@ def main():
                         help='Your Bitbucket password')
     parser.add_argument('your_mail',
                         help='Your Bitbucket email address')
+    parser.add_argument('-v', action='store_true', dest='verbose',
+                        help='Verbose mode')
     TestWallE.args = parser.parse_args()
+
+    if TestWallE.args.your_login == WALL_E_USERNAME:
+        print('Cannot use Wall-e as the tester, please use another login.')
+        sys.exit(1)
+
+    if TestWallE.args.verbose:
+        logging.basicConfig(level=logging.DEBUG)
+    else:
+        # it is expected that wall-e issues some warning
+        # during the tests, only report critical stuff
+        logging.basicConfig(level=logging.CRITICAL)
+
     sys.argv = [sys.argv[0]]
     unittest.main(failfast=True)
 
