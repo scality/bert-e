@@ -41,6 +41,7 @@ JIRA_ISSUE_BRANCH_PREFIX = {
 
 WALL_E_USERNAME = 'scality_wall-e'
 
+
 def confirm(question):
     input_ = raw_input(question + " Enter (y)es or (n)o: ")
     return input_ == "yes" or input_ == "y"
@@ -77,7 +78,7 @@ class FeatureBranch(ScalBranch):
             self.jira_issue_id = match.group('issue_id')
         else:
             logging.warning('%s does not contain a correct '
-                            'issue id number' % self.name)
+                            'issue id number', self.name)
             # Fixme : send a comment instead ? or ignore the jira checks ?
 
     def merge_cascade(self, destination_branch):
@@ -139,7 +140,7 @@ class WallE:
 
     def send_bitbucket_msg(self, pull_request_id, msg, no_comment=False,
                            interactive=False):
-        logging.debug('considering sending %s: %s' % (pull_request_id, msg))
+        logging.debug('considering sending %s: %s', pull_request_id, msg)
         if not self.original_pr:
             return
         # the last comment is the first
@@ -162,7 +163,7 @@ class WallE:
             if not confirm('Do you want to send this comment?'):
                 return
 
-        logging.info('SENDING MSG %s: %s' % (pull_request_id, msg))
+        logging.info('SENDING MSG %s: %s', pull_request_id, msg)
         self.original_pr.add_comment(msg)
 
     def jira_checks(self, source_branch, destination_branch,
@@ -253,8 +254,8 @@ class WallE:
         try:
             destination_branch = DestinationBranch(dst_brnch_name)
         except BranchNameInvalidException as e:
-            logging.info('Destination branch %r not handled, ignore PR %s'
-                         % (e.branch, pull_request_id))
+            logging.info('Destination branch %r not handled, ignore PR %s',
+                         e.branch, pull_request_id)
             # Nothing to do
             raise NotMyJobException(src_brnch_name, dst_brnch_name)
 
@@ -266,7 +267,7 @@ class WallE:
 
         if source_branch.prefix == 'hotfix':
             # hotfix branches are ignored, nothing todo
-            logging.info("Ignore branch %r" % source_branch.name)
+            logging.info("Ignore branch %r", source_branch.name)
             return
 
         if source_branch.prefix not in ['feature', 'bugfix', 'improvement']:
