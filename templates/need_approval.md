@@ -1,5 +1,5 @@
 Hi @{{ pr['author']['username'] }} and `reviewers`,
-you 'll need to approve this pull request if you think that the integration
+you will need to approve this pull request if you think that the integration
 pull requests are **ready to be merged**.
 
 Before approving, you should double check the diffs of the integration
@@ -18,7 +18,7 @@ modify the `w/*` integration branches accordingly.
 
 For example, if you don't want this changeset to land in
 `{{ child_prs[0]['destination']['branch']['name'] }}`,
-you'll need to :
+you will need to :
 
 ```
 #!bash
@@ -28,4 +28,4 @@ you'll need to :
  $ git revert <sha1>
  $ git push
 ```
-I'll then relaunch the checks with your new changesets and try to merge.
+I will then relaunch the checks with your new changesets and try to merge.
