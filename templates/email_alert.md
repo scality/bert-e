@@ -1,4 +1,4 @@
-From: Wall-E <wall_e@scality.com>
+From: Wall-E <{{ email }}>
 To: {{ destination }}
 MIME-Version: 1.0
 Content-type: text/plain

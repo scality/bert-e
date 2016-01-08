@@ -19,6 +19,7 @@ from git_api import Repository as GitRepository
 from simplecmd import cmd
 
 WALL_E_USERNAME = 'scality_wall-e'
+WALL_E_EMAIL = 'wall_e@scality.com'
 
 class TestWallE(unittest.TestCase):
     @classmethod
@@ -40,7 +41,7 @@ class TestWallE(unittest.TestCase):
 
         cls.bbrepo.create()
         cls.wall_e = WallE(WALL_E_USERNAME, cls.args.wall_e_password,
-                           'wall_e@scality.com')
+                           WALL_E_EMAIL)
         cls.gitrepo = GitRepository(cls.bbrepo.get_git_url())
         cls.gitrepo.init()
         cls.gitrepo.create_ring_branching_model()

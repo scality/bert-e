@@ -47,6 +47,7 @@ JIRA_ISSUE_BRANCH_PREFIX = {
     'Improvement': 'improvement'}
 
 WALL_E_USERNAME = 'scality_wall-e'
+WALL_E_EMAIL = 'wall_e@scality.com'
 
 
 def setup_email(destination):
@@ -57,7 +58,7 @@ def setup_email(destination):
                                            "not seem valid (%s)" % destination)
     try:
         smtplib.SMTP('localhost')
-    except (smtplib.SMTPException, ConnectionRefusedError) as excp:
+    except Exception as excp:
         raise UnableToSendEmailException("Unable to send email (%s)" % excp)
 
 
@@ -71,12 +72,10 @@ def send_email(destination, title, content):
                   name=match_.group('short_name'),
                   subject=title,
                   content=content,
-                  destination=destination)
-    try:
-        smtpObj = smtplib.SMTP('localhost')
-        smtpObj.sendmail('wall_e@scality.com', [destination], body)
-    except (smtplib.SMTPException, ConnectionRefusedError) as excp:
-        raise UnableToSendEmailException("Unable to send email (%s)" % excp)
+                  destination=destination,
+                  email=WALL_E_EMAIL)
+    smtpObj = smtplib.SMTP('localhost')
+    smtpObj.sendmail(WALL_E_EMAIL, [destination], body)
 
 
 def confirm(question):
@@ -441,7 +440,7 @@ class WallE:
             print(excp)
             # do not raise, normal program termination
 
-        except:
+        except Exception:
             if alert_email:
                 send_email(destination=alert_email,
                            title="[Wall-E] Unexpected termination "
@@ -502,7 +501,7 @@ def main():
                   "the email server.")
             sys.exit(1)
 
-    wall_e = WallE(WALL_E_USERNAME, args.password, 'wall_e@scality.com')
+    wall_e = WallE(WALL_E_USERNAME, args.password, WALL_E_EMAIL)
 
     wall_e.handle_pull_request(repo_owner=args.owner,
                                repo_slug=args.slug,
