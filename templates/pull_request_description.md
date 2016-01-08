@@ -1,4 +1,4 @@
-This pull-request has been created automatically by @scality_wall-e.
+This pull-request has been created automatically by @{{ WALL_E_USERNAME }}.
 It is linked to its parent pull request #{{ pr['id'] }}
 Please do not edit the contents nor the title!
 The only actions allowed are "Approve" or "Comment".
