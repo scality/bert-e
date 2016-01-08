@@ -238,7 +238,6 @@ class WallE:
         self.repo_full_name = owner + '/' + repo_slug
         self.original_pr = (self.bbrepo
                             .get_pull_request(pull_request_id=pull_request_id))
-        author = self.original_pr['author']['username']
         if self.original_pr['state'] != 'OPEN':  # REJECTED or FULFILLED
             raise NothingToDoException('The pull-request\'s state is "%s"'
                                        % self.original_pr['state'])
@@ -285,30 +284,9 @@ class WallE:
 
         new_pull_requests = source_branch.merge_cascade(destination_branch)
 
-        # Check parent PR: approval
-        original_pr_is_approved_by_author = bypass_author_approval
-        original_pr_is_approved_by_peer = bypass_peer_approval
-
-        # NB: when author hasn't approved the PR, author isn't listed in
-        # 'participants'
-        for participant in self.original_pr['participants']:
-            if not participant['approved']:
-                continue
-            if participant['user']['username'] == author:
-                original_pr_is_approved_by_author = True
-            else:
-                original_pr_is_approved_by_peer = True
-
-        if not original_pr_is_approved_by_author:
-            raise AuthorApprovalRequiredException(pr=self.original_pr,
-                                                  child_prs=None)
-
-        if not original_pr_is_approved_by_peer:
-            raise PeerApprovalRequiredException(pr=self.original_pr,
-                                                child_prs=None)
-
         # Create integration PR
         child_prs = []
+        author = self.original_pr['author']['username']
         for source_branch, destination_branch in new_pull_requests:
             title = ('[%s] #%s: %s'
                      % (destination_branch.name,
@@ -331,25 +309,9 @@ class WallE:
                                        description=description))
             child_prs.append(pr)
 
-        # Check integration PR: approval
-        for pr in child_prs:
-            approved_by_author = bypass_author_approval
-            approved_by_peer = bypass_peer_approval
-            for participant in pr['participants']:
-                if not participant['approved']:
-                    continue
-                if participant['user']['username'] == author:
-                    approved_by_author = True
-                else:
-                    approved_by_peer = True
-
-            if not approved_by_author:
-                raise AuthorApprovalRequiredException(pr=self.original_pr,
-                                                      child_prs=child_prs)
-
-            if not approved_by_peer:
-                raise PeerApprovalRequiredException(pr=self.original_pr,
-                                                    child_prs=child_prs)
+        # Check parent PR: approval
+        self.check_approval(bypass_author_approval, bypass_peer_approval,
+                            child_prs)
 
         # Check integration PR: build status
         for pr in child_prs:
@@ -362,6 +324,30 @@ class WallE:
 
         for pr in child_prs:
             pr.merge()
+
+    def check_approval(self, bypass_author_approval, bypass_peer_approval,
+                       child_prs):
+        original_pr_is_approved_by_author = bypass_author_approval
+        original_pr_is_approved_by_peer = bypass_peer_approval
+
+        # NB: when author hasn't approved the PR, author isn't listed in
+        # 'participants'
+        for participant in self.original_pr['participants']:
+            if not participant['approved']:
+                continue
+            author = self.original_pr['author']['username']
+            if participant['user']['username'] == author:
+                original_pr_is_approved_by_author = True
+            else:
+                original_pr_is_approved_by_peer = True
+
+        if not original_pr_is_approved_by_author:
+            raise AuthorApprovalRequiredException(pr=self.original_pr,
+                                                  child_prs=child_prs)
+
+        if not original_pr_is_approved_by_peer:
+            raise PeerApprovalRequiredException(pr=self.original_pr,
+                                                child_prs=child_prs)
 
     def handle_pull_request(self,
                             repo_owner,

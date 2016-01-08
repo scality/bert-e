@@ -6,8 +6,8 @@ import requests
 import sys
 import unittest
 
-from bitbucket_api import (Repository as BitbucketRepository,
-                           Client)
+from bitbucket_api import (Client, PullRequest,
+                           Repository as BitbucketRepository)
 from wall_e import (DestinationBranch, FeatureBranch, WallE)
 from wall_e_exceptions import (BranchDoesNotAcceptFeaturesException,
                                CommentAlreadyExistsException,
@@ -191,6 +191,84 @@ class TestWallE(unittest.TestCase):
                                             bypass_jira_type_check=True,
                                             bypass_build_status=True)
         cmd('git merge --abort')
+
+    def test_approval(self):
+        """Test approvals of author and reviewer
+
+        1. Test approval of author
+        2. Test approval of reviewer
+        """
+        feature_branch = 'bugfix/RING-0007'
+        dst_branch = 'development/4.3'
+        reviewers = ['scality_wall-e']
+        pr = self.create_feature_branch_and_pull_request(feature_branch,
+                                                         dst_branch,
+                                                         reviewers=reviewers)
+        with self.assertRaises(AuthorApprovalRequiredException):
+            self.wall_e.handle_pull_request('scality', self.bbrepo['repo_slug'],
+                                            pr['id'],
+                                            bypass_author_approval=False,
+                                            bypass_peer_approval=False,
+                                            bypass_jira_version_check=True,
+                                            bypass_jira_type_check=True,
+                                            bypass_build_status=True)
+
+        # Author
+        pr.approve()
+
+        # PeerApprovalRequiredException and AuthorApprovalRequiredException
+        # have the same message, so CommentAlreadyExistsException is used
+        with self.assertRaises(CommentAlreadyExistsException):
+            self.wall_e.handle_pull_request('scality', self.bbrepo['repo_slug'],
+                                            pr['id'],
+                                            bypass_author_approval=False,
+                                            bypass_peer_approval=False,
+                                            bypass_jira_version_check=True,
+                                            bypass_jira_type_check=True,
+                                            bypass_build_status=True)
+        # Reviewer
+        w_pr = PullRequest(self.wall_e._bbconn, **pr._json_data)
+        w_pr.approve()
+
+        self.wall_e.handle_pull_request('scality', self.bbrepo['repo_slug'],
+                                        pr['id'],
+                                        bypass_author_approval=False,
+                                        bypass_peer_approval=False,
+                                        bypass_jira_version_check=True,
+                                        bypass_jira_type_check=True,
+                                        bypass_build_status=True)
+
+    def test_branches_creation_main_pr_not_approved(self):
+        """Test if Wall-e creates integration pull-requests when the main
+        pull-request isn't approved
+
+        1. Create feature branch and create an unapproved pull request
+        2. Run wall-e on the pull request
+        3. Check existence of integration branches
+        """
+        feature_branch = 'bugfix/RING-0008'
+        dst_branch = 'development/4.3'
+        reviewers = ['scality_wall-e']
+        pr = self.create_feature_branch_and_pull_request(feature_branch,
+                                                         dst_branch,
+                                                         reviewers=reviewers)
+        with self.assertRaises(AuthorApprovalRequiredException):
+            self.wall_e.handle_pull_request('scality', self.bbrepo['repo_slug'],
+                                            pr['id'],
+                                            bypass_author_approval=False,
+                                            bypass_peer_approval=False,
+                                            bypass_jira_version_check=True,
+                                            bypass_jira_type_check=True,
+                                            bypass_build_status=True)
+
+        # check existence of integration branches
+        for version in ['4.3', '5.1', '6.0']:
+            remote = 'w/%s/%s' % (version, feature_branch)
+            ret = self.gitrepo.remote_branch_exists(remote)
+            self.assertTrue(ret)
+
+        # check absence of a missing branch
+        self.assertFalse(self.gitrepo.remote_branch_exists('missing_branch'))
 
     # FIXME: Find a way to test not started build
     def test_build_status_not_there_yet(self):
