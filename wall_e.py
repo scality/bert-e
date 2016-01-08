@@ -1,12 +1,16 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import smtplib
+import time
+import traceback
+import sys
 import argparse
-from collections import OrderedDict
 import re
-
-from template_loader import render
+import logging
 import requests
+from template_loader import render
+from collections import OrderedDict
 
 from bitbucket_api import (Repository as BitBucketRepository,
                            Client)
@@ -26,7 +30,10 @@ from wall_e_exceptions import (NotMyJobException,
                                BuildInProgressException,
                                WallE_Exception,
                                WallE_InternalException,
-                               WallE_TemplateException)
+                               WallE_SilentException,
+                               WallE_TemplateException,
+                               ImproperEmailFormatException,
+                               UnableToSendEmailException)
 
 KNOWN_VERSIONS = OrderedDict([
     ('4.3', '4.3.18'),
@@ -40,6 +47,36 @@ JIRA_ISSUE_BRANCH_PREFIX = {
     'Improvement': 'improvement'}
 
 WALL_E_USERNAME = 'scality_wall-e'
+WALL_E_EMAIL = 'wall_e@scality.com'
+
+
+def setup_email(destination):
+    """Check the capacity to send emails."""
+    match_ = re.match("(?P<short_name>[^@]*)@.*", destination)
+    if not match_:
+        raise ImproperEmailFormatException("The specified email does "
+                                           "not seem valid (%s)" % destination)
+    try:
+        smtplib.SMTP('localhost')
+    except Exception as excp:
+        raise UnableToSendEmailException("Unable to send email (%s)" % excp)
+
+
+def send_email(destination, title, content):
+    """Send some data by email."""
+    match_ = re.match("(?P<short_name>[^@]*)@.*", destination)
+    if not match_:
+        raise ImproperEmailFormatException("The specified email does "
+                                           "not seem valid (%s)" % destination)
+    body = render('email_alert.md',
+                  name=match_.group('short_name'),
+                  subject=title,
+                  content=content,
+                  destination=destination,
+                  email=WALL_E_EMAIL)
+    smtpObj = smtplib.SMTP('localhost')
+    smtpObj.sendmail(WALL_E_EMAIL, [destination], body)
+
 
 RELEASE_ENGINEERS = [
     WALL_E_USERNAME,   # we need this for test purposes
@@ -90,8 +127,8 @@ class FeatureBranch(ScalBranch):
         if match:
             self.jira_issue_id = match.group('issue_id')
         else:
-            print('Warning : %s does not contain a correct '
-                  'issue id number' % self.name)
+            logging.warning('%s does not contain a correct '
+                            'issue id number', self.name)
             # Fixme : send a comment instead ? or ignore the jira checks ?
 
     def merge_cascade(self, destination_branch):
@@ -175,8 +212,10 @@ class WallE:
 
     def send_bitbucket_msg(self, msg, no_comment=False,
                            interactive=False):
-        print('ABOUT TO SEND COMMENT : %s' % (msg))
+        logging.debug('considering sending: %s', msg)
+
         if no_comment:
+            logging.debug('not sending message due to no_comment being True.')
             return
 
         # if wall-e doesn't do anything in the last 10 comments,
@@ -190,8 +229,13 @@ class WallE:
                                                 'Wall-E in the past. '
                                                 'Nothing to do here!')
 
-        if interactive and not confirm('Do you want to send this comment ?'):
-            return
+        if interactive:
+            print('%s\n' % msg)
+            if not confirm('Do you want to send this comment?'):
+                return
+
+        logging.info('SENDING MSG %s', msg)
+
         self.original_pr.add_comment(msg)
 
     def jira_checks(self, source_branch, destination_branch,
@@ -258,7 +302,6 @@ class WallE:
                             no_comment=False,
                             interactive=False):
 
-        author = self.original_pr['author']['username']
         if self.original_pr['state'] != 'OPEN':  # REJECTED or FULFILLED
             raise NothingToDoException('The pull-request\'s state is "%s"'
                                        % self.original_pr['state'])
@@ -274,8 +317,8 @@ class WallE:
         try:
             destination_branch = DestinationBranch(dst_brnch_name)
         except BranchNameInvalidException as e:
-            print('Destination branch %r not handled, ignore PR %s'
-                  % (e.branch, self.original_pr['id']))
+            logging.info('Destination branch %r not handled, ignore PR %s',
+                         e.branch, self.original_pr['id'])
             # Nothing to do
             raise NotMyJobException(src_brnch_name, dst_brnch_name)
 
@@ -287,7 +330,7 @@ class WallE:
 
         if source_branch.prefix == 'hotfix':
             # hotfix branches are ignored, nothing todo
-            print("Ignore branch %r" % source_branch.name)
+            logging.info("Ignore branch %r", source_branch.name)
             return
 
         if source_branch.prefix not in ['feature', 'bugfix', 'improvement']:
@@ -305,30 +348,9 @@ class WallE:
 
         new_pull_requests = source_branch.merge_cascade(destination_branch)
 
-        # Check parent PR: approval
-        original_pr_is_approved_by_author = bypass_author_approval
-        original_pr_is_approved_by_peer = bypass_peer_approval
-
-        # NB: when author hasn't approved the PR, author isn't listed in
-        # 'participants'
-        for participant in self.original_pr['participants']:
-            if not participant['approved']:
-                continue
-            if participant['user']['username'] == author:
-                original_pr_is_approved_by_author = True
-            else:
-                original_pr_is_approved_by_peer = True
-
-        if not original_pr_is_approved_by_author:
-            raise AuthorApprovalRequiredException(pr=self.original_pr,
-                                                  child_prs=None)
-
-        if not original_pr_is_approved_by_peer:
-            raise PeerApprovalRequiredException(pr=self.original_pr,
-                                                child_prs=None)
-
         # Create integration PR
         child_prs = []
+        author = self.original_pr['author']['username']
         for source_branch, destination_branch in new_pull_requests:
             title = ('[%s] #%s: %s'
                      % (destination_branch.name,
@@ -351,25 +373,9 @@ class WallE:
                                        description=description))
             child_prs.append(pr)
 
-        # Check integration PR: approval
-        for pr in child_prs:
-            approved_by_author = bypass_author_approval
-            approved_by_peer = bypass_peer_approval
-            for participant in pr['participants']:
-                if not participant['approved']:
-                    continue
-                if participant['user']['username'] == author:
-                    approved_by_author = True
-                else:
-                    approved_by_peer = True
-
-            if not approved_by_author:
-                raise AuthorApprovalRequiredException(pr=self.original_pr,
-                                                      child_prs=child_prs)
-
-            if not approved_by_peer:
-                raise PeerApprovalRequiredException(pr=self.original_pr,
-                                                    child_prs=child_prs)
+        # Check parent PR: approval
+        self.check_approval(bypass_author_approval, bypass_peer_approval,
+                            child_prs)
 
         # Check integration PR: build status
         for pr in child_prs:
@@ -397,6 +403,30 @@ class WallE:
             args.pop(0)  # removes the word 'wall-e' from args
             return args
         return []
+
+    def check_approval(self, bypass_author_approval, bypass_peer_approval,
+                       child_prs):
+        original_pr_is_approved_by_author = bypass_author_approval
+        original_pr_is_approved_by_peer = bypass_peer_approval
+
+        # NB: when author hasn't approved the PR, author isn't listed in
+        # 'participants'
+        for participant in self.original_pr['participants']:
+            if not participant['approved']:
+                continue
+            author = self.original_pr['author']['username']
+            if participant['user']['username'] == author:
+                original_pr_is_approved_by_author = True
+            else:
+                original_pr_is_approved_by_peer = True
+
+        if not original_pr_is_approved_by_author:
+            raise AuthorApprovalRequiredException(pr=self.original_pr,
+                                                  child_prs=child_prs)
+
+        if not original_pr_is_approved_by_peer:
+            raise PeerApprovalRequiredException(pr=self.original_pr,
+                                                child_prs=child_prs)
 
 
 def main():
@@ -441,8 +471,32 @@ def main():
     cmdline_parser.add_argument(
         '--no_comment', action='store_true',
         help='Do not add any comment to the pull request page')
+    cmdline_parser.add_argument(
+        '-v', action='store_true', dest='verbose',
+        help='Verbose mode')
+    cmdline_parser.add_argument(
+        '--alert_email', action='store', default=None,
+        help='Where to send notifications in case of '
+             'incorrect behaviour')
     args = cmdline_parser.parse_args()
-    wall_e = WallE(WALL_E_USERNAME, args.password, 'wall_e@scality.com',
+
+    if args.verbose:
+        logging.basicConfig(level=logging.DEBUG)
+    else:
+        logging.basicConfig(level=logging.INFO)
+
+    if args.alert_email:
+        try:
+            setup_email(args.alert_email)
+        except ImproperEmailFormatException:
+            print("Invalid email (%s)" % args.alert_email)
+            sys.exit(1)
+        except UnableToSendEmailException:
+            print("It appears I won't be able to send emails, please check "
+                  "the email server.")
+            sys.exit(1)
+
+    wall_e = WallE(WALL_E_USERNAME, args.password, WALL_E_EMAIL,
                    args.owner, args.slug, args.pull_request_id)
     comment_args = wall_e.get_comment_args()
     args = global_parser.parse_args(args=comment_args, namespace=args)
@@ -451,14 +505,29 @@ def main():
     del vargs['password']
     del vargs['pull_request_id']
     del vargs['owner']
+    del vargs['verbose']
+    del vargs['alert_email']
     del vargs['slug']  # TODO : find a prettier way to do this
     try:
         wall_e.handle_pull_request(**vargs)
-    except (WallE_Exception, WallE_TemplateException) as e:
-            wall_e.send_bitbucket_msg(str(e),
-                                      no_comment=args.no_comment,
-                                      interactive=args.interactive)
-            raise
+
+    except (WallE_Exception, WallE_TemplateException) as excp:
+        wall_e.send_bitbucket_msg(str(excp),
+                                  no_comment=args.no_comment,
+                                  interactive=args.interactive)
+        raise
+
+    except WallE_SilentException as excp:
+        raise
+
+    except Exception:
+        if args.alert_email:
+            send_email(destination=args.alert_email,
+                       title="[Wall-E] Unexpected termination "
+                             "(%s)" % time.asctime(),
+                       content=traceback.format_exc())
+        raise
+
 
 if __name__ == '__main__':
     main()

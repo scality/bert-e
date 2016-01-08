@@ -24,6 +24,22 @@ class Repository(object):
     def push_everything(self):
         cmd('git push --all origin -u')
 
+    def remote_branch_exists(self, name):
+        """Test if a remote branch exists.
+
+        Args:
+            name: the name of the remote branch
+
+        Returns:
+            A boolean: True if the remote branch exists.
+        """
+        try:
+            cmd('git ls-remote --heads --exit-code %s %s' % (self._url, name))
+        except subprocess.CalledProcessError:
+            return False
+
+        return True
+
 
 class Branch(object):
     def __init__(self, name):

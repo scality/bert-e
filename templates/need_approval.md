@@ -1,9 +1,8 @@
 Hi @{{ pr['author']['username'] }} and `reviewers`,
-you 'll need to approve this pull request if you think that it is
-**ready to be merged**.
+you will need to approve this pull request if you think that the integration
+pull requests are **ready to be merged**.
 
-{% if child_prs is not none and child_prs|length > 0 %}
-Before approving, you should double check the diffs of the auto-generated
+Before approving, you should double check the diffs of the integration
 pull requests to ensure that the changesets I'm about to merge into the
 development branches are correct :
 
@@ -19,7 +18,7 @@ modify the `w/*` integration branches accordingly.
 
 For example, if you don't want this changeset to land in
 `{{ child_prs[0]['destination']['branch']['name'] }}`,
-you'll need to :
+you will need to :
 
 ```
 #!bash
@@ -29,5 +28,4 @@ you'll need to :
  $ git revert <sha1>
  $ git push
 ```
-I'll then relaunch the checks with your new changesets and try to merge.
-{% endif %}
+I will then relaunch the checks with your new changesets and try to merge.
