@@ -11,7 +11,7 @@ class Repository(object):
         os.chdir(self.directory)
 
     def init(self):
-        """resets the git repo"""
+        """Reset the git repository."""
         assert '/ring/' not in self._url  # This is a security, do not remove
         cmd('git init')
         cmd('touch a')
@@ -52,7 +52,7 @@ class Repository(object):
                                'release/'+version, file=True)
 
     def remote_branch_exists(self, name):
-        """Test if a remote branch exists
+        """Test if a remote branch exists.
 
         Args:
             name: the name of the remote branch
