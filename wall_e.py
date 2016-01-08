@@ -1,12 +1,16 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import smtplib
+import time
+import traceback
+import sys
 import argparse
-from collections import OrderedDict
 import re
-
-from template_loader import render
+import logging
 import requests
+from template_loader import render
+from collections import OrderedDict
 
 from bitbucket_api import (Repository as BitBucketRepository,
                            Client)
@@ -26,7 +30,10 @@ from wall_e_exceptions import (NotMyJobException,
                                BuildInProgressException,
                                WallE_Exception,
                                WallE_InternalException,
-                               WallE_TemplateException)
+                               WallE_SilentException,
+                               WallE_TemplateException,
+                               ImproperEmailFormatException,
+                               UnableToSendEmailException)
 
 KNOWN_VERSIONS = OrderedDict([
     ('4.3', '4.3.18'),
@@ -40,6 +47,50 @@ JIRA_ISSUE_BRANCH_PREFIX = {
     'Improvement': 'improvement'}
 
 WALL_E_USERNAME = 'scality_wall-e'
+WALL_E_EMAIL = 'wall_e@scality.com'
+
+
+def setup_email(destination):
+    """Check the capacity to send emails."""
+    match_ = re.match("(?P<short_name>[^@]*)@.*", destination)
+    if not match_:
+        raise ImproperEmailFormatException("The specified email does "
+                                           "not seem valid (%s)" % destination)
+    try:
+        smtplib.SMTP('localhost')
+    except Exception as excp:
+        raise UnableToSendEmailException("Unable to send email (%s)" % excp)
+
+
+def send_email(destination, title, content):
+    """Send some data by email."""
+    match_ = re.match("(?P<short_name>[^@]*)@.*", destination)
+    if not match_:
+        raise ImproperEmailFormatException("The specified email does "
+                                           "not seem valid (%s)" % destination)
+    body = render('email_alert.md',
+                  name=match_.group('short_name'),
+                  subject=title,
+                  content=content,
+                  destination=destination,
+                  email=WALL_E_EMAIL)
+    smtpObj = smtplib.SMTP('localhost')
+    smtpObj.sendmail(WALL_E_EMAIL, [destination], body)
+
+
+RELEASE_ENGINEERS = [
+    WALL_E_USERNAME,   # we need this for test purposes
+    'anhnp',
+    'bertrand_demiddelaer_scality',
+    'ludovicmaillard',
+    'mcolzi',
+    'mouhamet7',
+    'mvaude',
+    'pierre_louis_bonicoli',
+    'rayene_benrayana',
+    'sylvain_killian',
+]
+
 
 def confirm(question):
     input_ = raw_input(question + " Enter (y)es or (n)o: ")
@@ -116,8 +167,8 @@ class FeatureBranch(ScalBranch):
         if match:
             self.jira_issue_id = match.group('issue_id')
         else:
-            print('Warning : %s does not contain a correct '
-                  'issue id number' % self.name)
+            logging.warning('%s does not contain a correct '
+                            'issue id number', self.name)
             # Fixme : send a comment instead ? or ignore the jira checks ?
 
     def check_if_should_handle(self, destination_branch):
@@ -158,10 +209,15 @@ class FeatureBranch(ScalBranch):
 
 
 class WallE:
-    def __init__(self, bitbucket_login, bitbucket_password, bitbucket_mail):
+    def __init__(self, bitbucket_login, bitbucket_password, bitbucket_mail,
+                 owner, slug, pull_request_id):
         self._bbconn = Client(bitbucket_login,
                               bitbucket_password, bitbucket_mail)
-        self.original_pr = None
+        self.bbrepo = BitBucketRepository(self._bbconn, owner=owner,
+                                          repo_slug=slug)
+        self.repo_full_name = owner + '/' + slug  # TODO : never used ?
+        self.original_pr = (self.bbrepo
+                            .get_pull_request(pull_request_id=pull_request_id))
 
     def check_build_status(self, pr, key):
         try:
@@ -178,30 +234,52 @@ class WallE:
                 raise BuildFailedException(pr['id'])
             elif build_state == 'INPROGRESS':
                 raise BuildInProgressException(pr['id'])
-
             assert build_state == 'SUCCESSFUL'
 
-    def send_bitbucket_msg(self, pull_request_id, msg, no_comment=False,
-                           interactive=False):
-        print('SENDING MSG %s : %s' % (pull_request_id, msg))
-        if not self.original_pr:
-            return
-        # the last comment is the first
+    def find_bitbucket_comment(self,
+                               username=None,
+                               startswith=None,
+                               max_history=None):
+        # the last comment posted is the first in the list
         for index, comment in enumerate(self.original_pr.get_comments()):
-            if (comment['user']['username'] == WALL_E_USERNAME and
-                    comment['content']['raw'] == msg):
-                raise CommentAlreadyExistsException('The same comment has '
-                                                    'already been posted by '
-                                                    'Wall-E in the past. '
-                                                    'Nothing to do here!')
-            elif index > 10:
-                # if wall-e doesn't do anything in the last 10 comments,
-                # allow him to run again
-                break
+            u = comment['user']['username']
+            raw = comment['content']['raw']
+            if username is str and u != username:
+                continue
+            if username is list and u not in username:
+                continue
+            if startswith and not raw.startswith(startswith):
+                continue
+            if max_history and index > max_history:
+                return
+            return comment
+
+    def send_bitbucket_msg(self, msg, no_comment=False,
+                           interactive=False):
+        logging.debug('considering sending: %s', msg)
+
         if no_comment:
+            logging.debug('not sending message due to no_comment being True.')
             return
-        if interactive and not confirm('Do you want to send this comment ?'):
-            return
+
+        # if wall-e doesn't do anything in the last 10 comments,
+        # allow him to run again
+        if self.find_bitbucket_comment(username=WALL_E_USERNAME,
+                                       startswith=msg,
+                                       max_history=10):
+
+            raise CommentAlreadyExistsException('The same comment has '
+                                                'already been posted by '
+                                                'Wall-E in the past. '
+                                                'Nothing to do here!')
+
+        if interactive:
+            print('%s\n' % msg)
+            if not confirm('Do you want to send this comment?'):
+                return
+
+        logging.info('SENDING MSG %s', msg)
+
         self.original_pr.add_comment(msg)
 
     def jira_checks(self, bypass_jira_version_check, bypass_jira_type_check):
@@ -302,12 +380,6 @@ class WallE:
                              no_comment=False,
                              interactive=False):
 
-        self.bbrepo = BitBucketRepository(self._bbconn, owner=owner,
-                                          repo_slug=repo_slug)
-        self.repo_full_name = owner + '/' + repo_slug
-        self.original_pr = (self.bbrepo
-                            .get_pull_request(pull_request_id=pull_request_id))
-        author = self.original_pr['author']['username']
         if self.original_pr['state'] != 'OPEN':  # REJECTED or FULFILLED
             raise NothingToDoException('The pull-request\'s state is "%s"'
                                        % self.original_pr['state'])
@@ -323,8 +395,8 @@ class WallE:
         try:
             self.destination_branch = DestinationBranch(dst_brnch_name)
         except BranchNameInvalidException as e:
-            print('Destination branch %r not handled, ignore PR %s'
-                  % (e.branch, pull_request_id))
+            logging.info('Destination branch %r not handled, ignore PR %s',
+                         e.branch, self.original_pr['id'])
             # Nothing to do
             raise NotMyJobException(src_brnch_name, dst_brnch_name)
 
@@ -336,7 +408,7 @@ class WallE:
 
         if self.source_branch.prefix == 'hotfix':
             # hotfix branches are ignored, nothing todo
-            print("Ignore branch %r" % self.source_branch.name)
+            logging.info("Ignore branch %r", self.source_branch.name)
             return
 
         if self.source_branch.prefix not in ['feature', 'bugfix', 'improvement']:
@@ -350,6 +422,37 @@ class WallE:
         child_prs = self.create_pull_requests()
 
         # Check parent PR: approval
+        self.check_approval(bypass_author_approval, bypass_peer_approval,
+                            child_prs)
+        # Check integration PR: build status
+        for pr in child_prs:
+            if not bypass_build_status:
+                self.check_build_status(pr, 'jenkins_build')
+                self.check_build_status(pr, 'jenkins_utest')
+
+        if interactive and not confirm('Do you want to merge ?'):
+            return
+
+        for integration_branch in self.integration_branches:
+            integration_branch.update_to_development_branch()
+
+    def get_comment_args(self):
+        """
+        gets command line arguments from a bitbucket comment.
+
+        The author of the comment must belong to RelEng. The comment must start
+        with 'wall-e '.
+        """
+        cmt = self.find_bitbucket_comment(username=RELEASE_ENGINEERS,
+                                          startswith=u'wall-e')
+        if cmt:
+            args = cmt['content']['raw'].split(' ')
+            args.pop(0)  # removes the word 'wall-e' from args
+            return args
+        return []
+
+    def check_approval(self, bypass_author_approval, bypass_peer_approval,
+                       child_prs):
         original_pr_is_approved_by_author = bypass_author_approval
         original_pr_is_approved_by_peer = bypass_peer_approval
 
@@ -358,6 +461,7 @@ class WallE:
         for participant in self.original_pr['participants']:
             if not participant['approved']:
                 continue
+            author = self.original_pr['author']['username']
             if participant['user']['username'] == author:
                 original_pr_is_approved_by_author = True
             else:
@@ -371,96 +475,106 @@ class WallE:
             raise PeerApprovalRequiredException(pr=self.original_pr,
                                                 child_prs=child_prs)
 
-        # Check child PR: build status
-        for pr in child_prs:
-            if not bypass_build_status:
-                self.check_build_status(pr, 'jenkins_build')
-                self.check_build_status(pr, 'jenkins_utest')
-
-        if interactive and not confirm('Do you want to merge ?'):
-            return
-
-        for integration_branch in self.integration_branches:
-            integration_branch.update_to_development_branch()
-
-    def handle_pull_request(self,
-                            repo_owner,
-                            repo_slug,
-                            pull_request_id,
-                            bypass_peer_approval=False,
-                            bypass_author_approval=False,
-                            bypass_jira_version_check=False,
-                            bypass_jira_type_check=False,
-                            bypass_build_status=False,
-                            reference_git_repo='',
-                            no_comment=False,
-                            interactive=False):
-        # TODO : This method should be a decorator instead
-        try:
-            self._handle_pull_request(repo_owner,
-                                      repo_slug,
-                                      pull_request_id,
-                                      bypass_peer_approval,
-                                      bypass_author_approval,
-                                      bypass_jira_version_check,
-                                      bypass_jira_type_check,
-                                      bypass_build_status,
-                                      reference_git_repo,
-                                      no_comment,
-                                      interactive)
-        except (WallE_Exception, WallE_TemplateException) as e:
-            self.send_bitbucket_msg(pull_request_id, str(e),
-                                    no_comment=no_comment,
-                                    interactive=interactive)
-            raise
-
 
 def main():
-    parser = (argparse
-              .ArgumentParser(description='Merges bitbucket pull requests.'))
-    parser.add_argument('pullrequest',
-                        help='The ID of the pull request')
-    parser.add_argument('password',
-                        help='Wall-E\'s password [for Jira and Bitbucket]')
-    parser.add_argument('--owner', default='scality',
-                        help='The owner of the repo (default: scality)')
-    parser.add_argument('--slug', default='ring',
-                        help='The repo\'s slug (default: ring)')
-    parser.add_argument('--bypass_author_approval', action='store_true',
-                        help='Bypass the pull request author\'s approval')
-    parser.add_argument('--bypass_peer_approval', action='store_true',
-                        help='Bypass the pull request peer\'s approval')
-    parser.add_argument('--bypass_jira_version_check', action='store_true',
-                        help='Bypass the Jira fixVersions field check')
-    parser.add_argument('--bypass_jira_type_check', action='store_true',
-                        help='Bypass the Jira issueType field check')
-    parser.add_argument('--bypass_build_status', action='store_true',
-                        help='Bypass the build and test status')
-    parser.add_argument('--reference_git_repo', default='',
-                        help='Reference to a local version of the git repo '
-                             'to improve cloning delay')
-    parser.add_argument('--no_comment', action='store_true',
-                        help='Do not add any comment to the pull request page')
-    parser.add_argument('--interactive', action='store_true',
-                        help='Ask before merging or sending comments')
+    global_parser = (argparse.ArgumentParser(add_help=False))
+    global_parser.add_argument(
+        '--bypass_author_approval', action='store_true',
+        help='Bypass the pull request author\'s approval')
+    global_parser.add_argument(
+        '--bypass_peer_approval', action='store_true',
+        help='Bypass the pull request peer\'s approval')
+    global_parser.add_argument(
+        '--bypass_jira_version_check', action='store_true',
+        help='Bypass the Jira fixVersions field check')
+    global_parser.add_argument(
+        '--bypass_jira_type_check', action='store_true',
+        help='Bypass the Jira issueType field check')
+    global_parser.add_argument(
+        '--bypass_build_status', action='store_true',
+        help='Bypass the build and test status')
 
-    args = parser.parse_args()
+    cmdline_parser = (argparse.ArgumentParser(
+        description='Merges bitbucket pull requests.',
+        parents=[global_parser]))
+    cmdline_parser.add_argument(
+        'pull_request_id',
+        help='The ID of the pull request')
+    cmdline_parser.add_argument(
+        'password',
+        help='Wall-E\'s password [for Jira and Bitbucket]')
+    cmdline_parser.add_argument(
+        '--reference_git_repo', default='',
+        help='Reference to a local git repo to improve cloning delay')
+    cmdline_parser.add_argument(
+        '--owner', default='scality',
+        help='The owner of the repo (default: scality)')
+    cmdline_parser.add_argument(
+        '--slug', default='ring',
+        help='The repo\'s slug (default: ring)')
+    cmdline_parser.add_argument(
+        '--interactive', action='store_true',
+        help='Ask before merging or sending comments')
+    cmdline_parser.add_argument(
+        '--no_comment', action='store_true',
+        help='Do not add any comment to the pull request page')
+    cmdline_parser.add_argument(
+        '-v', action='store_true', dest='verbose',
+        help='Verbose mode')
+    cmdline_parser.add_argument(
+        '--alert_email', action='store', default=None,
+        help='Where to send notifications in case of '
+             'incorrect behaviour')
+    args = cmdline_parser.parse_args()
 
-    wall_e = WallE(WALL_E_USERNAME, args.password, 'wall_e@scality.com')
-    wall_e.handle_pull_request(repo_owner=args.owner,
-                               repo_slug=args.slug,
-                               pull_request_id=args.pullrequest,
-                               bypass_author_approval=args.
-                               bypass_author_approval,
-                               bypass_peer_approval=args.bypass_peer_approval,
-                               bypass_jira_version_check=args.
-                               bypass_jira_version_check,
-                               bypass_jira_type_check=args.
-                               bypass_jira_type_check,
-                               bypass_build_status=args.bypass_build_status,
-                               reference_git_repo=args.reference_git_repo,
-                               no_comment=args.no_comment,
-                               interactive=args.interactive)
+    if args.verbose:
+        logging.basicConfig(level=logging.DEBUG)
+    else:
+        logging.basicConfig(level=logging.INFO)
+
+    if args.alert_email:
+        try:
+            setup_email(args.alert_email)
+        except ImproperEmailFormatException:
+            print("Invalid email (%s)" % args.alert_email)
+            sys.exit(1)
+        except UnableToSendEmailException:
+            print("It appears I won't be able to send emails, please check "
+                  "the email server.")
+            sys.exit(1)
+
+    wall_e = WallE(WALL_E_USERNAME, args.password, WALL_E_EMAIL,
+                   args.owner, args.slug, args.pull_request_id)
+    comment_args = wall_e.get_comment_args()
+    args = global_parser.parse_args(args=comment_args, namespace=args)
+
+    vargs = vars(args)
+    del vargs['password']
+    del vargs['pull_request_id']
+    del vargs['owner']
+    del vargs['verbose']
+    del vargs['alert_email']
+    del vargs['slug']  # TODO : find a prettier way to do this
+    try:
+        wall_e.handle_pull_request(**vargs)
+
+    except (WallE_Exception, WallE_TemplateException) as excp:
+        wall_e.send_bitbucket_msg(str(excp),
+                                  no_comment=args.no_comment,
+                                  interactive=args.interactive)
+        raise
+
+    except WallE_SilentException as excp:
+        raise
+
+    except Exception:
+        if args.alert_email:
+            send_email(destination=args.alert_email,
+                       title="[Wall-E] Unexpected termination "
+                             "(%s)" % time.asctime(),
+                       content=traceback.format_exc())
+        raise
+
 
 if __name__ == '__main__':
     main()
