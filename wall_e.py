@@ -51,14 +51,6 @@ JIRA_ISSUE_BRANCH_PREFIX = {
 WALL_E_USERNAME = 'scality_wall-e'
 WALL_E_EMAIL = 'wall_e@scality.com'
 
-#COMMENT_COMMANDS = {
-#    'build': {
-#        'priviledged': False,
-#        'reply_template': 'build_started.md'
-#        'action': 'start_build'
-#    },
-#}
-
 RELEASE_ENGINEERS = [
     WALL_E_USERNAME,   # we need this for test purposes
     'anhnp',
