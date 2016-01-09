@@ -110,17 +110,17 @@ class TestWallE(unittest.TestCase):
 
         sys.argv = ["wall-e.py"]
         if bypass_author_approval:
-            sys.argv.append('--bypass_author_approval')
+            sys.argv.append('--bypass-author-approval')
         if bypass_peer_approval:
-            sys.argv.append('--bypass_peer_approval')
+            sys.argv.append('--bypass-peer-approval')
         if bypass_jira_version_check:
-            sys.argv.append('--bypass_jira_version_check')
+            sys.argv.append('--bypass-jira-version-check')
         if bypass_jira_type_check:
-            sys.argv.append('--bypass_jira_type_check')
+            sys.argv.append('--bypass-jira-type-check')
         if bypass_build_status:
-            sys.argv.append('--bypass_build_status')
+            sys.argv.append('--bypass-build-status')
         if no_comment:
-            sys.argv.append('--no_comment')
+            sys.argv.append('--no-comment')
         if interactive:
             sys.argv.append('--interactive')
 
@@ -265,12 +265,12 @@ class TestWallE(unittest.TestCase):
 
     def test_bypass_all_approvals_through_a_bitbucket_comment(self):
         pr = self.create_pr('bugfix/RING-00045', 'development/4.3')
-        pr.add_comment('wall-e'
-                       ' --bypass_author_approval'
-                       ' --bypass_peer_approval'
-                       ' --bypass_build_status'
-                       ' --bypass_jira_version_check'
-                       ' --bypass_jira_type_check')
+        pr.add_comment('@%s'
+                       ' bypass_author_approval'
+                       ' bypass_peer_approval'
+                       ' bypass_build_status'
+                       ' bypass_jira_version_check'
+                       ' bypass_jira_type_check' % WALL_E_USERNAME)
         self.handle(
             pr['id'],
             bypass_author_approval=False,
