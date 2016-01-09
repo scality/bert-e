@@ -38,17 +38,31 @@ from wall_e_exceptions import (NotMyJobException,
 KNOWN_VERSIONS = OrderedDict([
     ('4.3', '4.3.18'),
     ('5.1', '5.1.4'),
-    ('6.0', '6.0.0')])
+    ('6.0', '6.0.0')
+])
 
 JIRA_ISSUE_BRANCH_PREFIX = {
     'Epic': 'project',
     'Story': 'feature',
     'Bug': 'bugfix',
-    'Improvement': 'improvement'}
+    'Improvement': 'improvement'
+}
 
 WALL_E_USERNAME = 'scality_wall-e'
 WALL_E_EMAIL = 'wall_e@scality.com'
 
+RELEASE_ENGINEERS = [
+    WALL_E_USERNAME,   # we need this for test purposes
+    'anhnp',
+    'bertrand_demiddelaer_scality',
+    'ludovicmaillard',
+    'mcolzi',
+    'mouhamet7',
+    'mvaude',
+    'pierre_louis_bonicoli',
+    'rayene_benrayana',
+    'sylvain_killian',
+]
 
 def setup_email(destination):
     """Check the capacity to send emails."""
@@ -76,20 +90,6 @@ def send_email(destination, title, content):
                   email=WALL_E_EMAIL)
     smtpObj = smtplib.SMTP('localhost')
     smtpObj.sendmail(WALL_E_EMAIL, [destination], body)
-
-
-RELEASE_ENGINEERS = [
-    WALL_E_USERNAME,   # we need this for test purposes
-    'anhnp',
-    'bertrand_demiddelaer_scality',
-    'ludovicmaillard',
-    'mcolzi',
-    'mouhamet7',
-    'mvaude',
-    'pierre_louis_bonicoli',
-    'rayene_benrayana',
-    'sylvain_killian',
-]
 
 
 def confirm(question):
@@ -199,9 +199,9 @@ class WallE:
         for index, comment in enumerate(self.original_pr.get_comments()):
             u = comment['user']['username']
             raw = comment['content']['raw']
-            if username is str and u != username:
+            if isinstance(username, str) and u != username:
                 continue
-            if username is list and u not in username:
+            if isinstance(username, list) and u not in username:
                 continue
             if startswith and not raw.startswith(startswith):
                 continue
@@ -389,11 +389,10 @@ class WallE:
             pr.merge()
 
     def get_comment_args(self):
-        """
-        gets command line arguments from a bitbucket comment.
+        """Gets command line arguments from a bitbucket comment.
 
-        The author of the comment must belong to RelEng. The comment must start
-        with 'wall-e '.
+        The author of the comment must belong to RelEng.
+        The comment must start with 'wall-e '.
         """
         cmt = self.find_bitbucket_comment(username=RELEASE_ENGINEERS,
                                           startswith=u'wall-e')
