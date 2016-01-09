@@ -436,14 +436,14 @@ class WallE:
 
             # accept all comments in the form:
             # @scality_wall-e keyword keyword keyword...
-            regexp = r"\s*@%s(?P<keywords>( \w+)+)\s*$" % WALL_E_USERNAME
+            regexp = r"\s*@%s(?P<keywords>(\s+\w+)+)\s*$" % WALL_E_USERNAME
             match_ = re.match(regexp, raw)
             if not match_:
                 logging.warning('Keyword comment ignored. '
                                 'Unknown format: %s' % raw)
                 continue
 
-            keywords = match_.group('keywords').strip().split(' ')
+            keywords = match_.group('keywords').strip().split()
             if not self.check_keywords(author, keywords):
                 logging.warning('Keyword comment ignored. '
                                 'Checks failed: %s' % raw)
