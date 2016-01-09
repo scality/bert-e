@@ -525,7 +525,7 @@ def main():
                         help='Your Bitbucket password')
     parser.add_argument('your_mail',
                         help='Your Bitbucket email address')
-    parser.add_argument('--repo_prefix', default="_test_wall_e",
+    parser.add_argument('--repo-prefix', default="_test_wall_e",
                         help='Prefix of the test repository')
     parser.add_argument('-v', action='store_true', dest='verbose',
                         help='Verbose mode')
