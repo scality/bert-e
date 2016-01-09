@@ -99,11 +99,11 @@ class TestWallE(unittest.TestCase):
 
     def handle(self,
                pull_request_id,
-               bypass_peer_approval=True,
-               bypass_author_approval=True,
-               bypass_jira_version_check=True,
-               bypass_jira_type_check=True,
-               bypass_build_status=True,
+               bypass_peer_approval=False,
+               bypass_author_approval=False,
+               bypass_jira_version_check=False,
+               bypass_jira_type_check=False,
+               bypass_build_status=False,
                reference_git_repo='',
                no_comment=False,
                interactive=False):
@@ -133,27 +133,60 @@ class TestWallE(unittest.TestCase):
     def test_bugfix_full_merge_manual(self):
         pr = self.create_pr('bugfix/RING-0000', 'development/4.3')
         with self.assertRaises(AuthorApprovalRequiredException):
-            self.handle(pr['id'], bypass_author_approval=False)
+            self.handle(pr['id'],
+                        bypass_peer_approval=True,
+                        bypass_jira_version_check=True,
+                        bypass_jira_type_check=True,
+                        bypass_build_status=True)
         # PeerApprovalRequiredException and AuthorApprovalRequiredException
         # have the same message, so CommentAlreadyExistsException is used
         with self.assertRaises(CommentAlreadyExistsException):
-            self.handle(pr['id'], bypass_author_approval=False)
-        self.handle(pr['id'])
+            self.handle(pr['id'],
+                        bypass_peer_approval=True,
+                        bypass_jira_version_check=True,
+                        bypass_jira_type_check=True,
+                        bypass_build_status=True)
+        self.handle(pr['id'],
+                    bypass_author_approval=True,
+                    bypass_peer_approval=True,
+                    bypass_jira_version_check=True,
+                    bypass_jira_type_check=True,
+                    bypass_build_status=True)
 
     def test_bugfix_full_merge_automatic(self):
         pr = self.create_pr('bugfix/RING-0001', 'development/4.3')
-        self.handle(pr['id'])
+        self.handle(pr['id'],
+                    bypass_author_approval=True,
+                    bypass_peer_approval=True,
+                    bypass_jira_version_check=True,
+                    bypass_jira_type_check=True,
+                    bypass_build_status=True)
 
     def test_handle_automatically_twice(self):
         pr = self.create_pr('bugfix/RING-0003', 'development/4.3')
-        self.handle(pr['id'])
+        self.handle(pr['id'],
+                    bypass_author_approval=True,
+                    bypass_peer_approval=True,
+                    bypass_jira_version_check=True,
+                    bypass_jira_type_check=True,
+                    bypass_build_status=True)
         with self.assertRaises(NothingToDoException):
-            self.handle(pr['id'])
+            self.handle(pr['id'],
+                        bypass_author_approval=True,
+                        bypass_peer_approval=True,
+                        bypass_jira_version_check=True,
+                        bypass_jira_type_check=True,
+                        bypass_build_status=True)
 
     def test_refuse_feature_on_maintenance_branch(self):
         pr = self.create_pr('feature/RING-0004', 'development/4.3')
         with self.assertRaises(BranchDoesNotAcceptFeaturesException):
-            self.handle(pr['id'])
+            self.handle(pr['id'],
+                        bypass_author_approval=True,
+                        bypass_peer_approval=True,
+                        bypass_jira_version_check=True,
+                        bypass_jira_type_check=True,
+                        bypass_build_status=True)
 
     def test_branch_name_invalid(self):
         dst_branch = 'feature/RING-0005'
@@ -165,11 +198,21 @@ class TestWallE(unittest.TestCase):
     def test_conflict(self):
         pr1 = self.create_pr('bugfix/RING-0006', 'development/4.3',
                              file_='toto.txt')
-        self.handle(pr1['id'])
+        self.handle(pr1['id'],
+                    bypass_author_approval=True,
+                    bypass_peer_approval=True,
+                    bypass_jira_version_check=True,
+                    bypass_jira_type_check=True,
+                    bypass_build_status=True)
         pr2 = self.create_pr('improvement/RING-0006', 'development/4.3',
                              file_='toto.txt')
         with self.assertRaises(ConflictException):
-            self.handle(pr2['id'])
+            self.handle(pr2['id'],
+                        bypass_author_approval=True,
+                        bypass_peer_approval=True,
+                        bypass_jira_version_check=True,
+                        bypass_jira_type_check=True,
+                        bypass_build_status=True)
         cmd('git merge --abort')
 
     def test_approval(self):
@@ -186,8 +229,6 @@ class TestWallE(unittest.TestCase):
 
         with self.assertRaises(AuthorApprovalRequiredException):
             self.handle(pr['id'],
-                        bypass_author_approval=False,
-                        bypass_peer_approval=False,
                         bypass_jira_version_check=True,
                         bypass_jira_type_check=True,
                         bypass_build_status=True)
@@ -199,8 +240,6 @@ class TestWallE(unittest.TestCase):
         # have the same message, so CommentAlreadyExistsException is used
         with self.assertRaises(CommentAlreadyExistsException):
             self.handle(pr['id'],
-                        bypass_author_approval=False,
-                        bypass_peer_approval=False,
                         bypass_jira_version_check=True,
                         bypass_jira_type_check=True,
                         bypass_build_status=True)
@@ -212,8 +251,6 @@ class TestWallE(unittest.TestCase):
         w_pr.approve()
 
         self.handle(w_pr['id'],
-                    bypass_author_approval=False,
-                    bypass_peer_approval=False,
                     bypass_jira_version_check=True,
                     bypass_jira_type_check=True,
                     bypass_build_status=True)
@@ -232,8 +269,6 @@ class TestWallE(unittest.TestCase):
         pr = self.create_pr(feature_branch, dst_branch, reviewers=reviewers)
         with self.assertRaises(AuthorApprovalRequiredException):
             self.handle(pr['id'],
-                        bypass_author_approval=False,
-                        bypass_peer_approval=False,
                         bypass_jira_version_check=True,
                         bypass_jira_type_check=True,
                         bypass_build_status=True)
@@ -271,13 +306,7 @@ class TestWallE(unittest.TestCase):
                        ' bypass_build_status'
                        ' bypass_jira_version_check'
                        ' bypass_jira_type_check' % WALL_E_USERNAME)
-        self.handle(
-            pr['id'],
-            bypass_author_approval=False,
-            bypass_peer_approval=False,
-            bypass_build_status=False,
-            bypass_jira_type_check=False,
-            bypass_jira_version_check=False)
+        self.handle(pr['id'])
 
 
 def main():
