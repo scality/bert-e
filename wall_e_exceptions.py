@@ -4,6 +4,7 @@
 from template_loader import render
 
 
+# base exceptions
 class WallE_Exception(Exception):
     pass
 
@@ -15,11 +16,23 @@ class WallE_TemplateException(Exception):
 
 
 class WallE_InternalException(Exception):
-    # TODO send an email to releng
     pass
 
 
-class CommentAlreadyExistsException(WallE_InternalException):
+class WallE_SilentException(Exception):
+    pass
+
+
+# derived exceptions
+class UnableToSendEmailException(WallE_InternalException):
+    pass
+
+
+class ImproperEmailFormatException(WallE_InternalException):
+    pass
+
+
+class CommentAlreadyExistsException(WallE_SilentException):
     pass
 
 
@@ -42,7 +55,7 @@ class NotMyJobException(WallE_InternalException):
         WallE_Exception.__init__(self, msg)
 
 
-class NothingToDoException(WallE_InternalException):
+class NothingToDoException(WallE_SilentException):
     pass
 
 
