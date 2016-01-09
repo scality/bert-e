@@ -270,7 +270,7 @@ class WallE:
         """performs checks using the Jira issue id specified in the source
         branch name"""
         if (self.is_on('bypass_jira_version_check') and
-            self.is_on('bypass_jira_type_check')):
+                self.is_on('bypass_jira_type_check')):
             return
 
         if not source_branch.jira_issue_id:

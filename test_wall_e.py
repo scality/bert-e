@@ -21,6 +21,8 @@ from simplecmd import cmd
 
 WALL_E_USERNAME = wall_e.WALL_E_USERNAME
 WALL_E_EMAIL = wall_e.WALL_E_EMAIL
+EVA_USERNAME = 'scality_eva'
+EVA_EMAIL = 'eva.scality@gmail.com'
 
 
 def initialize_git_repo(repo):
@@ -57,13 +59,15 @@ def create_branch(name, from_branch=None, file_=False, do_push=True):
 class TestWallE(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        assert cls.args.your_login in wall_e.RELEASE_ENGINEERS
         client = Client(cls.args.your_login,
                         cls.args.your_password,
                         cls.args.your_mail)
         cls.bbrepo = BitbucketRepository(client,
                                          owner='scality',
                                          repo_slug=('%s_%s'
-                                                    % (cls.args.repo_prefix, cls.args.your_login)),
+                                                    % (cls.args.repo_prefix,
+                                                       cls.args.your_login)),
                                          is_private=True,
                                          scm='git')
         try:
@@ -73,6 +77,18 @@ class TestWallE(unittest.TestCase):
                 raise
 
         cls.bbrepo.create()
+
+        # Use Eva as our unprivileged user
+        assert EVA_USERNAME not in wall_e.RELEASE_ENGINEERS
+        client_eva = Client(EVA_USERNAME,
+                            cls.args.eva_password,
+                            EVA_EMAIL)
+        cls.bbrepo_eva = BitbucketRepository(
+            client_eva,
+            owner='scality',
+            repo_slug=('%s_%s' % (cls.args.repo_prefix,
+                                  cls.args.your_login)),
+        )
         cls.gitrepo = GitRepository(cls.bbrepo.get_git_url())
         initialize_git_repo(cls.gitrepo)
 
@@ -84,18 +100,15 @@ class TestWallE(unittest.TestCase):
             file_=True):
 
         create_branch(feature_branch, from_branch=from_branch, file_=file_)
-        return self.bbrepo.create_pull_request(title='title',
-                                               name='name',
-                                               source={'branch':
-                                                       {'name':
-                                                        feature_branch}},
-                                               destination={'branch':
-                                                            {'name':
-                                                             from_branch}},
-                                               close_source_branch=True,
-                                               reviewers=[{'username':
-                                                           WALL_E_USERNAME}],
-                                               description='')
+        return self.bbrepo_eva.create_pull_request(
+            title='title',
+            name='name',
+            source={'branch': {'name': feature_branch}},
+            destination={'branch': {'name': from_branch}},
+            close_source_branch=True,
+            reviewers=[{'username': WALL_E_USERNAME}],
+            description=''
+        )
 
     def handle(self,
                pull_request_id,
@@ -299,13 +312,16 @@ class TestWallE(unittest.TestCase):
         pass
 
     def test_bypass_all_approvals_through_a_bitbucket_comment(self):
+        # normal user creates the PR
         pr = self.create_pr('bugfix/RING-00045', 'development/4.3')
-        pr.add_comment('@%s'
-                       ' bypass_author_approval'
-                       ' bypass_peer_approval'
-                       ' bypass_build_status'
-                       ' bypass_jira_version_check'
-                       ' bypass_jira_type_check' % WALL_E_USERNAME)
+        # and priviledged user gets it back
+        pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id'])
+        pr_admin.add_comment('@%s'
+                             ' bypass_author_approval'
+                             ' bypass_peer_approval'
+                             ' bypass_build_status'
+                             ' bypass_jira_version_check'
+                             ' bypass_jira_type_check' % WALL_E_USERNAME)
         self.handle(pr['id'])
 
 
@@ -313,6 +329,8 @@ def main():
     parser = argparse.ArgumentParser(description='Launches Wall-E tests.')
     parser.add_argument('wall_e_password',
                         help='Wall-E\'s password [for Jira and Bitbucket]')
+    parser.add_argument('eva_password',
+                        help='Eva\'s password [for Jira and Bitbucket]')
     parser.add_argument('your_login',
                         help='Your Bitbucket login')
     parser.add_argument('your_password',
@@ -327,6 +345,15 @@ def main():
 
     if TestWallE.args.your_login == WALL_E_USERNAME:
         print('Cannot use Wall-e as the tester, please use another login.')
+        sys.exit(1)
+
+    if TestWallE.args.your_login == EVA_USERNAME:
+        print('Cannot use Eva as the tester, please use another login.')
+        sys.exit(1)
+
+    if TestWallE.args.your_login not in wall_e.RELEASE_ENGINEERS:
+        print('Cannot use %s as the tester, it does not belong to '
+              'RELEASE_ENGINEERS.' % TestWallE.args.your_login)
         sys.exit(1)
 
     if TestWallE.args.verbose:
