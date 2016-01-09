@@ -324,6 +324,177 @@ class TestWallE(unittest.TestCase):
                              ' bypass_jira_type_check' % WALL_E_USERNAME)
         self.handle(pr['id'])
 
+    def test_bypass_all_approvals_through_bitbucket_comment_extra_spaces(self):
+        # normal user creates the PR
+        pr = self.create_pr('bugfix/RING-00046', 'development/4.3')
+        # and priviledged user gets it back
+        pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id'])
+        pr_admin.add_comment('  @%s  '
+                             '   bypass_author_approval  '
+                             '     bypass_peer_approval   '
+                             '  bypass_build_status'
+                             '   bypass_jira_version_check'
+                             '   bypass_jira_type_check   ' % WALL_E_USERNAME)
+        self.handle(pr['id'])
+
+    def test_bypass_all_approvals_through_an_incorrect_bitbucket_comment(self):
+        pr = self.create_pr('bugfix/RING-00047', 'development/4.3')
+        pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id'])
+        pr_admin.add_comment('@%s'
+                             ' bypass_author_aproval'  # a p is missing
+                             ' bypass_peer_approval'
+                             ' bypass_build_status'
+                             ' bypass_jira_version_check'
+                             ' bypass_jira_type_check' % WALL_E_USERNAME)
+        with self.assertRaises(AuthorApprovalRequiredException):
+            self.handle(pr['id'],
+                        bypass_jira_version_check=True,
+                        bypass_jira_type_check=True,
+                        bypass_build_status=True)
+
+    def test_bypass_all_approvals_through_unauthorized_bitbucket_comment(self):
+        pr = self.create_pr('bugfix/RING-00048', 'development/4.3')
+        pr.add_comment('@%s'  # comment is made by unpriviledged Eva
+                       ' bypass_author_approval'
+                       ' bypass_peer_approval'
+                       ' bypass_build_status'
+                       ' bypass_jira_version_check'
+                       ' bypass_jira_type_check' % WALL_E_USERNAME)
+        with self.assertRaises(AuthorApprovalRequiredException):
+            self.handle(pr['id'],
+                        bypass_jira_version_check=True,
+                        bypass_jira_type_check=True,
+                        bypass_build_status=True)
+
+    def test_bypass_all_approvals_through_an_unknown_bitbucket_comment(self):
+        pr = self.create_pr('bugfix/RING-00049', 'development/4.3')
+        pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id'])
+        pr_admin.add_comment('@%s'
+                             ' bypass_author_approval'
+                             ' bypass_peer_approval'
+                             ' bypass_build_status'
+                             ' mmm_never_seen_that_before'  # this is unknown
+                             ' bypass_jira_version_check'
+                             ' bypass_jira_type_check' % WALL_E_USERNAME)
+        with self.assertRaises(AuthorApprovalRequiredException):
+            self.handle(pr['id'],
+                        bypass_jira_version_check=True,
+                        bypass_jira_type_check=True,
+                        bypass_build_status=True)
+
+    def test_bypass_all_approvals_through_single_comments(self):
+        pr = self.create_pr('bugfix/RING-00050', 'development/4.3')
+        pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id'])
+        pr_admin.add_comment('@%s bypass_author_approval' % WALL_E_USERNAME)
+        pr_admin.add_comment('@%s bypass_peer_approval' % WALL_E_USERNAME)
+        pr_admin.add_comment('@%s bypass_build_status' % WALL_E_USERNAME)
+        pr_admin.add_comment('@%s bypass_jira_version_check' % WALL_E_USERNAME)
+        pr_admin.add_comment('@%s bypass_jira_type_check' % WALL_E_USERNAME)
+        self.handle(pr['id'])
+
+    def test_bypass_all_approvals_through_mix_comments_and_cmdline(self):
+        pr = self.create_pr('bugfix/RING-00051', 'development/4.3')
+        pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id'])
+        pr_admin.add_comment('@%s'
+                             ' bypass_author_approval'
+                             ' bypass_peer_approval'
+                             ' bypass_jira_type_check' % WALL_E_USERNAME)
+        self.handle(pr['id'],
+                    bypass_build_status=True,
+                    bypass_jira_version_check=True)
+
+    def test_bypass_author_approval_through_comment(self):
+        pr = self.create_pr('bugfix/RING-00052', 'development/4.3')
+        pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id'])
+        pr_admin.add_comment('@%s'
+                             ' bypass_author_approval' % WALL_E_USERNAME)
+        self.handle(pr['id'],
+                    bypass_peer_approval=True,
+                    bypass_jira_version_check=True,
+                    bypass_jira_type_check=True,
+                    bypass_build_status=True)
+
+    def test_bypass_peer_approval_through_comment(self):
+        pr = self.create_pr('bugfix/RING-00053', 'development/4.3')
+        pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id'])
+        pr_admin.add_comment('@%s'
+                             ' bypass_peer_approval' % WALL_E_USERNAME)
+        self.handle(pr['id'],
+                    bypass_author_approval=True,
+                    bypass_jira_version_check=True,
+                    bypass_jira_type_check=True,
+                    bypass_build_status=True)
+
+    def test_bypass_jira_version_check_through_comment(self):
+        pr = self.create_pr('bugfix/RING-00054', 'development/4.3')
+        pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id'])
+        pr_admin.add_comment('@%s'
+                             ' bypass_jira_version_check' % WALL_E_USERNAME)
+        self.handle(pr['id'],
+                    bypass_author_approval=True,
+                    bypass_peer_approval=True,
+                    bypass_jira_type_check=True,
+                    bypass_build_status=True)
+
+    def test_bypass_jira_type_check_through_comment(self):
+        pr = self.create_pr('bugfix/RING-00055', 'development/4.3')
+        pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id'])
+        pr_admin.add_comment('@%s'
+                             ' bypass_jira_type_check' % WALL_E_USERNAME)
+        self.handle(pr['id'],
+                    bypass_author_approval=True,
+                    bypass_peer_approval=True,
+                    bypass_jira_version_check=True,
+                    bypass_build_status=True)
+
+    def test_bypass_build_status_through_comment(self):
+        pr = self.create_pr('bugfix/RING-00056', 'development/4.3')
+        pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id'])
+        pr_admin.add_comment('@%s'
+                             ' bypass_build_status' % WALL_E_USERNAME)
+        self.handle(pr['id'],
+                    bypass_author_approval=True,
+                    bypass_peer_approval=True,
+                    bypass_jira_version_check=True,
+                    bypass_jira_type_check=True)
+
+    def test_switches_lost_in_many_comments(self):
+        pr = self.create_pr('bugfix/RING-00057', 'development/4.3')
+        pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id'])
+        for i in range(5):
+            pr.add_comment('random comment %s' % i)
+        pr_admin.add_comment('@%s bypass_author_approval' % WALL_E_USERNAME)
+        for i in range(6):
+            pr.add_comment('random comment %s' % i)
+        pr_admin.add_comment('@%s bypass_peer_approval' % WALL_E_USERNAME)
+        for i in range(3):
+            pr.add_comment('random comment %s' % i)
+        pr_admin.add_comment('@%s bypass_build_status' % WALL_E_USERNAME)
+        for i in range(22):
+            pr.add_comment('random comment %s' % i)
+        pr_admin.add_comment('@%s bypass_jira_version_check' % WALL_E_USERNAME)
+        for i in range(2):
+            pr.add_comment('random comment %s' % i)
+        pr_admin.add_comment('@%s bypass_jira_type_check' % WALL_E_USERNAME)
+        for i in range(10):
+            pr.add_comment('random comment %s' % i)
+        self.handle(pr['id'])
+
+    def test_incorrect_address_when_setting_switches_through_comments(self):
+        pr = self.create_pr('bugfix/RING-00058', 'development/4.3')
+        pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id'])
+        pr_admin.add_comment('@toto'  # toto is not Wall-E
+                             ' bypass_author_approval'
+                             ' bypass_peer_approval'
+                             ' bypass_build_status'
+                             ' bypass_jira_version_check'
+                             ' bypass_jira_type_check')
+        with self.assertRaises(AuthorApprovalRequiredException):
+            self.handle(pr['id'],
+                        bypass_jira_version_check=True,
+                        bypass_jira_type_check=True,
+                        bypass_build_status=True)
+
 
 def main():
     parser = argparse.ArgumentParser(description='Launches Wall-E tests.')
