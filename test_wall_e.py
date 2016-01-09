@@ -495,6 +495,23 @@ class TestWallE(unittest.TestCase):
                         bypass_jira_type_check=True,
                         bypass_build_status=True)
 
+    def test_switches_set_through_deleted_comment(self):
+        pr = self.create_pr('bugfix/RING-00059', 'development/4.3')
+        pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id'])
+        comment = pr_admin.add_comment(
+                             '@%s'
+                             ' bypass_author_approval'
+                             ' bypass_peer_approval'
+                             ' bypass_build_status'
+                             ' bypass_jira_version_check'
+                             ' bypass_jira_type_check' % WALL_E_USERNAME)
+        comment.delete()
+        with self.assertRaises(AuthorApprovalRequiredException):
+            self.handle(pr['id'],
+                        bypass_jira_version_check=True,
+                        bypass_jira_type_check=True,
+                        bypass_build_status=True)
+
 
 def main():
     parser = argparse.ArgumentParser(description='Launches Wall-E tests.')

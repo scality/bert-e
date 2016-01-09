@@ -167,6 +167,12 @@ class Comment(BitBucketObject):
     add_url = ('https://api.bitbucket.org/2.0/repositories/'
                '$full_name/pullrequests/$pull_request_id/comments')
     list_url = add_url + '?page=$page'
+    get_url = ('https://api.bitbucket.org/2.0/repositories/'
+               '$full_name/pullrequests/$pull_request_id/comments/$comment_id')
+
+    def full_name(self):
+        return '%s/%s' % (self._json_data['pr_repo']['owner'],
+                          self._json_data['pr_repo']['slug'])
 
     def create(self):
         json_str = json.dumps({'content': self._json_data['content']})
@@ -178,6 +184,13 @@ class Comment(BitBucketObject):
                                     json_str)
         response.raise_for_status()
         return self.__class__(self.client, **response.json())
+
+    def delete(self):
+        self._json_data['full_name'] = self.full_name()
+        response = self.client.delete(Template(self.get_url)
+                                      .substitute(self._json_data)
+                                      .replace('/2.0/', '/1.0/'))
+        response.raise_for_status()
 
 
 class BuildStatus(BitBucketObject):
