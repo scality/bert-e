@@ -220,8 +220,10 @@ class WallE:
         for index, comment in enumerate(self.original_pr.get_comments()):
             u = comment['user']['username']
             raw = comment['content']['raw']
+            # python3
             if isinstance(username, str) and u != username:
                 continue
+            # python2
             if isinstance(username, list) and u not in username:
                 continue
             if startswith and not raw.startswith(startswith):
@@ -373,19 +375,15 @@ class WallE:
 
             description = render('pull_request_description.md',
                                  pr=self.original_pr)
-            pr = (self.bbrepo
-                  .create_pull_request(title=title,
-                                       name='name',
-                                       source={'branch':
-                                               {'name':
-                                                source_branch.name}},
-                                       destination={'branch':
-                                                    {'name':
-                                                     destination_branch
-                                                     .name}},
-                                       close_source_branch=True,
-                                       reviewers=[{'username': author}],
-                                       description=description))
+            pr = self.bbrepo.create_pull_request(
+                title=title,
+                name='name',
+                source={'branch': {'name': source_branch.name}},
+                destination={'branch': {'name': destination_branch.name}},
+                close_source_branch=True,
+                reviewers=[{'username': author}],
+                description=description
+            )
             child_prs.append(pr)
 
         # Check parent PR: approval
@@ -428,11 +426,11 @@ class WallE:
 
             logging.debug('Found a keyword comment: %s', raw)
             author = comment['user']['username']
-            if not isinstance(author, str):
-                # don't handle lists for now
-                logging.warning('Keyword comment ignored. Author '
-                                'is a list: %s' % author)
-                continue
+            if isinstance(author, list):
+                # python2 returns a list
+                if len(author) != 1:
+                    continue
+                author = author[0]
 
             # accept all comments in the form:
             # @scality_wall-e keyword keyword keyword...
