@@ -171,7 +171,6 @@ class WallE:
                               bitbucket_password, bitbucket_mail)
         self.bbrepo = BitBucketRepository(self._bbconn, owner=owner,
                                           repo_slug=slug)
-        self.repo_full_name = owner + '/' + slug  # TODO : never used ?
         self.original_pr = (self.bbrepo
                             .get_pull_request(pull_request_id=pull_request_id))
 
