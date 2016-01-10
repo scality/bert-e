@@ -512,6 +512,18 @@ class TestWallE(unittest.TestCase):
                         bypass_jira_type_check=True,
                         bypass_build_status=True)
 
+    def test_bypass_all_approvals_through_bitbucket_comment_extra_chars(self):
+        # normal user creates the PR
+        pr = self.create_pr('bugfix/RING-00060', 'development/4.3')
+        # and priviledged user gets it back
+        pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id'])
+        pr_admin.add_comment('@%s:'
+                             'bypass_author_approval,  '
+                             '     bypass_peer_approval,,   '
+                             '  bypass_build_status-bypass_jira_version_check'
+                             '   bypass_jira_type_check -   ' % WALL_E_USERNAME)
+        self.handle(pr['id'])
+
 
 def main():
     parser = argparse.ArgumentParser(description='Launches Wall-E tests.')

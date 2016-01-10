@@ -439,10 +439,12 @@ class WallE:
         """Load settings from pull-request comments."""
         for index, comment in enumerate(self.original_pr.get_comments()):
             raw = comment['content']['raw']
-            if not raw.strip().startswith('@%s ' % WALL_E_USERNAME):
+            if not raw.strip().startswith('@%s' % WALL_E_USERNAME):
                 continue
 
             logging.debug('Found a keyword comment: %s', raw)
+            raw_cleaned = raw.strip()[len(WALL_E_USERNAME)+1:]
+
             author = comment['user']['username']
             if isinstance(author, list):
                 # python2 returns a list
@@ -450,10 +452,13 @@ class WallE:
                     continue
                 author = author[0]
 
-            # accept all comments in the form:
-            # @scality_wall-e keyword keyword keyword...
-            regexp = r"\s*@%s(?P<keywords>(\s+\w+)+)\s*$" % WALL_E_USERNAME
-            match_ = re.match(regexp, raw)
+            # accept all options in the form:
+            # @scality_wall-e option1 option2...
+            # @scality_wall-e option1, option2, ...
+            # @scality_wall-e: option1 - option2 - ...
+            raw_cleaned = re.sub(r'[,.\-/:;|+]', ' ', raw_cleaned)
+            regexp = r"\s*(?P<keywords>(\s+\w+)+)\s*$"
+            match_ = re.match(regexp, raw_cleaned)
             if not match_:
                 logging.warning('Keyword comment ignored. '
                                 'Unknown format: %s' % raw)
