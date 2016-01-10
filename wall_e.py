@@ -65,15 +65,33 @@ RELEASE_ENGINEERS = [
 ]
 
 
-class switch(object):
-    def __init__(self, priviledged, default=False):
-        self.value = default
+class Option(object):
+    """Wall-E options implementation.
+
+    Wall-E uses options to activate additional functionality
+    or alter the behaviour of existing functionality.
+
+    An option is always set to False by default.
+
+    It is activated either on the command line of wall_e.py,
+    or by the users of a pull-request, by adding a special
+    comment in the pull-request. The options then remains
+    active until this comment is deleted.
+
+    An option may required priviledges, in which case only
+    members of RELEASE_ENGINEERS will be able to activate
+    it.
+
+    """
+    def __init__(self, priviledged, help, value=False):
+        self.value = value
+        self.help = help
         self.priviledged = priviledged
 
     def set(self, value):
         self.value = value
 
-    def is_on(self):
+    def is_set(self):
         return self.value
 
 
@@ -179,22 +197,22 @@ class FeatureBranch(ScalBranch):
 
 class WallE:
     def __init__(self, bitbucket_login, bitbucket_password, bitbucket_mail,
-                 owner, slug, pull_request_id, switches):
+                 owner, slug, pull_request_id, options):
         self._bbconn = Client(bitbucket_login,
                               bitbucket_password, bitbucket_mail)
         self.bbrepo = BitBucketRepository(self._bbconn, owner=owner,
                                           repo_slug=slug)
         self.original_pr = (self.bbrepo
                             .get_pull_request(pull_request_id=pull_request_id))
-        self.switches = switches
+        self.options = options
 
-    def is_on(self, name):
-        if name not in self.switches.keys():
+    def option_is_set(self, name):
+        if name not in self.options.keys():
             return False
-        return self.switches[name].is_on()
+        return self.options[name].is_set()
 
     def check_build_status(self, pr, key):
-        if self.is_on('bypass_build_status'):
+        if self.option_is_set('bypass_build_status'):
             return
         try:
             build_state = self.bbrepo.get_build_status(
@@ -263,8 +281,8 @@ class WallE:
     def jira_checks(self, source_branch, destination_branch):
         """performs checks using the Jira issue id specified in the source
         branch name"""
-        if (self.is_on('bypass_jira_version_check') and
-                self.is_on('bypass_jira_type_check')):
+        if (self.option_is_set('bypass_jira_version_check') and
+                self.option_is_set('bypass_jira_type_check')):
             return
 
         if not source_branch.jira_issue_id:
@@ -292,7 +310,7 @@ class WallE:
         # What happens when the issue does not exist ? -> comment on PR ?
         # What happens in case of network failure ? -> fail silently ?
         # What else can happen ?
-        if not self.is_on('bypass_jira_type_check'):
+        if not self.option_is_set('bypass_jira_type_check'):
             issuetype = issue.fields.issuetype.name
             expected_prefix = JIRA_ISSUE_BRANCH_PREFIX.get(issuetype)
             if expected_prefix is None:
@@ -303,7 +321,7 @@ class WallE:
                                       'jira issue type field %r' %
                                       (source_branch.prefix, expected_prefix))
 
-        if not self.is_on('bypass_jira_version_check'):
+        if not self.option_is_set('bypass_jira_version_check'):
             issue_versions = set([version.name for version in
                                   issue.fields.fixVersions])
             expect_versions = set(
@@ -321,8 +339,8 @@ class WallE:
             raise NothingToDoException('The pull-request\'s state is "%s"'
                                        % self.original_pr['state'])
 
-        # must be called before any switch is checked
-        self.get_comments_switches()
+        # must be called before any options is checked
+        self.get_comments_options()
 
         # TODO: Check the size of the diff and issue warnings
 
@@ -404,12 +422,12 @@ class WallE:
         logging.debug('checking keywords %s', keyword_list)
 
         for keyword in keyword_list:
-            if keyword not in self.switches.keys():
+            if keyword not in self.options.keys():
                 logging.debug('ignoring keywords in this comment due to '
                               'an unknown keyword `%s`', keyword_list)
                 return False
 
-            limited_access = self.switches[keyword].priviledged
+            limited_access = self.options[keyword].priviledged
             if limited_access and author not in RELEASE_ENGINEERS:
                 logging.debug('ignoring keywords in this comment due to '
                               'unsufficient credentials `%s`', keyword_list)
@@ -417,7 +435,7 @@ class WallE:
 
         return True
 
-    def get_comments_switches(self):
+    def get_comments_options(self):
         """Load settings from pull-request comments."""
         for index, comment in enumerate(self.original_pr.get_comments()):
             raw = comment['content']['raw']
@@ -448,11 +466,11 @@ class WallE:
                 continue
 
             for keyword in keywords:
-                self.switches[keyword].set(True)
+                self.options[keyword].set(True)
 
     def check_approval(self, child_prs):
-        approved_by_author = self.is_on('bypass_author_approval')
-        approved_by_peer = self.is_on('bypass_peer_approval')
+        approved_by_author = self.option_is_set('bypass_author_approval')
+        approved_by_peer = self.option_is_set('bypass_peer_approval')
 
         if approved_by_author and approved_by_peer:
             return
@@ -481,21 +499,27 @@ def main():
     parser = argparse.ArgumentParser(add_help=False,
                                      description='Merges bitbucket '
                                                  'pull requests.')
+    bypass_author_approval_help = 'Bypass the pull request author\'s approval'
+    bypass_author_peer_help = 'Bypass the pull request peer\'s approval'
+    bypass_jira_version_check_help = 'Bypass the Jira fixVersions field check'
+    bypass_jira_type_check_help = 'Bypass the build and test status'
+    bypass_build_status_help = 'Bypass the Jira issueType field check'
+
     parser.add_argument(
         '--bypass-author-approval', action='store_true', default=False,
-        help='Bypass the pull request author\'s approval')
+        help=bypass_author_approval_help)
     parser.add_argument(
         '--bypass-peer-approval', action='store_true', default=False,
-        help='Bypass the pull request peer\'s approval')
+        help=bypass_author_peer_help)
     parser.add_argument(
         '--bypass-jira-version-check', action='store_true', default=False,
-        help='Bypass the Jira fixVersions field check')
+        help=bypass_jira_version_check_help)
     parser.add_argument(
         '--bypass-jira-type-check', action='store_true', default=False,
-        help='Bypass the Jira issueType field check')
+        help=bypass_jira_type_check_help)
     parser.add_argument(
         '--bypass-build-status', action='store_true', default=False,
-        help='Bypass the build and test status')
+        help=bypass_build_status_help)
     parser.add_argument(
         'pull_request_id',
         help='The ID of the pull request')
@@ -542,21 +566,31 @@ def main():
                   "the email server.")
             sys.exit(1)
 
-    switches = {
+    options = {
         'bypass_peer_approval':
-            switch(True, args.bypass_peer_approval),
+            Option(priviledged=True,
+                   value=args.bypass_peer_approval,
+                   help=bypass_author_approval_help),
         'bypass_author_approval':
-            switch(True, args.bypass_author_approval),
+            Option(priviledged=True,
+                   value=args.bypass_author_approval,
+                   help=bypass_author_peer_help),
         'bypass_jira_version_check':
-            switch(True, args.bypass_jira_version_check),
+            Option(priviledged=True,
+                   value=args.bypass_jira_version_check,
+                   help=bypass_jira_version_check_help),
         'bypass_jira_type_check':
-            switch(True, args.bypass_jira_type_check),
+            Option(priviledged=True,
+                   value=args.bypass_jira_type_check,
+                   help=bypass_jira_type_check_help),
         'bypass_build_status':
-            switch(True, args.bypass_build_status),
+            Option(priviledged=True,
+                   value=args.bypass_build_status,
+                   help=bypass_build_status_help)
     }
 
     wall_e = WallE(WALL_E_USERNAME, args.password, WALL_E_EMAIL,
-                   args.owner, args.slug, args.pull_request_id, switches)
+                   args.owner, args.slug, args.pull_request_id, options)
 
     try:
         wall_e.handle_pull_request(

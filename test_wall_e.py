@@ -458,7 +458,7 @@ class TestWallE(unittest.TestCase):
                     bypass_jira_version_check=True,
                     bypass_jira_type_check=True)
 
-    def test_switches_lost_in_many_comments(self):
+    def test_options_lost_in_many_comments(self):
         pr = self.create_pr('bugfix/RING-00057', 'development/4.3')
         pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id'])
         for i in range(5):
@@ -480,7 +480,7 @@ class TestWallE(unittest.TestCase):
             pr.add_comment('random comment %s' % i)
         self.handle(pr['id'])
 
-    def test_incorrect_address_when_setting_switches_through_comments(self):
+    def test_incorrect_address_when_setting_options_through_comments(self):
         pr = self.create_pr('bugfix/RING-00058', 'development/4.3')
         pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id'])
         pr_admin.add_comment('@toto'  # toto is not Wall-E
@@ -495,7 +495,7 @@ class TestWallE(unittest.TestCase):
                         bypass_jira_type_check=True,
                         bypass_build_status=True)
 
-    def test_switches_set_through_deleted_comment(self):
+    def test_options_set_through_deleted_comment(self):
         pr = self.create_pr('bugfix/RING-00059', 'development/4.3')
         pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id'])
         comment = pr_admin.add_comment(
