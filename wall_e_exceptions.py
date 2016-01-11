@@ -5,10 +5,6 @@ from template_loader import render
 
 
 # base exceptions
-class WallE_Exception(Exception):
-    pass
-
-
 class WallE_TemplateException(Exception):
     def __init__(self, **kwargs):
         msg = render(self.template, **kwargs)
@@ -24,23 +20,23 @@ class WallE_SilentException(Exception):
 
 
 # derived exceptions
-class UnableToSendEmailException(WallE_InternalException):
+class UnableToSendEmail(WallE_InternalException):
     pass
 
 
-class ImproperEmailFormatException(WallE_InternalException):
+class ImproperEmailFormat(WallE_InternalException):
     pass
 
 
-class CommentAlreadyExistsException(WallE_SilentException):
+class CommentAlreadyExists(WallE_SilentException):
     pass
 
 
-class AuthorApprovalRequiredException(WallE_TemplateException):
+class AuthorApprovalRequired(WallE_TemplateException):
     template = 'need_approval.md'
 
 
-class PeerApprovalRequiredException(WallE_TemplateException):
+class PeerApprovalRequired(WallE_TemplateException):
     template = 'need_approval.md'
 
 
@@ -56,74 +52,61 @@ class IncorrectFixVersion(WallE_TemplateException):
     template = 'incorrect_fix_version.md'
 
 
-class UnrecognizedBranchPatternException(WallE_Exception):
-    pass
-
-
-class HelpException(WallE_TemplateException):
+class HelpMessage(WallE_TemplateException):
     template = 'help.md'
 
 
-class StatusReportException(WallE_TemplateException):
+class StatusReport(WallE_TemplateException):
     template = 'status.md'
 
 
-class CommandNotImplementedException(WallE_TemplateException):
+class CommandNotImplemented(WallE_TemplateException):
     template = 'not_implemented.md'
 
 
-class InitException(WallE_TemplateException):
+class InitMessage(WallE_TemplateException):
     template = 'init.md'
 
 
-class NotMyJobException(WallE_InternalException):
-    def __init__(self, current_branch, branch_to_be_merged):
-        msg = ("Not my job to merge `%s` into `%s`."
-               % (branch_to_be_merged, current_branch))
-        WallE_Exception.__init__(self, msg)
-
-
-class NothingToDoException(WallE_SilentException):
+class NotMyJob(WallE_SilentException):
     pass
 
 
-class BranchNameInvalidException(WallE_Exception):
+class NothingToDo(WallE_SilentException):
+    pass
+
+
+class BranchNameInvalid(WallE_InternalException):
     def __init__(self, name):
         self.branch = name
-        WallE_Exception.__init__(self, 'Invalid name: %r' % name)
+        WallE_InternalException.__init__(self, 'Invalid name: %r' % name)
 
 
-class PrefixCannotBeMergedException(WallE_TemplateException):
+class PrefixCannotBeMerged(WallE_TemplateException):
     template = 'forbidden_branch.md'
 
 
-class BranchDoesNotAcceptFeaturesException(WallE_TemplateException):
+class BranchDoesNotAcceptFeatures(WallE_TemplateException):
     template = 'forbidden_branch_in_maintenance.md'
 
 
-class ConflictException(WallE_TemplateException):
+class Conflict(WallE_TemplateException):
     template = 'conflict.md'
 
 
-class BuildFailedException(WallE_Exception):
-    def __init__(self, pr_id):
-        msg = 'The build on the pull request #%s did not succeed' % pr_id
-        WallE_Exception.__init__(self, msg)
+class BuildFailed(WallE_TemplateException):
+    template = 'build_failed.md'
 
 
-class BuildInProgressException(WallE_Exception):
-    def __init__(self, pr_id):
-        msg = 'The build on the pull request #%s is still in progress...'
-        WallE_Exception.__init__(self, msg % pr_id)
+class BuildInProgress(WallE_SilentException):
+    pass
 
 
-class BuildNotStartedException(WallE_Exception):
-    def __init__(self, pr_id):
-        msg = 'The build on the pull request #%s did not start yet.' % pr_id
-        WallE_Exception.__init__(self, msg)
+class BuildNotStarted(WallE_SilentException):
+    pass
 
 
-class ParentNotFoundException(WallE_InternalException):
+class ParentNotFound(WallE_InternalException):
     def __init__(self, pr_id):
         msg = ("The parent Pull Request from this pull request #%s"
                " couldn't be found." % pr_id)
