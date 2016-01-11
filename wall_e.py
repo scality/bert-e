@@ -232,11 +232,11 @@ class WallE:
                             .get_pull_request(pull_request_id=pull_request_id))
         self.author = self.main_pr['author']['username']
         if WALL_E_USERNAME == self.author:
-            res = re.search('(\d+)',
+            res = re.search('(?P<pr_id>\d+)',
                             self.main_pr['description'])
-            if not res.group():
+            if not res:
                 raise ParentNotFoundException('Not found')
-            self.pull_request_id = res.group()
+            self.pull_request_id = res.group('pr_id')
             self.main_pr = (self.bbrepo
                                 .get_pull_request(pull_request_id=res.group()))
             self.author = self.main_pr['author']['username']
