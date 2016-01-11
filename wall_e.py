@@ -33,7 +33,8 @@ from wall_e_exceptions import (NotMyJobException,
                                WallE_SilentException,
                                WallE_TemplateException,
                                ImproperEmailFormatException,
-                               UnableToSendEmailException)
+                               UnableToSendEmailException,
+                               HelpException)
 
 KNOWN_VERSIONS = OrderedDict([
     ('4.3', '4.3.18'),
@@ -75,10 +76,10 @@ class Option(object):
 
     It is activated either on the command line of wall_e.py,
     or by the users of a pull-request, by adding a special
-    comment in the pull-request. The options then remains
+    comment in the pull-request. The options then remain
     active until this comment is deleted.
 
-    An option may required priviledges, in which case only
+    An option may require priviledges, in which case only
     members of RELEASE_ENGINEERS will be able to activate
     it.
 
@@ -93,6 +94,25 @@ class Option(object):
 
     def is_set(self):
         return self.value
+
+
+class Command(object):
+    """Wall-E commands implementation.
+
+    Wall-E uses commands to operate one-time actions.
+
+    Commands are triggered by adding a comment in the
+    pull-request.
+
+    A command may require priviledges, in which case only
+    members of RELEASE_ENGINEERS will be able to activate
+    it.
+
+    """
+    def __init__(self, priviledged, help, handler):
+        self.handler = handler
+        self.help = help
+        self.priviledged = priviledged
 
 
 def setup_email(destination):
@@ -197,7 +217,7 @@ class FeatureBranch(ScalBranch):
 
 class WallE:
     def __init__(self, bitbucket_login, bitbucket_password, bitbucket_mail,
-                 owner, slug, pull_request_id, options):
+                 owner, slug, pull_request_id, options, commands):
         self._bbconn = Client(bitbucket_login,
                               bitbucket_password, bitbucket_mail)
         self.bbrepo = BitBucketRepository(self._bbconn, owner=owner,
@@ -205,6 +225,7 @@ class WallE:
         self.original_pr = (self.bbrepo
                             .get_pull_request(pull_request_id=pull_request_id))
         self.options = options
+        self.commands = commands
 
     def option_is_set(self, name):
         if name not in self.options.keys():
@@ -342,6 +363,8 @@ class WallE:
         # must be called before any options is checked
         self.get_comments_options()
 
+        self.handle_commands()
+
         # TODO: Check the size of the diff and issue warnings
 
         # TODO: Check build status
@@ -418,7 +441,7 @@ class WallE:
         for pr in child_prs:
             pr.merge()
 
-    def check_keywords(self, author, keyword_list):
+    def check_options(self, author, keyword_list):
         logging.debug('checking keywords %s', keyword_list)
 
         for keyword in keyword_list:
@@ -465,13 +488,75 @@ class WallE:
                 continue
 
             keywords = match_.group('keywords').strip().split()
-            if not self.check_keywords(author, keywords):
+
+            if not self.check_options(author, keywords):
                 logging.warning('Keyword comment ignored. '
                                 'Checks failed: %s' % raw)
                 continue
 
             for keyword in keywords:
                 self.options[keyword].set(True)
+
+    def check_command(self, author, command):
+        logging.debug('checking command %s', command)
+
+        if command not in self.commands.keys():
+            logging.debug('ignoring command in this comment due to '
+                          'an unknown command `%s`', command)
+            return False
+
+        limited_access = self.commands[command].priviledged
+        if limited_access and author not in RELEASE_ENGINEERS:
+            logging.debug('ignoring command in this comment due to '
+                          'unsufficient credentials `%s`', command)
+            return False
+
+        return True
+
+    def handle_commands(self):
+        """Detect the last command in pull-request comments and act on it."""
+        for index, comment in enumerate(self.original_pr.get_comments()):
+            author = comment['user']['username']
+            if isinstance(author, list):
+                # python2 returns a list
+                if len(author) != 1:
+                    continue
+                author = author[0]
+
+            # if Wall-E is the author of this comment, any previous command
+            # has been treated or is outdated, since Wall-E replies to all
+            # commands. The search is over.
+            if author == WALL_E_USERNAME:
+                return
+
+            raw = comment['content']['raw']
+            if not raw.strip().startswith('@%s' % WALL_E_USERNAME):
+                continue
+
+            logging.debug('Found a potential command comment: %s', raw)
+
+            # accept all commands in the form:
+            # @scality_wall-e command arg1 arg2 ...
+            regexp = "@%s[\s:]*" % WALL_E_USERNAME
+            raw_cleaned = re.sub(regexp, '', raw.strip())
+            regexp = r"(?P<command>\w+)(?P<args>.*)$"
+            match_ = re.match(regexp, raw_cleaned)
+            if not match_:
+                logging.warning('Command comment ignored. '
+                                'Unknown format: %s' % raw)
+                continue
+
+            command = match_.group('command')
+
+            if not self.check_command(author, command):
+                logging.warning('Command comment ignored. '
+                                'Checks failed: %s' % raw)
+                continue
+
+            # get command handler and execute it
+            assert hasattr(self, self.commands[command].handler)
+            handler = getattr(self, self.commands[command].handler)
+            handler(match_.group('args'))
 
     def check_approval(self, child_prs):
         approved_by_author = self.option_is_set('bypass_author_approval')
@@ -498,6 +583,9 @@ class WallE:
         if not approved_by_peer:
             raise PeerApprovalRequiredException(pr=self.original_pr,
                                                 child_prs=child_prs)
+
+    def print_help(self, args):
+        raise HelpException('to do')
 
 
 def main():
@@ -594,8 +682,16 @@ def main():
                    help=bypass_build_status_help)
     }
 
+    commands = {
+        'help':
+            Command(priviledged=False,
+                    handler='print_help',
+                    help='print Wall-E\'s manual in the pull-request')
+    }
+
     wall_e = WallE(WALL_E_USERNAME, args.password, WALL_E_EMAIL,
-                   args.owner, args.slug, args.pull_request_id, options)
+                   args.owner, args.slug, args.pull_request_id,
+                   options, commands)
 
     try:
         wall_e.handle_pull_request(
