@@ -1,19 +1,19 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import argparse
+from collections import OrderedDict
+import logging
+import re
 import smtplib
+import sys
 import time
 import traceback
-import sys
-import argparse
-import re
+
+import requests
 import six
 
-import logging
-import requests
 from template_loader import render
-from collections import OrderedDict
-
 from bitbucket_api import (Repository as BitBucketRepository,
                            Client)
 from git_api import Repository as GitRepository, Branch, MergeFailedException
