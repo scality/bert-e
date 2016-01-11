@@ -19,19 +19,7 @@ class WallE_SilentException(Exception):
     pass
 
 
-# derived exceptions
-class UnableToSendEmail(WallE_InternalException):
-    pass
-
-
-class ImproperEmailFormat(WallE_InternalException):
-    pass
-
-
-class CommentAlreadyExists(WallE_SilentException):
-    pass
-
-
+# template exceptions
 class AuthorApprovalRequired(WallE_TemplateException):
     template = 'need_approval.md'
 
@@ -68,20 +56,6 @@ class InitMessage(WallE_TemplateException):
     template = 'init.md'
 
 
-class NotMyJob(WallE_SilentException):
-    pass
-
-
-class NothingToDo(WallE_SilentException):
-    pass
-
-
-class BranchNameInvalid(WallE_InternalException):
-    def __init__(self, name):
-        self.branch = name
-        WallE_InternalException.__init__(self, 'Invalid name: %r' % name)
-
-
 class PrefixCannotBeMerged(WallE_TemplateException):
     template = 'forbidden_branch.md'
 
@@ -98,12 +72,19 @@ class BuildFailed(WallE_TemplateException):
     template = 'build_failed.md'
 
 
-class BuildInProgress(WallE_SilentException):
+# internal exceptions
+class UnableToSendEmail(WallE_InternalException):
     pass
 
 
-class BuildNotStarted(WallE_SilentException):
+class ImproperEmailFormat(WallE_InternalException):
     pass
+
+
+class BranchNameInvalid(WallE_InternalException):
+    def __init__(self, name):
+        self.branch = name
+        WallE_InternalException.__init__(self, 'Invalid name: %r' % name)
 
 
 class ParentNotFound(WallE_InternalException):
@@ -111,3 +92,24 @@ class ParentNotFound(WallE_InternalException):
         msg = ("The parent Pull Request from this pull request #%s"
                " couldn't be found." % pr_id)
         WallE_InternalException.__init__(self, msg)
+
+
+# silent exceptions
+class CommentAlreadyExists(WallE_SilentException):
+    pass
+
+
+class NotMyJob(WallE_SilentException):
+    pass
+
+
+class NothingToDo(WallE_SilentException):
+    pass
+
+
+class BuildInProgress(WallE_SilentException):
+    pass
+
+
+class BuildNotStarted(WallE_SilentException):
+    pass
