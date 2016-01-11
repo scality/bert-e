@@ -225,9 +225,14 @@ class TestWallE(unittest.TestCase):
                              file_='toto.txt')
         pr2 = self.create_pr('improvement/RING-0006', 'development/4.3',
                              file_='toto.txt')
-        self.handle(pr1['id'])
+        self.handle(pr1['id'],
+                        bypass_author_approval=True,
+                        bypass_peer_approval=True,
+                        bypass_jira_version_check=True,
+                        bypass_jira_type_check=True,
+                        bypass_build_status=True)
         with self.assertRaises(ConflictException):
-            self.handle(pr2['id'])
+            self.handle(pr2['id'],
                         bypass_author_approval=True,
                         bypass_peer_approval=True,
                         bypass_jira_version_check=True,
@@ -694,8 +699,7 @@ def main():
     sys.argv.extend(TestWallE.args.tests)
     loader = unittest.TestLoader()
     loader.testMethodPrefix = "test_"
-    # loader.testMethodPrefix = "test_conflict"  # uncomment for single test
-    unittest.main(failfast=False, testLoader=loader)
+    unittest.main(failfast=True, testLoader=loader)
 
 
 if __name__ == '__main__':

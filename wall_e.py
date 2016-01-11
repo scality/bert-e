@@ -262,6 +262,8 @@ class WallE:
             self.author = self.main_pr['author']['username']
         self.options = options
         self.commands = commands
+        self.source_branch = None
+        self.destination_branch = None
 
     def option_is_set(self, name):
         if name not in self.options.keys():
@@ -401,12 +403,12 @@ class WallE:
 
     def create_pull_requests(self, ):
         return [integration_branch.
-                create_pull_request(self.original_pr, self.bbrepo) for
+                create_pull_request(self.main_pr, self.bbrepo) for
                 integration_branch in self.integration_branches]
 
     def update_integration_branches_from_development_branches(self):
-        [integration_branch.merge_from_development_branch()
-         for integration_branch in self.integration_branches]
+        for integration_branch in self.integration_branches:
+            integration_branch.merge_from_development_branch()
 
     def update_integration_branches_from_feature_branch(self):
         branch_to_merge_from = self.source_branch
