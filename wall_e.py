@@ -264,6 +264,7 @@ class WallE:
         self.commands = commands
         self.source_branch = None
         self.destination_branch = None
+        self.integration_branches = None
 
     def option_is_set(self, name):
         if name not in self.options.keys():
