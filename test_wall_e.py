@@ -226,11 +226,11 @@ class TestWallE(unittest.TestCase):
         pr2 = self.create_pr('improvement/RING-0006', 'development/4.3',
                              file_='toto.txt')
         self.handle(pr1['id'],
-                        bypass_author_approval=True,
-                        bypass_peer_approval=True,
-                        bypass_jira_version_check=True,
-                        bypass_jira_type_check=True,
-                        bypass_build_status=True)
+                    bypass_author_approval=True,
+                    bypass_peer_approval=True,
+                    bypass_jira_version_check=True,
+                    bypass_jira_type_check=True,
+                    bypass_build_status=True)
         with self.assertRaises(ConflictException):
             self.handle(pr2['id'],
                         bypass_author_approval=True,

@@ -465,9 +465,9 @@ class WallE:
             return
 
         if self.source_branch.prefix not in [
-               'feature',
-               'bugfix',
-               'improvement'
+            'feature',
+            'bugfix',
+            'improvement'
         ]:
             raise PrefixCannotBeMergedException(self.source_branch.name)
 
