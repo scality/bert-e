@@ -44,6 +44,18 @@ class PeerApprovalRequiredException(WallE_TemplateException):
     template = 'need_approval.md'
 
 
+class MissingJiraIdMaintenance(WallE_TemplateException):
+    template = 'missing_jira_id_for_maintenance_branch.md'
+
+
+class MismatchPrefixIssueType(WallE_TemplateException):
+    template = 'mismatch_prefix_issue_type.md'
+
+
+class IncorrectFixVersion(WallE_TemplateException):
+    template = 'incorrect_fix_version.md'
+
+
 class UnrecognizedBranchPatternException(WallE_Exception):
     pass
 

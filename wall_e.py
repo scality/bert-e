@@ -31,7 +31,6 @@ from wall_e_exceptions import (NotMyJobException,
                                BuildFailedException,
                                BuildNotStartedException,
                                BuildInProgressException,
-                               WallE_Exception,
                                WallE_InternalException,
                                WallE_SilentException,
                                WallE_TemplateException,
@@ -40,7 +39,10 @@ from wall_e_exceptions import (NotMyJobException,
                                HelpException,
                                CommandNotImplementedException,
                                StatusReportException,
-                               InitException)
+                               InitException,
+                               MissingJiraIdMaintenance,
+                               MismatchPrefixIssueType,
+                               IncorrectFixVersion)
 
 if six.PY3:
     raw_input = input
@@ -354,9 +356,7 @@ class WallE:
                 # FIXME : versions should not be hardcoded
                 return
 
-            raise WallE_Exception('You want to merge `%s` into a maintenance '
-                                  'branch but this branch does not specify a '
-                                  'Jira issue id' % (self.source_branch.name))
+            raise MissingJiraIdMaintenance(branch=self.source_branch.name)
 
         issue = JiraIssue(issue_id=self.source_branch.jira_issue_id,
                           login='wall_e',
@@ -379,10 +379,8 @@ class WallE:
                 raise WallE_InternalException('Jira issue: unknow type %r' %
                                               issuetype)
             if expected_prefix != self.source_branch.prefix:
-                raise WallE_Exception('branch prefix name %r mismatches '
-                                      'jira issue type field %r' %
-                                      (self.source_branch.prefix,
-                                       expected_prefix))
+                raise MismatchPrefixIssueType(prefix=self.source_branch.prefix,
+                                              expected=expected_prefix)
 
         if not self.option_is_set('bypass_jira_version_check'):
             issue_versions = set([version.name for version in
@@ -390,10 +388,7 @@ class WallE:
             expect_versions = set(
                 self.destination_branch.impacted_versions.values())
             if issue_versions != expect_versions:
-                raise WallE_Exception("The issue 'Fix Version/s' field "
-                                      "contains %s. It must contain: %s." %
-                                      (', '.join(issue_versions),
-                                       ', '.join(expect_versions)))
+                raise IncorrectFixVersion(issue_versions, expect_versions)
 
     def create_integration_branches(self):
         integration_branches = []
@@ -809,7 +804,7 @@ def main():
             interactive=args.interactive
         )
 
-    except (WallE_Exception, WallE_TemplateException) as excp:
+    except WallE_TemplateException as excp:
         wall_e.send_bitbucket_msg(str(excp),
                                   no_comment=args.no_comment,
                                   interactive=args.interactive)
