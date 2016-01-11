@@ -16,7 +16,8 @@ from wall_e_exceptions import (BranchDoesNotAcceptFeaturesException,
                                AuthorApprovalRequiredException,
                                ConflictException,
                                BranchNameInvalidException,
-                               HelpException)
+                               HelpException,
+                               ParentNotFoundException)
 from git_api import Repository as GitRepository
 from simplecmd import cmd
 
@@ -571,6 +572,84 @@ class TestWallE(unittest.TestCase):
         with self.assertRaises(HelpException):
             self.handle(pr['id'])
 
+    def test_main_pr_retrieval(self):
+        pr = self.create_pr('bugfix/RING-00066', 'development/4.3')
+        # create integration PRs first:
+        with self.assertRaises(AuthorApprovalRequiredException):
+            self.handle(pr['id'],
+                        bypass_peer_approval=True,
+                        bypass_jira_version_check=True,
+                        bypass_jira_type_check=True,
+                        bypass_build_status=True)
+        # simulate a child pr update
+        self.handle(pr['id']+1,
+                    bypass_author_approval=True,
+                    bypass_peer_approval=True,
+                    bypass_jira_version_check=True,
+                    bypass_jira_type_check=True,
+                    bypass_build_status=True)
+
+    def test_no_effect_sub_pr_approval(self):
+        pr = self.create_pr('bugfix/RING-00067', 'development/4.3')
+        # create integration PRs first:
+        with self.assertRaises(AuthorApprovalRequiredException):
+            self.handle(pr['id'],
+                        bypass_peer_approval=True,
+                        bypass_jira_version_check=True,
+                        bypass_jira_type_check=True,
+                        bypass_build_status=True)
+        pr_child = self.bbrepo.get_pull_request(pull_request_id=pr['id']+1)
+        pr_child.approve()
+        with self.assertRaises(CommentAlreadyExistsException):
+            self.handle(pr['id']+1,
+                        bypass_peer_approval=True,
+                        bypass_jira_version_check=True,
+                        bypass_jira_type_check=True,
+                        bypass_build_status=True)
+
+    def test_no_effect_sub_pr_options(self):
+        pr = self.create_pr('bugfix/RING-00068', 'development/4.3')
+        # create integration PRs first:
+        with self.assertRaises(AuthorApprovalRequiredException):
+            self.handle(pr['id'],
+                        bypass_peer_approval=True,
+                        bypass_jira_version_check=True,
+                        bypass_jira_type_check=True,
+                        bypass_build_status=True)
+        pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id']+1)
+        pr_admin.add_comment('@%s'
+                             ' bypass_author_approval'
+                             ' bypass_peer_approval'
+                             ' bypass_build_status'
+                             ' bypass_jira_version_check'
+                             ' bypass_jira_type_check' % WALL_E_USERNAME)
+        with self.assertRaises(CommentAlreadyExistsException):
+            self.handle(pr['id'],
+                        bypass_peer_approval=True,
+                        bypass_jira_version_check=True,
+                        bypass_jira_type_check=True,
+                        bypass_build_status=True)
+
+    def test_child_pr_without_parent(self):
+        # simulate creation of an integration branch with Wall-E
+        create_branch('w/bugfix/RING-00069', from_branch='development/4.3', file_=True)
+        pr = self.bbrepo_wall_e.create_pull_request(
+            title='title',
+            name='name',
+            source={'branch': {'name': 'w/bugfix/RING-00069'}},
+            destination={'branch': {'name': 'development/4.3'}},
+            close_source_branch=True,
+            reviewers=[{'username': EVA_USERNAME}],
+            description=''
+        )
+        with self.assertRaises(ParentNotFoundException):
+            self.handle(pr['id'],
+                        bypass_author_approval=True,
+                        bypass_peer_approval=True,
+                        bypass_jira_version_check=True,
+                        bypass_jira_type_check=True,
+                        bypass_build_status=True)
+
 
 def main():
     parser = argparse.ArgumentParser(description='Launches Wall-E tests.')
@@ -584,6 +663,7 @@ def main():
                         help='Your Bitbucket password')
     parser.add_argument('your_mail',
                         help='Your Bitbucket email address')
+    parser.add_argument('tests', nargs='*', help='run only these tests')
     parser.add_argument('--repo-prefix', default="_test_wall_e",
                         help='Prefix of the test repository')
     parser.add_argument('-v', action='store_true', dest='verbose',
@@ -611,6 +691,7 @@ def main():
         logging.basicConfig(level=logging.CRITICAL)
 
     sys.argv = [sys.argv[0]]
+    sys.argv.extend(TestWallE.args.tests)
     loader = unittest.TestLoader()
     loader.testMethodPrefix = "test_"
     # loader.testMethodPrefix = "test_conflict"  # uncomment for single test

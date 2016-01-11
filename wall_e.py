@@ -7,6 +7,8 @@ import traceback
 import sys
 import argparse
 import re
+import six
+
 import logging
 import requests
 from template_loader import render
@@ -24,6 +26,7 @@ from wall_e_exceptions import (NotMyJobException,
                                CommentAlreadyExistsException,
                                NothingToDoException,
                                AuthorApprovalRequiredException,
+                               ParentNotFoundException,
                                PeerApprovalRequiredException,
                                BuildFailedException,
                                BuildNotStartedException,
@@ -35,6 +38,9 @@ from wall_e_exceptions import (NotMyJobException,
                                ImproperEmailFormatException,
                                UnableToSendEmailException,
                                HelpException)
+
+if six.PY3:
+    raw_input = input
 
 KNOWN_VERSIONS = OrderedDict([
     ('4.3', '4.3.18'),
@@ -242,8 +248,18 @@ class WallE:
                               bitbucket_password, bitbucket_mail)
         self.bbrepo = BitBucketRepository(self._bbconn, owner=owner,
                                           repo_slug=slug)
-        self.original_pr = (self.bbrepo
+        self.main_pr = (self.bbrepo
                             .get_pull_request(pull_request_id=pull_request_id))
+        self.author = self.main_pr['author']['username']
+        if WALL_E_USERNAME == self.author:
+            res = re.search('(?P<pr_id>\d+)',
+                            self.main_pr['description'])
+            if not res:
+                raise ParentNotFoundException('Not found')
+            self.pull_request_id = res.group('pr_id')
+            self.main_pr = (self.bbrepo
+                                .get_pull_request(pull_request_id=res.group()))
+            self.author = self.main_pr['author']['username']
         self.options = options
         self.commands = commands
 
@@ -276,7 +292,7 @@ class WallE:
                                startswith=None,
                                max_history=None):
         # the last comment posted is the first in the list
-        for index, comment in enumerate(self.original_pr.get_comments()):
+        for index, comment in enumerate(self.main_pr.get_comments()):
             u = comment['user']['username']
             raw = comment['content']['raw']
             # python3
@@ -317,7 +333,7 @@ class WallE:
 
         logging.info('SENDING MSG %s', msg)
 
-        self.original_pr.add_comment(msg)
+        self.main_pr.add_comment(msg)
 
     def jira_checks(self):
         """performs checks using the Jira issue id specified in the source
@@ -408,9 +424,9 @@ class WallE:
     def handle_pull_request(self, reference_git_repo='', no_comment=False,
                             interactive=False):
 
-        if self.original_pr['state'] != 'OPEN':  # REJECTED or FULFILLED
+        if self.main_pr['state'] != 'OPEN':  # REJECTED or FULFILLED
             raise NothingToDoException('The pull-request\'s state is "%s"'
-                                       % self.original_pr['state'])
+                                       % self.main_pr['state'])
 
         # must be called before any options is checked
         self.get_comments_options()
@@ -423,19 +439,19 @@ class WallE:
 
         # TODO: make it idempotent
 
-        dst_brnch_name = self.original_pr['destination']['branch']['name']
-        src_brnch_name = self.original_pr['source']['branch']['name']
+        dst_brnch_name = self.main_pr['destination']['branch']['name']
+        src_brnch_name = self.main_pr['source']['branch']['name']
         try:
             self.destination_branch = DestinationBranch(dst_brnch_name)
         except BranchNameInvalidException as e:
             logging.info('Destination branch %r not handled, ignore PR %s',
-                         e.branch, self.original_pr['id'])
+                         e.branch, self.main_pr['id'])
             # Nothing to do
             raise NotMyJobException(src_brnch_name, dst_brnch_name)
 
         try:
             self.source_branch = FeatureBranch(
-                self.original_pr['source']['branch']['name'])
+                self.main_pr['source']['branch']['name'])
         except BranchNameInvalidException as e:
             raise PrefixCannotBeMergedException(e.branch)
 
@@ -493,7 +509,7 @@ class WallE:
 
     def get_comments_options(self):
         """Load settings from pull-request comments."""
-        for index, comment in enumerate(self.original_pr.get_comments()):
+        for index, comment in enumerate(self.main_pr.get_comments()):
             raw = comment['content']['raw']
             if not raw.strip().startswith('@%s' % WALL_E_USERNAME):
                 continue
@@ -548,7 +564,7 @@ class WallE:
 
     def handle_commands(self):
         """Detect the last command in pull-request comments and act on it."""
-        for index, comment in enumerate(self.original_pr.get_comments()):
+        for index, comment in enumerate(self.main_pr.get_comments()):
             author = comment['user']['username']
             if isinstance(author, list):
                 # python2 returns a list
@@ -600,21 +616,20 @@ class WallE:
 
         # NB: when author hasn't approved the PR, author isn't listed in
         # 'participants'
-        for participant in self.original_pr['participants']:
+        for participant in self.main_pr['participants']:
             if not participant['approved']:
                 continue
-            author = self.original_pr['author']['username']
-            if participant['user']['username'] == author:
+            if participant['user']['username'] == self.author:
                 approved_by_author = True
             else:
                 approved_by_peer = True
 
         if not approved_by_author:
-            raise AuthorApprovalRequiredException(pr=self.original_pr,
+            raise AuthorApprovalRequiredException(pr=self.main_pr,
                                                   child_prs=child_prs)
 
         if not approved_by_peer:
-            raise PeerApprovalRequiredException(pr=self.original_pr,
+            raise PeerApprovalRequiredException(pr=self.main_pr,
                                                 child_prs=child_prs)
 
     def print_help(self, args):
