@@ -644,7 +644,8 @@ def main():
                                                  'pull requests.')
     bypass_author_approval_help = 'Bypass the pull request author\'s approval'
     bypass_author_peer_help = 'Bypass the pull request peer\'s approval'
-    bypass_jira_version_check_help = 'Bypass the Jira Fix Version/s field check'
+    bypass_jira_version_check_help =\
+        'Bypass the Jira Fix Version/s field check'
     bypass_jira_type_check_help = 'Bypass the Jira issue Type field check'
     bypass_build_status_help = 'Bypass the build and test status'
 

@@ -240,17 +240,16 @@ class TestWallE(unittest.TestCase):
                         bypass_build_status=True)
         except ConflictException as e:
             self.assertIn(
-                    "`improvement/RING-0006` into `w/4.3/improvement/RING-0006`",
-                    e.message)
+                "`improvement/RING-0006` into `w/4.3/improvement/RING-0006`",
+                e.message)
             self.assertIn(
-                    "git checkout w/4.3/improvement/RING-0006",
-                    e.message)
+                "git checkout w/4.3/improvement/RING-0006",
+                e.message)
             self.assertIn(
-                    "git merge origin/improvement/RING-0006",
-                    e.message)
+                "git merge origin/improvement/RING-0006",
+                e.message)
         else:
             self.fail("No conflict detected.")
-
 
     def test_approval(self):
         """Test approvals of author and reviewer
@@ -546,7 +545,8 @@ class TestWallE(unittest.TestCase):
                              'bypass_author_approval,  '
                              '     bypass_peer_approval,,   '
                              '  bypass_build_status-bypass_jira_version_check'
-                             '   bypass_jira_type_check -   ' % WALL_E_USERNAME)
+                             '   bypass_jira_type_check -   ' %
+                             WALL_E_USERNAME)
         self.handle(pr['id'])
 
     def test_help_command(self):
@@ -565,7 +565,8 @@ class TestWallE(unittest.TestCase):
     def test_help_command_with_inter_comment_from_wall_e(self):
         pr = self.create_pr('bugfix/RING-00063', 'development/4.3')
         pr.add_comment('@%s help' % WALL_E_USERNAME)
-        pr_wall_e = self.bbrepo_wall_e.get_pull_request(pull_request_id=pr['id'])
+        pr_wall_e = self.bbrepo_wall_e.get_pull_request(
+            pull_request_id=pr['id'])
         pr_wall_e.add_comment('this is my help already')
         self.handle(pr['id'],
                     bypass_author_approval=True,
@@ -650,7 +651,8 @@ class TestWallE(unittest.TestCase):
 
     def test_child_pr_without_parent(self):
         # simulate creation of an integration branch with Wall-E
-        create_branch('w/bugfix/RING-00069', from_branch='development/4.3', file_=True)
+        create_branch('w/bugfix/RING-00069', from_branch='development/4.3',
+                      file_=True)
         pr = self.bbrepo_wall_e.create_pull_request(
             title='title',
             name='name',
