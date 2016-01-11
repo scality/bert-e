@@ -7,7 +7,7 @@ from template_loader import render
 # base exceptions
 class WallE_TemplateException(Exception):
     def __init__(self, **kwargs):
-        msg = render(self.template, **kwargs)
+        msg = render(self.template, code=self.code, **kwargs)
         Exception.__init__(self, msg)
 
 
@@ -20,56 +20,69 @@ class WallE_SilentException(Exception):
 
 
 # template exceptions
+class InitMessage(WallE_TemplateException):
+    code = 10000
+    template = 'init.md'
+
+
+class HelpMessage(WallE_TemplateException):
+    code = 10001
+    template = 'help.md'
+
+
+class CommandNotImplemented(WallE_TemplateException):
+    code = 10002
+    template = 'not_implemented.md'
+
+
+class StatusReport(WallE_TemplateException):
+    code = 10003
+    template = 'status.md'
+
+
+class BuildFailed(WallE_TemplateException):
+    code = 10004
+    template = 'build_failed.md'
+
+
+class Conflict(WallE_TemplateException):
+    code = 10005
+    template = 'conflict.md'
+
+
 class AuthorApprovalRequired(WallE_TemplateException):
+    code = 10006
     template = 'need_approval.md'
 
 
 class PeerApprovalRequired(WallE_TemplateException):
+    code = 10007
     template = 'need_approval.md'
 
 
 class MissingJiraIdMaintenance(WallE_TemplateException):
+    code = 10008
     template = 'missing_jira_id_for_maintenance_branch.md'
 
 
 class MismatchPrefixIssueType(WallE_TemplateException):
+    code = 10009
     template = 'mismatch_prefix_issue_type.md'
 
 
 class IncorrectFixVersion(WallE_TemplateException):
+    code = 10010
     template = 'incorrect_fix_version.md'
 
 
-class HelpMessage(WallE_TemplateException):
-    template = 'help.md'
-
-
-class StatusReport(WallE_TemplateException):
-    template = 'status.md'
-
-
-class CommandNotImplemented(WallE_TemplateException):
-    template = 'not_implemented.md'
-
-
-class InitMessage(WallE_TemplateException):
-    template = 'init.md'
-
-
 class PrefixCannotBeMerged(WallE_TemplateException):
+    code = 10011
     template = 'forbidden_branch.md'
 
 
 class BranchDoesNotAcceptFeatures(WallE_TemplateException):
+    code = 10012
     template = 'forbidden_branch_in_maintenance.md'
-
-
-class Conflict(WallE_TemplateException):
-    template = 'conflict.md'
-
-
-class BuildFailed(WallE_TemplateException):
-    template = 'build_failed.md'
 
 
 # internal exceptions
