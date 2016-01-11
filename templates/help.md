@@ -102,3 +102,5 @@ name   | description  | privileged
 {% for cmd in commands -%}
 **{{cmd}}** | {{commands[cmd].help}} | {{commands[cmd].priviledged}}
 {% endfor %}
+
+{% include 'footer.md' %}

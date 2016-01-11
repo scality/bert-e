@@ -38,7 +38,8 @@ from wall_e_exceptions import (NotMyJobException,
                                ImproperEmailFormatException,
                                UnableToSendEmailException,
                                HelpException,
-                               CommandNotImplementedException)
+                               CommandNotImplementedException,
+                               StatusReportException)
 
 if six.PY3:
     raw_input = input
@@ -635,12 +636,29 @@ class WallE:
             raise PeerApprovalRequiredException(pr=self.main_pr,
                                                 child_prs=child_prs)
 
+    def get_active_options(self):
+        return [option for option in self.options.keys() if
+                self.option_is_set(option)]
+
     def print_help(self, args):
         raise HelpException(options=self.options,
-                            commands=self.commands)
+                            commands=self.commands,
+                            active_options=self.get_active_options())
+
+    def publish_status_report(self, args):
+        # tmp hard coded
+        status_report = {'jira_check': {'display_name':'jira',
+                                        'pass': True},
+                         'build_status': {'display_name':'build',
+                                          'pass': False}}
+
+        raise StatusReportException(status=status_report,
+                                    active_options=self.get_active_options())
 
     def command_not_implemented(self, args):
-        raise CommandNotImplementedException('to do')
+        raise CommandNotImplementedException(
+            active_options=self.get_active_options()
+        )
 
 
 def main():
@@ -752,7 +770,7 @@ def main():
                     help='print Wall-E\'s manual in the pull-request'),
         'status':
             Command(priviledged=False,
-                    handler='command_not_implemented',
+                    handler='publish_status_report',
                     help='print Wall-E\'s current status in '
                          'the pull-request (TBA)')
     }

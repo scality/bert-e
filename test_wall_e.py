@@ -17,7 +17,8 @@ from wall_e_exceptions import (BranchDoesNotAcceptFeaturesException,
                                ConflictException,
                                BranchNameInvalidException,
                                HelpException,
-                               ParentNotFoundException)
+                               ParentNotFoundException,
+                               StatusReportException)
 from git_api import Repository as GitRepository
 from simplecmd import cmd
 
@@ -654,6 +655,20 @@ class TestWallE(unittest.TestCase):
                         bypass_jira_version_check=True,
                         bypass_jira_type_check=True,
                         bypass_build_status=True)
+
+    def test_status_command(self):
+        pr = self.create_pr('bugfix/RING-00070', 'development/4.3')
+        pr.add_comment('@%s status' % WALL_E_USERNAME)
+
+        with self.assertRaises(StatusReportException):
+            self.handle(pr['id'])
+
+        pr.add_comment('@%s unanimity' % WALL_E_USERNAME)
+
+        pr.add_comment('@%s status' % WALL_E_USERNAME)
+
+        with self.assertRaises(StatusReportException):
+            self.handle(pr['id'])
 
 
 def main():

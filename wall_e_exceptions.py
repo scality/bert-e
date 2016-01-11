@@ -52,8 +52,12 @@ class HelpException(WallE_TemplateException):
     template = 'help.md'
 
 
-class CommandNotImplementedException(WallE_Exception):
-    pass
+class StatusReportException(WallE_TemplateException):
+    template = 'status.md'
+
+
+class CommandNotImplementedException(WallE_TemplateException):
+    template = 'not_implemented.md'
 
 
 class NotMyJobException(WallE_InternalException):
