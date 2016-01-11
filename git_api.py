@@ -40,9 +40,6 @@ class Repository(object):
 
         return True
 
-#    def push_everything(self):
-#        cmd('git push --all origin -u')
-
 
 class Branch(object):
     def __init__(self, name):
