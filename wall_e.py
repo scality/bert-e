@@ -163,7 +163,7 @@ class ScalBranch(Branch):
     def __init__(self, name):
         Branch.__init__(self, name)
         if '/' not in name:
-            raise BranchNameInvalid(branch=name)
+            raise BranchNameInvalid(name)
 
 
 class DestinationBranch(ScalBranch):
@@ -172,7 +172,7 @@ class DestinationBranch(ScalBranch):
         self.prefix, self.version = name.split('/', 1)
         if (self.prefix != 'development' or
                 self.version not in KNOWN_VERSIONS.keys()):
-            raise BranchNameInvalid(branch=name)
+            raise BranchNameInvalid(name)
 
         self.impacted_versions = OrderedDict(
             [(version, release) for (version, release) in
