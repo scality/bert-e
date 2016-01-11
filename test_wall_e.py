@@ -2,14 +2,16 @@
 # -*- coding: utf-8 -*-
 
 import argparse
-import requests
+import logging
 import sys
 import unittest
-import logging
 
+import requests
+import wall_e
 from bitbucket_api import (Client, PullRequest,
                            Repository as BitbucketRepository)
-import wall_e
+from git_api import Repository as GitRepository
+from simplecmd import cmd
 from wall_e_exceptions import (BranchDoesNotAcceptFeaturesException,
                                CommentAlreadyExistsException,
                                NothingToDoException,
@@ -18,8 +20,6 @@ from wall_e_exceptions import (BranchDoesNotAcceptFeaturesException,
                                BranchNameInvalidException,
                                HelpException,
                                ParentNotFoundException)
-from git_api import Repository as GitRepository
-from simplecmd import cmd
 
 WALL_E_USERNAME = wall_e.WALL_E_USERNAME
 WALL_E_EMAIL = wall_e.WALL_E_EMAIL
@@ -231,13 +231,26 @@ class TestWallE(unittest.TestCase):
                     bypass_jira_version_check=True,
                     bypass_jira_type_check=True,
                     bypass_build_status=True)
-        with self.assertRaises(ConflictException):
+        try:
             self.handle(pr2['id'],
                         bypass_author_approval=True,
                         bypass_peer_approval=True,
                         bypass_jira_version_check=True,
                         bypass_jira_type_check=True,
                         bypass_build_status=True)
+        except ConflictException as e:
+            self.assertIn(
+                    "`improvement/RING-0006` into `w/4.3/improvement/RING-0006`",
+                    e.message)
+            self.assertIn(
+                    "git checkout w/4.3/improvement/RING-0006",
+                    e.message)
+            self.assertIn(
+                    "git merge origin/improvement/RING-0006",
+                    e.message)
+        else:
+            self.fail("No conflict detected.")
+
 
     def test_approval(self):
         """Test approvals of author and reviewer
