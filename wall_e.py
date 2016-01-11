@@ -31,7 +31,6 @@ from wall_e_exceptions import (NotMyJob,
                                BuildFailed,
                                BuildNotStarted,
                                BuildInProgress,
-                               WallE_InternalException,
                                WallE_SilentException,
                                WallE_TemplateException,
                                ImproperEmailFormat,
@@ -42,7 +41,8 @@ from wall_e_exceptions import (NotMyJob,
                                InitMessage,
                                MissingJiraIdMaintenance,
                                MismatchPrefixIssueType,
-                               IncorrectFixVersion)
+                               IncorrectFixVersion,
+                               JiraUnknownIssueType)
 
 if six.PY3:
     raw_input = input
@@ -376,8 +376,7 @@ class WallE:
             issuetype = issue.fields.issuetype.name
             expected_prefix = JIRA_ISSUE_BRANCH_PREFIX.get(issuetype)
             if expected_prefix is None:
-                raise WallE_InternalException('Jira issue: unknow type %r' %
-                                              issuetype)
+                raise JiraUnknownIssueType(issuetype)
             if expected_prefix != self.source_branch.prefix:
                 raise MismatchPrefixIssueType(prefix=self.source_branch.prefix,
                                               expected=expected_prefix)

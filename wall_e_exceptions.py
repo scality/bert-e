@@ -94,6 +94,12 @@ class ParentNotFound(WallE_InternalException):
         WallE_InternalException.__init__(self, msg)
 
 
+class JiraUnknownIssueType(WallE_InternalException):
+    def __init__(self, issue_type):
+        msg = ("Jira issue: unknown type %r" % issue_type)
+        WallE_InternalException.__init__(self, msg)
+
+
 # silent exceptions
 class CommentAlreadyExists(WallE_SilentException):
     pass
