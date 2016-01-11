@@ -31,6 +31,7 @@ from wall_e_exceptions import (NotMyJobException,
                                BuildFailedException,
                                BuildNotStartedException,
                                BuildInProgressException,
+                               BranchHistoryMismatch,
                                WallE_Exception,
                                WallE_InternalException,
                                WallE_SilentException,
@@ -182,6 +183,7 @@ class IntegrationBranch(ScalBranch):
         assert w == 'w'
         self.development_branch = DestinationBranch(
             'development/%s' % self.version)
+        self.feature_branch = FeatureBranch(self.subname)
 
     def create_from_dev_if_not_exists(self):
         self.create_if_not_exists(self.development_branch)
@@ -195,6 +197,17 @@ class IntegrationBranch(ScalBranch):
 
     def merge_from_development_branch(self):
         self.merge_from_branch(self.development_branch)
+
+    def check_history_did_not_change(self):
+        for commit in self.get_all_commits_since_started_from(
+            self.feature_branch):
+            if not self.development_branch.includes_commit(commit):
+                raise BranchHistoryMismatch(
+                    commit=commit,
+                    integration_branch=self,
+                    feature_branch=self.feature_branch,
+                    development_branch=self.development_branch,
+                )
 
     def update_to_development_branch(self):
         self.development_branch.merge(self, force_commit=False)
@@ -407,7 +420,13 @@ class WallE:
                 integration_branch in self.integration_branches]
 
     def update_integration_branches_from_development_branches(self):
+        first = True
         for integration_branch in self.integration_branches:
+            if first:
+                # The first integration branch should not contain commits
+                # that are not in development/* or in the feature branch.
+                integration_branch.check_history_did_not_change()
+            first = False
             integration_branch.merge_from_development_branch()
 
     def update_integration_branches_from_feature_branch(self):

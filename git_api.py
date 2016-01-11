@@ -59,6 +59,18 @@ class Branch(object):
         if do_push:
             self.push()
 
+    def get_all_commits_since_started_from(self, source_branch):
+        source_branch.checkout()
+        log = cmd('git log --no-merges --pretty=%%H %s..%s' % (source_branch.name, self.name))
+        return log.splitlines()
+
+    def includes_commit(self, sha1):
+        try:
+            cmd('git merge-base --is-ancestor %s %s' % (sha1, self.name))
+        except subprocess.CalledProcessError:
+            return False
+        return True
+
     def exists(self):
         try:
             self.checkout()

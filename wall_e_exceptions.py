@@ -69,6 +69,9 @@ class BranchNameInvalidException(WallE_Exception):
         WallE_Exception.__init__(self, 'Invalid name: %r' % name)
 
 
+class BranchHistoryMismatch(WallE_TemplateException):
+    template = 'history_mismatch.md'
+
 class PrefixCannotBeMergedException(WallE_TemplateException):
     template = 'forbidden_branch.md'
 

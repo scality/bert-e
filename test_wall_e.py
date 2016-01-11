@@ -11,11 +11,13 @@ from bitbucket_api import (Client, PullRequest,
                            Repository as BitbucketRepository)
 import wall_e
 from wall_e_exceptions import (BranchDoesNotAcceptFeaturesException,
+                               BuildNotStartedException,
                                CommentAlreadyExistsException,
                                NothingToDoException,
                                AuthorApprovalRequiredException,
                                ConflictException,
                                BranchNameInvalidException,
+                               BranchHistoryMismatch,
                                HelpException,
                                ParentNotFoundException)
 from git_api import Repository as GitRepository
@@ -49,13 +51,24 @@ def create_branch(name, from_branch=None, file_=False, do_push=True):
         cmd('git checkout '+from_branch)
     cmd('git checkout -b '+name)
     if file_:
-        if file_ is True:
-            file_ = name.replace('/', '-')
-        cmd('echo %s >  a.%s' % (name, file_))
-        cmd('git add a.'+file_)
-        cmd('git commit -m "commit %s"' % file_)
+        add_file_to_branch(name, file_, do_push)
+
+def add_file_to_branch(branch_name, file_name, do_push=True):
+    cmd('git checkout ' + branch_name)
+    if file_name is True:
+        file_name = 'file_created_on_' + branch_name.replace('/', '_')
+    cmd('echo %s >  %s' % (branch_name, file_name))
+    cmd('git add ' + file_name)
+    cmd('git commit -m "adds %s file on %s"' % (file_name, branch_name))
     if do_push:
-        cmd('git push --set-upstream origin '+name)
+        cmd('git push --set-upstream origin '+branch_name)
+
+def rebase_branch(branch_name, on_branch):
+    cmd('git checkout '+ branch_name)
+    cmd('git rebase '+ on_branch)
+    cmd('git push -f')
+
+
 
 
 class TestWallE(unittest.TestCase):
@@ -654,6 +667,26 @@ class TestWallE(unittest.TestCase):
                         bypass_jira_version_check=True,
                         bypass_jira_type_check=True,
                         bypass_build_status=True)
+
+    def test_rebased_feature_branch(self):
+        pr = self.create_pr('bugfix/RING-0103', 'development/4.3')
+        with self.assertRaises(BuildNotStartedException):
+            self.handle(pr['id'],
+                    bypass_author_approval=True,
+                    bypass_peer_approval=True,
+                    bypass_jira_version_check=True,
+                    bypass_jira_type_check=True,
+                    bypass_build_status=False)
+        add_file_to_branch('development/4.3', 'rebase_on_me')
+        rebase_branch('bugfix/RING-0103', 'development/4.3')
+        with self.assertRaises(BranchHistoryMismatch):
+            self.handle(pr['id'],
+                        bypass_author_approval=True,
+                        bypass_peer_approval=True,
+                        bypass_jira_version_check=True,
+                        bypass_jira_type_check=True,
+                        bypass_build_status=False)
+
 
 
 def main():
