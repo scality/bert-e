@@ -125,7 +125,11 @@ class DestinationBranch(ScalBranch):
                 if version >= self.version])
 
 
-class FeatureBranch(ScalBranch):
+:x
+:q
+:q
+:c
+:x
     def __init__(self, name):
         ScalBranch.__init__(self, name)
         self.prefix, self.subname = name.split('/', 1)
@@ -368,7 +372,6 @@ class WallE:
 
         # Create integration PR
         child_prs = []
-        self.author = self.original_pr['author']['username']
         for source_branch, destination_branch in new_pull_requests:
             title = ('[%s] #%s: %s'
                      % (destination_branch.name,
