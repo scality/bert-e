@@ -54,7 +54,6 @@ def create_branch(name, from_branch=None, file_=False, do_push=True):
         cmd('git push --set-upstream origin '+name)
 
 
-
 class TestWallE(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -64,7 +63,8 @@ class TestWallE(unittest.TestCase):
         cls.bbrepo = BitbucketRepository(client,
                                          owner='scality',
                                          repo_slug=('%s_%s'
-                                                    % (cls.args.repo_prefix, cls.args.your_login)),
+                                                    % (cls.args.repo_prefix,
+                                                       cls.args.your_login)),
                                          is_private=True,
                                          scm='git')
         try:

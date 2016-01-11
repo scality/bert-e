@@ -98,7 +98,6 @@ RELEASE_ENGINEERS = [
 ]
 
 
-
 def confirm(question):
     input_ = raw_input(question + " Enter (y)es or (n)o: ")
     return input_ == "yes" or input_ == "y"
@@ -191,7 +190,6 @@ class WallE:
             self.original_pr = (self.bbrepo
                                 .get_pull_request(pull_request_id=res.group()))
             self.author = self.original_pr['author']['username']
-
 
     def check_build_status(self, pr, key):
         try:
