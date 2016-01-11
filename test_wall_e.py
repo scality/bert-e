@@ -590,6 +590,7 @@ def main():
                         help='Your Bitbucket password')
     parser.add_argument('your_mail',
                         help='Your Bitbucket email address')
+    parser.add_argument('tests', nargs='*', help='run only these tests')
     parser.add_argument('--repo-prefix', default="_test_wall_e",
                         help='Prefix of the test repository')
     parser.add_argument('-v', action='store_true', dest='verbose',
@@ -617,6 +618,7 @@ def main():
         logging.basicConfig(level=logging.CRITICAL)
 
     sys.argv = [sys.argv[0]]
+    sys.argv.extend(TestWallE.args.tests)
     loader = unittest.TestLoader()
     loader.testMethodPrefix = "test_"
     # loader.testMethodPrefix = "test_conflict"  # uncomment for single test
