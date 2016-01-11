@@ -125,11 +125,7 @@ class DestinationBranch(ScalBranch):
                 if version >= self.version])
 
 
-:x
-:q
-:q
-:c
-:x
+class FeatureBranch(ScalBranch):
     def __init__(self, name):
         ScalBranch.__init__(self, name)
         self.prefix, self.subname = name.split('/', 1)
