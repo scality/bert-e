@@ -223,14 +223,14 @@ class TestWallE(unittest.TestCase):
     def test_conflict(self):
         pr1 = self.create_pr('bugfix/RING-0006', 'development/4.3',
                              file_='toto.txt')
+        pr2 = self.create_pr('improvement/RING-0006', 'development/4.3',
+                             file_='toto.txt')
         self.handle(pr1['id'],
                     bypass_author_approval=True,
                     bypass_peer_approval=True,
                     bypass_jira_version_check=True,
                     bypass_jira_type_check=True,
                     bypass_build_status=True)
-        pr2 = self.create_pr('improvement/RING-0006', 'development/4.3',
-                             file_='toto.txt')
         with self.assertRaises(ConflictException):
             self.handle(pr2['id'],
                         bypass_author_approval=True,
@@ -238,7 +238,6 @@ class TestWallE(unittest.TestCase):
                         bypass_jira_version_check=True,
                         bypass_jira_type_check=True,
                         bypass_build_status=True)
-        cmd('git merge --abort')
 
     def test_approval(self):
         """Test approvals of author and reviewer
@@ -700,7 +699,6 @@ def main():
     sys.argv.extend(TestWallE.args.tests)
     loader = unittest.TestLoader()
     loader.testMethodPrefix = "test_"
-    # loader.testMethodPrefix = "test_conflict"  # uncomment for single test
     unittest.main(failfast=True, testLoader=loader)
 
 

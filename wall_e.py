@@ -175,6 +175,48 @@ class DestinationBranch(ScalBranch):
                 if version >= self.version])
 
 
+class IntegrationBranch(ScalBranch):
+    def __init__(self, name):
+        ScalBranch.__init__(self, name)
+        w, self.version, self.subname = name.split('/', 2)
+        assert w == 'w'
+        self.development_branch = DestinationBranch(
+            'development/%s' % self.version)
+
+    def create_from_dev_if_not_exists(self):
+        self.create_if_not_exists(self.development_branch)
+
+    def merge_from_branch(self, source_branch):
+        try:
+            self.merge(source_branch, do_push=True)
+        except MergeFailedException:
+            raise ConflictException(source=source_branch,
+                                    destination=self)
+
+    def merge_from_development_branch(self):
+        self.merge_from_branch(self.development_branch)
+
+    def update_to_development_branch(self):
+        self.development_branch.merge(self, force_commit=False)
+        self.development_branch.push()
+
+    def create_pull_request(self, parent_pr, bitbucket_repo):
+        title = ('[%s] #%s: %s'
+                 % (self.development_branch.name,
+                    parent_pr['id'], parent_pr['title']))
+
+        description = render('pull_request_description.md', pr=parent_pr)
+        pr = (bitbucket_repo.create_pull_request(
+            title=title,
+            name='name',
+            source={'branch': {'name': self.name}},
+            destination={'branch': {'name': self.development_branch.name}},
+            close_source_branch=True,
+            reviewers=[{'username': parent_pr['author']['username']}],
+            description=description))
+        return pr
+
+
 class FeatureBranch(ScalBranch):
     def __init__(self, name):
         ScalBranch.__init__(self, name)
@@ -188,7 +230,7 @@ class FeatureBranch(ScalBranch):
                             'issue id number', self.name)
             # Fixme : send a comment instead ? or ignore the jira checks ?
 
-    def merge_cascade(self, destination_branch):
+    def check_if_should_handle(self, destination_branch):
         if self.prefix not in ['feature', 'bugfix', 'improvement']:
             raise PrefixCannotBeMergedException(source=self,
                                                 destination=destination_branch)
@@ -197,28 +239,6 @@ class FeatureBranch(ScalBranch):
             raise BranchDoesNotAcceptFeaturesException(
                 source=self,
                 destination=destination_branch)
-
-        previous_feature_branch = self
-        new_pull_requests = []
-        for version in destination_branch.impacted_versions:
-            integration_branch = (FeatureBranch('w/%s/%s/%s'
-                                  % (version, self.prefix, self.subname)))
-            try:
-                (integration_branch
-                 .update_or_create_and_merge(previous_feature_branch))
-            except MergeFailedException:
-                raise ConflictException(source=integration_branch,
-                                        destination=previous_feature_branch)
-            development_branch = DestinationBranch('development/' + version)
-            try:
-                integration_branch.merge(development_branch)
-            except MergeFailedException:
-                raise ConflictException(source=integration_branch,
-                                        destination=development_branch)
-            integration_branch.push()
-            new_pull_requests.append((integration_branch, development_branch))
-            previous_feature_branch = integration_branch
-        return new_pull_requests
 
 
 class WallE:
@@ -242,6 +262,8 @@ class WallE:
             self.author = self.main_pr['author']['username']
         self.options = options
         self.commands = commands
+        self.source_branch = None
+        self.destination_branch = None
 
     def option_is_set(self, name):
         if name not in self.options.keys():
@@ -315,15 +337,15 @@ class WallE:
 
         self.main_pr.add_comment(msg)
 
-    def jira_checks(self, source_branch, destination_branch):
+    def jira_checks(self):
         """performs checks using the Jira issue id specified in the source
         branch name"""
         if (self.option_is_set('bypass_jira_version_check') and
                 self.option_is_set('bypass_jira_type_check')):
             return
 
-        if not source_branch.jira_issue_id:
-            if destination_branch.version in ['6.0', 'trunk']:
+        if not self.source_branch.jira_issue_id:
+            if self.destination_branch.version in ['6.0', 'trunk']:
                 # We do not want to merge in maintenance branches without
                 # proper ticket handling but it is OK for future releases.
                 # FIXME : versions should not be hardcoded
@@ -331,9 +353,9 @@ class WallE:
 
             raise WallE_Exception('You want to merge `%s` into a maintenance '
                                   'branch but this branch does not specify a '
-                                  'Jira issue id' % (source_branch.name))
+                                  'Jira issue id' % (self.source_branch.name))
 
-        issue = JiraIssue(issue_id=source_branch.jira_issue_id,
+        issue = JiraIssue(issue_id=self.source_branch.jira_issue_id,
                           login='wall_e',
                           passwd=self._bbconn.auth.password)
 
@@ -353,21 +375,53 @@ class WallE:
             if expected_prefix is None:
                 raise WallE_InternalException('Jira issue: unknow type %r' %
                                               issuetype)
-            if expected_prefix != source_branch.prefix:
+            if expected_prefix != self.source_branch.prefix:
                 raise WallE_Exception('branch prefix name %r mismatches '
                                       'jira issue type field %r' %
-                                      (source_branch.prefix, expected_prefix))
+                                      (self.source_branch.prefix,
+                                       expected_prefix))
 
         if not self.option_is_set('bypass_jira_version_check'):
             issue_versions = set([version.name for version in
                                   issue.fields.fixVersions])
             expect_versions = set(
-                destination_branch.impacted_versions.values())
+                self.destination_branch.impacted_versions.values())
             if issue_versions != expect_versions:
                 raise WallE_Exception("The issue 'Fix Version/s' field "
                                       "contains %s. It must contain: %s." %
                                       (', '.join(issue_versions),
                                        ', '.join(expect_versions)))
+
+    def create_integration_branches(self):
+        integration_branches = []
+        for version in self.destination_branch.impacted_versions:
+            integration_branch = (IntegrationBranch('w/%s/%s'
+                                  % (version, self.source_branch.name)))
+            integration_branch.create_from_dev_if_not_exists()
+            integration_branches.append(integration_branch)
+        return integration_branches
+
+    def create_pull_requests(self, ):
+        return [integration_branch.
+                create_pull_request(self.main_pr, self.bbrepo) for
+                integration_branch in self.integration_branches]
+
+    def update_integration_branches_from_development_branches(self):
+        for integration_branch in self.integration_branches:
+            integration_branch.merge_from_development_branch()
+
+    def update_integration_branches_from_feature_branch(self):
+        branch_to_merge_from = self.source_branch
+        for integration_branch in self.integration_branches:
+            integration_branch.merge_from_branch(branch_to_merge_from)
+            branch_to_merge_from = integration_branch
+
+    def clone_git_repo(self, reference_git_repo):
+        git_repo = GitRepository(self.bbrepo.get_git_url())
+        git_repo.clone(reference_git_repo)
+        git_repo.config('user.email', '"%s"'
+                        % self._bbconn.mail)
+        git_repo.config('user.name', '"Wall-E"')
 
     def handle_pull_request(self, reference_git_repo='', no_comment=False,
                             interactive=False):
@@ -390,7 +444,7 @@ class WallE:
         dst_brnch_name = self.main_pr['destination']['branch']['name']
         src_brnch_name = self.main_pr['source']['branch']['name']
         try:
-            destination_branch = DestinationBranch(dst_brnch_name)
+            self.destination_branch = DestinationBranch(dst_brnch_name)
         except BranchNameInvalidException as e:
             logging.info('Destination branch %r not handled, ignore PR %s',
                          e.branch, self.main_pr['id'])
@@ -398,50 +452,31 @@ class WallE:
             raise NotMyJobException(src_brnch_name, dst_brnch_name)
 
         try:
-            source_branch = FeatureBranch(
+            self.source_branch = FeatureBranch(
                 self.main_pr['source']['branch']['name'])
         except BranchNameInvalidException as e:
             raise PrefixCannotBeMergedException(e.branch)
 
-        if source_branch.prefix == 'hotfix':
+        self.source_branch.check_if_should_handle(self.destination_branch)
+
+        if self.source_branch.prefix == 'hotfix':
             # hotfix branches are ignored, nothing todo
-            logging.info("Ignore branch %r", source_branch.name)
+            logging.info("Ignore branch %r", self.source_branch.name)
             return
 
-        if source_branch.prefix not in ['feature', 'bugfix', 'improvement']:
-            raise PrefixCannotBeMergedException(source_branch.name)
+        if self.source_branch.prefix not in [
+            'feature',
+            'bugfix',
+            'improvement'
+        ]:
+            raise PrefixCannotBeMergedException(self.source_branch.name)
 
-        self.jira_checks(source_branch, destination_branch)
-
-        git_repo = GitRepository(self.bbrepo.get_git_url())
-        git_repo.clone(reference_git_repo)
-
-        git_repo.config('user.email', '"%s"'
-                        % self._bbconn.mail)
-        git_repo.config('user.name', '"Wall-E"')
-
-        new_pull_requests = source_branch.merge_cascade(destination_branch)
-
-        # Create integration PR
-        child_prs = []
-        for source_branch, destination_branch in new_pull_requests:
-            title = ('[%s] #%s: %s'
-                     % (destination_branch.name,
-                        self.main_pr['id'], self.main_pr['title']))
-
-            description = render('pull_request_description.md',
-                                 pr=self.main_pr)
-
-            pr = self.bbrepo.create_pull_request(
-                title=title,
-                name='name',
-                source={'branch': {'name': source_branch.name}},
-                destination={'branch': {'name': destination_branch.name}},
-                close_source_branch=True,
-                reviewers=[{'username': self.author}],
-                description=description
-            )
-            child_prs.append(pr)
+        self.jira_checks()
+        self.clone_git_repo(reference_git_repo)
+        self.integration_branches = self.create_integration_branches()
+        self.update_integration_branches_from_development_branches()
+        self.update_integration_branches_from_feature_branch()
+        child_prs = self.create_pull_requests()
 
         # Check parent PR: approval
         self.check_approval(child_prs)
@@ -454,8 +489,8 @@ class WallE:
         if interactive and not confirm('Do you want to merge ?'):
             return
 
-        for pr in child_prs:
-            pr.merge()
+        for integration_branch in self.integration_branches:
+            integration_branch.update_to_development_branch()
 
     def check_options(self, author, keyword_list):
         logging.debug('checking keywords %s', keyword_list)
@@ -721,7 +756,7 @@ def main():
                                   interactive=args.interactive)
         raise
 
-    except WallE_SilentException as excp:
+    except WallE_SilentException:
         raise
 
     except Exception:

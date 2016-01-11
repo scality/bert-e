@@ -45,14 +45,19 @@ class Branch(object):
     def __init__(self, name):
         self.name = name
 
-    def merge(self, source_branch):
+    def merge(self, source_branch, do_push=False, force_commit=False):
         source_branch.checkout()
         self.checkout()
+
         try:
-            cmd('git merge --no-edit %s'
-                % (source_branch.name))  # <- May fail if conflict
+            cmd('git merge --no-edit %s %s'
+                % ('--no-ff' if force_commit else '',
+                   source_branch.name))  # <- May fail if conflict
         except subprocess.CalledProcessError:
+            cmd('git merge --abort')
             raise MergeFailedException(self.name, source_branch.name)
+        if do_push:
+            self.push()
 
     def exists(self):
         try:
@@ -83,12 +88,9 @@ class Branch(object):
             raise BranchCreationFailedException(msg)
         self.push()
 
-    def update_or_create_and_merge(self, source_branch, push=True):
-        if self.exists():
-            self.merge(source_branch)
-        else:
+    def create_if_not_exists(self, source_branch):
+        if not self.exists():
             self.create(source_branch)
-        self.push()
 
 
 class GitException(Exception):

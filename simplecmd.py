@@ -15,5 +15,5 @@ def cmd(_):
         subprocess.check_call(_, shell=True)
     else:
         with open(os.devnull, 'wb') as devnull:
-            subprocess.check_call(_, shell=True, stdout=devnull,
-                                  stderr=devnull)
+            subprocess.check_call(_, shell=True,
+                                  stdout=devnull, stderr=devnull)
