@@ -429,7 +429,6 @@ class WallE:
         for participant in self.original_pr['participants']:
             if not participant['approved']:
                 continue
-            self.author = self.original_pr['author']['username']
             if participant['user']['username'] == self.author:
                 original_pr_is_approved_by_author = True
             else:
