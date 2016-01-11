@@ -48,7 +48,11 @@ class UnrecognizedBranchPatternException(WallE_Exception):
     pass
 
 
-class HelpException(WallE_Exception):
+class HelpException(WallE_TemplateException):
+    template = 'help.md'
+
+
+class CommandNotImplementedException(WallE_Exception):
     pass
 
 

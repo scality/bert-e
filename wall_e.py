@@ -37,7 +37,8 @@ from wall_e_exceptions import (NotMyJobException,
                                WallE_TemplateException,
                                ImproperEmailFormatException,
                                UnableToSendEmailException,
-                               HelpException)
+                               HelpException,
+                               CommandNotImplementedException)
 
 if six.PY3:
     raw_input = input
@@ -635,7 +636,11 @@ class WallE:
                                                 child_prs=child_prs)
 
     def print_help(self, args):
-        raise HelpException('to do')
+        raise HelpException(options=self.options,
+                            commands=self.commands)
+
+    def command_not_implemented(self, args):
+        raise CommandNotImplementedException('to do')
 
 
 def main():
@@ -729,14 +734,27 @@ def main():
         'bypass_build_status':
             Option(priviledged=True,
                    value=args.bypass_build_status,
-                   help=bypass_build_status_help)
+                   help=bypass_build_status_help),
+        'bypass_commit_size':
+            Option(priviledged=True,
+                   value=False,
+                   help='Bypass the check on the size of the changeset (TBA)'),
+        'unanimity':
+            Option(priviledged=False,
+                   help="Change review acceptance criteria from "
+                        "`one reviewer at least` to `all reviewers` (TBA)")
     }
 
     commands = {
         'help':
             Command(priviledged=False,
                     handler='print_help',
-                    help='print Wall-E\'s manual in the pull-request')
+                    help='print Wall-E\'s manual in the pull-request'),
+        'status':
+            Command(priviledged=False,
+                    handler='command_not_implemented',
+                    help='print Wall-E\'s current status in '
+                         'the pull-request (TBA)')
     }
 
     wall_e = WallE(WALL_E_USERNAME, args.password, WALL_E_EMAIL,
