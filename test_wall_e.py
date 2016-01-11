@@ -605,8 +605,8 @@ class TestWallE(unittest.TestCase):
                         bypass_jira_type_check=True,
                         bypass_build_status=True)
         pr_child = self.bbrepo.get_pull_request(pull_request_id=pr['id']+1)
-        pr_child = self.approve()
-        with self.assertRaises(AuthorApprovalRequiredException):
+        pr_child.approve()
+        with self.assertRaises(CommentAlreadyExistsException):
             self.handle(pr['id']+1,
                         bypass_peer_approval=True,
                         bypass_jira_version_check=True,
@@ -629,7 +629,7 @@ class TestWallE(unittest.TestCase):
                              ' bypass_build_status'
                              ' bypass_jira_version_check'
                              ' bypass_jira_type_check' % WALL_E_USERNAME)
-        with self.assertRaises(AuthorApprovalRequiredException):
+        with self.assertRaises(CommentAlreadyExistsException):
             self.handle(pr['id'],
                         bypass_peer_approval=True,
                         bypass_jira_version_check=True,
