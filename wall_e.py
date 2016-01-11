@@ -587,7 +587,7 @@ class WallE:
             if not participant['approved']:
                 continue
             if participant['user']['username'] == self.author:
-                original_pr_is_approved_by_author = True
+                approved_by_author = True
             else:
                 approved_by_peer = True
 

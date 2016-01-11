@@ -103,4 +103,4 @@ class ParentNotFoundException(WallE_InternalException):
     def __init__(self, pr_id):
         msg = ("The parent Pull Request from this pull request #%s"
                " couldn't be found." % pr_id)
-        WallE_Exception.__init__(self, msg)
+        WallE_InternalException.__init__(self, msg)
