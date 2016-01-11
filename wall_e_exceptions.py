@@ -60,6 +60,10 @@ class CommandNotImplementedException(WallE_TemplateException):
     template = 'not_implemented.md'
 
 
+class InitException(WallE_TemplateException):
+    template = 'init.md'
+
+
 class NotMyJobException(WallE_InternalException):
     def __init__(self, current_branch, branch_to_be_merged):
         msg = ("Not my job to merge `%s` into `%s`."

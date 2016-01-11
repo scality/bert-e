@@ -18,7 +18,8 @@ from wall_e_exceptions import (BranchDoesNotAcceptFeaturesException,
                                BranchNameInvalidException,
                                HelpException,
                                ParentNotFoundException,
-                               StatusReportException)
+                               StatusReportException,
+                               InitException)
 from git_api import Repository as GitRepository
 from simplecmd import cmd
 
@@ -113,7 +114,7 @@ class TestWallE(unittest.TestCase):
             file_=True):
 
         create_branch(feature_branch, from_branch=from_branch, file_=file_)
-        return self.bbrepo_eva.create_pull_request(
+        pr = self.bbrepo_eva.create_pull_request(
             title='title',
             name='name',
             source={'branch': {'name': feature_branch}},
@@ -122,6 +123,9 @@ class TestWallE(unittest.TestCase):
             reviewers=[{'username': WALL_E_USERNAME}],
             description=''
         )
+        with self.assertRaises(InitException):
+            self.handle(pr['id'])
+        return pr
 
     def handle(self,
                pull_request_id,
@@ -157,7 +161,7 @@ class TestWallE(unittest.TestCase):
         wall_e.main()
 
     def test_bugfix_full_merge_manual(self):
-        pr = self.create_pr('bugfix/RING-0000', 'development/4.3')
+        pr = self.create_pr('bugfix/RING-0001', 'development/4.3')
         with self.assertRaises(AuthorApprovalRequiredException):
             self.handle(pr['id'],
                         bypass_peer_approval=True,
@@ -180,7 +184,7 @@ class TestWallE(unittest.TestCase):
                     bypass_build_status=True)
 
     def test_bugfix_full_merge_automatic(self):
-        pr = self.create_pr('bugfix/RING-0001', 'development/4.3')
+        pr = self.create_pr('bugfix/RING-0002', 'development/4.3')
         self.handle(pr['id'],
                     bypass_author_approval=True,
                     bypass_peer_approval=True,

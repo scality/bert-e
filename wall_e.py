@@ -39,7 +39,8 @@ from wall_e_exceptions import (NotMyJobException,
                                UnableToSendEmailException,
                                HelpException,
                                CommandNotImplementedException,
-                               StatusReportException)
+                               StatusReportException,
+                               InitException)
 
 if six.PY3:
     raw_input = input
@@ -425,12 +426,31 @@ class WallE:
                         % self._bbconn.mail)
         git_repo.config('user.name', '"Wall-E"')
 
+    def init(self):
+        """Displays a welcome message if conditions are met."""
+        for index, comment in enumerate(self.main_pr.get_comments()):
+            author = comment['user']['username']
+            if isinstance(author, list):
+                # python2 returns a list
+                if len(author) != 1:
+                    continue
+                author = author[0]
+
+            if author == WALL_E_USERNAME:
+                return
+
+        raise InitException(author=self.author,
+                            status=self.get_status_report(),
+                            active_options=self.get_active_options())
+
     def handle_pull_request(self, reference_git_repo='', no_comment=False,
                             interactive=False):
 
         if self.main_pr['state'] != 'OPEN':  # REJECTED or FULFILLED
             raise NothingToDoException('The pull-request\'s state is "%s"'
                                        % self.main_pr['state'])
+
+        self.init()
 
         # must be called before any options is checked
         self.get_comments_options()
@@ -442,6 +462,7 @@ class WallE:
         # TODO: Check build status
 
         # TODO: make it idempotent
+
 
         dst_brnch_name = self.main_pr['destination']['branch']['name']
         src_brnch_name = self.main_pr['source']['branch']['name']
@@ -645,14 +666,16 @@ class WallE:
                             commands=self.commands,
                             active_options=self.get_active_options())
 
-    def publish_status_report(self, args):
+    def get_status_report(self):
         # tmp hard coded
-        status_report = {'jira_check': {'display_name':'jira',
+        return {'jira_check': {'display_name':'jira',
                                         'pass': True},
                          'build_status': {'display_name':'build',
                                           'pass': False}}
 
-        raise StatusReportException(status=status_report,
+
+    def publish_status_report(self, args):
+        raise StatusReportException(status=self.get_status_report(),
                                     active_options=self.get_active_options())
 
     def command_not_implemented(self, args):
