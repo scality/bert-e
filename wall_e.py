@@ -54,7 +54,7 @@ WALL_E_EMAIL = 'wall_e@scality.com'
 
 RELEASE_ENGINEERS = [
     WALL_E_USERNAME,   # we need this for test purposes
-    'anhnp',
+    'anneharper',
     'bertrand_demiddelaer_scality',
     'ludovicmaillard',
     'mcolzi',
@@ -484,14 +484,14 @@ class WallE:
             match_ = re.match(regexp, raw_cleaned)
             if not match_:
                 logging.warning('Keyword comment ignored. '
-                                'Unknown format: %s' % raw)
+                                'Unknown format: %s', raw)
                 continue
 
             keywords = match_.group('keywords').strip().split()
 
             if not self.check_options(author, keywords):
                 logging.warning('Keyword comment ignored. '
-                                'Checks failed: %s' % raw)
+                                'Checks failed: %s', raw)
                 continue
 
             for keyword in keywords:
@@ -594,9 +594,9 @@ def main():
                                                  'pull requests.')
     bypass_author_approval_help = 'Bypass the pull request author\'s approval'
     bypass_author_peer_help = 'Bypass the pull request peer\'s approval'
-    bypass_jira_version_check_help = 'Bypass the Jira fixVersions field check'
-    bypass_jira_type_check_help = 'Bypass the build and test status'
-    bypass_build_status_help = 'Bypass the Jira issueType field check'
+    bypass_jira_version_check_help = 'Bypass the Jira Fix Version/s field check'
+    bypass_jira_type_check_help = 'Bypass the Jira issue Type field check'
+    bypass_build_status_help = 'Bypass the build and test status'
 
     parser.add_argument(
         '--bypass-author-approval', action='store_true', default=False,

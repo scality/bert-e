@@ -393,7 +393,7 @@ class TestWallE(unittest.TestCase):
                         bypass_jira_type_check=True,
                         bypass_build_status=True)
 
-    def test_bypass_all_approvals_through_single_comments(self):
+    def test_bypass_all_approvals_through_many_comments(self):
         pr = self.create_pr('bugfix/RING-00050', 'development/4.3')
         pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id'])
         pr_admin.add_comment('@%s bypass_author_approval' % WALL_E_USERNAME)
