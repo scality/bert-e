@@ -36,7 +36,8 @@ from wall_e_exceptions import (NotMyJobException,
                                WallE_SilentException,
                                WallE_TemplateException,
                                ImproperEmailFormatException,
-                               UnableToSendEmailException)
+                               UnableToSendEmailException,
+                               HelpException)
 
 if six.PY3:
     raw_input = input
@@ -44,16 +45,80 @@ if six.PY3:
 KNOWN_VERSIONS = OrderedDict([
     ('4.3', '4.3.18'),
     ('5.1', '5.1.4'),
-    ('6.0', '6.0.0')])
+    ('6.0', '6.0.0')
+])
 
 JIRA_ISSUE_BRANCH_PREFIX = {
     'Epic': 'project',
     'Story': 'feature',
     'Bug': 'bugfix',
-    'Improvement': 'improvement'}
+    'Improvement': 'improvement'
+}
 
 WALL_E_USERNAME = 'scality_wall-e'
 WALL_E_EMAIL = 'wall_e@scality.com'
+
+RELEASE_ENGINEERS = [
+    WALL_E_USERNAME,   # we need this for test purposes
+    'anneharper',
+    'bertrand_demiddelaer_scality',
+    'ludovicmaillard',
+    'mcolzi',
+    'mouhamet7',
+    'mvaude',
+    'pierre_louis_bonicoli',
+    'rayene_benrayana',
+    'sylvain_killian',
+]
+
+
+class Option(object):
+    """Wall-E options implementation.
+
+    Wall-E uses options to activate additional functionality
+    or alter the behaviour of existing functionality.
+
+    An option is always set to False by default.
+
+    It is activated either on the command line of wall_e.py,
+    or by the users of a pull-request, by adding a special
+    comment in the pull-request. The options then remain
+    active until this comment is deleted.
+
+    An option may require priviledges, in which case only
+    members of RELEASE_ENGINEERS will be able to activate
+    it.
+
+    """
+    def __init__(self, priviledged, help, value=False):
+        self.value = value
+        self.help = help
+        self.priviledged = priviledged
+
+    def set(self, value):
+        self.value = value
+
+    def is_set(self):
+        return self.value
+
+
+class Command(object):
+    """Wall-E commands implementation.
+
+    Wall-E uses commands to operate one-time actions.
+
+    Commands are triggered by adding a comment in the
+    pull-request.
+
+    A command may require priviledges, in which case only
+    members of RELEASE_ENGINEERS will be able to activate
+    it.
+
+    """
+    def __init__(self, priviledged, help, handler):
+        self.handler = handler
+        self.help = help
+        self.priviledged = priviledged
 
 
 def setup_email(destination):
@@ -82,20 +147,6 @@ def send_email(destination, title, content):
                   email=WALL_E_EMAIL)
     smtpObj = smtplib.SMTP('localhost')
     smtpObj.sendmail(WALL_E_EMAIL, [destination], body)
-
-
-RELEASE_ENGINEERS = [
-    WALL_E_USERNAME,   # we need this for test purposes
-    'anhnp',
-    'bertrand_demiddelaer_scality',
-    'ludovicmaillard',
-    'mcolzi',
-    'mouhamet7',
-    'mvaude',
-    'pierre_louis_bonicoli',
-    'rayene_benrayana',
-    'sylvain_killian',
-]
 
 
 def confirm(question):
@@ -172,12 +223,11 @@ class FeatureBranch(ScalBranch):
 
 class WallE:
     def __init__(self, bitbucket_login, bitbucket_password, bitbucket_mail,
-                 owner, slug, pull_request_id):
+                 owner, slug, pull_request_id, options, commands):
         self._bbconn = Client(bitbucket_login,
                               bitbucket_password, bitbucket_mail)
         self.bbrepo = BitBucketRepository(self._bbconn, owner=owner,
                                           repo_slug=slug)
-        self.repo_full_name = owner + '/' + slug  # TODO : never used ?
         self.original_pr = (self.bbrepo
                             .get_pull_request(pull_request_id=pull_request_id))
         self.author = self.original_pr['author']['username']
@@ -190,8 +240,17 @@ class WallE:
             self.original_pr = (self.bbrepo
                                 .get_pull_request(pull_request_id=res.group()))
             self.author = self.original_pr['author']['username']
+        self.options = options
+        self.commands = commands
+
+    def option_is_set(self, name):
+        if name not in self.options.keys():
+            return False
+        return self.options[name].is_set()
 
     def check_build_status(self, pr, key):
+        if self.option_is_set('bypass_build_status'):
+            return
         try:
             build_state = self.bbrepo.get_build_status(
                 revision=pr['source']['commit']['hash'],
@@ -216,9 +275,11 @@ class WallE:
         for index, comment in enumerate(self.original_pr.get_comments()):
             u = comment['user']['username']
             raw = comment['content']['raw']
-            if username is str and u != username:
+            # python3
+            if isinstance(username, str) and u != username:
                 continue
-            if username is list and u not in username:
+            # python2
+            if isinstance(username, list) and u not in username:
                 continue
             if startswith and not raw.startswith(startswith):
                 continue
@@ -254,11 +315,11 @@ class WallE:
 
         self.original_pr.add_comment(msg)
 
-    def jira_checks(self, source_branch, destination_branch,
-                    bypass_jira_version_check, bypass_jira_type_check):
+    def jira_checks(self, source_branch, destination_branch):
         """performs checks using the Jira issue id specified in the source
         branch name"""
-        if bypass_jira_version_check and bypass_jira_type_check:
+        if (self.option_is_set('bypass_jira_version_check') and
+                self.option_is_set('bypass_jira_type_check')):
             return
 
         if not source_branch.jira_issue_id:
@@ -286,7 +347,7 @@ class WallE:
         # What happens when the issue does not exist ? -> comment on PR ?
         # What happens in case of network failure ? -> fail silently ?
         # What else can happen ?
-        if not bypass_jira_type_check:
+        if not self.option_is_set('bypass_jira_type_check'):
             issuetype = issue.fields.issuetype.name
             expected_prefix = JIRA_ISSUE_BRANCH_PREFIX.get(issuetype)
             if expected_prefix is None:
@@ -297,7 +358,7 @@ class WallE:
                                       'jira issue type field %r' %
                                       (source_branch.prefix, expected_prefix))
 
-        if not bypass_jira_version_check:
+        if not self.option_is_set('bypass_jira_version_check'):
             issue_versions = set([version.name for version in
                                   issue.fields.fixVersions])
             expect_versions = set(
@@ -308,19 +369,17 @@ class WallE:
                                       (', '.join(issue_versions),
                                        ', '.join(expect_versions)))
 
-    def handle_pull_request(self,
-                            bypass_peer_approval=False,
-                            bypass_author_approval=False,
-                            bypass_jira_version_check=False,
-                            bypass_jira_type_check=False,
-                            bypass_build_status=False,
-                            reference_git_repo='',
-                            no_comment=False,
+    def handle_pull_request(self, reference_git_repo='', no_comment=False,
                             interactive=False):
 
         if self.original_pr['state'] != 'OPEN':  # REJECTED or FULFILLED
             raise NothingToDoException('The pull-request\'s state is "%s"'
                                        % self.original_pr['state'])
+
+        # must be called before any options is checked
+        self.get_comments_options()
+
+        self.handle_commands()
 
         # TODO: Check the size of the diff and issue warnings
 
@@ -352,8 +411,7 @@ class WallE:
         if source_branch.prefix not in ['feature', 'bugfix', 'improvement']:
             raise PrefixCannotBeMergedException(source_branch.name)
 
-        self.jira_checks(source_branch, destination_branch,
-                         bypass_jira_version_check, bypass_jira_type_check)
+        self.jira_checks(source_branch, destination_branch)
 
         git_repo = GitRepository(self.bbrepo.get_git_url())
         git_repo.clone(reference_git_repo)
@@ -373,30 +431,25 @@ class WallE:
 
             description = render('pull_request_description.md',
                                  pr=self.original_pr)
-            pr = (self.bbrepo
-                  .create_pull_request(title=title,
-                                       name='name',
-                                       source={'branch':
-                                               {'name':
-                                                source_branch.name}},
-                                       destination={'branch':
-                                                    {'name':
-                                                     destination_branch
-                                                     .name}},
-                                       close_source_branch=True,
-                                       reviewers=[{'username': self.author}],
-                                       description=description))
+
+            pr = self.bbrepo.create_pull_request(
+                title=title,
+                name='name',
+                source={'branch': {'name': source_branch.name}},
+                destination={'branch': {'name': destination_branch.name}},
+                close_source_branch=True,
+                reviewers=[{'username': self.author}],
+                description=description
+            )
             child_prs.append(pr)
 
         # Check parent PR: approval
-        self.check_approval(bypass_author_approval, bypass_peer_approval,
-                            child_prs)
+        self.check_approval(child_prs)
 
         # Check integration PR: build status
         for pr in child_prs:
-            if not bypass_build_status:
-                self.check_build_status(pr, 'jenkins_build')
-                self.check_build_status(pr, 'jenkins_utest')
+            self.check_build_status(pr, 'jenkins_build')
+            self.check_build_status(pr, 'jenkins_utest')
 
         if interactive and not confirm('Do you want to merge ?'):
             return
@@ -404,25 +457,129 @@ class WallE:
         for pr in child_prs:
             pr.merge()
 
-    def get_comment_args(self):
-        """
-        gets command line arguments from a bitbucket comment.
+    def check_options(self, author, keyword_list):
+        logging.debug('checking keywords %s', keyword_list)
 
-        The author of the comment must belong to RelEng. The comment must start
-        with 'wall-e '.
-        """
-        cmt = self.find_bitbucket_comment(username=RELEASE_ENGINEERS,
-                                          startswith=u'wall-e')
-        if cmt:
-            args = cmt['content']['raw'].split(' ')
-            args.pop(0)  # removes the word 'wall-e' from args
-            return args
-        return []
+        for keyword in keyword_list:
+            if keyword not in self.options.keys():
+                logging.debug('ignoring keywords in this comment due to '
+                              'an unknown keyword `%s`', keyword_list)
+                return False
 
-    def check_approval(self, bypass_author_approval, bypass_peer_approval,
-                       child_prs):
-        original_pr_is_approved_by_author = bypass_author_approval
-        original_pr_is_approved_by_peer = bypass_peer_approval
+            limited_access = self.options[keyword].priviledged
+            if limited_access and author not in RELEASE_ENGINEERS:
+                logging.debug('ignoring keywords in this comment due to '
+                              'unsufficient credentials `%s`', keyword_list)
+                return False
+
+        return True
+
+    def get_comments_options(self):
+        """Load settings from pull-request comments."""
+        for index, comment in enumerate(self.original_pr.get_comments()):
+            raw = comment['content']['raw']
+            if not raw.strip().startswith('@%s' % WALL_E_USERNAME):
+                continue
+
+            logging.debug('Found a keyword comment: %s', raw)
+            raw_cleaned = raw.strip()[len(WALL_E_USERNAME)+1:]
+
+            author = comment['user']['username']
+            if isinstance(author, list):
+                # python2 returns a list
+                if len(author) != 1:
+                    continue
+                author = author[0]
+
+            # accept all options in the form:
+            # @scality_wall-e option1 option2...
+            # @scality_wall-e option1, option2, ...
+            # @scality_wall-e: option1 - option2 - ...
+            raw_cleaned = re.sub(r'[,.\-/:;|+]', ' ', raw_cleaned)
+            regexp = r"\s*(?P<keywords>(\s+\w+)+)\s*$"
+            match_ = re.match(regexp, raw_cleaned)
+            if not match_:
+                logging.warning('Keyword comment ignored. '
+                                'Unknown format: %s', raw)
+                continue
+
+            keywords = match_.group('keywords').strip().split()
+
+            if not self.check_options(author, keywords):
+                logging.warning('Keyword comment ignored. '
+                                'Checks failed: %s', raw)
+                continue
+
+            for keyword in keywords:
+                self.options[keyword].set(True)
+
+    def check_command(self, author, command):
+        logging.debug('checking command %s', command)
+
+        if command not in self.commands.keys():
+            logging.debug('ignoring command in this comment due to '
+                          'an unknown command `%s`', command)
+            return False
+
+        limited_access = self.commands[command].priviledged
+        if limited_access and author not in RELEASE_ENGINEERS:
+            logging.debug('ignoring command in this comment due to '
+                          'unsufficient credentials `%s`', command)
+            return False
+
+        return True
+
+    def handle_commands(self):
+        """Detect the last command in pull-request comments and act on it."""
+        for index, comment in enumerate(self.original_pr.get_comments()):
+            author = comment['user']['username']
+            if isinstance(author, list):
+                # python2 returns a list
+                if len(author) != 1:
+                    continue
+                author = author[0]
+
+            # if Wall-E is the author of this comment, any previous command
+            # has been treated or is outdated, since Wall-E replies to all
+            # commands. The search is over.
+            if author == WALL_E_USERNAME:
+                return
+
+            raw = comment['content']['raw']
+            if not raw.strip().startswith('@%s' % WALL_E_USERNAME):
+                continue
+
+            logging.debug('Found a potential command comment: %s', raw)
+
+            # accept all commands in the form:
+            # @scality_wall-e command arg1 arg2 ...
+            regexp = "@%s[\s:]*" % WALL_E_USERNAME
+            raw_cleaned = re.sub(regexp, '', raw.strip())
+            regexp = r"(?P<command>\w+)(?P<args>.*)$"
+            match_ = re.match(regexp, raw_cleaned)
+            if not match_:
+                logging.warning('Command comment ignored. '
+                                'Unknown format: %s' % raw)
+                continue
+
+            command = match_.group('command')
+
+            if not self.check_command(author, command):
+                logging.warning('Command comment ignored. '
+                                'Checks failed: %s' % raw)
+                continue
+
+            # get command handler and execute it
+            assert hasattr(self, self.commands[command].handler)
+            handler = getattr(self, self.commands[command].handler)
+            handler(match_.group('args'))
+
+    def check_approval(self, child_prs):
+        approved_by_author = self.option_is_set('bypass_author_approval')
+        approved_by_peer = self.option_is_set('bypass_peer_approval')
+
+        if approved_by_author and approved_by_peer:
+            return
 
         # NB: when author hasn't approved the PR, author isn't listed in
         # 'participants'
@@ -432,67 +589,74 @@ class WallE:
             if participant['user']['username'] == self.author:
                 original_pr_is_approved_by_author = True
             else:
-                original_pr_is_approved_by_peer = True
+                approved_by_peer = True
 
-        if not original_pr_is_approved_by_author:
+        if not approved_by_author:
             raise AuthorApprovalRequiredException(pr=self.original_pr,
                                                   child_prs=child_prs)
 
-        if not original_pr_is_approved_by_peer:
+        if not approved_by_peer:
             raise PeerApprovalRequiredException(pr=self.original_pr,
                                                 child_prs=child_prs)
 
+    def print_help(self, args):
+        raise HelpException('to do')
+
 
 def main():
-    global_parser = (argparse.ArgumentParser(add_help=False))
-    global_parser.add_argument(
-        '--bypass_author_approval', action='store_true',
-        help='Bypass the pull request author\'s approval')
-    global_parser.add_argument(
-        '--bypass_peer_approval', action='store_true',
-        help='Bypass the pull request peer\'s approval')
-    global_parser.add_argument(
-        '--bypass_jira_version_check', action='store_true',
-        help='Bypass the Jira fixVersions field check')
-    global_parser.add_argument(
-        '--bypass_jira_type_check', action='store_true',
-        help='Bypass the Jira issueType field check')
-    global_parser.add_argument(
-        '--bypass_build_status', action='store_true',
-        help='Bypass the build and test status')
+    parser = argparse.ArgumentParser(add_help=False,
+                                     description='Merges bitbucket '
+                                                 'pull requests.')
+    bypass_author_approval_help = 'Bypass the pull request author\'s approval'
+    bypass_author_peer_help = 'Bypass the pull request peer\'s approval'
+    bypass_jira_version_check_help = 'Bypass the Jira Fix Version/s field check'
+    bypass_jira_type_check_help = 'Bypass the Jira issue Type field check'
+    bypass_build_status_help = 'Bypass the build and test status'
 
-    cmdline_parser = (argparse.ArgumentParser(
-        description='Merges bitbucket pull requests.',
-        parents=[global_parser]))
-    cmdline_parser.add_argument(
+    parser.add_argument(
+        '--bypass-author-approval', action='store_true', default=False,
+        help=bypass_author_approval_help)
+    parser.add_argument(
+        '--bypass-peer-approval', action='store_true', default=False,
+        help=bypass_author_peer_help)
+    parser.add_argument(
+        '--bypass-jira-version-check', action='store_true', default=False,
+        help=bypass_jira_version_check_help)
+    parser.add_argument(
+        '--bypass-jira-type-check', action='store_true', default=False,
+        help=bypass_jira_type_check_help)
+    parser.add_argument(
+        '--bypass-build-status', action='store_true', default=False,
+        help=bypass_build_status_help)
+    parser.add_argument(
         'pull_request_id',
         help='The ID of the pull request')
-    cmdline_parser.add_argument(
+    parser.add_argument(
         'password',
         help='Wall-E\'s password [for Jira and Bitbucket]')
-    cmdline_parser.add_argument(
-        '--reference_git_repo', default='',
+    parser.add_argument(
+        '--reference-git-repo', default='',
         help='Reference to a local git repo to improve cloning delay')
-    cmdline_parser.add_argument(
+    parser.add_argument(
         '--owner', default='scality',
         help='The owner of the repo (default: scality)')
-    cmdline_parser.add_argument(
+    parser.add_argument(
         '--slug', default='ring',
         help='The repo\'s slug (default: ring)')
-    cmdline_parser.add_argument(
-        '--interactive', action='store_true',
+    parser.add_argument(
+        '--interactive', action='store_true', default=False,
         help='Ask before merging or sending comments')
-    cmdline_parser.add_argument(
-        '--no_comment', action='store_true',
+    parser.add_argument(
+        '--no-comment', action='store_true', default=False,
         help='Do not add any comment to the pull request page')
-    cmdline_parser.add_argument(
-        '-v', action='store_true', dest='verbose',
+    parser.add_argument(
+        '-v', action='store_true', dest='verbose', default=False,
         help='Verbose mode')
-    cmdline_parser.add_argument(
-        '--alert_email', action='store', default=None,
+    parser.add_argument(
+        '--alert-email', action='store', default=None, type=str,
         help='Where to send notifications in case of '
              'incorrect behaviour')
-    args = cmdline_parser.parse_args()
+    args = parser.parse_args()
 
     if args.verbose:
         logging.basicConfig(level=logging.DEBUG)
@@ -510,20 +674,46 @@ def main():
                   "the email server.")
             sys.exit(1)
 
-    wall_e = WallE(WALL_E_USERNAME, args.password, WALL_E_EMAIL,
-                   args.owner, args.slug, args.pull_request_id)
-    comment_args = wall_e.get_comment_args()
-    args = global_parser.parse_args(args=comment_args, namespace=args)
+    options = {
+        'bypass_peer_approval':
+            Option(priviledged=True,
+                   value=args.bypass_peer_approval,
+                   help=bypass_author_approval_help),
+        'bypass_author_approval':
+            Option(priviledged=True,
+                   value=args.bypass_author_approval,
+                   help=bypass_author_peer_help),
+        'bypass_jira_version_check':
+            Option(priviledged=True,
+                   value=args.bypass_jira_version_check,
+                   help=bypass_jira_version_check_help),
+        'bypass_jira_type_check':
+            Option(priviledged=True,
+                   value=args.bypass_jira_type_check,
+                   help=bypass_jira_type_check_help),
+        'bypass_build_status':
+            Option(priviledged=True,
+                   value=args.bypass_build_status,
+                   help=bypass_build_status_help)
+    }
 
-    vargs = vars(args)
-    del vargs['password']
-    del vargs['pull_request_id']
-    del vargs['owner']
-    del vargs['verbose']
-    del vargs['alert_email']
-    del vargs['slug']  # TODO : find a prettier way to do this
+    commands = {
+        'help':
+            Command(priviledged=False,
+                    handler='print_help',
+                    help='print Wall-E\'s manual in the pull-request')
+    }
+
+    wall_e = WallE(WALL_E_USERNAME, args.password, WALL_E_EMAIL,
+                   args.owner, args.slug, args.pull_request_id,
+                   options, commands)
+
     try:
-        wall_e.handle_pull_request(**vargs)
+        wall_e.handle_pull_request(
+            reference_git_repo=args.reference_git_repo,
+            no_comment=args.no_comment,
+            interactive=args.interactive
+        )
 
     except (WallE_Exception, WallE_TemplateException) as excp:
         wall_e.send_bitbucket_msg(str(excp),
