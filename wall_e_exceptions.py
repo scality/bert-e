@@ -21,92 +21,92 @@ class WallE_SilentException(Exception):
 
 # template exceptions
 class InitMessage(WallE_TemplateException):
-    code = 10000
+    code = 100
     template = 'init.md'
 
 
 class HelpMessage(WallE_TemplateException):
-    code = 10001
+    code = 101
     template = 'help.md'
 
 
 class CommandNotImplemented(WallE_TemplateException):
-    code = 10002
+    code = 102
     template = 'not_implemented.md'
 
 
 class StatusReport(WallE_TemplateException):
-    code = 10003
+    code = 103
     template = 'status.md'
 
 
 class BuildFailed(WallE_TemplateException):
-    code = 10004
+    code = 104
     template = 'build_failed.md'
 
 
 class BuildInProgress(WallE_TemplateException):
-    code = 10005
+    code = 105
     template = 'build_in_progress.md'
 
 
 class BuildNotStarted(WallE_TemplateException):
-    code = 10006
+    code = 106
     template = 'build_not_started.md'
 
 
 class Conflict(WallE_TemplateException):
-    code = 10007
+    code = 107
     template = 'conflict.md'
 
 
 class AuthorApprovalRequired(WallE_TemplateException):
-    code = 10008
+    code = 108
     template = 'need_approval.md'
 
 
 class PeerApprovalRequired(WallE_TemplateException):
-    code = 10009
+    code = 109
     template = 'need_approval.md'
 
 
 class MissingJiraIdMaintenance(WallE_TemplateException):
-    code = 10010
+    code = 110
     template = 'missing_jira_id_for_maintenance_branch.md'
 
 
 class MismatchPrefixIssueType(WallE_TemplateException):
-    code = 10011
+    code = 111
     template = 'mismatch_prefix_issue_type.md'
 
 
 class IncorrectFixVersion(WallE_TemplateException):
-    code = 10012
+    code = 112
     template = 'incorrect_fix_version.md'
 
 
 class PrefixCannotBeMerged(WallE_TemplateException):
-    code = 10013
+    code = 113
     template = 'forbidden_branch.md'
 
 
 class BranchDoesNotAcceptFeatures(WallE_TemplateException):
-    code = 10014
+    code = 114
     template = 'forbidden_branch_in_maintenance.md'
 
 
 class BranchHistoryMismatch(WallE_TemplateException):
-    code = 10015
+    code = 115
     template = 'history_mismatch.md'
 
 
 class JiraIssueNotFound(WallE_TemplateException):
-    code = 10016
+    code = 116
     template = 'jira_issue_not_found.md'
 
 
 class ParentJiraIssueNotFound(JiraIssueNotFound):
-    code = 10017
+    code = 117
     template = 'parent_jira_issue_not_found.md'
 
 
