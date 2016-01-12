@@ -27,7 +27,7 @@ class Repository(object):
         cmd('git clone %s %s' % (reference, self._url))
         repo_slug = self._url.split('/')[-1].replace('.git', '')
         os.chdir(repo_slug)
-        self.directory += '/' + repo_slug
+        self.directory = os.path.join(self.directory, repo_slug)
 
     def config(self, key, value):
         cmd('git config %s %s' % (key, value))
