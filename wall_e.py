@@ -200,7 +200,7 @@ class IntegrationBranch(ScalBranch):
 
     def check_history_did_not_change(self):
         for commit in self.get_all_commits_since_started_from(
-            self.feature_branch):
+                self.feature_branch):
             if not self.development_branch.includes_commit(commit):
                 raise BranchHistoryMismatch(
                     commit=commit,
@@ -663,7 +663,8 @@ def main():
                                                  'pull requests.')
     bypass_author_approval_help = 'Bypass the pull request author\'s approval'
     bypass_author_peer_help = 'Bypass the pull request peer\'s approval'
-    bypass_jira_version_check_help = 'Bypass the Jira Fix Version/s field check'
+    bypass_jira_version_check_help = \
+        'Bypass the Jira Fix Version/s field check'
     bypass_jira_type_check_help = 'Bypass the Jira issue Type field check'
     bypass_build_status_help = 'Bypass the build and test status'
 

@@ -61,7 +61,8 @@ class Branch(object):
 
     def get_all_commits_since_started_from(self, source_branch):
         source_branch.checkout()
-        log = cmd('git log --no-merges --pretty=%%H %s..%s' % (source_branch.name, self.name))
+        log = cmd('git log --no-merges --pretty=%%H %s..%s' % (
+            source_branch.name, self.name))
         return log.splitlines()
 
     def includes_commit(self, sha1):
