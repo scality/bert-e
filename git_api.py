@@ -51,6 +51,9 @@ class Repository(object):
 
         return True
 
+    def cmd(self, command):
+        return cmd(command, cwd=self.directory)
+
 
 class Branch(object):
     def __init__(self, name):
