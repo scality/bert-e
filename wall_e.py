@@ -206,19 +206,18 @@ class IntegrationBranch(ScalBranch):
         self.development_branch.push()
 
     def create_pull_request(self, parent_pr, bitbucket_repo):
-        title = ('[%s] #%s: %s'
-                 % (self.development_branch.name,
-                    parent_pr['id'], parent_pr['title']))
+        title = '[%s] #%s: %s' % (self.development_branch.name,
+                                  parent_pr['id'], parent_pr['title'])
 
         description = render('pull_request_description.md', pr=parent_pr)
-        pr = (bitbucket_repo.create_pull_request(
+        pr = bitbucket_repo.create_pull_request(
             title=title,
             name='name',
             source={'branch': {'name': self.name}},
             destination={'branch': {'name': self.development_branch.name}},
             close_source_branch=True,
             reviewers=[{'username': parent_pr['author']['username']}],
-            description=description))
+            description=description)
         return pr
 
 
@@ -253,8 +252,9 @@ class WallE:
                               bitbucket_password, bitbucket_mail)
         self.bbrepo = BitBucketRepository(self._bbconn, owner=owner,
                                           repo_slug=slug)
-        self.main_pr = (self.bbrepo
-                            .get_pull_request(pull_request_id=pull_request_id))
+        self.main_pr = self.bbrepo.get_pull_request(
+            pull_request_id=pull_request_id
+        )
         self.author = self.main_pr['author']['username']
         if WALL_E_USERNAME == self.author:
             res = re.search('(?P<pr_id>\d+)',
@@ -262,8 +262,9 @@ class WallE:
             if not res:
                 raise ParentNotFound('Not found')
             self.pull_request_id = res.group('pr_id')
-            self.main_pr = (self.bbrepo
-                                .get_pull_request(pull_request_id=res.group()))
+            self.main_pr = self.bbrepo.get_pull_request(
+                pull_request_id=res.group()
+            )
             self.author = self.main_pr['author']['username']
         self.options = options
         self.commands = commands
@@ -392,8 +393,10 @@ class WallE:
     def create_integration_branches(self):
         integration_branches = []
         for version in self.destination_branch.impacted_versions:
-            integration_branch = (IntegrationBranch('w/%s/%s'
-                                  % (version, self.source_branch.name)))
+            integration_branch = IntegrationBranch('w/%s/%s' % (
+                version,
+                self.source_branch.name)
+            )
             integration_branch.create_from_dev_if_not_exists()
             integration_branches.append(integration_branch)
         return integration_branches
