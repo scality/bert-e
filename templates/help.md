@@ -35,7 +35,7 @@ status report.
 * check that reviewers have approved the pull request
 * check that the author has approved the pull request
 * check that the build status is green
-* check that the ```Fix Version/s``` field in the Jira ticket is coherent
+* check that the `Fix Version/s` field in the Jira ticket is coherent
 
 ## Pull request options ##
 
@@ -102,4 +102,4 @@ name   | description  | privileged
 :arrow_right: **{{cmd}}** | {{commands[cmd].help}} | {% if commands[cmd].priviledged %} :star: {% endif %}
 {% endfor %}
 
-```Message code: {{ code }}```
+`Message code: {{ code }}`

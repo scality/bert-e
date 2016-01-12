@@ -1,4 +1,4 @@
-```Message code: {{ code }}```
+`Message code: {{ code }}`
 
 {% if active_options %}
 The following options are currently active: **{{ active_options|join(', ') }}**
