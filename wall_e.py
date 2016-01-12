@@ -424,13 +424,10 @@ class WallE:
                 integration_branch in self.integration_branches]
 
     def update_integration_branches_from_development_branches(self):
-        first = True
+        # The first integration branch should not contain commits
+        # that are not in development/* or in the feature branch.
+        self.integration_branches[0].check_history_did_not_change()
         for integration_branch in self.integration_branches:
-            if first:
-                # The first integration branch should not contain commits
-                # that are not in development/* or in the feature branch.
-                integration_branch.check_history_did_not_change()
-            first = False
             integration_branch.merge_from_development_branch()
 
     def update_integration_branches_from_feature_branch(self):
