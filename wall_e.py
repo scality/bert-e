@@ -798,11 +798,16 @@ def main():
             Command(priviledged=False,
                     handler='command_not_implemented',
                     help='re-start a fresh build (TBA)'),
-        'cleanup':
+        'clear':
             Command(priviledged=False,
                     handler='command_not_implemented',
                     help='remove all comments from Wall-E from the '
-                         'history (TBA)')
+                         'history (TBA)'),
+        'reset':
+            Command(priviledged=False,
+                    handler='command_not_implemented',
+                    help='delete integration branches, integration pull requests, '
+                         'and restart merge process from the beginning (TBA)')
     }
 
     wall_e = WallE(WALL_E_USERNAME, args.password, WALL_E_EMAIL,
