@@ -18,26 +18,31 @@ from bitbucket_api import (Repository as BitBucketRepository,
                            Client)
 from git_api import Repository as GitRepository, Branch, MergeFailedException
 from jira_api import JiraIssue
-from wall_e_exceptions import (NotMyJobException,
-                               PrefixCannotBeMergedException,
-                               BranchDoesNotAcceptFeaturesException,
-                               BranchNameInvalidException,
-                               ConflictException,
-                               CommentAlreadyExistsException,
-                               NothingToDoException,
-                               AuthorApprovalRequiredException,
-                               ParentNotFoundException,
-                               PeerApprovalRequiredException,
-                               BuildFailedException,
-                               BuildNotStartedException,
-                               BuildInProgressException,
-                               WallE_Exception,
-                               WallE_InternalException,
+from wall_e_exceptions import (AuthorApprovalRequired,
+                               BranchDoesNotAcceptFeatures,
+                               BranchNameInvalid,
+                               BuildFailed,
+                               BuildInProgress,
+                               BuildNotStarted,
+                               CommandNotImplemented,
+                               CommentAlreadyExists,
+                               Conflict,
+                               HelpMessage,
+                               ImproperEmailFormat,
+                               IncorrectFixVersion,
+                               InitMessage,
+                               JiraUnknownIssueType,
+                               MismatchPrefixIssueType,
+                               MissingJiraIdMaintenance,
+                               NothingToDo,
+                               ParentNotFound,
+                               PeerApprovalRequired,
+                               PrefixCannotBeMerged,
+                               StatusReport,
+                               UnableToSendEmail,
                                WallE_SilentException,
                                WallE_TemplateException,
-                               ImproperEmailFormatException,
-                               UnableToSendEmailException,
-                               HelpException)
+                               NotMyJob)
 
 if six.PY3:
     raw_input = input
@@ -125,20 +130,20 @@ def setup_email(destination):
     """Check the capacity to send emails."""
     match_ = re.match("(?P<short_name>[^@]*)@.*", destination)
     if not match_:
-        raise ImproperEmailFormatException("The specified email does "
-                                           "not seem valid (%s)" % destination)
+        raise ImproperEmailFormat("The specified email does "
+                                  "not seem valid (%s)" % destination)
     try:
         smtplib.SMTP('localhost')
     except Exception as excp:
-        raise UnableToSendEmailException("Unable to send email (%s)" % excp)
+        raise UnableToSendEmail("Unable to send email (%s)" % excp)
 
 
 def send_email(destination, title, content):
     """Send some data by email."""
     match_ = re.match("(?P<short_name>[^@]*)@.*", destination)
     if not match_:
-        raise ImproperEmailFormatException("The specified email does "
-                                           "not seem valid (%s)" % destination)
+        raise ImproperEmailFormat("The specified email does "
+                                  "not seem valid (%s)" % destination)
     body = render('email_alert.md',
                   name=match_.group('short_name'),
                   subject=title,
@@ -158,7 +163,7 @@ class ScalBranch(Branch):
     def __init__(self, name):
         Branch.__init__(self, name)
         if '/' not in name:
-            raise BranchNameInvalidException(name)
+            raise BranchNameInvalid(name)
 
 
 class DestinationBranch(ScalBranch):
@@ -167,7 +172,7 @@ class DestinationBranch(ScalBranch):
         self.prefix, self.version = name.split('/', 1)
         if (self.prefix != 'development' or
                 self.version not in KNOWN_VERSIONS.keys()):
-            raise BranchNameInvalidException(name)
+            raise BranchNameInvalid(name)
 
         self.impacted_versions = OrderedDict(
             [(version, release) for (version, release) in
@@ -190,8 +195,8 @@ class IntegrationBranch(ScalBranch):
         try:
             self.merge(source_branch, do_push=True)
         except MergeFailedException:
-            raise ConflictException(source=source_branch,
-                                    destination=self)
+            raise Conflict(source=source_branch,
+                           destination=self)
 
     def merge_from_development_branch(self):
         self.merge_from_branch(self.development_branch)
@@ -201,19 +206,18 @@ class IntegrationBranch(ScalBranch):
         self.development_branch.push()
 
     def create_pull_request(self, parent_pr, bitbucket_repo):
-        title = ('[%s] #%s: %s'
-                 % (self.development_branch.name,
-                    parent_pr['id'], parent_pr['title']))
+        title = '[%s] #%s: %s' % (self.development_branch.name,
+                                  parent_pr['id'], parent_pr['title'])
 
         description = render('pull_request_description.md', pr=parent_pr)
-        pr = (bitbucket_repo.create_pull_request(
+        pr = bitbucket_repo.create_pull_request(
             title=title,
             name='name',
             source={'branch': {'name': self.name}},
             destination={'branch': {'name': self.development_branch.name}},
             close_source_branch=True,
             reviewers=[{'username': parent_pr['author']['username']}],
-            description=description))
+            description=description)
         return pr
 
 
@@ -232,11 +236,11 @@ class FeatureBranch(ScalBranch):
 
     def check_if_should_handle(self, destination_branch):
         if self.prefix not in ['feature', 'bugfix', 'improvement']:
-            raise PrefixCannotBeMergedException(source=self,
-                                                destination=destination_branch)
+            raise PrefixCannotBeMerged(source=self,
+                                       destination=destination_branch)
         if (self.prefix == 'feature' and
                 destination_branch.version in ['4.3', '5.1']):
-            raise BranchDoesNotAcceptFeaturesException(
+            raise BranchDoesNotAcceptFeatures(
                 source=self,
                 destination=destination_branch)
 
@@ -248,17 +252,19 @@ class WallE:
                               bitbucket_password, bitbucket_mail)
         self.bbrepo = BitBucketRepository(self._bbconn, owner=owner,
                                           repo_slug=slug)
-        self.main_pr = (self.bbrepo
-                            .get_pull_request(pull_request_id=pull_request_id))
+        self.main_pr = self.bbrepo.get_pull_request(
+            pull_request_id=pull_request_id
+        )
         self.author = self.main_pr['author']['username']
         if WALL_E_USERNAME == self.author:
             res = re.search('(?P<pr_id>\d+)',
                             self.main_pr['description'])
             if not res:
-                raise ParentNotFoundException('Not found')
+                raise ParentNotFound('Not found')
             self.pull_request_id = res.group('pr_id')
-            self.main_pr = (self.bbrepo
-                                .get_pull_request(pull_request_id=res.group()))
+            self.main_pr = self.bbrepo.get_pull_request(
+                pull_request_id=res.group()
+            )
             self.author = self.main_pr['author']['username']
         self.options = options
         self.commands = commands
@@ -280,13 +286,13 @@ class WallE:
             )['state']
         except requests.exceptions.HTTPError as e:
             if e.response.status_code == 404:
-                raise BuildNotStartedException(pr['id'])
+                raise BuildNotStarted(pr_id=pr['id'])
             raise
         else:
             if build_state == 'FAILED':
-                raise BuildFailedException(pr['id'])
+                raise BuildFailed(pr_id=pr['id'])
             elif build_state == 'INPROGRESS':
-                raise BuildInProgressException(pr['id'])
+                raise BuildInProgress(pr_id=pr['id'])
             assert build_state == 'SUCCESSFUL'
 
     def find_bitbucket_comment(self,
@@ -323,10 +329,10 @@ class WallE:
                                        startswith=msg,
                                        max_history=10):
 
-            raise CommentAlreadyExistsException('The same comment has '
-                                                'already been posted by '
-                                                'Wall-E in the past. '
-                                                'Nothing to do here!')
+            raise CommentAlreadyExists('The same comment has '
+                                       'already been posted by '
+                                       'Wall-E in the past. '
+                                       'Nothing to do here!')
 
         if interactive:
             print('%s\n' % msg)
@@ -351,9 +357,7 @@ class WallE:
                 # FIXME : versions should not be hardcoded
                 return
 
-            raise WallE_Exception('You want to merge `%s` into a maintenance '
-                                  'branch but this branch does not specify a '
-                                  'Jira issue id' % (self.source_branch.name))
+            raise MissingJiraIdMaintenance(branch=self.source_branch.name)
 
         issue = JiraIssue(issue_id=self.source_branch.jira_issue_id,
                           login='wall_e',
@@ -373,13 +377,10 @@ class WallE:
             issuetype = issue.fields.issuetype.name
             expected_prefix = JIRA_ISSUE_BRANCH_PREFIX.get(issuetype)
             if expected_prefix is None:
-                raise WallE_InternalException('Jira issue: unknow type %r' %
-                                              issuetype)
+                raise JiraUnknownIssueType(issuetype)
             if expected_prefix != self.source_branch.prefix:
-                raise WallE_Exception('branch prefix name %r mismatches '
-                                      'jira issue type field %r' %
-                                      (self.source_branch.prefix,
-                                       expected_prefix))
+                raise MismatchPrefixIssueType(prefix=self.source_branch.prefix,
+                                              expected=expected_prefix)
 
         if not self.option_is_set('bypass_jira_version_check'):
             issue_versions = set([version.name for version in
@@ -387,16 +388,15 @@ class WallE:
             expect_versions = set(
                 self.destination_branch.impacted_versions.values())
             if issue_versions != expect_versions:
-                raise WallE_Exception("The issue 'Fix Version/s' field "
-                                      "contains %s. It must contain: %s." %
-                                      (', '.join(issue_versions),
-                                       ', '.join(expect_versions)))
+                raise IncorrectFixVersion(issue_versions, expect_versions)
 
     def create_integration_branches(self):
         integration_branches = []
         for version in self.destination_branch.impacted_versions:
-            integration_branch = (IntegrationBranch('w/%s/%s'
-                                  % (version, self.source_branch.name)))
+            integration_branch = IntegrationBranch('w/%s/%s' % (
+                version,
+                self.source_branch.name)
+            )
             integration_branch.create_from_dev_if_not_exists()
             integration_branches.append(integration_branch)
         return integration_branches
@@ -423,17 +423,39 @@ class WallE:
                         % self._bbconn.mail)
         git_repo.config('user.name', '"Wall-E"')
 
+    def init(self):
+        """Displays a welcome message if conditions are met."""
+        for comment in self.main_pr.get_comments():
+            author = comment['user']['username']
+            if isinstance(author, list):
+                # python2 returns a list
+                if len(author) != 1:
+                    continue
+                author = author[0]
+
+            if author == WALL_E_USERNAME:
+                return
+
+        raise InitMessage(author=self.author,
+                          status=self.get_status_report(),
+                          active_options=self.get_active_options())
+
     def handle_pull_request(self, reference_git_repo='', no_comment=False,
                             interactive=False):
 
         if self.main_pr['state'] != 'OPEN':  # REJECTED or FULFILLED
-            raise NothingToDoException('The pull-request\'s state is "%s"'
-                                       % self.main_pr['state'])
+            raise NothingToDo('The pull-request\'s state is "%s"'
+                              % self.main_pr['state'])
+
+        self.init()
 
         # must be called before any options is checked
         self.get_comments_options()
 
         self.handle_commands()
+
+        if self.option_is_set('wait'):
+            raise NothingToDo('wait option is set')
 
         # TODO: Check the size of the diff and issue warnings
 
@@ -445,17 +467,17 @@ class WallE:
         src_brnch_name = self.main_pr['source']['branch']['name']
         try:
             self.destination_branch = DestinationBranch(dst_brnch_name)
-        except BranchNameInvalidException as e:
+        except BranchNameInvalid as e:
             logging.info('Destination branch %r not handled, ignore PR %s',
                          e.branch, self.main_pr['id'])
             # Nothing to do
-            raise NotMyJobException(src_brnch_name, dst_brnch_name)
+            raise NotMyJob(src_brnch_name, dst_brnch_name)
 
         try:
             self.source_branch = FeatureBranch(
                 self.main_pr['source']['branch']['name'])
-        except BranchNameInvalidException as e:
-            raise PrefixCannotBeMergedException(e.branch)
+        except BranchNameInvalid as e:
+            raise PrefixCannotBeMerged(e.branch)
 
         self.source_branch.check_if_should_handle(self.destination_branch)
 
@@ -469,7 +491,7 @@ class WallE:
             'bugfix',
             'improvement'
         ]:
-            raise PrefixCannotBeMergedException(self.source_branch.name)
+            raise PrefixCannotBeMerged(self.source_branch.name)
 
         self.jira_checks()
         self.clone_git_repo(reference_git_repo)
@@ -627,15 +649,34 @@ class WallE:
                 approved_by_peer = True
 
         if not approved_by_author:
-            raise AuthorApprovalRequiredException(pr=self.main_pr,
-                                                  child_prs=child_prs)
+            raise AuthorApprovalRequired(pr=self.main_pr,
+                                         child_prs=child_prs)
 
         if not approved_by_peer:
-            raise PeerApprovalRequiredException(pr=self.main_pr,
-                                                child_prs=child_prs)
+            raise PeerApprovalRequired(pr=self.main_pr,
+                                       child_prs=child_prs)
+
+    def get_active_options(self):
+        return [option for option in self.options.keys() if
+                self.option_is_set(option)]
 
     def print_help(self, args):
-        raise HelpException('to do')
+        raise HelpMessage(options=self.options,
+                          commands=self.commands,
+                          active_options=self.get_active_options())
+
+    def get_status_report(self):
+        # tmp hard coded
+        return {}
+
+    def publish_status_report(self, args):
+        raise StatusReport(status=self.get_status_report(),
+                           active_options=self.get_active_options())
+
+    def command_not_implemented(self, args):
+        raise CommandNotImplemented(
+            active_options=self.get_active_options()
+        )
 
 
 def main():
@@ -644,8 +685,7 @@ def main():
                                                  'pull requests.')
     bypass_author_approval_help = 'Bypass the pull request author\'s approval'
     bypass_author_peer_help = 'Bypass the pull request peer\'s approval'
-    bypass_jira_version_check_help =\
-        'Bypass the Jira Fix Version/s field check'
+    bypass_jira_version_check_help = 'Bypass the Jira Fix Version/s field check'
     bypass_jira_type_check_help = 'Bypass the Jira issue Type field check'
     bypass_build_status_help = 'Bypass the build and test status'
 
@@ -702,10 +742,10 @@ def main():
     if args.alert_email:
         try:
             setup_email(args.alert_email)
-        except ImproperEmailFormatException:
+        except ImproperEmailFormat:
             print("Invalid email (%s)" % args.alert_email)
             sys.exit(1)
-        except UnableToSendEmailException:
+        except UnableToSendEmail:
             print("It appears I won't be able to send emails, please check "
                   "the email server.")
             sys.exit(1)
@@ -719,6 +759,10 @@ def main():
             Option(priviledged=True,
                    value=args.bypass_author_approval,
                    help=bypass_author_peer_help),
+        'bypass_tester_approval':
+            Option(priviledged=True,
+                   value=args.bypass_author_approval,
+                   help='Bypass the pull request tester\'s approval'),
         'bypass_jira_version_check':
             Option(priviledged=True,
                    value=args.bypass_jira_version_check,
@@ -730,14 +774,44 @@ def main():
         'bypass_build_status':
             Option(priviledged=True,
                    value=args.bypass_build_status,
-                   help=bypass_build_status_help)
+                   help=bypass_build_status_help),
+        'bypass_commit_size':
+            Option(priviledged=True,
+                   value=False,
+                   help='Bypass the check on the size of the changeset ```TBA```'),
+        'unanimity':
+            Option(priviledged=False,
+                   help="Change review acceptance criteria from "
+                        "`one reviewer at least` to `all reviewers` ```TBA```"),
+        'wait':
+            Option(priviledged=False,
+                   help="Instruct Wall-E not to run until further notice")
     }
 
     commands = {
         'help':
             Command(priviledged=False,
                     handler='print_help',
-                    help='print Wall-E\'s manual in the pull-request')
+                    help='print Wall-E\'s manual in the pull-request'),
+        'status':
+            Command(priviledged=False,
+                    handler='publish_status_report',
+                    help='print Wall-E\'s current status in '
+                         'the pull-request ```TBA```'),
+        'build':
+            Command(priviledged=False,
+                    handler='command_not_implemented',
+                    help='re-start a fresh build ```TBA```'),
+        'clear':
+            Command(priviledged=False,
+                    handler='command_not_implemented',
+                    help='remove all comments from Wall-E from the '
+                         'history ```TBA```'),
+        'reset':
+            Command(priviledged=False,
+                    handler='command_not_implemented',
+                    help='delete integration branches, integration pull requests, '
+                         'and restart merge process from the beginning ```TBA```')
     }
 
     wall_e = WallE(WALL_E_USERNAME, args.password, WALL_E_EMAIL,
@@ -751,7 +825,7 @@ def main():
             interactive=args.interactive
         )
 
-    except (WallE_Exception, WallE_TemplateException) as excp:
+    except WallE_TemplateException as excp:
         wall_e.send_bitbucket_msg(str(excp),
                                   no_comment=args.no_comment,
                                   interactive=args.interactive)
