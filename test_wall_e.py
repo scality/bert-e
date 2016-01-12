@@ -10,17 +10,17 @@ import logging
 from bitbucket_api import (Client, PullRequest,
                            Repository as BitbucketRepository)
 import wall_e
-from wall_e_exceptions import (BranchDoesNotAcceptFeatures,
-                               CommentAlreadyExists,
-                               NothingToDo,
-                               AuthorApprovalRequired,
-                               Conflict,
+from wall_e_exceptions import (AuthorApprovalRequired,
+                               BranchDoesNotAcceptFeatures,
                                BranchNameInvalid,
+                               CommandNotImplemented,
+                               CommentAlreadyExists,
+                               Conflict,
                                HelpMessage,
-                               ParentNotFound,
-                               StatusReport,
                                InitMessage,
-                               CommandNotImplemented)
+                               NothingToDo,
+                               ParentNotFound,
+                               StatusReport)
 from git_api import Repository as GitRepository
 from simplecmd import cmd
 

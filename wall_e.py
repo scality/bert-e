@@ -18,31 +18,31 @@ from bitbucket_api import (Repository as BitBucketRepository,
                            Client)
 from git_api import Repository as GitRepository, Branch, MergeFailedException
 from jira_api import JiraIssue
-from wall_e_exceptions import (NotMyJob,
-                               PrefixCannotBeMerged,
+from wall_e_exceptions import (AuthorApprovalRequired,
                                BranchDoesNotAcceptFeatures,
                                BranchNameInvalid,
-                               Conflict,
+                               BuildFailed,
+                               BuildInProgress,
+                               BuildNotStarted,
+                               CommandNotImplemented,
                                CommentAlreadyExists,
+                               Conflict,
+                               HelpMessage,
+                               ImproperEmailFormat,
+                               IncorrectFixVersion,
+                               InitMessage,
+                               JiraUnknownIssueType,
+                               MismatchPrefixIssueType,
+                               MissingJiraIdMaintenance,
                                NothingToDo,
-                               AuthorApprovalRequired,
                                ParentNotFound,
                                PeerApprovalRequired,
-                               BuildFailed,
-                               BuildNotStarted,
-                               BuildInProgress,
+                               PrefixCannotBeMerged,
+                               StatusReport,
+                               UnableToSendEmail,
                                WallE_SilentException,
                                WallE_TemplateException,
-                               ImproperEmailFormat,
-                               UnableToSendEmail,
-                               HelpMessage,
-                               CommandNotImplemented,
-                               StatusReport,
-                               InitMessage,
-                               MissingJiraIdMaintenance,
-                               MismatchPrefixIssueType,
-                               IncorrectFixVersion,
-                               JiraUnknownIssueType)
+                               NotMyJob)
 
 if six.PY3:
     raw_input = input
@@ -425,7 +425,7 @@ class WallE:
 
     def init(self):
         """Displays a welcome message if conditions are met."""
-        for index, comment in enumerate(self.main_pr.get_comments()):
+        for comment in self.main_pr.get_comments():
             author = comment['user']['username']
             if isinstance(author, list):
                 # python2 returns a list
