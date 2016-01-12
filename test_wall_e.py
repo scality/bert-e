@@ -260,13 +260,13 @@ class TestWallE(unittest.TestCase):
         except Conflict as e:
             self.assertIn(
                 "`improvement/RING-0006` into `w/4.3/improvement/RING-0006`",
-                e.message)
+                e.msg)
             self.assertIn(
                 "git checkout w/4.3/improvement/RING-0006",
-                e.message)
+                e.msg)
             self.assertIn(
                 "git merge origin/improvement/RING-0006",
-                e.message)
+                e.msg)
         else:
             self.fail("No conflict detected.")
 
