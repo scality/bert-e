@@ -209,7 +209,9 @@ class IntegrationBranch(ScalBranch):
         title = '[%s] #%s: %s' % (self.development_branch.name,
                                   parent_pr['id'], parent_pr['title'])
 
-        description = render('pull_request_description.md', pr=parent_pr)
+        description = render('pull_request_description.md',
+                             wall_e=WALL_E_USERNAME,
+                             pr=parent_pr)
         pr = bitbucket_repo.create_pull_request(
             title=title,
             name='name',
