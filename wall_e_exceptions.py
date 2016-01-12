@@ -5,14 +5,10 @@ from template_loader import render
 
 
 # base exceptions
-class WallE_Exception(Exception):
-    pass
-
-
 class WallE_TemplateException(Exception):
     def __init__(self, **kwargs):
-        msg = render(self.template, **kwargs)
-        Exception.__init__(self, msg)
+        msg = render(self.template, code=self.code, **kwargs)
+        super(WallE_TemplateException, self).__init__(msg)
 
 
 class WallE_InternalException(Exception):
@@ -23,88 +19,124 @@ class WallE_SilentException(Exception):
     pass
 
 
-# derived exceptions
-class UnableToSendEmailException(WallE_InternalException):
-    pass
+# template exceptions
+class InitMessage(WallE_TemplateException):
+    code = 10000
+    template = 'init.md'
 
 
-class ImproperEmailFormatException(WallE_InternalException):
-    pass
+class HelpMessage(WallE_TemplateException):
+    code = 10001
+    template = 'help.md'
 
 
-class CommentAlreadyExistsException(WallE_SilentException):
-    pass
+class CommandNotImplemented(WallE_TemplateException):
+    code = 10002
+    template = 'not_implemented.md'
 
 
-class AuthorApprovalRequiredException(WallE_TemplateException):
-    template = 'need_approval.md'
+class StatusReport(WallE_TemplateException):
+    code = 10003
+    template = 'status.md'
 
 
-class PeerApprovalRequiredException(WallE_TemplateException):
-    template = 'need_approval.md'
+class BuildFailed(WallE_TemplateException):
+    code = 10004
+    template = 'build_failed.md'
 
 
-class UnrecognizedBranchPatternException(WallE_Exception):
-    pass
+class BuildInProgress(WallE_TemplateException):
+    code = 10005
+    template = 'build_in_progress.md'
 
 
-class HelpException(WallE_Exception):
-    pass
+class BuildNotStarted(WallE_TemplateException):
+    code = 10006
+    template = 'build_not_started.md'
 
 
-class NotMyJobException(WallE_InternalException):
-    def __init__(self, current_branch, branch_to_be_merged):
-        msg = ("Not my job to merge `%s` into `%s`."
-               % (branch_to_be_merged, current_branch))
-        WallE_Exception.__init__(self, msg)
-
-
-class NothingToDoException(WallE_SilentException):
-    pass
-
-
-class BranchNameInvalidException(WallE_Exception):
-    def __init__(self, name):
-        self.branch = name
-        WallE_Exception.__init__(self, 'Invalid name: %r' % name)
-
-
-class BranchHistoryMismatch(WallE_TemplateException):
-    template = 'history_mismatch.md'
-
-
-class PrefixCannotBeMergedException(WallE_TemplateException):
-    template = 'forbidden_branch.md'
-
-
-class BranchDoesNotAcceptFeaturesException(WallE_TemplateException):
-    template = 'forbidden_branch_in_maintenance.md'
-
-
-class ConflictException(WallE_TemplateException):
+class Conflict(WallE_TemplateException):
+    code = 10007
     template = 'conflict.md'
 
 
-class BuildFailedException(WallE_Exception):
-    def __init__(self, pr_id):
-        msg = 'The build on the pull request #%s did not succeed' % pr_id
-        WallE_Exception.__init__(self, msg)
+class AuthorApprovalRequired(WallE_TemplateException):
+    code = 10008
+    template = 'need_approval.md'
 
 
-class BuildInProgressException(WallE_Exception):
-    def __init__(self, pr_id):
-        msg = 'The build on the pull request #%s is still in progress...'
-        WallE_Exception.__init__(self, msg % pr_id)
+class PeerApprovalRequired(WallE_TemplateException):
+    code = 10009
+    template = 'need_approval.md'
 
 
-class BuildNotStartedException(WallE_Exception):
-    def __init__(self, pr_id):
-        msg = 'The build on the pull request #%s did not start yet.' % pr_id
-        WallE_Exception.__init__(self, msg)
+class MissingJiraIdMaintenance(WallE_TemplateException):
+    code = 10010
+    template = 'missing_jira_id_for_maintenance_branch.md'
 
 
-class ParentNotFoundException(WallE_InternalException):
+class MismatchPrefixIssueType(WallE_TemplateException):
+    code = 10011
+    template = 'mismatch_prefix_issue_type.md'
+
+
+class IncorrectFixVersion(WallE_TemplateException):
+    code = 10012
+    template = 'incorrect_fix_version.md'
+
+
+class PrefixCannotBeMerged(WallE_TemplateException):
+    code = 10013
+    template = 'forbidden_branch.md'
+
+
+class BranchDoesNotAcceptFeatures(WallE_TemplateException):
+    code = 10014
+    template = 'forbidden_branch_in_maintenance.md'
+
+
+class BranchHistoryMismatch(WallE_TemplateException):
+    code = 10015
+    template = 'history_mismatch.md'
+
+
+# internal exceptions
+class UnableToSendEmail(WallE_InternalException):
+    pass
+
+
+class ImproperEmailFormat(WallE_InternalException):
+    pass
+
+
+class BranchNameInvalid(WallE_InternalException):
+    def __init__(self, name):
+        self.branch = name
+        msg = 'Invalid name: %r' % name
+        super(BranchNameInvalid, self).__init__(msg)
+
+
+class ParentNotFound(WallE_InternalException):
     def __init__(self, pr_id):
         msg = ("The parent Pull Request from this pull request #%s"
                " couldn't be found." % pr_id)
-        WallE_InternalException.__init__(self, msg)
+        super(ParentNotFound, self).__init__(msg)
+
+
+class JiraUnknownIssueType(WallE_InternalException):
+    def __init__(self, issue_type):
+        msg = ("Jira issue: unknown type %r" % issue_type)
+        super(JiraUnknownIssueType, self).__init__(msg)
+
+
+# silent exceptions
+class CommentAlreadyExists(WallE_SilentException):
+    pass
+
+
+class NotMyJob(WallE_SilentException):
+    pass
+
+
+class NothingToDo(WallE_SilentException):
+    pass

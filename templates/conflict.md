@@ -1,17 +1,17 @@
-:bangbang: I've encountered a conflict when I tried to merge
+There was a conflict during the merge of
 `{{ source.name }}` into `{{ destination.name }}`.
-
 
 Here are the steps to resolve this conflict:
 
 ```
 #!bash\n
  $ git fetch
- $ git checkout {{ source.name }}
- $ git merge origin/{{ destination.name }}
+ $ git checkout {{ destination.name }}
+ $ git merge origin/{{ source.name }}
  $ # intense conflict fixing
  $ git add <any modified file>
  $ git commit
- $ git push\n
+ $ git push
 ```
-I'll then relaunch the checks with your new changesets and try to merge.
+
+After the push, please comment the original PR to resume the procedure.
