@@ -14,4 +14,4 @@ Here are the steps to resolve this conflict:
  $ git push
 ```
 
-The procedure will restart automatically after the push.
+After the push, please comment the original PR to resume the procedure.
