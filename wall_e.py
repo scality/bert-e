@@ -212,7 +212,7 @@ class IntegrationBranch(ScalBranch):
                     commit=commit,
                     integration_branch=self,
                     feature_branch=self.feature_branch,
-                    development_branch=self.development_branch,
+                    development_branch=self.development_branch
                 )
 
     def update_to_development_branch(self):
