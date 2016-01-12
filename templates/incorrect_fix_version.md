@@ -1,3 +1,3 @@
 The issue 'Fix Version/s' field
-contains {% issue_version|join(', ') %}.
-It must contain: {% expect_version|join(', ') %}."
+contains {{ issues|join(', ') }}.
+It must contain: {{ expects|join(', ') }}."

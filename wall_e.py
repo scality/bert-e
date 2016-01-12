@@ -388,7 +388,8 @@ class WallE:
             expect_versions = set(
                 self.destination_branch.impacted_versions.values())
             if issue_versions != expect_versions:
-                raise IncorrectFixVersion(issue_versions, expect_versions)
+                raise IncorrectFixVersion(issues=issue_versions,
+                                          expects=expect_versions)
 
     def create_integration_branches(self):
         integration_branches = []

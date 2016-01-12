@@ -704,9 +704,9 @@ class TestWallE(unittest.TestCase):
         with self.assertRaises(CommandNotImplemented):
             self.handle(pr['id'])
 
-    def test_cleanup_command(self):
+    def test_clear_command(self):
         pr = self.create_pr('bugfix/RING-00073', 'development/4.3')
-        pr.add_comment('@%s cleanup' % WALL_E_USERNAME)
+        pr.add_comment('@%s clear' % WALL_E_USERNAME)
 
         with self.assertRaises(CommandNotImplemented):
             self.handle(pr['id'])
