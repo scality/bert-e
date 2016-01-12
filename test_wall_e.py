@@ -23,7 +23,7 @@ from wall_e_exceptions import (AuthorApprovalRequired,
                                HelpMessage,
                                InitMessage,
                                NothingToDo,
-                               ParentNotFound,
+                               ParentPullRequestNotFound,
                                StatusReport)
 
 WALL_E_USERNAME = wall_e.WALL_E_USERNAME
@@ -681,7 +681,7 @@ class TestWallE(unittest.TestCase):
             reviewers=[{'username': EVA_USERNAME}],
             description=''
         )
-        with self.assertRaises(ParentNotFound):
+        with self.assertRaises(ParentPullRequestNotFound):
             self.handle(pr['id'],
                         bypass_author_approval=True,
                         bypass_peer_approval=True,

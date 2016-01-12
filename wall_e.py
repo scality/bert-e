@@ -1,19 +1,20 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import argparse
+from collections import OrderedDict
+import logging
+import re
 import smtplib
+import sys
 import time
 import traceback
-import sys
-import argparse
-import re
+
+from jira.exceptions import JIRAError
+import requests
 import six
 
-import logging
-import requests
 from template_loader import render
-from collections import OrderedDict
-
 from bitbucket_api import (Repository as BitBucketRepository,
                            Client)
 from git_api import Repository as GitRepository, Branch, MergeFailedException
@@ -33,11 +34,13 @@ from wall_e_exceptions import (AuthorApprovalRequired,
                                ImproperEmailFormat,
                                IncorrectFixVersion,
                                InitMessage,
+                               JiraIssueNotFound,
                                JiraUnknownIssueType,
                                MismatchPrefixIssueType,
                                MissingJiraIdMaintenance,
                                NothingToDo,
-                               ParentNotFound,
+                               ParentPullRequestNotFound,
+                               ParentJiraIssueNotFound,
                                PeerApprovalRequired,
                                PrefixCannotBeMerged,
                                StatusReport,
@@ -276,7 +279,7 @@ class WallE:
             res = re.search('(?P<pr_id>\d+)',
                             self.main_pr['description'])
             if not res:
-                raise ParentNotFound('Not found')
+                raise ParentPullRequestNotFound('Not found')
             self.pull_request_id = res.group('pr_id')
             self.main_pr = self.bbrepo.get_pull_request(
                 pull_request_id=res.group()
@@ -286,6 +289,7 @@ class WallE:
         self.commands = commands
         self.source_branch = None
         self.destination_branch = None
+        self.integration_branches = None
 
     def option_is_set(self, name):
         if name not in self.options.keys():
@@ -375,18 +379,30 @@ class WallE:
 
             raise MissingJiraIdMaintenance(branch=self.source_branch.name)
 
-        issue = JiraIssue(issue_id=self.source_branch.jira_issue_id,
-                          login='wall_e',
-                          passwd=self._bbconn.auth.password)
+        try:
+            issue_id = self.source_branch.jira_issue_id
+            issue = JiraIssue(issue_id=issue_id, login='wall_e',
+                              passwd=self._bbconn.auth.password)
+        except JIRAError as e:
+            if e.status_code == 404:
+                raise JiraIssueNotFound(issue=issue_id)
+            else:
+                raise
 
         # Use parent task instead
         if issue.fields.issuetype.name == 'Sub-task':
-            issue = JiraIssue(issue_id=issue.fields.parent.key,
-                              login='wall_e',
-                              passwd=self._bbconn.auth.password)
+            try:
+                parent_id = issue.fields.parent.key
+                issue = JiraIssue(issue_id=parent_id, login='wall_e',
+                                  passwd=self._bbconn.auth.password)
+            except JIRAError as e:
+                if e.status_code == 404:
+                    raise ParentJiraIssueNotFound(parent=parent_id,
+                                                  issue=issue_id)
+                else:
+                    raise
 
         # Fixme : add proper error handling
-        # What happens when the issue does not exist ? -> comment on PR ?
         # What happens in case of network failure ? -> fail silently ?
         # What else can happen ?
         if not self.option_is_set('bypass_jira_type_check'):
