@@ -45,43 +45,53 @@ class BuildFailed(WallE_TemplateException):
     template = 'build_failed.md'
 
 
-class Conflict(WallE_TemplateException):
+class BuildInProgress(WallE_TemplateException):
     code = 10005
+    template = 'build_in_progress.md'
+
+
+class BuildNotStarted(WallE_TemplateException):
+    code = 10006
+    template = 'build_not_started.md'
+
+
+class Conflict(WallE_TemplateException):
+    code = 10007
     template = 'conflict.md'
 
 
 class AuthorApprovalRequired(WallE_TemplateException):
-    code = 10006
+    code = 10008
     template = 'need_approval.md'
 
 
 class PeerApprovalRequired(WallE_TemplateException):
-    code = 10007
+    code = 10009
     template = 'need_approval.md'
 
 
 class MissingJiraIdMaintenance(WallE_TemplateException):
-    code = 10008
+    code = 10010
     template = 'missing_jira_id_for_maintenance_branch.md'
 
 
 class MismatchPrefixIssueType(WallE_TemplateException):
-    code = 10009
+    code = 10011
     template = 'mismatch_prefix_issue_type.md'
 
 
 class IncorrectFixVersion(WallE_TemplateException):
-    code = 10010
+    code = 10012
     template = 'incorrect_fix_version.md'
 
 
 class PrefixCannotBeMerged(WallE_TemplateException):
-    code = 10011
+    code = 10013
     template = 'forbidden_branch.md'
 
 
 class BranchDoesNotAcceptFeatures(WallE_TemplateException):
-    code = 10012
+    code = 10014
     template = 'forbidden_branch_in_maintenance.md'
 
 
@@ -123,12 +133,4 @@ class NotMyJob(WallE_SilentException):
 
 
 class NothingToDo(WallE_SilentException):
-    pass
-
-
-class BuildInProgress(WallE_SilentException):
-    pass
-
-
-class BuildNotStarted(WallE_SilentException):
     pass

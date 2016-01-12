@@ -285,13 +285,13 @@ class WallE:
             )['state']
         except requests.exceptions.HTTPError as e:
             if e.response.status_code == 404:
-                raise BuildNotStarted()
+                raise BuildNotStarted(pr_id=pr['id'])
             raise
         else:
             if build_state == 'FAILED':
-                raise BuildFailed()
+                raise BuildFailed(pr_id=pr['id'])
             elif build_state == 'INPROGRESS':
-                raise BuildInProgress()
+                raise BuildInProgress(pr_id=pr['id'])
             assert build_state == 'SUCCESSFUL'
 
     def find_bitbucket_comment(self,
