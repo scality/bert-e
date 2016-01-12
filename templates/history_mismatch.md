@@ -1,11 +1,11 @@
-Commit #{{commit}} which belongs to the first integration branch
-`{{integration_branch.name}}` does not come from the development branch
-`{{development_branch.name}}` or from the feature branch
- `{{feature_branch.name}}`.
+Commit #{{commit}}, which belongs to the first integration branch
+`{{integration_branch.name}}`, appears to come neither from
+th development branch `{{development_branch.name}}`, nor from the
+feature branch `{{feature_branch.name}}`.
 
-Either you have changed your feature branch history
-(e.g. rebase) or you have directly commited on the first integration branch
+Either the feature branch history has changed (e.g. a rebase),
+or a commit was added directly on the first integration branch
 `{{integration_branch.name}}`.
 
-In either cases, I cannot merge until you delete all the related `w/*`
-branches or rebase them if they contain useful commits.
+In either cases, the merge is not possible until all related `w/*`
+branches are manually deleted or rebased.
