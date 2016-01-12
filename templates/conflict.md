@@ -1,6 +1,5 @@
-:bangbang: I've encountered a conflict when I tried to merge
+There was a conflict during the merge of
 `{{ source.name }}` into `{{ destination.name }}`.
-
 
 Here are the steps to resolve this conflict:
 
@@ -12,6 +11,7 @@ Here are the steps to resolve this conflict:
  $ # intense conflict fixing
  $ git add <any modified file>
  $ git commit
- $ git push\n
+ $ git push
 ```
-I'll then relaunch the checks with your new changesets and try to merge.
+
+The procedure will restart automatically after the push.
