@@ -1,10 +1,9 @@
-Hi @{{ pr['author']['username'] }} and `reviewers`,
-you will need to approve this pull request if you think that the integration
+Please approve this pull request if you think that the integration
 pull requests are **ready to be merged**.
 
 Before approving, you should double check the diffs of the integration
 pull requests to ensure that the changesets I'm about to merge into the
-development branches are correct :
+development branches are correct:
 
 * this pull request #{{ pr['id'] }}
 will merge `{{ pr['source']['branch']['name'] }}`
@@ -17,8 +16,7 @@ If you think that one of the auto-generated changesets is not ok, you can
 modify the `w/*` integration branches accordingly.
 
 For example, if you don't want this changeset to land in
-`{{ child_prs[0]['destination']['branch']['name'] }}`,
-you will need to :
+`{{ child_prs[0]['destination']['branch']['name'] }}`:
 
 ```
 #!bash
