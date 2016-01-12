@@ -794,7 +794,12 @@ def main():
         'build':
             Command(priviledged=False,
                     handler='command_not_implemented',
-                    help='re-start a fresh build (TBA)')
+                    help='re-start a fresh build (TBA)'),
+        'cleanup':
+            Command(priviledged=False,
+                    handler='command_not_implemented',
+                    help='remove all comments from Wall-E from the '
+                         'history (TBA)')
     }
 
     wall_e = WallE(WALL_E_USERNAME, args.password, WALL_E_EMAIL,

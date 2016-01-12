@@ -689,6 +689,13 @@ class TestWallE(unittest.TestCase):
         with self.assertRaises(CommandNotImplemented):
             self.handle(pr['id'])
 
+    def test_cleanup_command(self):
+        pr = self.create_pr('bugfix/RING-00073', 'development/4.3')
+        pr.add_comment('@%s cleanup' % WALL_E_USERNAME)
+
+        with self.assertRaises(CommandNotImplemented):
+            self.handle(pr['id'])
+
 
 def main():
     parser = argparse.ArgumentParser(description='Launches Wall-E tests.')
