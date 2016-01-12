@@ -1,2 +1,2 @@
-branch prefix name {{ prefix }} mismatches
-jira issue type field {{ expected }}
+branch prefix ```{{ prefix }}``` mismatches
+jira issue type ```{{ expected }}```
