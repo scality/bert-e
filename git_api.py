@@ -9,7 +9,6 @@ class Repository(object):
     def __init__(self, url):
         self._url = url
         self.directory = mkdtemp()
-        os.chdir(self.directory)
 
     def __enter__(self):
         return self
@@ -24,16 +23,15 @@ class Repository(object):
     def clone(self, reference=''):
         if reference:
             reference = '--reference ' + reference
-        cmd('git clone %s %s' % (reference, self._url))
+        self.cmd('git clone %s %s' % (reference, self._url))
         repo_slug = self._url.split('/')[-1].replace('.git', '')
-        os.chdir(repo_slug)
         self.directory = os.path.join(self.directory, repo_slug)
 
     def config(self, key, value):
-        cmd('git config %s %s' % (key, value))
+        self.cmd('git config %s %s' % (key, value))
 
     def push_everything(self):
-        cmd('git push --all origin -u')
+        self.cmd('git push --all origin -u')
 
     def remote_branch_exists(self, name):
         """Test if a remote branch exists.
