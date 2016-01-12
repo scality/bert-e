@@ -32,11 +32,13 @@ from wall_e_exceptions import (AuthorApprovalRequired,
                                ImproperEmailFormat,
                                IncorrectFixVersion,
                                InitMessage,
+                               JiraIssueNotFound,
                                JiraUnknownIssueType,
                                MismatchPrefixIssueType,
                                MissingJiraIdMaintenance,
                                NothingToDo,
-                               ParentNotFound,
+                               ParentPullRequestNotFound,
+                               ParentJiraIssueNotFound,
                                PeerApprovalRequired,
                                PrefixCannotBeMerged,
                                StatusReport,
@@ -263,7 +265,7 @@ class WallE:
             res = re.search('(?P<pr_id>\d+)',
                             self.main_pr['description'])
             if not res:
-                raise ParentNotFound('Not found')
+                raise ParentPullRequestNotFound('Not found')
             self.pull_request_id = res.group('pr_id')
             self.main_pr = self.bbrepo.get_pull_request(
                 pull_request_id=res.group()
@@ -369,7 +371,7 @@ class WallE:
                               passwd=self._bbconn.auth.password)
         except JIRAError as e:
             if e.status_code == 404:
-                raise WallE_Exception('Jira issue id %r not found', issue_id)
+                raise JiraIssueNotFound(issue=issue_id)
             else:
                 raise
 
@@ -381,8 +383,8 @@ class WallE:
                                   passwd=self._bbconn.auth.password)
             except JIRAError as e:
                 if e.status_code == 404:
-                    raise WallE_Exception('Parent Jira issue id %r of %r not '
-                                          'found' % (parent_id, issue_id))
+                    raise ParentJiraIssueNotFound(parent=parent_id,
+                                                  issue=issue_id)
                 else:
                     raise
 

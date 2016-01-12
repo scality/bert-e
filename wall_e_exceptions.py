@@ -95,6 +95,16 @@ class BranchDoesNotAcceptFeatures(WallE_TemplateException):
     template = 'forbidden_branch_in_maintenance.md'
 
 
+class JiraIssueNotFound(WallE_TemplateException):
+    code = 10016
+    template = 'jira_issue_not_found.md'
+
+
+class ParentJiraIssueNotFound(JiraIssueNotFound):
+    code = 10017
+    template = 'parent_jira_issue_not_found.md'
+
+
 # internal exceptions
 class UnableToSendEmail(WallE_InternalException):
     pass
@@ -111,11 +121,11 @@ class BranchNameInvalid(WallE_InternalException):
         super(BranchNameInvalid, self).__init__(msg)
 
 
-class ParentNotFound(WallE_InternalException):
+class ParentPullRequestNotFound(WallE_InternalException):
     def __init__(self, pr_id):
         msg = ("The parent Pull Request from this pull request #%s"
                " couldn't be found." % pr_id)
-        super(ParentNotFound, self).__init__(msg)
+        super(ParentPullRequestNotFound, self).__init__(msg)
 
 
 class JiraUnknownIssueType(WallE_InternalException):
