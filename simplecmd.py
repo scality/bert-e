@@ -15,5 +15,4 @@ def cmd(_):
         return subprocess.check_output(_, shell=True)
     else:
         with open(os.devnull, 'wb') as devnull:
-            return subprocess.check_output(_, shell=True,
-                                           stdout=devnull, stderr=devnull)
+            return subprocess.check_output(_, shell=True, stderr=devnull)
