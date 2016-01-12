@@ -1,5 +1,5 @@
-Please approve this pull request if you think that the integration
-pull requests are **ready to be merged**.
+Please approve this pull request (reviewers and author), if you think
+that the integration pull requests are **ready to be merged**.
 
 Before approving, you should double check the diffs of the integration
 pull requests to ensure that the changesets I'm about to merge into the
