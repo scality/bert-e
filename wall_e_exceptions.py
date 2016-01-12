@@ -8,7 +8,7 @@ from template_loader import render
 class WallE_TemplateException(Exception):
     def __init__(self, **kwargs):
         msg = render(self.template, code=self.code, **kwargs)
-        Exception.__init__(self, msg)
+        super(WallE_TemplateException, self).__init__(msg)
 
 
 class WallE_InternalException(Exception):
@@ -107,20 +107,21 @@ class ImproperEmailFormat(WallE_InternalException):
 class BranchNameInvalid(WallE_InternalException):
     def __init__(self, name):
         self.branch = name
-        WallE_InternalException.__init__(self, 'Invalid name: %r' % name)
+        msg = 'Invalid name: %r' % name
+        super(WallE_InternalException, self).__init__(msg)
 
 
 class ParentNotFound(WallE_InternalException):
     def __init__(self, pr_id):
         msg = ("The parent Pull Request from this pull request #%s"
                " couldn't be found." % pr_id)
-        WallE_InternalException.__init__(self, msg)
+        super(WallE_InternalException, self).__init__(msg)
 
 
 class JiraUnknownIssueType(WallE_InternalException):
     def __init__(self, issue_type):
         msg = ("Jira issue: unknown type %r" % issue_type)
-        WallE_InternalException.__init__(self, msg)
+        super(WallE_InternalException, self).__init__(msg)
 
 
 # silent exceptions
