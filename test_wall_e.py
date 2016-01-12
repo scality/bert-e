@@ -674,6 +674,13 @@ class TestWallE(unittest.TestCase):
         with self.assertRaises(StatusReport):
             self.handle(pr['id'])
 
+    def test_wait_option(self):
+        pr = self.create_pr('bugfix/RING-00071', 'development/4.3')
+        pr.add_comment('@%s wait' % WALL_E_USERNAME)
+
+        with self.assertRaises(NothingToDo):
+            self.handle(pr['id'])
+
 
 def main():
     parser = argparse.ArgumentParser(description='Launches Wall-E tests.')

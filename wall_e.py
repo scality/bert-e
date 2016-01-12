@@ -451,6 +451,9 @@ class WallE:
 
         self.handle_commands()
 
+        if self.option_is_set('wait'):
+            raise NothingToDo('wait option is set')
+
         # TODO: Check the size of the diff and issue warnings
 
         # TODO: Check build status
@@ -772,7 +775,10 @@ def main():
         'unanimity':
             Option(priviledged=False,
                    help="Change review acceptance criteria from "
-                        "`one reviewer at least` to `all reviewers` (TBA)")
+                        "`one reviewer at least` to `all reviewers` (TBA)"),
+        'wait':
+            Option(priviledged=False,
+                   help="Instruct Wall-E not to run until further notice")
     }
 
     commands = {
