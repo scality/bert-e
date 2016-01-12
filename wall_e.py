@@ -759,6 +759,10 @@ def main():
             Option(priviledged=True,
                    value=args.bypass_author_approval,
                    help=bypass_author_peer_help),
+        'bypass_tester_approval':
+            Option(priviledged=True,
+                   value=args.bypass_author_approval,
+                   help='Bypass the pull request tester\'s approval'),
         'bypass_jira_version_check':
             Option(priviledged=True,
                    value=args.bypass_jira_version_check,
@@ -774,11 +778,11 @@ def main():
         'bypass_commit_size':
             Option(priviledged=True,
                    value=False,
-                   help='Bypass the check on the size of the changeset (TBA)'),
+                   help='Bypass the check on the size of the changeset ```TBA```'),
         'unanimity':
             Option(priviledged=False,
                    help="Change review acceptance criteria from "
-                        "`one reviewer at least` to `all reviewers` (TBA)"),
+                        "`one reviewer at least` to `all reviewers` ```TBA```"),
         'wait':
             Option(priviledged=False,
                    help="Instruct Wall-E not to run until further notice")
@@ -793,21 +797,21 @@ def main():
             Command(priviledged=False,
                     handler='publish_status_report',
                     help='print Wall-E\'s current status in '
-                         'the pull-request (TBA)'),
+                         'the pull-request ```TBA```'),
         'build':
             Command(priviledged=False,
                     handler='command_not_implemented',
-                    help='re-start a fresh build (TBA)'),
+                    help='re-start a fresh build ```TBA```'),
         'clear':
             Command(priviledged=False,
                     handler='command_not_implemented',
                     help='remove all comments from Wall-E from the '
-                         'history (TBA)'),
+                         'history ```TBA```'),
         'reset':
             Command(priviledged=False,
                     handler='command_not_implemented',
                     help='delete integration branches, integration pull requests, '
-                         'and restart merge process from the beginning (TBA)')
+                         'and restart merge process from the beginning ```TBA```')
     }
 
     wall_e = WallE(WALL_E_USERNAME, args.password, WALL_E_EMAIL,
