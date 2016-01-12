@@ -108,20 +108,20 @@ class BranchNameInvalid(WallE_InternalException):
     def __init__(self, name):
         self.branch = name
         msg = 'Invalid name: %r' % name
-        super(WallE_InternalException, self).__init__(msg)
+        super(BranchNameInvalid, self).__init__(msg)
 
 
 class ParentNotFound(WallE_InternalException):
     def __init__(self, pr_id):
         msg = ("The parent Pull Request from this pull request #%s"
                " couldn't be found." % pr_id)
-        super(WallE_InternalException, self).__init__(msg)
+        super(ParentNotFound, self).__init__(msg)
 
 
 class JiraUnknownIssueType(WallE_InternalException):
     def __init__(self, issue_type):
         msg = ("Jira issue: unknown type %r" % issue_type)
-        super(WallE_InternalException, self).__init__(msg)
+        super(JiraUnknownIssueType, self).__init__(msg)
 
 
 # silent exceptions
