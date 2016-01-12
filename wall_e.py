@@ -661,10 +661,7 @@ class WallE:
 
     def get_status_report(self):
         # tmp hard coded
-        return {'jira_check': {'display_name': 'jira',
-                               'pass': True},
-                'build_status': {'display_name': 'build',
-                                 'pass': False}}
+        return {}
 
     def publish_status_report(self, args):
         raise StatusReport(status=self.get_status_report(),
