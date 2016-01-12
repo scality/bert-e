@@ -2,14 +2,16 @@
 # -*- coding: utf-8 -*-
 
 import argparse
-import requests
+import logging
 import sys
 import unittest
-import logging
+import requests
 
+import wall_e
 from bitbucket_api import (Client, PullRequest,
                            Repository as BitbucketRepository)
-import wall_e
+from git_api import Repository as GitRepository
+from simplecmd import cmd
 from wall_e_exceptions import (AuthorApprovalRequired,
                                BranchDoesNotAcceptFeatures,
                                BranchNameInvalid,
@@ -21,8 +23,6 @@ from wall_e_exceptions import (AuthorApprovalRequired,
                                NothingToDo,
                                ParentNotFound,
                                StatusReport)
-from git_api import Repository as GitRepository
-from simplecmd import cmd
 
 WALL_E_USERNAME = wall_e.WALL_E_USERNAME
 WALL_E_EMAIL = wall_e.WALL_E_EMAIL
@@ -237,13 +237,25 @@ class TestWallE(unittest.TestCase):
                     bypass_jira_version_check=True,
                     bypass_jira_type_check=True,
                     bypass_build_status=True)
-        with self.assertRaises(Conflict):
+        try:
             self.handle(pr2['id'],
                         bypass_author_approval=True,
                         bypass_peer_approval=True,
                         bypass_jira_version_check=True,
                         bypass_jira_type_check=True,
                         bypass_build_status=True)
+        except Conflict as e:
+            self.assertIn(
+                "`improvement/RING-0006` into `w/4.3/improvement/RING-0006`",
+                e.message)
+            self.assertIn(
+                "git checkout w/4.3/improvement/RING-0006",
+                e.message)
+            self.assertIn(
+                "git merge origin/improvement/RING-0006",
+                e.message)
+        else:
+            self.fail("No conflict detected.")
 
     def test_approval(self):
         """Test approvals of author and reviewer
@@ -539,7 +551,8 @@ class TestWallE(unittest.TestCase):
                              'bypass_author_approval,  '
                              '     bypass_peer_approval,,   '
                              '  bypass_build_status-bypass_jira_version_check'
-                             '   bypass_jira_type_check -   ' % WALL_E_USERNAME)
+                             '   bypass_jira_type_check -   ' %
+                             WALL_E_USERNAME)
         self.handle(pr['id'])
 
     def test_help_command(self):
@@ -558,7 +571,8 @@ class TestWallE(unittest.TestCase):
     def test_help_command_with_inter_comment_from_wall_e(self):
         pr = self.create_pr('bugfix/RING-00063', 'development/4.3')
         pr.add_comment('@%s help' % WALL_E_USERNAME)
-        pr_wall_e = self.bbrepo_wall_e.get_pull_request(pull_request_id=pr['id'])
+        pr_wall_e = self.bbrepo_wall_e.get_pull_request(
+            pull_request_id=pr['id'])
         pr_wall_e.add_comment('this is my help already')
         self.handle(pr['id'],
                     bypass_author_approval=True,
@@ -643,7 +657,8 @@ class TestWallE(unittest.TestCase):
 
     def test_child_pr_without_parent(self):
         # simulate creation of an integration branch with Wall-E
-        create_branch('w/bugfix/RING-00069', from_branch='development/4.3', file_=True)
+        create_branch('w/bugfix/RING-00069', from_branch='development/4.3',
+                      file_=True)
         pr = self.bbrepo_wall_e.create_pull_request(
             title='title',
             name='name',
