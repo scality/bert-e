@@ -19,8 +19,10 @@ from bitbucket_api import (Repository as BitBucketRepository,
                            Client)
 from git_api import Repository as GitRepository, Branch, MergeFailedException
 from jira_api import JiraIssue
+
 from wall_e_exceptions import (AuthorApprovalRequired,
                                BranchDoesNotAcceptFeatures,
+                               BranchHistoryMismatch,
                                BranchNameInvalid,
                                BuildFailed,
                                BuildInProgress,
@@ -190,6 +192,7 @@ class IntegrationBranch(ScalBranch):
         assert w == 'w'
         self.development_branch = DestinationBranch(
             'development/%s' % self.version)
+        self.feature_branch = FeatureBranch(self.subname)
 
     def create_from_dev_if_not_exists(self):
         self.create_if_not_exists(self.development_branch)
@@ -203,6 +206,17 @@ class IntegrationBranch(ScalBranch):
 
     def merge_from_development_branch(self):
         self.merge_from_branch(self.development_branch)
+
+    def check_history_did_not_change(self):
+        for commit in self.get_all_commits_since_started_from(
+                self.feature_branch):
+            if not self.development_branch.includes_commit(commit):
+                raise BranchHistoryMismatch(
+                    commit=commit,
+                    integration_branch=self,
+                    feature_branch=self.feature_branch,
+                    development_branch=self.development_branch
+                )
 
     def update_to_development_branch(self):
         self.development_branch.merge(self, force_commit=False)
@@ -426,6 +440,9 @@ class WallE:
                 integration_branch in self.integration_branches]
 
     def update_integration_branches_from_development_branches(self):
+        # The first integration branch should not contain commits
+        # that are not in development/* or in the feature branch.
+        self.integration_branches[0].check_history_did_not_change()
         for integration_branch in self.integration_branches:
             integration_branch.merge_from_development_branch()
 
@@ -704,7 +721,8 @@ def main():
                                                  'pull requests.')
     bypass_author_approval_help = 'Bypass the pull request author\'s approval'
     bypass_author_peer_help = 'Bypass the pull request peer\'s approval'
-    bypass_jira_version_check_help = 'Bypass the Jira Fix Version/s field check'
+    bypass_jira_version_check_help = \
+        'Bypass the Jira Fix Version/s field check'
     bypass_jira_type_check_help = 'Bypass the Jira issue Type field check'
     bypass_build_status_help = 'Bypass the build and test status'
 
