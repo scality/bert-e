@@ -120,6 +120,10 @@ class TestWallE(unittest.TestCase):
         cls.gitrepo = GitRepository(cls.bbrepo.get_git_url())
         initialize_git_repo(cls.gitrepo)
 
+    @classmethod
+    def tearDownClass(cls):
+        cls.gitrepo.delete()
+
     def create_pr(
             self,
             feature_branch,

@@ -1,7 +1,8 @@
 import os
+from shutil import rmtree
 from simplecmd import cmd
-from tempfile import mkdtemp
 import subprocess
+from tempfile import mkdtemp
 
 
 class Repository(object):
@@ -9,6 +10,16 @@ class Repository(object):
         self._url = url
         self.directory = mkdtemp()
         os.chdir(self.directory)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, type_, value, tb):
+        self.delete()
+
+    def delete(self):
+        rmtree(self.directory)
+        self.directory = None
 
     def clone(self, reference=''):
         if reference:
