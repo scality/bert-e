@@ -790,7 +790,11 @@ def main():
             Command(priviledged=False,
                     handler='publish_status_report',
                     help='print Wall-E\'s current status in '
-                         'the pull-request (TBA)')
+                         'the pull-request (TBA)'),
+        'build':
+            Command(priviledged=False,
+                    handler='command_not_implemented',
+                    help='re-start a fresh build (TBA)')
     }
 
     wall_e = WallE(WALL_E_USERNAME, args.password, WALL_E_EMAIL,

@@ -19,7 +19,8 @@ from wall_e_exceptions import (BranchDoesNotAcceptFeatures,
                                HelpMessage,
                                ParentNotFound,
                                StatusReport,
-                               InitMessage)
+                               InitMessage,
+                               CommandNotImplemented)
 from git_api import Repository as GitRepository
 from simplecmd import cmd
 
@@ -679,6 +680,13 @@ class TestWallE(unittest.TestCase):
         pr.add_comment('@%s wait' % WALL_E_USERNAME)
 
         with self.assertRaises(NothingToDo):
+            self.handle(pr['id'])
+
+    def test_build_command(self):
+        pr = self.create_pr('bugfix/RING-00072', 'development/4.3')
+        pr.add_comment('@%s build' % WALL_E_USERNAME)
+
+        with self.assertRaises(CommandNotImplemented):
             self.handle(pr['id'])
 
 

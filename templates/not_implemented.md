@@ -1,5 +1,5 @@
-# Error #
+# Not implemented #
 
-I'm sorry, this command is not implemented.
+This command will be implemented soon.
 
 {% include 'footer.md' %}
