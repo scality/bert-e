@@ -1,11 +1,10 @@
 This pull request has been successfully merged by @{{ wall_e }}.
 
-Releases are:
-
+Impacted development branches are:
 
 {% for item in releases -%}
 * {{item}}
 
 {% endfor %}
 
-Please switch the associated ticket {{ticket}} to DONE.
+Please check the status of the associated ticket {{ticket}}.
