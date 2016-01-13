@@ -6,7 +6,6 @@ Releases are:
 {% for item in releases -%}
 * {{item}}
 
- 
 {% endfor %}
 
 Please switch the associated ticket {{ticket}} to DONE.
