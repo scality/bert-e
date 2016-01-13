@@ -216,6 +216,7 @@ class IntegrationBranch(Branch):
         assert w == 'w'
         self.development_branch = Branch(repo=repo, name='development/%s' %
                                          self.version)
+
     def create_from_dev_if_not_exists(self):
         self.create_if_not_exists(self.development_branch)
 
@@ -811,11 +812,13 @@ def main():
         'bypass_commit_size':
             Option(priviledged=True,
                    value=False,
-                   help='Bypass the check on the size of the changeset ```TBA```'),
+                   help='Bypass the check on the size of the changeset '
+                        '```TBA```'),
         'unanimity':
             Option(priviledged=False,
                    help="Change review acceptance criteria from "
-                        "`one reviewer at least` to `all reviewers` ```TBA```"),
+                        "`one reviewer at least` to `all reviewers` "
+                        "```TBA```"),
         'wait':
             Option(priviledged=False,
                    help="Instruct Wall-E not to run until further notice")
@@ -843,8 +846,9 @@ def main():
         'reset':
             Command(priviledged=False,
                     handler='command_not_implemented',
-                    help='delete integration branches, integration pull requests, '
-                         'and restart merge process from the beginning ```TBA```')
+                    help='delete integration branches, integration pull '
+                         'requests, and restart merge process from the '
+                         'beginning ```TBA```')
     }
 
     wall_e = WallE(WALL_E_USERNAME, args.password, WALL_E_EMAIL,
