@@ -227,9 +227,6 @@ class IntegrationBranch(Branch):
             raise Conflict(source=source_branch,
                            destination=self)
 
-    def merge_from_development_branch(self):
-        self.merge_from_branch(self.development_branch)
-
     def check_history_did_not_change(self):
         feature_branch = FeatureBranchName(self.subname)
         for commit in self.get_all_commits_since_started_from(feature_branch):
@@ -441,7 +438,7 @@ class WallE:
         # that are not in development/* or in the feature branch.
         self.integration_branches[0].check_history_did_not_change()
         for integration_branch in self.integration_branches:
-            integration_branch.merge_from_development_branch()
+            integration_branch.merge_from_branch(integration_branch.development_branch)
 
     def update_integration_branches_from_feature_branch(self):
         branch_to_merge_from = self.source_branch
