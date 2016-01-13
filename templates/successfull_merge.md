@@ -7,4 +7,4 @@ Impacted development branches are:
 
 {% endfor %}
 
-Please check the status of the associated ticket {{ticket}}.
+Please check the status of the associated ticket [{{ticket}}](https://scality.atlassian.net/browse/{{ticket}}).
