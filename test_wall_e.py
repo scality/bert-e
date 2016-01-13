@@ -737,6 +737,11 @@ class TestWallE(unittest.TestCase):
                         bypass_jira_version_check=True,
                         bypass_jira_type_check=True,
                         bypass_build_status=False)
+
+        # We don't want to push without being up to date
+        self.gitrepo.cmd('git checkout development/4.3')
+        self.gitrepo.cmd('git pull')
+
         add_file_to_branch(self.gitrepo, 'development/4.3', 'rebase_on_me')
         rebase_branch(self.gitrepo, 'bugfix/RING-00074', 'development/4.3')
         with self.assertRaises(BranchHistoryMismatch):
