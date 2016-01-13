@@ -120,6 +120,10 @@ class TestWallE(unittest.TestCase):
         cls.gitrepo = GitRepository(cls.bbrepo.get_git_url())
         initialize_git_repo(cls.gitrepo)
 
+    @classmethod
+    def tearDownClass(cls):
+        cls.gitrepo.delete()
+
     def create_pr(
             self,
             feature_branch,
@@ -260,13 +264,13 @@ class TestWallE(unittest.TestCase):
         except Conflict as e:
             self.assertIn(
                 "`improvement/RING-0006` into `w/4.3/improvement/RING-0006`",
-                e.message)
+                e.msg)
             self.assertIn(
                 "git checkout w/4.3/improvement/RING-0006",
-                e.message)
+                e.msg)
             self.assertIn(
                 "git merge origin/improvement/RING-0006",
-                e.message)
+                e.msg)
         else:
             self.fail("No conflict detected.")
 
