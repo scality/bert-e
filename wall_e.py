@@ -880,7 +880,7 @@ def main():
         raise
 
     else:
-        sucess_message = render('sucessfull_merge.md',
+        sucess_message = render('successfull_merge.md',
                                 wall_e=WALL_E_USERNAME,
                                 releases=[x.version
                                           for x in wall_e.integration_branches],
