@@ -11,7 +11,6 @@ import wall_e
 from bitbucket_api import (Client, PullRequest,
                            Repository as BitbucketRepository)
 from git_api import Repository as GitRepository
-from simplecmd import cmd
 from wall_e_exceptions import (AuthorApprovalRequired,
                                BranchDoesNotAcceptFeatures,
                                BranchHistoryMismatch,
@@ -737,7 +736,7 @@ class TestWallE(unittest.TestCase):
                         bypass_jira_version_check=True,
                         bypass_jira_type_check=True,
                         bypass_build_status=False)
-        add_file_to_branch('development/4.3', 'rebase_on_me')
+        add_file_to_branch(self.gitrepo, 'development/4.3', 'rebase_on_me')
         rebase_branch(self.gitrepo, 'bugfix/RING-00074', 'development/4.3')
         with self.assertRaises(BranchHistoryMismatch):
             self.handle(pr['id'],
