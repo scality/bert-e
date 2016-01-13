@@ -130,7 +130,8 @@ class TestWallE(unittest.TestCase):
             reviewers=[WALL_E_USERNAME],
             file_=True):
 
-        create_branch(self.gitrepo, feature_branch, from_branch=from_branch, file_=file_)
+        create_branch(self.gitrepo, feature_branch, from_branch=from_branch,
+                      file_=file_)
         pr = self.bbrepo_eva.create_pull_request(
             title='title',
             name='name',

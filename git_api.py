@@ -78,13 +78,13 @@ class Branch(object):
 
         try:
             self.repo.cmd('git merge --no-edit %s %s'
-                % ('--no-ff' if force_commit else '',
-                   source_branch.name))  # <- May fail if conflict
+                          % ('--no-ff' if force_commit else '',
+                             source_branch.name))  # <- May fail if conflict
         except subprocess.CalledProcessError:
             self.repo.cmd('git merge --abort')
             raise MergeFailedException(self.name, source_branch.name)
         if do_push:
-            self.push() # FIXME push will do an unnecessary checkout
+            self.push()  # FIXME push will do an unnecessary checkout
 
     def get_all_commits_since_started_from(self, source_branch):
         self.repo.checkout(source_branch.name)
@@ -94,7 +94,8 @@ class Branch(object):
 
     def includes_commit(self, sha1):
         try:
-            self.repo.cmd('git merge-base --is-ancestor %s %s' % (sha1, self.name))
+            self.repo.cmd('git merge-base --is-ancestor %s %s' % (sha1,
+                                                                  self.name))
         except subprocess.CalledProcessError:
             return False
         return True
