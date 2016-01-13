@@ -73,6 +73,16 @@ def rebase_branch(repo, branch_name, on_branch):
     repo.cmd('git push -f')
 
 
+class QuickTest(unittest.TestCase):
+    """Tests which don't need to interact with an external web services"""
+
+    def test_refuse_feature_on_maintenance_branch(self):
+        src = wall_e.FeatureBranchName('feature/RING-0004')
+        dest = wall_e.DestinationBranchName('development/4.3')
+        with self.assertRaises(BranchDoesNotAcceptFeatures):
+            src.check_if_should_handle(dest)
+
+
 class TestWallE(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
