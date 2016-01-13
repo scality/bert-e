@@ -434,7 +434,7 @@ class WallE:
             integration_branches.append(integration_branch)
         return integration_branches
 
-    def create_pull_requests(self, ):
+    def create_pull_requests(self):
         return [integration_branch.
                 create_pull_request(self.main_pr, self.bbrepo) for
                 integration_branch in self.integration_branches]
