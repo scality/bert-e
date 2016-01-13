@@ -881,10 +881,12 @@ def main():
 
     else:
         sucess_message = render('sucessfull_merge.md',
-                             wall_e=WALL_E_USERNAME,
-                             releases = [x.version for x in
-                                         self.integration_branches()],
-                             ticket=self.source_branch.jira_issue_id)
+                                wall_e=WALL_E_USERNAME,
+                                releases=[x.version
+                                          for x in wall_e.integration_branches],
+                                ticket=wall_e.source_branch.jira_issue_id)
+
+        wall_e.send_bitbucket_msg(sucess_message)
 
 if __name__ == '__main__':
     main()
