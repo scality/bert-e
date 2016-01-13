@@ -239,8 +239,8 @@ class TestWallE(unittest.TestCase):
         dst_branch = 'feature/RING-0005'
         src_branch = 'user/4.3/RING-0005'
         with self.assertRaises(BranchNameInvalid):
-            wall_e.DestinationBranch(dst_branch)
-            wall_e.FeatureBranch(src_branch)
+            wall_e.DestinationBranchName(dst_branch)
+            wall_e.FeatureBranchName(src_branch)
 
     def test_conflict(self):
         pr1 = self.create_pr('bugfix/RING-0006', 'development/4.3',
