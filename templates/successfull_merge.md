@@ -1,4 +1,4 @@
-I have successfully merged your pull request.
+I have successfully merged this pull request.
 
 Impacted development branches are:
 
