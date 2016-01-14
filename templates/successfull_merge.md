@@ -1,10 +1,11 @@
-This pull request has been successfully merged by @{{ wall_e }}.
+I have successfully merged your pull request.
 
 Impacted development branches are:
 
-{% for item in releases -%}
+{% for item in versions %}
 * {{item}}
-
 {% endfor %}
 
-Please check the status of the associated ticket [{{ticket}}](https://scality.atlassian.net/browse/{{ticket}}).
+Please check the status of the associated issue {{issue}}.
+
+Goodbye @{{author}}.
