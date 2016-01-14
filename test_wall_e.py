@@ -25,7 +25,8 @@ from wall_e_exceptions import (AuthorApprovalRequired,
                                InitMessage,
                                NothingToDo,
                                ParentPullRequestNotFound,
-                               StatusReport)
+                               StatusReport,
+                               SuccessMessage)
 
 WALL_E_USERNAME = wall_e.WALL_E_USERNAME
 WALL_E_EMAIL = wall_e.WALL_E_EMAIL
@@ -750,7 +751,7 @@ class TestWallE(unittest.TestCase):
 
     def test_success_message(self):
         """Test check the success message"""
-        feature_branch = 'feature/RING-0010'
+        feature_branch = 'bugfix/RING-0010'
         dst_branch = 'development/4.3'
         reviewers = ['scality_wall-e']
 
@@ -764,17 +765,11 @@ class TestWallE(unittest.TestCase):
             pull_request_id=pr['id'])
         pr_wall_e.approve()
 
-        self.handle(pr['id'],
-                    bypass_jira_version_check=True,
-                    bypass_jira_type_check=True,
-                    bypass_build_status=False)
-
-        success = pr.get_comments()[-1]
-        success_rendered = render('successfull_merge.md',
-                                  versions=['4.3'],
-                                  issue="RING-0010",
-                                  author=EVA_USERNAME)
-        assert success == success_rendered
+        with self.assertRaises(BranchHistoryMismatch):
+            self.handle(pr['id'],
+                        bypass_jira_version_check=True,
+                        bypass_jira_type_check=True,
+                        bypass_build_status=True)
 
 
 def main():
