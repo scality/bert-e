@@ -12,7 +12,6 @@ from bitbucket_api import (Client, PullRequest,
                            Repository as BitbucketRepository)
 from git_api import Repository as GitRepository
 from simplecmd import cmd
-from template_loader import render
 from wall_e_exceptions import (AuthorApprovalRequired,
                                BranchDoesNotAcceptFeatures,
                                BranchHistoryMismatch,
@@ -765,7 +764,7 @@ class TestWallE(unittest.TestCase):
             pull_request_id=pr['id'])
         pr_wall_e.approve()
 
-        with self.assertRaises(BranchHistoryMismatch):
+        with self.assertRaises(SuccessMessage):
             self.handle(pr['id'],
                         bypass_jira_version_check=True,
                         bypass_jira_type_check=True,

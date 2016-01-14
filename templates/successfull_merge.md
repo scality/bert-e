@@ -10,4 +10,4 @@ Please check the status of the associated issue {{issue}}.
 
 Goodbye @{{author}}.
 
-`Message code: {{ code }}`
+{% include 'footer.md' %}
