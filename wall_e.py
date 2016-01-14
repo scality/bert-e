@@ -527,25 +527,25 @@ class WallE:
             raise PrefixCannotBeMerged(self.source_branch.name)
 
         self.jira_checks()
-        repo = self.clone_git_repo(reference_git_repo)
-        self.integration_branches = self.create_integration_branches(repo)
-        self.update_integration_branches_from_development_branches()
-        self.update_integration_branches_from_feature_branch()
-        child_prs = self.create_pull_requests()
+        with self.clone_git_repo(reference_git_repo) as repo:
+            self.integration_branches = self.create_integration_branches(repo)
+            self.update_integration_branches_from_development_branches()
+            self.update_integration_branches_from_feature_branch()
+            child_prs = self.create_pull_requests()
 
-        # Check parent PR: approval
-        self.check_approval(child_prs)
+            # Check parent PR: approval
+            self.check_approval(child_prs)
 
-        # Check integration PR: build status
-        for pr in child_prs:
-            self.check_build_status(pr, 'jenkins_build')
-            self.check_build_status(pr, 'jenkins_utest')
+            # Check integration PR: build status
+            for pr in child_prs:
+                self.check_build_status(pr, 'jenkins_build')
+                self.check_build_status(pr, 'jenkins_utest')
 
-        if interactive and not confirm('Do you want to merge ?'):
-            return
+            if interactive and not confirm('Do you want to merge ?'):
+                return
 
-        for integration_branch in self.integration_branches:
-            integration_branch.update_to_development_branch()
+            for integration_branch in self.integration_branches:
+                integration_branch.update_to_development_branch()
 
     def check_options(self, author, keyword_list):
         logging.debug('checking keywords %s', keyword_list)
