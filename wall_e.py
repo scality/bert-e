@@ -550,6 +550,14 @@ class WallE:
         for integration_branch in self.integration_branches:
             integration_branch.update_to_development_branch()
 
+        if not no_comment:
+            success_message = render('successfull_merge.md',
+                                     versions=[x.version for x in
+                                               self.integration_branches],
+                                     issue=self.source_branch.jira_issue_id,
+                                     author=self.author)
+            self.send_bitbucket_msg(success_message)
+
     def check_options(self, author, keyword_list):
         logging.debug('checking keywords %s', keyword_list)
 
@@ -878,15 +886,6 @@ def main():
                              "(%s)" % time.asctime(),
                        content=traceback.format_exc())
         raise
-
-    else:
-        sucess_message = render('successfull_merge.md',
-                                wall_e=WALL_E_USERNAME,
-                                releases=[x.version
-                                          for x in wall_e.integration_branches],
-                                ticket=wall_e.source_branch.jira_issue_id)
-
-        wall_e.send_bitbucket_msg(sucess_message)
 
 if __name__ == '__main__':
     main()
