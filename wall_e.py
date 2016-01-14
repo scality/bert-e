@@ -562,7 +562,7 @@ class WallE:
 
     def get_comments_options(self):
         """Load settings from pull-request comments."""
-        for index, comment in enumerate(self.main_pr.get_comments()):
+        for comment in self.main_pr.get_comments():
             raw = comment['content']['raw']
             if not raw.strip().startswith('@%s' % WALL_E_USERNAME):
                 continue
@@ -617,7 +617,7 @@ class WallE:
 
     def handle_commands(self):
         """Detect the last command in pull-request comments and act on it."""
-        for index, comment in enumerate(self.main_pr.get_comments()):
+        for comment in self.main_pr.get_comments():
             author = comment['user']['username']
             if isinstance(author, list):
                 # python2 returns a list
