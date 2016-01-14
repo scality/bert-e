@@ -748,9 +748,8 @@ class TestWallE(unittest.TestCase):
                         bypass_jira_type_check=True,
                         bypass_build_status=False)
 
-    def test_success_messages(self):
-        """Test check the success message
-        """
+    def test_success_message(self):
+        """Test check the success message"""
         feature_branch = 'feature/RING-0010'
         dst_branch = 'development/4.3'
         reviewers = ['scality_wall-e']
@@ -761,11 +760,9 @@ class TestWallE(unittest.TestCase):
         pr.approve()
 
         # Reviewer
-        client = Client(WALL_E_USERNAME,
-                        self.args.wall_e_password,
-                        WALL_E_EMAIL)
-        w_pr = PullRequest(client, **pr._json_data)
-        w_pr.approve()
+        pr_wall_e = self.bbrepo_wall_e.get_pull_request(
+            pull_request_id=pr['id'])
+        pr_wall_e.approve()
 
         self.handle(pr['id'],
                     bypass_jira_version_check=True,
@@ -773,11 +770,11 @@ class TestWallE(unittest.TestCase):
                     bypass_build_status=False)
 
         success = pr.get_comments()[-1]
-        sucess_rendered = render('successfull_merge.md',
-                                 versions=['4.3'],
-                                 issue="RING-0010",
-                                 author=EVA_USERNAME)
-        assert success == sucess_rendered
+        success_rendered = render('successfull_merge.md',
+                                  versions=['4.3'],
+                                  issue="RING-0010",
+                                  author=EVA_USERNAME)
+        assert success == success_rendered
 
 
 def main():
