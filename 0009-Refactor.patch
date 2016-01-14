@@ -1,0 +1,54 @@
+From c52a6cdbe38ccc2035c7f99f2be3827875fed3e3 Mon Sep 17 00:00:00 2001
+From: Pierre-Louis Bonicoli <pierrelouis.bonicoli@scality.com>
+Date: Wed, 13 Jan 2016 09:24:35 +0100
+Subject: [PATCH 09/12] Refactor
+
+Issue: RELENG-338
+---
+ wall_e.py | 9 ++++-----
+ 1 file changed, 4 insertions(+), 5 deletions(-)
+
+diff --git a/wall_e.py b/wall_e.py
+index 95c0573..d98696b 100644
+--- a/wall_e.py
++++ b/wall_e.py
+@@ -282,7 +282,7 @@ class WallE:
+         self.commands = commands
+         self.source_branch = None
+         self.destination_branch = None
+-        self.integration_branches = None
++        self.integration_branches = [] # Doesn't to be an attribute
+ 
+     def option_is_set(self, name):
+         if name not in self.options.keys():
+@@ -417,7 +417,6 @@ class WallE:
+                                           expects=expect_versions)
+ 
+     def create_integration_branches(self):
+-        integration_branches = []
+         for version in self.destination_branch.impacted_versions:
+             integration_branch = IntegrationBranch('w/%s/%s' % (
+                 version,
+@@ -425,8 +424,8 @@ class WallE:
+             )
+             if not integration_branch.exists():
+                 integration_branch.create(integration_branch.development_branch)
+-            integration_branches.append(integration_branch)
+-        return integration_branches
++
++            self.integration_branches.append(integration_branch)
+ 
+     def create_pull_requests(self):
+         return [integration_branch.
+@@ -525,7 +524,7 @@ class WallE:
+ 
+         self.jira_checks()
+         self.clone_git_repo(reference_git_repo)
+-        self.integration_branches = self.create_integration_branches()
++        self.create_integration_branches()
+         self.update_integration_branches_from_development_branches()
+         self.update_integration_branches_from_feature_branch()
+         child_prs = self.create_pull_requests()
+-- 
+2.7.0.rc3
+

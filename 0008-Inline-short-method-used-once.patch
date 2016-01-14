@@ -1,0 +1,52 @@
+From 62c907763389cdbdccaddb86ccd9c93f87da5313 Mon Sep 17 00:00:00 2001
+From: Pierre-Louis Bonicoli <pierrelouis.bonicoli@scality.com>
+Date: Wed, 13 Jan 2016 09:19:30 +0100
+Subject: [PATCH 08/12] Inline short method used once
+
+Issue: RELENG-338
+---
+ git_api.py | 4 ----
+ wall_e.py  | 5 ++---
+ 2 files changed, 2 insertions(+), 7 deletions(-)
+
+diff --git a/git_api.py b/git_api.py
+index 11b9e68..0626dd6 100644
+--- a/git_api.py
++++ b/git_api.py
+@@ -120,10 +120,6 @@ class Branch(object):
+             raise BranchCreationFailedException(msg)
+         self.push()
+ 
+-    def create_if_not_exists(self, source_branch):
+-        if not self.exists():
+-            self.create(source_branch)
+-
+ 
+ class GitException(Exception):
+     pass
+diff --git a/wall_e.py b/wall_e.py
+index 53ed5af..95c0573 100644
+--- a/wall_e.py
++++ b/wall_e.py
+@@ -216,8 +216,6 @@ class IntegrationBranch(Branch):
+         assert w == 'w'
+         self.development_branch = Branch(repo=repo, name='development/%s' %
+                                          self.version)
+-    def create_from_dev_if_not_exists(self):
+-        self.create_if_not_exists(self.development_branch)
+ 
+     def merge_from_branch(self, source_branch):
+         try:
+@@ -425,7 +423,8 @@ class WallE:
+                 version,
+                 self.source_branch.name)
+             )
+-            integration_branch.create_from_dev_if_not_exists()
++            if not integration_branch.exists():
++                integration_branch.create(integration_branch.development_branch)
+             integration_branches.append(integration_branch)
+         return integration_branches
+ 
+-- 
+2.7.0.rc3
+

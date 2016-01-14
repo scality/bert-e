@@ -217,9 +217,6 @@ class IntegrationBranch(Branch):
         self.development_branch = Branch(repo=repo, name='development/%s' %
                                          self.version)
 
-    def create_from_dev_if_not_exists(self):
-        self.create_if_not_exists(self.development_branch)
-
     def merge_from_branch(self, source_branch):
         try:
             self.merge(source_branch, do_push=True)
@@ -424,7 +421,8 @@ class WallE:
         for version in self.destination_branch.impacted_versions:
             integration_branch = IntegrationBranch(repo, 'w/%s/%s' % (version,
                                                    self.source_branch.name))
-            integration_branch.create_from_dev_if_not_exists()
+            if not integration_branch.exists():
+                integration_branch.create(integration_branch.development_branch)
             integration_branches.append(integration_branch)
         return integration_branches
 

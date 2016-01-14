@@ -122,10 +122,6 @@ class Branch(object):
             raise BranchCreationFailedException(msg)
         self.push()
 
-    def create_if_not_exists(self, source_branch):
-        if not self.exists():
-            self.create(source_branch)
-
 
 class GitException(Exception):
     pass

@@ -1,0 +1,51 @@
+From 8a54fc51883eaa0ae1bb31dbd998e76f3dd79560 Mon Sep 17 00:00:00 2001
+From: Pierre-Louis Bonicoli <pierrelouis.bonicoli@scality.com>
+Date: Wed, 13 Jan 2016 09:29:21 +0100
+Subject: [PATCH 10/12] repo
+
+---
+ wall_e.py | 13 ++++++-------
+ 1 file changed, 6 insertions(+), 7 deletions(-)
+
+diff --git a/wall_e.py b/wall_e.py
+index d98696b..b3b9d67 100644
+--- a/wall_e.py
++++ b/wall_e.py
+@@ -416,12 +416,10 @@ class WallE:
+                 raise IncorrectFixVersion(issues=issue_versions,
+                                           expects=expect_versions)
+ 
+-    def create_integration_branches(self):
++    def create_integration_branches(self, repo):
+         for version in self.destination_branch.impacted_versions:
+-            integration_branch = IntegrationBranch('w/%s/%s' % (
+-                version,
+-                self.source_branch.name)
+-            )
++            integration_branch = IntegrationBranch(repo, 'w/%s/%s' % (version,
++                                                   self.source_branch.name))
+             if not integration_branch.exists():
+                 integration_branch.create(integration_branch.development_branch)
+ 
+@@ -451,6 +449,7 @@ class WallE:
+         git_repo.config('user.email', '"%s"'
+                         % self._bbconn.mail)
+         git_repo.config('user.name', '"Wall-E"')
++        return git_repo
+ 
+     def init(self):
+         """Displays a welcome message if conditions are met."""
+@@ -523,8 +522,8 @@ class WallE:
+             raise PrefixCannotBeMerged(self.source_branch.name)
+ 
+         self.jira_checks()
+-        self.clone_git_repo(reference_git_repo)
+-        self.create_integration_branches()
++        repo = self.clone_git_repo(reference_git_repo)
++        self.create_integration_branches(repo)
+         self.update_integration_branches_from_development_branches()
+         self.update_integration_branches_from_feature_branch()
+         child_prs = self.create_pull_requests()
+-- 
+2.7.0.rc3
+
