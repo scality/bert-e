@@ -282,7 +282,6 @@ class WallE:
         self.commands = commands
         self.source_branch = None
         self.destination_branch = None
-        self.integration_branches = None
 
     def option_is_set(self, name):
         if name not in self.options.keys():
@@ -422,25 +421,27 @@ class WallE:
             integration_branch = IntegrationBranch(repo, 'w/%s/%s' % (version,
                                                    self.source_branch.name))
             if not integration_branch.exists():
-                integration_branch.create(integration_branch.development_branch)
+                integration_branch.create(
+                    integration_branch.development_branch)
             integration_branches.append(integration_branch)
         return integration_branches
 
-    def create_pull_requests(self):
+    def create_pull_requests(self, integration_branches):
         return [integration_branch.
                 create_pull_request(self.main_pr, self.bbrepo) for
-                integration_branch in self.integration_branches]
+                integration_branch in integration_branches]
 
-    def update_integration_branches_from_development_branches(self):
+    def update_integration_from_dev(self, integration_branches):
         # The first integration branch should not contain commits
         # that are not in development/* or in the feature branch.
-        self.integration_branches[0].check_history_did_not_change()
-        for integration_branch in self.integration_branches:
-            integration_branch.merge_from_branch(integration_branch.development_branch)
+        integration_branches[0].check_history_did_not_change()
+        for integration_branch in integration_branches:
+            integration_branch.merge_from_branch(
+                integration_branch.development_branch)
 
-    def update_integration_branches_from_feature_branch(self):
+    def update_integration_from_feature(self, integration_branches):
         branch_to_merge_from = self.source_branch
-        for integration_branch in self.integration_branches:
+        for integration_branch in integration_branches:
             integration_branch.merge_from_branch(branch_to_merge_from)
             branch_to_merge_from = integration_branch
 
@@ -523,10 +524,10 @@ class WallE:
 
         self.jira_checks()
         with self.clone_git_repo(reference_git_repo) as repo:
-            self.integration_branches = self.create_integration_branches(repo)
-            self.update_integration_branches_from_development_branches()
-            self.update_integration_branches_from_feature_branch()
-            child_prs = self.create_pull_requests()
+            integration_branches = self.create_integration_branches(repo)
+            self.update_integration_from_dev(integration_branches)
+            self.update_integration_from_feature(integration_branches)
+            child_prs = self.create_pull_requests(integration_branches)
 
             # Check parent PR: approval
             self.check_approval(child_prs)
@@ -539,7 +540,7 @@ class WallE:
             if interactive and not confirm('Do you want to merge ?'):
                 return
 
-            for integration_branch in self.integration_branches:
+            for integration_branch in integration_branches:
                 integration_branch.update_to_development_branch()
 
     def check_options(self, author, keyword_list):
