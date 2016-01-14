@@ -12,6 +12,7 @@ from bitbucket_api import (Client, PullRequest,
                            Repository as BitbucketRepository)
 from git_api import Repository as GitRepository
 from simplecmd import cmd
+from template_loader import render
 from wall_e_exceptions import (AuthorApprovalRequired,
                                BranchDoesNotAcceptFeatures,
                                BranchHistoryMismatch,
@@ -746,6 +747,37 @@ class TestWallE(unittest.TestCase):
                         bypass_jira_version_check=True,
                         bypass_jira_type_check=True,
                         bypass_build_status=False)
+
+    def test_success_messages(self):
+        """Test check the success message
+        """
+        feature_branch = 'feature/RING-0010'
+        dst_branch = 'development/4.3'
+        reviewers = ['scality_wall-e']
+
+        pr = self.create_pr(feature_branch, dst_branch, reviewers=reviewers)
+
+        # Author
+        pr.approve()
+
+        # Reviewer
+        client = Client(WALL_E_USERNAME,
+                        self.args.wall_e_password,
+                        WALL_E_EMAIL)
+        w_pr = PullRequest(client, **pr._json_data)
+        w_pr.approve()
+
+        self.handle(pr['id'],
+                    bypass_jira_version_check=True,
+                    bypass_jira_type_check=True,
+                    bypass_build_status=False)
+
+        success = pr.get_comments()[-1]
+        sucess_rendered = render('successfull_merge.md',
+                                 versions=['4.3'],
+                                 issue="RING-0010",
+                                 author=EVA_USERNAME)
+        assert success == sucess_rendered
 
 
 def main():
