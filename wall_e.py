@@ -452,9 +452,9 @@ class WallE:
         git_repo.config('user.name', '"Wall-E"')
         return git_repo
 
-    def init(self):
+    def init(self, comments):
         """Displays a welcome message if conditions are met."""
-        for comment in self.main_pr.get_comments():
+        for comment in comments:
             author = comment['user']['username']
             if isinstance(author, list):
                 # python2 returns a list
@@ -476,12 +476,13 @@ class WallE:
             raise NothingToDo('The pull-request\'s state is "%s"'
                               % self.main_pr['state'])
 
-        self.init()
+        comments = self.main_pr.get_comments()
+        self.init(comments)
 
         # must be called before any options is checked
-        self.get_comments_options()
+        self.get_comments_options(comments)
 
-        self.handle_commands()
+        self.handle_commands(comments)
 
         if self.option_is_set('wait'):
             raise NothingToDo('wait option is set')
@@ -560,9 +561,9 @@ class WallE:
 
         return True
 
-    def get_comments_options(self):
+    def get_comments_options(self, comments):
         """Load settings from pull-request comments."""
-        for comment in self.main_pr.get_comments():
+        for comment in comments:
             raw = comment['content']['raw']
             if not raw.strip().startswith('@%s' % WALL_E_USERNAME):
                 continue
@@ -615,9 +616,9 @@ class WallE:
 
         return True
 
-    def handle_commands(self):
+    def handle_commands(self, comments):
         """Detect the last command in pull-request comments and act on it."""
-        for comment in self.main_pr.get_comments():
+        for comment in comments:
             author = comment['user']['username']
             if isinstance(author, list):
                 # python2 returns a list
