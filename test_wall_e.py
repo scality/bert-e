@@ -21,6 +21,7 @@ from wall_e_exceptions import (AuthorApprovalRequired,
                                Conflict,
                                HelpMessage,
                                InitMessage,
+                               MalformedGitRepo,
                                NothingToDo,
                                ParentPullRequestNotFound,
                                StatusReport,
@@ -790,6 +791,30 @@ class TestWallE(unittest.TestCase):
         pr_wall_e.approve()
 
         with self.assertRaises(SuccessMessage):
+            self.handle(pr['id'],
+                        bypass_jira_version_check=True,
+                        bypass_jira_type_check=True,
+                        bypass_build_status=True)
+
+    def test_malformed_git_repo(self):
+        """Test check that we can detect malformed git repositories"""
+        feature_branch = 'bugfix/RING-0450'
+        dst_branch = 'development/4.3'
+        reviewers = ['scality_wall-e']
+
+        pr = self.create_pr(feature_branch, dst_branch, reviewers=reviewers)
+        add_file_to_branch(self.gitrepo, 'development/4.3',
+                           'file_pushed_without_wall-e.txt', do_push=True)
+
+        # Author
+        pr.approve()
+
+        # Reviewer
+        pr_wall_e = self.bbrepo_wall_e.get_pull_request(
+            pull_request_id=pr['id'])
+        pr_wall_e.approve()
+
+        with self.assertRaises(MalformedGitRepo):
             self.handle(pr['id'],
                         bypass_jira_version_check=True,
                         bypass_jira_type_check=True,

@@ -155,3 +155,7 @@ class NotMyJob(WallE_SilentException):
 
 class NothingToDo(WallE_SilentException):
     pass
+
+
+class MalformedGitRepo(WallE_InternalException):
+    pass
