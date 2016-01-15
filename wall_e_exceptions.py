@@ -110,6 +110,11 @@ class ParentJiraIssueNotFound(JiraIssueNotFound):
     template = 'parent_jira_issue_not_found.md'
 
 
+class SuccessMessage(WallE_TemplateException):
+    code = 118
+    template = 'successfull_merge.md'
+
+
 # internal exceptions
 class UnableToSendEmail(WallE_InternalException):
     pass

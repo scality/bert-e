@@ -44,6 +44,7 @@ from wall_e_exceptions import (AuthorApprovalRequired,
                                PeerApprovalRequired,
                                PrefixCannotBeMerged,
                                StatusReport,
+                               SuccessMessage,
                                UnableToSendEmail,
                                WallE_SilentException,
                                WallE_TemplateException,
@@ -549,6 +550,11 @@ class WallE:
 
         for integration_branch in self.integration_branches:
             integration_branch.update_to_development_branch()
+
+        raise SuccessMessage(versions=[x.version for x in
+                                       self.integration_branches],
+                             issue=self.source_branch.jira_issue_id,
+                             author=self.author)
 
     def check_options(self, author, keyword_list):
         logging.debug('checking keywords %s', keyword_list)
