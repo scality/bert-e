@@ -165,16 +165,40 @@ def confirm(question):
     return input_ == "yes" or input_ == "y"
 
 
-class ScalBranch(Branch):
+class BranchName(object):
     def __init__(self, name):
-        Branch.__init__(self, name)
+        self.name = name
         if '/' not in name:
             raise BranchNameInvalid(name)
 
 
-class DestinationBranch(ScalBranch):
+class FeatureBranchName(BranchName):
     def __init__(self, name):
-        ScalBranch.__init__(self, name)
+        super(FeatureBranchName, self).__init__(name)
+        self.prefix, self.subname = name.split('/', 1)
+        self.jira_issue_id = None
+        match = re.match('(?P<issue_id>[A-Z]+-\d+).*', self.subname)
+        if match:
+            self.jira_issue_id = match.group('issue_id')
+        else:
+            logging.warning('%s does not contain a correct '
+                            'issue id number', self.name)
+            # Fixme : send a comment instead ? or ignore the jira checks ?
+
+    def check_if_should_handle(self, destination_branch):
+        if self.prefix not in ['feature', 'bugfix', 'improvement']:
+            raise PrefixCannotBeMerged(source=self,
+                                       destination=destination_branch)
+        if (self.prefix == 'feature' and
+                destination_branch.version in ['4.3', '5.1']):
+            raise BranchDoesNotAcceptFeatures(
+                source=self,
+                destination=destination_branch)
+
+
+class DestinationBranchName(BranchName):
+    def __init__(self, name):
+        super(DestinationBranchName, self).__init__(name)
         self.prefix, self.version = name.split('/', 1)
         if (self.prefix != 'development' or
                 self.version not in KNOWN_VERSIONS.keys()):
@@ -186,14 +210,13 @@ class DestinationBranch(ScalBranch):
                 if version >= self.version])
 
 
-class IntegrationBranch(ScalBranch):
-    def __init__(self, name):
-        ScalBranch.__init__(self, name)
+class IntegrationBranch(Branch):
+    def __init__(self, repo, name):
+        Branch.__init__(self, repo, name)
         w, self.version, self.subname = name.split('/', 2)
         assert w == 'w'
-        self.development_branch = DestinationBranch(
-            'development/%s' % self.version)
-        self.feature_branch = FeatureBranch(self.subname)
+        self.development_branch = Branch(repo=repo, name='development/%s' %
+                                         self.version)
 
     def create_from_dev_if_not_exists(self):
         self.create_if_not_exists(self.development_branch)
@@ -209,13 +232,13 @@ class IntegrationBranch(ScalBranch):
         self.merge_from_branch(self.development_branch)
 
     def check_history_did_not_change(self):
-        for commit in self.get_all_commits_since_started_from(
-                self.feature_branch):
+        feature_branch = FeatureBranchName(self.subname)
+        for commit in self.get_all_commits_since_started_from(feature_branch):
             if not self.development_branch.includes_commit(commit):
                 raise BranchHistoryMismatch(
                     commit=commit,
                     integration_branch=self,
-                    feature_branch=self.feature_branch,
+                    feature_branch=feature_branch,
                     development_branch=self.development_branch
                 )
 
@@ -239,30 +262,6 @@ class IntegrationBranch(ScalBranch):
             reviewers=[{'username': parent_pr['author']['username']}],
             description=description)
         return pr
-
-
-class FeatureBranch(ScalBranch):
-    def __init__(self, name):
-        ScalBranch.__init__(self, name)
-        self.prefix, self.subname = name.split('/', 1)
-        self.jira_issue_id = None
-        match = re.match('(?P<issue_id>[A-Z]+-\d+).*', self.subname)
-        if match:
-            self.jira_issue_id = match.group('issue_id')
-        else:
-            logging.warning('%s does not contain a correct '
-                            'issue id number', self.name)
-            # Fixme : send a comment instead ? or ignore the jira checks ?
-
-    def check_if_should_handle(self, destination_branch):
-        if self.prefix not in ['feature', 'bugfix', 'improvement']:
-            raise PrefixCannotBeMerged(source=self,
-                                       destination=destination_branch)
-        if (self.prefix == 'feature' and
-                destination_branch.version in ['4.3', '5.1']):
-            raise BranchDoesNotAcceptFeatures(
-                source=self,
-                destination=destination_branch)
 
 
 class WallE:
@@ -424,18 +423,16 @@ class WallE:
                 raise IncorrectFixVersion(issues=issue_versions,
                                           expects=expect_versions)
 
-    def create_integration_branches(self):
+    def create_integration_branches(self, repo):
         integration_branches = []
         for version in self.destination_branch.impacted_versions:
-            integration_branch = IntegrationBranch('w/%s/%s' % (
-                version,
-                self.source_branch.name)
-            )
+            integration_branch = IntegrationBranch(repo, 'w/%s/%s' % (version,
+                                                   self.source_branch.name))
             integration_branch.create_from_dev_if_not_exists()
             integration_branches.append(integration_branch)
         return integration_branches
 
-    def create_pull_requests(self, ):
+    def create_pull_requests(self):
         return [integration_branch.
                 create_pull_request(self.main_pr, self.bbrepo) for
                 integration_branch in self.integration_branches]
@@ -456,9 +453,9 @@ class WallE:
     def clone_git_repo(self, reference_git_repo):
         git_repo = GitRepository(self.bbrepo.get_git_url())
         git_repo.clone(reference_git_repo)
-        git_repo.config('user.email', '"%s"'
-                        % self._bbconn.mail)
+        git_repo.config('user.email', '"%s"')
         git_repo.config('user.name', '"Wall-E"')
+        return git_repo
 
     def init(self):
         """Displays a welcome message if conditions are met."""
@@ -503,7 +500,7 @@ class WallE:
         dst_brnch_name = self.main_pr['destination']['branch']['name']
         src_brnch_name = self.main_pr['source']['branch']['name']
         try:
-            self.destination_branch = DestinationBranch(dst_brnch_name)
+            self.destination_branch = DestinationBranchName(dst_brnch_name)
         except BranchNameInvalid as e:
             logging.info('Destination branch %r not handled, ignore PR %s',
                          e.branch, self.main_pr['id'])
@@ -511,7 +508,7 @@ class WallE:
             raise NotMyJob(src_brnch_name, dst_brnch_name)
 
         try:
-            self.source_branch = FeatureBranch(
+            self.source_branch = FeatureBranchName(
                 self.main_pr['source']['branch']['name'])
         except BranchNameInvalid as e:
             raise PrefixCannotBeMerged(e.branch)
@@ -531,25 +528,25 @@ class WallE:
             raise PrefixCannotBeMerged(self.source_branch.name)
 
         self.jira_checks()
-        self.clone_git_repo(reference_git_repo)
-        self.integration_branches = self.create_integration_branches()
-        self.update_integration_branches_from_development_branches()
-        self.update_integration_branches_from_feature_branch()
-        child_prs = self.create_pull_requests()
+        with self.clone_git_repo(reference_git_repo) as repo:
+            self.integration_branches = self.create_integration_branches(repo)
+            self.update_integration_branches_from_development_branches()
+            self.update_integration_branches_from_feature_branch()
+            child_prs = self.create_pull_requests()
 
-        # Check parent PR: approval
-        self.check_approval(child_prs)
+            # Check parent PR: approval
+            self.check_approval(child_prs)
 
-        # Check integration PR: build status
-        for pr in child_prs:
-            self.check_build_status(pr, 'jenkins_build')
-            self.check_build_status(pr, 'jenkins_utest')
+            # Check integration PR: build status
+            for pr in child_prs:
+                self.check_build_status(pr, 'jenkins_build')
+                self.check_build_status(pr, 'jenkins_utest')
 
-        if interactive and not confirm('Do you want to merge ?'):
-            return
+            if interactive and not confirm('Do you want to merge ?'):
+                return
 
-        for integration_branch in self.integration_branches:
-            integration_branch.update_to_development_branch()
+            for integration_branch in self.integration_branches:
+                integration_branch.update_to_development_branch()
 
         raise SuccessMessage(versions=[x.version for x in
                                        self.integration_branches],
@@ -821,11 +818,13 @@ def main():
         'bypass_commit_size':
             Option(priviledged=True,
                    value=False,
-                   help='Bypass the check on the size of the changeset ```TBA```'),
+                   help='Bypass the check on the size of the changeset '
+                        '```TBA```'),
         'unanimity':
             Option(priviledged=False,
                    help="Change review acceptance criteria from "
-                        "`one reviewer at least` to `all reviewers` ```TBA```"),
+                        "`one reviewer at least` to `all reviewers` "
+                        "```TBA```"),
         'wait':
             Option(priviledged=False,
                    help="Instruct Wall-E not to run until further notice")
@@ -853,8 +852,9 @@ def main():
         'reset':
             Command(priviledged=False,
                     handler='command_not_implemented',
-                    help='delete integration branches, integration pull requests, '
-                         'and restart merge process from the beginning ```TBA```')
+                    help='delete integration branches, integration pull '
+                         'requests, and restart merge process from the '
+                         'beginning ```TBA```')
     }
 
     wall_e = WallE(WALL_E_USERNAME, args.password, WALL_E_EMAIL,

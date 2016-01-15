@@ -11,7 +11,6 @@ import wall_e
 from bitbucket_api import (Client, PullRequest,
                            Repository as BitbucketRepository)
 from git_api import Repository as GitRepository
-from simplecmd import cmd
 from wall_e_exceptions import (AuthorApprovalRequired,
                                BranchDoesNotAcceptFeatures,
                                BranchHistoryMismatch,
@@ -36,43 +35,43 @@ EVA_EMAIL = 'eva.scality@gmail.com'
 def initialize_git_repo(repo):
     """resets the git repo"""
     assert '/ring/' not in repo._url  # This is a security, do not remove
-    cmd('git init')
-    cmd('touch a')
-    cmd('git add a')
-    cmd('git commit -m "Initial commit"')
-    cmd('git remote add origin ' + repo._url)
+    repo.cmd('git init')
+    repo.cmd('touch a')
+    repo.cmd('git add a')
+    repo.cmd('git commit -m "Initial commit"')
+    repo.cmd('git remote add origin ' + repo._url)
     # cmd('git push --set-upstream origin master')
     for version in ['4.3', '5.1', '6.0', 'trunk']:
-        create_branch('release/'+version, do_push=False)
-        create_branch('development/'+version,
+        create_branch(repo, 'release/'+version, do_push=False)
+        create_branch(repo, 'development/'+version,
                       'release/'+version, file_=True, do_push=False)
 
         repo.push_everything()
 
 
-def create_branch(name, from_branch=None, file_=False, do_push=True):
+def create_branch(repo, name, from_branch=None, file_=False, do_push=True):
     if from_branch:
-        cmd('git checkout '+from_branch)
-    cmd('git checkout -b '+name)
+        repo.cmd('git checkout '+from_branch)
+    repo.cmd('git checkout -b '+name)
     if file_:
-        add_file_to_branch(name, file_, do_push)
+        add_file_to_branch(repo, name, file_, do_push)
 
 
-def add_file_to_branch(branch_name, file_name, do_push=True):
-    cmd('git checkout ' + branch_name)
+def add_file_to_branch(repo, branch_name, file_name, do_push=True):
+    repo.cmd('git checkout ' + branch_name)
     if file_name is True:
         file_name = 'file_created_on_' + branch_name.replace('/', '_')
-    cmd('echo %s >  %s' % (branch_name, file_name))
-    cmd('git add ' + file_name)
-    cmd('git commit -m "adds %s file on %s"' % (file_name, branch_name))
+    repo.cmd('echo %s >  %s' % (branch_name, file_name))
+    repo.cmd('git add ' + file_name)
+    repo.cmd('git commit -m "adds %s file on %s"' % (file_name, branch_name))
     if do_push:
-        cmd('git push --set-upstream origin '+branch_name)
+        repo.cmd('git push --set-upstream origin '+branch_name)
 
 
-def rebase_branch(branch_name, on_branch):
-    cmd('git checkout ' + branch_name)
-    cmd('git rebase ' + on_branch)
-    cmd('git push -f')
+def rebase_branch(repo, branch_name, on_branch):
+    repo.cmd('git checkout ' + branch_name)
+    repo.cmd('git rebase ' + on_branch)
+    repo.cmd('git push -f')
 
 
 class TestWallE(unittest.TestCase):
@@ -132,7 +131,8 @@ class TestWallE(unittest.TestCase):
             reviewers=[WALL_E_USERNAME],
             file_=True):
 
-        create_branch(feature_branch, from_branch=from_branch, file_=file_)
+        create_branch(self.gitrepo, feature_branch, from_branch=from_branch,
+                      file_=file_)
         pr = self.bbrepo_eva.create_pull_request(
             title='title',
             name='name',
@@ -244,8 +244,8 @@ class TestWallE(unittest.TestCase):
         dst_branch = 'feature/RING-0005'
         src_branch = 'user/4.3/RING-0005'
         with self.assertRaises(BranchNameInvalid):
-            wall_e.DestinationBranch(dst_branch)
-            wall_e.FeatureBranch(src_branch)
+            wall_e.DestinationBranchName(dst_branch)
+            wall_e.FeatureBranchName(src_branch)
 
     def test_conflict(self):
         pr1 = self.create_pr('bugfix/RING-0006', 'development/4.3',
@@ -695,8 +695,8 @@ class TestWallE(unittest.TestCase):
 
     def test_child_pr_without_parent(self):
         # simulate creation of an integration branch with Wall-E
-        create_branch('w/bugfix/RING-00069', from_branch='development/4.3',
-                      file_=True)
+        create_branch(self.gitrepo, 'w/bugfix/RING-00069',
+                      from_branch='development/4.3', file_=True)
         pr = self.bbrepo_wall_e.create_pull_request(
             title='title',
             name='name',
@@ -758,8 +758,13 @@ class TestWallE(unittest.TestCase):
                         bypass_jira_version_check=True,
                         bypass_jira_type_check=True,
                         bypass_build_status=False)
-        add_file_to_branch('development/4.3', 'rebase_on_me')
-        rebase_branch('bugfix/RING-00074', 'development/4.3')
+
+        # We don't want to push without being up to date
+        self.gitrepo.cmd('git checkout development/4.3')
+        self.gitrepo.cmd('git pull')
+
+        add_file_to_branch(self.gitrepo, 'development/4.3', 'rebase_on_me')
+        rebase_branch(self.gitrepo, 'bugfix/RING-00074', 'development/4.3')
         with self.assertRaises(BranchHistoryMismatch):
             self.handle(pr['id'],
                         bypass_author_approval=True,
