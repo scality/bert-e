@@ -115,6 +115,11 @@ class SuccessMessage(WallE_TemplateException):
     template = 'successfull_merge.md'
 
 
+class UnanimApprovalRequired(WallE_TemplateException):
+    code = 120
+    template = 'need_approval.md'
+
+
 # internal exceptions
 class UnableToSendEmail(WallE_InternalException):
     pass
