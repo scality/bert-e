@@ -24,7 +24,8 @@ from wall_e_exceptions import (AuthorApprovalRequired,
                                NothingToDo,
                                ParentPullRequestNotFound,
                                StatusReport,
-                               SuccessMessage)
+                               SuccessMessage,
+                               UnanimApprovalRequired)
 
 WALL_E_USERNAME = wall_e.WALL_E_USERNAME
 WALL_E_EMAIL = wall_e.WALL_E_EMAIL
@@ -153,6 +154,7 @@ class TestWallE(unittest.TestCase):
                bypass_jira_version_check=False,
                bypass_jira_type_check=False,
                bypass_build_status=False,
+               unanimity=False,
                reference_git_repo='',
                no_comment=False,
                interactive=False):
@@ -172,6 +174,8 @@ class TestWallE(unittest.TestCase):
             sys.argv.append('--no-comment')
         if interactive:
             sys.argv.append('--interactive')
+        if unanimity:
+            sys.argv.append('--unanimity')
 
         sys.argv.append('--slug')
         sys.argv.append(self.bbrepo['repo_slug'])
@@ -759,7 +763,7 @@ class TestWallE(unittest.TestCase):
                         bypass_jira_type_check=True,
                         bypass_build_status=False)
 
-        # We don't want to push without being up to date
+        # We don't want to push without being up to date
         self.gitrepo.cmd('git checkout development/4.3')
         self.gitrepo.cmd('git pull')
 
@@ -794,6 +798,53 @@ class TestWallE(unittest.TestCase):
                         bypass_jira_version_check=True,
                         bypass_jira_type_check=True,
                         bypass_build_status=True)
+
+    def test_unanimity_cli(self):
+        """Test unanimity throught CLI"""
+        feature_branch = 'bugfix/RING-0076'
+        dst_branch = 'development/4.3'
+        reviewers = ['scality_wall-e']
+
+        pr = self.create_pr(feature_branch, dst_branch, reviewers=reviewers)
+
+        # Author
+        pr.approve()
+
+        # Reviewer
+        self.bbrepo_wall_e.get_pull_request(pull_request_id=pr['id'])
+
+        with self.assertRaises(UnanimApprovalRequired):
+            self.handle(pr['id'],
+                        bypass_author_approval=True,
+                        bypass_peer_approval=True,
+                        bypass_jira_version_check=True,
+                        bypass_jira_type_check=True,
+                        bypass_build_status=True,
+                        unanimity=True)
+
+    def test_unanimity__through_a_bitbucket_comment(self):
+        """Test unanimity throught CLI"""
+        feature_branch = 'bugfix/RING-0077'
+        dst_branch = 'development/4.3'
+        reviewers = ['scality_wall-e']
+
+        pr = self.create_pr(feature_branch, dst_branch, reviewers=reviewers)
+        pr.add_comment('@%s unanimity' % WALL_E_USERNAME)
+
+        # Author
+        pr.approve()
+
+        # Reviewer
+        self.bbrepo_wall_e.get_pull_request(pull_request_id=pr['id'])
+
+        with self.assertRaises(UnanimApprovalRequired):
+            self.handle(pr['id'],
+                        bypass_author_approval=True,
+                        bypass_peer_approval=True,
+                        bypass_jira_version_check=True,
+                        bypass_jira_type_check=True,
+                        bypass_build_status=True,
+                        unanimity=True)
 
 
 def main():
