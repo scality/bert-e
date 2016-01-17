@@ -46,6 +46,7 @@ from wall_e_exceptions import (AuthorApprovalRequired,
                                StatusReport,
                                SuccessMessage,
                                UnableToSendEmail,
+                               UnanimApprovalRequired,
                                WallE_SilentException,
                                WallE_TemplateException,
                                NotMyJob)
@@ -673,6 +674,16 @@ class WallE:
     def check_approval(self, child_prs):
         approved_by_author = self.option_is_set('bypass_author_approval')
         approved_by_peer = self.option_is_set('bypass_peer_approval')
+        unanimity = self.option_is_set('unanimity')
+
+        if unanimity:
+            all_aproval = all([x['approved']
+                               for x in self.main_pr['participants']])
+            if all_aproval:
+                return
+
+            raise UnanimApprovalRequired(pr=self.main_pr,
+                                         child_prs=child_prs)
 
         if approved_by_author and approved_by_peer:
             return
@@ -728,6 +739,7 @@ def main():
         'Bypass the Jira Fix Version/s field check'
     bypass_jira_type_check_help = 'Bypass the Jira issue Type field check'
     bypass_build_status_help = 'Bypass the build and test status'
+    unanimity_help = 'Change review acceptance criteria to all reviewers'
 
     parser.add_argument(
         '--bypass-author-approval', action='store_true', default=False,
@@ -744,6 +756,9 @@ def main():
     parser.add_argument(
         '--bypass-build-status', action='store_true', default=False,
         help=bypass_build_status_help)
+    parser.add_argument(
+        '--unanimity', action='store_true', default=False,
+        help=unanimity_help)
     parser.add_argument(
         'pull_request_id',
         help='The ID of the pull request')
@@ -822,9 +837,8 @@ def main():
                         '```TBA```'),
         'unanimity':
             Option(priviledged=False,
-                   help="Change review acceptance criteria from "
-                        "`one reviewer at least` to `all reviewers` "
-                        "```TBA```"),
+                   value=args.unanimity,
+                   help=unanimity_help),
         'wait':
             Option(priviledged=False,
                    help="Instruct Wall-E not to run until further notice")
