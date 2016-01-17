@@ -1,3 +1,10 @@
+{% extends "message.md" %}
+
+{% block title -%}
+Waiting for approval
+{% endblock %}
+
+{% block message %}
 Please approve this pull request (reviewers and author), if you think
 that the integration pull requests are **ready to be merged**.
 
@@ -27,3 +34,4 @@ For example, if you don't want this changeset to land in
  $ git push
 ```
 I will then relaunch the checks with your new changesets and try to merge.
+{% endblock %}
