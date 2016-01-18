@@ -602,8 +602,8 @@ class WallE:
             keywords = match_.group('keywords').strip().split()
 
             if not self.check_options(author, keywords):
-                logging.info('Keyword comment ignored. '
-                             'Checks failed: %s', raw)
+                logging.debug('Keyword comment ignored. '
+                              'Checks failed: %s', raw)
                 continue
 
             for keyword in keywords:
@@ -881,20 +881,20 @@ def main():
                                       no_comment=args.no_comment,
                                       interactive=args.interactive)
         except CommentAlreadyExists:
-            logging.debug('Comment already posted.')
-            if args.backtrace:
-                raise
+            logging.info('Comment already posted.')
+
 
         if args.backtrace:
-            raise
+            raise excp
 
+        print('%d - %s' % (excp.code, excp.__class__.__name__))
         return excp.code
 
     except WallE_SilentException as excp:
         if args.backtrace:
-            raise
+            raise excp
 
-        logging.debug('Ignoring silent exception (%s)', excp)
+        print('%d - %s' % (0, excp.__class__.__name__))
         return 0
 
     except Exception:
@@ -907,5 +907,4 @@ def main():
 
 
 if __name__ == '__main__':
-    retcode = main()
-    print(retcode)
+    main()
