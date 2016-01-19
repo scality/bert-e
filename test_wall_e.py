@@ -191,7 +191,7 @@ class TestWallE(unittest.TestCase):
                               bypass_jira_type_check=True,
                               bypass_build_status=True)
         self.assertEqual(retcode, AuthorApprovalRequired.code)
-        with self.assertRaises(CommentAlreadyExists):
+        with self.assertRaises(AuthorApprovalRequired):
             self.handle(pr['id'],
                         bypass_peer_approval=True,
                         bypass_jira_version_check=True,
