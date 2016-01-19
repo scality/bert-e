@@ -775,6 +775,9 @@ def main():
     parser.add_argument(
         '--backtrace', action='store_true', default=False,
         help='Show backtrace instead of return code on console')
+    parser.add_argument(
+        '--quiet', action='store_true', default=False,
+        help='Don\'t print return codes on the console')
     args = parser.parse_args()
 
     if args.verbose:
@@ -887,14 +890,16 @@ def main():
         if args.backtrace:
             raise excp
 
-        print('%d - %s' % (excp.code, excp.__class__.__name__))
+        if not args.quiet:
+            print('%d - %s' % (excp.code, excp.__class__.__name__))
         return excp.code
 
     except WallE_SilentException as excp:
         if args.backtrace:
             raise excp
 
-        print('%d - %s' % (0, excp.__class__.__name__))
+        if not args.quiet:
+            print('%d - %s' % (0, excp.__class__.__name__))
         return 0
 
     except Exception:

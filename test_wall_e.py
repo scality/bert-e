@@ -176,6 +176,7 @@ class TestWallE(unittest.TestCase):
             sys.argv.append('--interactive')
         if backtrace:
             sys.argv.append('--backtrace')
+        sys.argv.append('--quiet')
 
         sys.argv.append('--slug')
         sys.argv.append(self.bbrepo['repo_slug'])
