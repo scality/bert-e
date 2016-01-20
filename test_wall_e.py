@@ -41,7 +41,6 @@ def initialize_git_repo(repo):
     repo.cmd('git add a')
     repo.cmd('git commit -m "Initial commit"')
     repo.cmd('git remote add origin ' + repo._url)
-    # cmd('git push --set-upstream origin master')
     for version in ['4.3', '5.1', '6.0', 'trunk']:
         create_branch(repo, 'release/'+version, do_push=False)
         create_branch(repo, 'development/'+version,
@@ -66,6 +65,7 @@ def add_file_to_branch(repo, branch_name, file_name, do_push=True):
     repo.cmd('git add ' + file_name)
     repo.cmd('git commit -m "adds %s file on %s"' % (file_name, branch_name))
     if do_push:
+        repo.cmd('git pull || exit 0')
         repo.cmd('git push --set-upstream origin '+branch_name)
 
 
@@ -76,54 +76,52 @@ def rebase_branch(repo, branch_name, on_branch):
 
 
 class TestWallE(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        assert cls.args.your_login in wall_e.RELEASE_ENGINEERS
-        client = Client(cls.args.your_login,
-                        cls.args.your_password,
-                        cls.args.your_mail)
-        cls.bbrepo = BitbucketRepository(client,
-                                         owner='scality',
-                                         repo_slug=('%s_%s'
-                                                    % (cls.args.repo_prefix,
-                                                       cls.args.your_login)),
-                                         is_private=True,
-                                         scm='git')
+    def setUp(self):
+        assert self.args.your_login in wall_e.RELEASE_ENGINEERS
+        client = Client(self.args.your_login,
+                        self.args.your_password,
+                        self.args.your_mail)
+        self.bbrepo = BitbucketRepository(client,
+                                          owner='scality',
+                                          repo_slug=('%s_%s'
+                                                     % (self.args.repo_prefix,
+                                                        self.args.your_login)),
+                                          is_private=True,
+                                          scm='git')
         try:
-            cls.bbrepo.delete()
+            self.bbrepo.delete()
         except requests.exceptions.HTTPError as e:
             if e.response.status_code != 404:
                 raise
 
-        cls.bbrepo.create()
+        self.bbrepo.create()
 
         # Use Eva as our unprivileged user
         assert EVA_USERNAME not in wall_e.RELEASE_ENGINEERS
         client_eva = Client(EVA_USERNAME,
-                            cls.args.eva_password,
+                            self.args.eva_password,
                             EVA_EMAIL)
-        cls.bbrepo_eva = BitbucketRepository(
+        self.bbrepo_eva = BitbucketRepository(
             client_eva,
             owner='scality',
-            repo_slug=('%s_%s' % (cls.args.repo_prefix,
-                                  cls.args.your_login)),
+            repo_slug=('%s_%s' % (self.args.repo_prefix,
+                                  self.args.your_login)),
         )
         # Wall-E may want to comment manually too
         client_wall_e = Client(WALL_E_USERNAME,
-                               cls.args.wall_e_password,
+                               self.args.wall_e_password,
                                WALL_E_EMAIL)
-        cls.bbrepo_wall_e = BitbucketRepository(
+        self.bbrepo_wall_e = BitbucketRepository(
             client_wall_e,
             owner='scality',
-            repo_slug=('%s_%s' % (cls.args.repo_prefix,
-                                  cls.args.your_login)),
+            repo_slug=('%s_%s' % (self.args.repo_prefix,
+                                  self.args.your_login)),
         )
-        cls.gitrepo = GitRepository(cls.bbrepo.get_git_url())
-        initialize_git_repo(cls.gitrepo)
+        self.gitrepo = GitRepository(self.bbrepo.get_git_url())
+        initialize_git_repo(self.gitrepo)
 
-    @classmethod
-    def tearDownClass(cls):
-        cls.gitrepo.delete()
+    def tearDown(self):
+        self.gitrepo.delete()
 
     def create_pr(
             self,
@@ -760,7 +758,7 @@ class TestWallE(unittest.TestCase):
                         bypass_jira_type_check=True,
                         bypass_build_status=False)
 
-        # We don't want to push without being up to date
+        # We don't want to push without being up to date
         self.gitrepo.cmd('git checkout development/4.3')
         self.gitrepo.cmd('git pull')
 

@@ -459,18 +459,18 @@ class WallE:
         return git_repo
 
     def check_git_repo_health(self, git_repo):
-        previous_dev_branch_name = None
-        for version in KNOWN_VERSIONS.keys():
+        previous_dev_branch_name = 'development/%s' % KNOWN_VERSIONS.keys()[0]
+        Branch(git_repo, previous_dev_branch_name).checkout()
+        for version in KNOWN_VERSIONS.keys()[1:]:
             dev_branch_name = 'development/%s' % version
             dev_branch = Branch(git_repo, dev_branch_name)
             dev_branch.checkout()
-            if previous_dev_branch_name:
-                if not dev_branch.includes_commit(previous_dev_branch_name):
-                    raise MalformedGitRepo('The git repository is in a bad '
-                                           'shape. Branch `%s` is not a '
-                                           'included in branch `%s`.'
-                                            % (previous_dev_branch_name,
-                                               dev_branch_name))
+            if not dev_branch.includes_commit(previous_dev_branch_name):
+                raise MalformedGitRepo('The git repository is in a bad shape. '
+                                       'Branch `%s` is not a included in '
+                                       'branch `%s`.'
+                                       % (previous_dev_branch_name,
+                                          dev_branch_name))
             previous_dev_branch_name = dev_branch_name
 
     def init(self):
