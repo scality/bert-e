@@ -453,8 +453,8 @@ class WallE:
     def clone_git_repo(self, reference_git_repo):
         git_repo = GitRepository(self.bbrepo.get_git_url())
         git_repo.clone(reference_git_repo)
-        git_repo.config('user.email', '"%s"')
-        git_repo.config('user.name', '"Wall-E"')
+        git_repo.config('user.email', WALL_E_EMAIL)
+        git_repo.config('user.name', WALL_E_USERNAME)
         return git_repo
 
     def init(self):
