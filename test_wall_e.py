@@ -23,6 +23,7 @@ from wall_e_exceptions import (AuthorApprovalRequired,
                                InitMessage,
                                NothingToDo,
                                ParentPullRequestNotFound,
+                               PeerApprovalRequired,
                                StatusReport,
                                SuccessMessage)
 
@@ -187,8 +188,6 @@ class TestWallE(unittest.TestCase):
                         bypass_jira_version_check=True,
                         bypass_jira_type_check=True,
                         bypass_build_status=True)
-        # PeerApprovalRequired and AuthorApprovalRequired
-        # have the same message, so CommentAlreadyExists is used
         with self.assertRaises(CommentAlreadyExists):
             self.handle(pr['id'],
                         bypass_peer_approval=True,
@@ -300,9 +299,7 @@ class TestWallE(unittest.TestCase):
         # Author
         pr.approve()
 
-        # PeerApprovalRequired and AuthorApprovalRequired
-        # have the same message, so CommentAlreadyExists is used
-        with self.assertRaises(CommentAlreadyExists):
+        with self.assertRaises(PeerApprovalRequired):
             self.handle(pr['id'],
                         bypass_jira_version_check=True,
                         bypass_jira_type_check=True,

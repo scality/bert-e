@@ -1,3 +1,6 @@
+{% extends "message.md" %}
+
+{% block message %}
 I have successfully merged this pull request.
 
 Impacted development branches are:
@@ -9,5 +12,4 @@ Impacted development branches are:
 Please check the status of the associated issue {{issue}}.
 
 Goodbye @{{author}}.
-
-{% include 'footer.md' %}
+{% endblock %}

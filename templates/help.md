@@ -1,5 +1,10 @@
-# User manual #
+{% extends "message.md" %}
 
+{% block title -%}
+User manual
+{% endblock %}
+
+{% block message %}
 Wall-E is a robot designed to help developers at Scality merge their code
 in the different development branches (`development/4.3`, ...) of the Ring.
 
@@ -101,5 +106,4 @@ name   | description  | privileged
 {% for cmd in commands -%}
 :arrow_right: **{{cmd}}** | {{commands[cmd].help}} | {% if commands[cmd].priviledged %} :star: {% endif %}
 {% endfor %}
-
-`Message code: {{ code }}`
+{% endblock %}
