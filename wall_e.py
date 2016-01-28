@@ -477,14 +477,14 @@ class WallE:
             raise NothingToDo('The pull-request\'s state is "%s"'
                               % self.main_pr['state'])
 
-        comments = self.main_pr.get_comments()
+        comments_ = self.main_pr.get_comments()
+        # transform yield into list for multiple usage
+        comments = [com for com in comments_]
         self.init(comments)
 
         # must be called before any options is checked
-        comments = self.main_pr.get_comments()
         self.get_comments_options(comments)
 
-        comments = self.main_pr.get_comments()
         self.handle_commands(comments)
 
         if self.option_is_set('wait'):
