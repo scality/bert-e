@@ -1,5 +1,9 @@
-# Status #
+{% extends "message.md" %}
 
+{% block title -%}
+Status
+{% endblock %}
+
+{% block message %}
 {% include 'status_report.md' %}
-
-{% include 'footer.md' %}
+{% endblock %}

@@ -6,7 +6,12 @@ from template_loader import render
 
 # base exceptions
 class WallE_TemplateException(Exception):
+    code = 0
+    template = None
+
     def __init__(self, **kwargs):
+        assert self.code != 0
+        assert self.template
         self.msg = render(self.template, code=self.code, **kwargs)
         super(WallE_TemplateException, self).__init__(self.msg)
 

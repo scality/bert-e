@@ -360,7 +360,7 @@ class WallE:
             if not confirm('Do you want to send this comment?'):
                 return
 
-        logging.info('SENDING MSG %s', msg)
+        logging.debug('SENDING MSG %s', msg)
 
         self.main_pr.add_comment(msg)
 
@@ -617,8 +617,8 @@ class WallE:
             keywords = match_.group('keywords').strip().split()
 
             if not self.check_options(author, keywords):
-                logging.warning('Keyword comment ignored. '
-                                'Checks failed: %s', raw)
+                logging.debug('Keyword comment ignored. '
+                              'Checks failed: %s', raw)
                 continue
 
             for keyword in keywords:
@@ -787,12 +787,22 @@ def main():
         '--alert-email', action='store', default=None, type=str,
         help='Where to send notifications in case of '
              'incorrect behaviour')
+    parser.add_argument(
+        '--backtrace', action='store_true', default=False,
+        help='Show backtrace instead of return code on console')
+    parser.add_argument(
+        '--quiet', action='store_true', default=False,
+        help='Don\'t print return codes on the console')
     args = parser.parse_args()
 
     if args.verbose:
         logging.basicConfig(level=logging.DEBUG)
     else:
         logging.basicConfig(level=logging.INFO)
+        # request lib is noisy
+        requests_log = logging.getLogger("requests.packages.urllib3")
+        requests_log.setLevel(logging.WARNING)
+        requests_log.propagate = True
 
     if args.alert_email:
         try:
@@ -884,13 +894,28 @@ def main():
         )
 
     except WallE_TemplateException as excp:
-        wall_e.send_bitbucket_msg(str(excp),
-                                  no_comment=args.no_comment,
-                                  interactive=args.interactive)
-        raise
+        try:
+            wall_e.send_bitbucket_msg(str(excp),
+                                      no_comment=args.no_comment,
+                                      interactive=args.interactive)
+        except CommentAlreadyExists:
+            logging.info('Comment already posted.')
 
-    except WallE_SilentException:
-        raise
+
+        if args.backtrace:
+            raise excp
+
+        if not args.quiet:
+            print('%d - %s' % (excp.code, excp.__class__.__name__))
+        return excp.code
+
+    except WallE_SilentException as excp:
+        if args.backtrace:
+            raise excp
+
+        if not args.quiet:
+            print('%d - %s' % (0, excp.__class__.__name__))
+        return 0
 
     except Exception:
         if args.alert_email:

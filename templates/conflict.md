@@ -1,3 +1,10 @@
+{% extends "message.md" %}
+
+{% block title -%}
+Conflict
+{% endblock %}
+
+{% block message %}
 There was a conflict during the merge of
 `{{ source.name }}` into `{{ destination.name }}`.
 
@@ -15,3 +22,4 @@ Here are the steps to resolve this conflict:
 ```
 
 After the push, please comment the original PR to resume the procedure.
+{% endblock %}
