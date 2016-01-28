@@ -746,66 +746,49 @@ def main():
     parser = argparse.ArgumentParser(add_help=False,
                                      description='Merges bitbucket '
                                                  'pull requests.')
-    bypass_author_approval_help = 'Bypass the pull request author\'s approval'
-    bypass_author_peer_help = 'Bypass the pull request peer\'s approval'
-    bypass_jira_version_check_help = \
-        'Bypass the Jira Fix Version/s field check'
-    bypass_jira_type_check_help = 'Bypass the Jira issue Type field check'
-    bypass_build_status_help = 'Bypass the build and test status'
-
     parser.add_argument(
-        '--bypass-author-approval', action='store_true', default=False,
-        help=bypass_author_approval_help)
-    parser.add_argument(
-        '--bypass-peer-approval', action='store_true', default=False,
-        help=bypass_author_peer_help)
-    parser.add_argument(
-        '--bypass-jira-version-check', action='store_true', default=False,
-        help=bypass_jira_version_check_help)
-    parser.add_argument(
-        '--bypass-jira-type-check', action='store_true', default=False,
-        help=bypass_jira_type_check_help)
-    parser.add_argument(
-        '--bypass-build-status', action='store_true', default=False,
-        help=bypass_build_status_help)
+        '--option', '-o', action='append', type=str, dest='cmd_line_options',
+        help="Activate additional options")
     parser.add_argument(
         'pull_request_id',
-        help='The ID of the pull request')
+        help="The ID of the pull request")
     parser.add_argument(
         'password',
-        help='Wall-E\'s password [for Jira and Bitbucket]')
+        help="Wall-E's password [for Jira and Bitbucket]")
     parser.add_argument(
         '--reference-git-repo', default='',
-        help='Reference to a local git repo to improve cloning delay')
+        help="Reference to a local git repo to improve cloning delay")
     parser.add_argument(
         '--owner', default='scality',
-        help='The owner of the repo (default: scality)')
+        help="The owner of the repo (default: scality)")
     parser.add_argument(
         '--slug', default='ring',
-        help='The repo\'s slug (default: ring)')
+        help="The repo's slug (default: ring)")
     parser.add_argument(
         '--build-key', action='store', default='pipeline', type=str,
-        help='The build key to consider for approval (default: pipeline)')
+        help="The build key to consider for approval (default: pipeline)")
     parser.add_argument(
         '--interactive', action='store_true', default=False,
-        help='Ask before merging or sending comments')
+        help="Ask before merging or sending comments")
     parser.add_argument(
         '--no-comment', action='store_true', default=False,
-        help='Do not add any comment to the pull request page')
+        help="Do not add any comment to the pull request page")
     parser.add_argument(
         '-v', action='store_true', dest='verbose', default=False,
-        help='Verbose mode')
+        help="Verbose mode")
     parser.add_argument(
         '--alert-email', action='store', default=None, type=str,
-        help='Where to send notifications in case of '
-             'incorrect behaviour')
+        help="Where to send notifications in case of "
+             "incorrect behaviour")
     parser.add_argument(
         '--backtrace', action='store_true', default=False,
-        help='Show backtrace instead of return code on console')
+        help="Show backtrace instead of return code on console")
     parser.add_argument(
         '--quiet', action='store_true', default=False,
-        help='Don\'t print return codes on the console')
+        help="Don't print return codes on the console")
     args = parser.parse_args()
+    if not args.cmd_line_options:
+        args.cmd_line_options = []
 
     if args.verbose:
         logging.basicConfig(level=logging.DEBUG)
@@ -830,40 +813,42 @@ def main():
     options = {
         'bypass_peer_approval':
             Option(priviledged=True,
-                   value=args.bypass_peer_approval,
-                   help=bypass_author_approval_help),
+                   value='bypass_peer_approval' in args.cmd_line_options,
+                   help="Bypass the pull request author's approval"),
         'bypass_author_approval':
             Option(priviledged=True,
-                   value=args.bypass_author_approval,
-                   help=bypass_author_peer_help),
+                   value='bypass_author_approval' in args.cmd_line_options,
+                   help="Bypass the pull request peer's approval"),
         'bypass_tester_approval':
             Option(priviledged=True,
-                   value=args.bypass_author_approval,
-                   help='Bypass the pull request tester\'s approval'),
+                   value='bypass_author_approval' in args.cmd_line_options,
+                   help="Bypass the pull request tester's approval"),
         'bypass_jira_version_check':
             Option(priviledged=True,
-                   value=args.bypass_jira_version_check,
-                   help=bypass_jira_version_check_help),
+                   value='bypass_jira_version_check' in args.cmd_line_options,
+                   help="Bypass the Jira Fix Version/s field check"),
         'bypass_jira_type_check':
             Option(priviledged=True,
-                   value=args.bypass_jira_type_check,
-                   help=bypass_jira_type_check_help),
+                   value='bypass_jira_type_check' in args.cmd_line_options,
+                   help="Bypass the Jira issue Type field check"),
         'bypass_build_status':
             Option(priviledged=True,
-                   value=args.bypass_build_status,
-                   help=bypass_build_status_help),
+                   value='bypass_build_status' in args.cmd_line_options,
+                   help="Bypass the build and test status"),
         'bypass_commit_size':
             Option(priviledged=True,
-                   value=False,
+                   value='bypass_commit_size' in args.cmd_line_options,
                    help='Bypass the check on the size of the changeset '
                         '```TBA```'),
         'unanimity':
             Option(priviledged=False,
+                   value='unanimity' in args.cmd_line_options,
                    help="Change review acceptance criteria from "
                         "`one reviewer at least` to `all reviewers` "
                         "```TBA```"),
         'wait':
             Option(priviledged=False,
+                   value='wait' in args.cmd_line_options,
                    help="Instruct Wall-E not to run until further notice")
     }
 
