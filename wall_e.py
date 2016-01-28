@@ -789,7 +789,7 @@ def main():
         '--bypass-build-status', action='store_true', default=False,
         help=bypass_build_status_help)
     parser.add_argument(
-        '--bypass-tester-approval', action='store_true', default=False,
+        '--bypass-tester-approval', action='store_true', default=True,
         help=bypass_tester_approval_help)
     parser.add_argument(
         'pull_request_id',
