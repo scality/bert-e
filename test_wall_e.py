@@ -149,6 +149,7 @@ class TestWallE(unittest.TestCase):
                pull_request_id,
                bypass_peer_approval=False,
                bypass_author_approval=False,
+               bypass_tester_approval=False,
                bypass_jira_version_check=False,
                bypass_jira_type_check=False,
                bypass_build_status=False,
@@ -162,6 +163,8 @@ class TestWallE(unittest.TestCase):
             sys.argv.append('--bypass-author-approval')
         if bypass_peer_approval:
             sys.argv.append('--bypass-peer-approval')
+        if bypass_tester_approval:
+            sys.argv.append('--bypass-tester-approval')
         if bypass_jira_version_check:
             sys.argv.append('--bypass-jira-version-check')
         if bypass_jira_type_check:
@@ -186,6 +189,7 @@ class TestWallE(unittest.TestCase):
         pr = self.create_pr('bugfix/RING-0001', 'development/4.3')
         retcode = self.handle(pr['id'],
                               bypass_peer_approval=True,
+                              bypass_tester_approval=True,
                               bypass_jira_version_check=True,
                               bypass_jira_type_check=True,
                               bypass_build_status=True)
@@ -193,6 +197,7 @@ class TestWallE(unittest.TestCase):
         with self.assertRaises(AuthorApprovalRequired):
             self.handle(pr['id'],
                         bypass_peer_approval=True,
+                        bypass_tester_approval=True,
                         bypass_jira_version_check=True,
                         bypass_jira_type_check=True,
                         bypass_build_status=True,
@@ -201,6 +206,7 @@ class TestWallE(unittest.TestCase):
         # if the message code is still AuthorApprovalRequired
         retcode = self.handle(pr['id'],
                               bypass_peer_approval=True,
+                              bypass_tester_approval=True,
                               bypass_jira_version_check=True,
                               bypass_jira_type_check=True,
                               bypass_build_status=True)
@@ -208,6 +214,7 @@ class TestWallE(unittest.TestCase):
         retcode = self.handle(pr['id'],
                               bypass_author_approval=True,
                               bypass_peer_approval=True,
+                              bypass_tester_approval=True,
                               bypass_jira_version_check=True,
                               bypass_jira_type_check=True,
                               bypass_build_status=True)
@@ -218,6 +225,7 @@ class TestWallE(unittest.TestCase):
         retcode = self.handle(pr['id'],
                               bypass_author_approval=True,
                               bypass_peer_approval=True,
+                              bypass_tester_approval=True,
                               bypass_jira_version_check=True,
                               bypass_jira_type_check=True,
                               bypass_build_status=True)
@@ -228,6 +236,7 @@ class TestWallE(unittest.TestCase):
         retcode = self.handle(pr['id'],
                               bypass_author_approval=True,
                               bypass_peer_approval=True,
+                              bypass_tester_approval=True,
                               bypass_jira_version_check=True,
                               bypass_jira_type_check=True,
                               bypass_build_status=True)
@@ -236,6 +245,7 @@ class TestWallE(unittest.TestCase):
             self.handle(pr['id'],
                         bypass_author_approval=True,
                         bypass_peer_approval=True,
+                        bypass_tester_approval=True,
                         bypass_jira_version_check=True,
                         bypass_jira_type_check=True,
                         bypass_build_status=True,
@@ -246,6 +256,7 @@ class TestWallE(unittest.TestCase):
         retcode = self.handle(pr['id'],
                               bypass_author_approval=True,
                               bypass_peer_approval=True,
+                              bypass_tester_approval=True,
                               bypass_jira_version_check=True,
                               bypass_jira_type_check=True,
                               bypass_build_status=True)
@@ -266,6 +277,7 @@ class TestWallE(unittest.TestCase):
         retcode = self.handle(pr1['id'],
                               bypass_author_approval=True,
                               bypass_peer_approval=True,
+                              bypass_tester_approval=True,
                               bypass_jira_version_check=True,
                               bypass_jira_type_check=True,
                               bypass_build_status=True)
@@ -274,6 +286,7 @@ class TestWallE(unittest.TestCase):
             self.handle(pr2['id'],
                         bypass_author_approval=True,
                         bypass_peer_approval=True,
+                        bypass_tester_approval=True,
                         bypass_jira_version_check=True,
                         bypass_jira_type_check=True,
                         bypass_build_status=True,
@@ -324,6 +337,7 @@ class TestWallE(unittest.TestCase):
         w_pr = PullRequest(client, **pr._json_data)
         w_pr.approve()
         retcode = self.handle(w_pr['id'],
+                              bypass_tester_approval=True,
                               bypass_jira_version_check=True,
                               bypass_jira_type_check=True,
                               bypass_build_status=True)
@@ -381,6 +395,7 @@ class TestWallE(unittest.TestCase):
         pr_admin.add_comment('@%s'
                              ' bypass_author_approval'
                              ' bypass_peer_approval'
+                             ' bypass_tester_approval'
                              ' bypass_build_status'
                              ' bypass_jira_version_check'
                              ' bypass_jira_type_check' % WALL_E_USERNAME)
@@ -395,6 +410,7 @@ class TestWallE(unittest.TestCase):
         pr_admin.add_comment('  @%s  '
                              '   bypass_author_approval  '
                              '     bypass_peer_approval   '
+                             ' bypass_tester_approval'
                              '  bypass_build_status'
                              '   bypass_jira_version_check'
                              '   bypass_jira_type_check   ' % WALL_E_USERNAME)
@@ -407,6 +423,7 @@ class TestWallE(unittest.TestCase):
         pr_admin.add_comment('@%s'
                              ' bypass_author_aproval'  # a p is missing
                              ' bypass_peer_approval'
+                             ' bypass_tester_approval'
                              ' bypass_build_status'
                              ' bypass_jira_version_check'
                              ' bypass_jira_type_check' % WALL_E_USERNAME)
@@ -422,6 +439,7 @@ class TestWallE(unittest.TestCase):
         pr.add_comment('@%s'  # comment is made by unpriviledged Eva
                        ' bypass_author_approval'
                        ' bypass_peer_approval'
+                       ' bypass_tester_approval'
                        ' bypass_build_status'
                        ' bypass_jira_version_check'
                        ' bypass_jira_type_check' % WALL_E_USERNAME)
@@ -438,6 +456,7 @@ class TestWallE(unittest.TestCase):
         pr_admin.add_comment('@%s'
                              ' bypass_author_approval'
                              ' bypass_peer_approval'
+                             ' bypass_tester_approval'
                              ' bypass_build_status'
                              ' mmm_never_seen_that_before'  # this is unknown
                              ' bypass_jira_version_check'
@@ -454,6 +473,7 @@ class TestWallE(unittest.TestCase):
         pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id'])
         pr_admin.add_comment('@%s bypass_author_approval' % WALL_E_USERNAME)
         pr_admin.add_comment('@%s bypass_peer_approval' % WALL_E_USERNAME)
+        pr_admin.add_comment('@%s bypass_tester_approval' % WALL_E_USERNAME)
         pr_admin.add_comment('@%s bypass_build_status' % WALL_E_USERNAME)
         pr_admin.add_comment('@%s bypass_jira_version_check' % WALL_E_USERNAME)
         pr_admin.add_comment('@%s bypass_jira_type_check' % WALL_E_USERNAME)
@@ -466,6 +486,7 @@ class TestWallE(unittest.TestCase):
         pr_admin.add_comment('@%s'
                              ' bypass_author_approval'
                              ' bypass_peer_approval'
+                             ' bypass_tester_approval'
                              ' bypass_jira_type_check' % WALL_E_USERNAME)
         with self.assertRaises(SuccessMessage):
             self.handle(pr['id'],
@@ -481,6 +502,7 @@ class TestWallE(unittest.TestCase):
         with self.assertRaises(SuccessMessage):
             self.handle(pr['id'],
                         bypass_peer_approval=True,
+                        bypass_tester_approval=True,
                         bypass_jira_version_check=True,
                         bypass_jira_type_check=True,
                         bypass_build_status=True,
@@ -494,6 +516,7 @@ class TestWallE(unittest.TestCase):
         with self.assertRaises(SuccessMessage):
             self.handle(pr['id'],
                         bypass_author_approval=True,
+                        bypass_tester_approval=True,
                         bypass_jira_version_check=True,
                         bypass_jira_type_check=True,
                         bypass_build_status=True,
@@ -508,6 +531,7 @@ class TestWallE(unittest.TestCase):
             self.handle(pr['id'],
                         bypass_author_approval=True,
                         bypass_peer_approval=True,
+                        bypass_tester_approval=True,
                         bypass_jira_type_check=True,
                         bypass_build_status=True,
                         backtrace=True)
@@ -521,6 +545,7 @@ class TestWallE(unittest.TestCase):
             self.handle(pr['id'],
                         bypass_author_approval=True,
                         bypass_peer_approval=True,
+                        bypass_tester_approval=True,
                         bypass_jira_version_check=True,
                         bypass_build_status=True,
                         backtrace=True)
@@ -534,6 +559,7 @@ class TestWallE(unittest.TestCase):
             self.handle(pr['id'],
                         bypass_author_approval=True,
                         bypass_peer_approval=True,
+                        bypass_tester_approval=True,
                         bypass_jira_version_check=True,
                         bypass_jira_type_check=True,
                         backtrace=True)
@@ -558,6 +584,8 @@ class TestWallE(unittest.TestCase):
         pr_admin.add_comment('@%s bypass_jira_type_check' % WALL_E_USERNAME)
         for i in range(10):
             pr.add_comment('random comment %s' % i)
+        for i in range(10):
+            pr.add_comment('@%s bypass_tester_approval' % i)
 
         with self.assertRaises(SuccessMessage):
             self.handle(pr['id'],
@@ -569,6 +597,7 @@ class TestWallE(unittest.TestCase):
         pr_admin.add_comment('@toto'  # toto is not Wall-E
                              ' bypass_author_approval'
                              ' bypass_peer_approval'
+                             ' bypass_tester_approval'
                              ' bypass_build_status'
                              ' bypass_jira_version_check'
                              ' bypass_jira_type_check')
@@ -586,6 +615,7 @@ class TestWallE(unittest.TestCase):
             '@%s'
             ' bypass_author_approval'
             ' bypass_peer_approval'
+            ' bypass_tester_approval'
             ' bypass_build_status'
             ' bypass_jira_version_check'
             ' bypass_jira_type_check' % WALL_E_USERNAME
@@ -606,6 +636,7 @@ class TestWallE(unittest.TestCase):
         pr_admin.add_comment('@%s:'
                              'bypass_author_approval,  '
                              '     bypass_peer_approval,,   '
+                             ' bypass_tester_approval'
                              '  bypass_build_status-bypass_jira_version_check'
                              '   bypass_jira_type_check -   ' %
                              WALL_E_USERNAME)
@@ -638,6 +669,7 @@ class TestWallE(unittest.TestCase):
             self.handle(pr['id'],
                         bypass_author_approval=True,
                         bypass_peer_approval=True,
+                        bypass_tester_approval=True,
                         bypass_jira_version_check=True,
                         bypass_jira_type_check=True,
                         bypass_build_status=True,
@@ -650,6 +682,7 @@ class TestWallE(unittest.TestCase):
             self.handle(pr['id'],
                         bypass_author_approval=True,
                         bypass_peer_approval=True,
+                        bypass_tester_approval=True,
                         bypass_jira_version_check=True,
                         bypass_jira_type_check=True,
                         bypass_build_status=True,
@@ -668,6 +701,7 @@ class TestWallE(unittest.TestCase):
         with self.assertRaises(AuthorApprovalRequired):
             self.handle(pr['id'],
                         bypass_peer_approval=True,
+                        bypass_tester_approval=True,
                         bypass_jira_version_check=True,
                         bypass_jira_type_check=True,
                         bypass_build_status=True,
@@ -677,6 +711,7 @@ class TestWallE(unittest.TestCase):
             self.handle(pr['id']+1,
                         bypass_author_approval=True,
                         bypass_peer_approval=True,
+                        bypass_tester_approval=True,
                         bypass_jira_version_check=True,
                         bypass_jira_type_check=True,
                         bypass_build_status=True,
@@ -688,6 +723,7 @@ class TestWallE(unittest.TestCase):
         with self.assertRaises(AuthorApprovalRequired):
             self.handle(pr['id'],
                         bypass_peer_approval=True,
+                        bypass_tester_approval=True,
                         bypass_jira_version_check=True,
                         bypass_jira_type_check=True,
                         bypass_build_status=True,
@@ -697,6 +733,7 @@ class TestWallE(unittest.TestCase):
         with self.assertRaises(AuthorApprovalRequired):
             self.handle(pr['id']+1,
                         bypass_peer_approval=True,
+                        bypass_tester_approval=True,
                         bypass_jira_version_check=True,
                         bypass_jira_type_check=True,
                         bypass_build_status=True,
@@ -708,6 +745,7 @@ class TestWallE(unittest.TestCase):
         with self.assertRaises(AuthorApprovalRequired):
             self.handle(pr['id'],
                         bypass_peer_approval=True,
+                        bypass_tester_approval=True,
                         bypass_jira_version_check=True,
                         bypass_jira_type_check=True,
                         bypass_build_status=True,
@@ -722,6 +760,7 @@ class TestWallE(unittest.TestCase):
         with self.assertRaises(AuthorApprovalRequired):
             self.handle(pr['id'],
                         bypass_peer_approval=True,
+                        bypass_tester_approval=True,
                         bypass_jira_version_check=True,
                         bypass_jira_type_check=True,
                         bypass_build_status=True,
@@ -744,6 +783,7 @@ class TestWallE(unittest.TestCase):
             self.handle(pr['id'],
                         bypass_author_approval=True,
                         bypass_peer_approval=True,
+                        bypass_tester_approval=True,
                         bypass_jira_version_check=True,
                         bypass_jira_type_check=True,
                         bypass_build_status=True,
@@ -787,6 +827,7 @@ class TestWallE(unittest.TestCase):
             self.handle(pr['id'],
                         bypass_author_approval=True,
                         bypass_peer_approval=True,
+                        bypass_tester_approval=True,
                         bypass_jira_version_check=True,
                         bypass_jira_type_check=True,
                         bypass_build_status=False,
@@ -797,6 +838,7 @@ class TestWallE(unittest.TestCase):
         retcode = self.handle(pr2['id'],
                               bypass_author_approval=True,
                               bypass_peer_approval=True,
+                              bypass_tester_approval=True,
                               bypass_jira_version_check=True,
                               bypass_jira_type_check=True,
                               bypass_build_status=True)
@@ -807,6 +849,7 @@ class TestWallE(unittest.TestCase):
             self.handle(pr['id'],
                         bypass_author_approval=True,
                         bypass_peer_approval=True,
+                        bypass_tester_approval=True,
                         bypass_jira_version_check=True,
                         bypass_jira_type_check=True,
                         bypass_build_status=True,
@@ -820,6 +863,7 @@ class TestWallE(unittest.TestCase):
             self.handle(pr['id'],
                         bypass_author_approval=True,
                         bypass_peer_approval=True,
+                        bypass_tester_approval=True,
                         bypass_jira_version_check=True,
                         bypass_jira_type_check=True,
                         bypass_build_status=False,
@@ -835,6 +879,7 @@ class TestWallE(unittest.TestCase):
             self.handle(pr['id'],
                         bypass_author_approval=True,
                         bypass_peer_approval=True,
+                        bypass_tester_approval=True,
                         bypass_jira_version_check=True,
                         bypass_jira_type_check=True,
                         bypass_build_status=False,
@@ -886,6 +931,21 @@ class TestWallE(unittest.TestCase):
                         bypass_jira_version_check=True,
                         bypass_jira_type_check=True,
                         bypass_build_status=True)
+
+    def test_bypass_tester_approval_through_comment(self):
+        pr = self.create_pr('bugfix/RING-00075', 'development/4.3')
+        pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id'])
+        pr_admin.add_comment('@%s'
+                             ' bypass_tester_approval' % WALL_E_USERNAME)
+
+        retcode = self.handle(pr['id'],
+                              bypass_author_approval=True,
+                              bypass_peer_approval=True,
+                              bypass_tester_approval=True,
+                              bypass_jira_version_check=True,
+                              bypass_jira_type_check=True,
+                              bypass_build_status=True)
+        self.assertEqual(retcode, SuccessMessage.code)
 
 
 def main():
