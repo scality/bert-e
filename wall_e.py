@@ -219,18 +219,12 @@ class IntegrationBranch(Branch):
         self.development_branch = Branch(repo=repo, name='development/%s' %
                                          self.version)
 
-    def create_from_dev_if_not_exists(self):
-        self.create_if_not_exists(self.development_branch)
-
     def merge_from_branch(self, source_branch):
         try:
             self.merge(source_branch, do_push=True)
         except MergeFailedException:
             raise Conflict(source=source_branch,
                            destination=self)
-
-    def merge_from_development_branch(self):
-        self.merge_from_branch(self.development_branch)
 
     def check_history_did_not_change(self):
         feature_branch = FeatureBranchName(self.subname)
@@ -290,7 +284,6 @@ class WallE:
         self.commands = commands
         self.source_branch = None
         self.destination_branch = None
-        self.integration_branches = None
 
     def option_is_set(self, name):
         if name not in self.options.keys():
@@ -429,25 +422,28 @@ class WallE:
         for version in self.destination_branch.impacted_versions:
             integration_branch = IntegrationBranch(repo, 'w/%s/%s' % (version,
                                                    self.source_branch.name))
-            integration_branch.create_from_dev_if_not_exists()
+            if not integration_branch.exists():
+                integration_branch.create(
+                    integration_branch.development_branch)
             integration_branches.append(integration_branch)
         return integration_branches
 
-    def create_pull_requests(self):
+    def create_pull_requests(self, integration_branches):
         return [integration_branch.
                 create_pull_request(self.main_pr, self.bbrepo) for
-                integration_branch in self.integration_branches]
+                integration_branch in integration_branches]
 
-    def update_integration_branches_from_development_branches(self):
+    def update_integration_from_dev(self, integration_branches):
         # The first integration branch should not contain commits
         # that are not in development/* or in the feature branch.
-        self.integration_branches[0].check_history_did_not_change()
-        for integration_branch in self.integration_branches:
-            integration_branch.merge_from_development_branch()
+        integration_branches[0].check_history_did_not_change()
+        for integration_branch in integration_branches:
+            integration_branch.merge_from_branch(
+                integration_branch.development_branch)
 
-    def update_integration_branches_from_feature_branch(self):
+    def update_integration_from_feature(self, integration_branches):
         branch_to_merge_from = self.source_branch
-        for integration_branch in self.integration_branches:
+        for integration_branch in integration_branches:
             integration_branch.merge_from_branch(branch_to_merge_from)
             branch_to_merge_from = integration_branch
 
@@ -470,9 +466,9 @@ class WallE:
                                        dev_branch_name)
             previous_dev_branch_name = dev_branch_name
 
-    def init(self):
+    def init(self, comments):
         """Displays a welcome message if conditions are met."""
-        for comment in self.main_pr.get_comments():
+        for comment in comments:
             author = comment['user']['username']
             if isinstance(author, list):
                 # python2 returns a list
@@ -494,17 +490,18 @@ class WallE:
             raise NothingToDo('The pull-request\'s state is "%s"'
                               % self.main_pr['state'])
 
-        self.init()
+        comments_ = self.main_pr.get_comments()
+        # transform yield into list for multiple usage
+        comments = [com for com in comments_]
+        self.init(comments)
 
         # must be called before any options is checked
-        self.get_comments_options()
+        self.get_comments_options(comments)
 
-        self.handle_commands()
+        self.handle_commands(comments)
 
         if self.option_is_set('wait'):
             raise NothingToDo('wait option is set')
-
-        # TODO: Check the size of the diff and issue warnings
 
         dst_brnch_name = self.main_pr['destination']['branch']['name']
         src_brnch_name = self.main_pr['source']['branch']['name']
@@ -539,10 +536,10 @@ class WallE:
         self.jira_checks()
         with self.clone_git_repo(reference_git_repo) as repo:
             self.check_git_repo_health(repo)
-            self.integration_branches = self.create_integration_branches(repo)
-            self.update_integration_branches_from_development_branches()
-            self.update_integration_branches_from_feature_branch()
-            child_prs = self.create_pull_requests()
+            integration_branches = self.create_integration_branches(repo)
+            self.update_integration_from_dev(integration_branches)
+            self.update_integration_from_feature(integration_branches)
+            child_prs = self.create_pull_requests(integration_branches)
 
             # Check parent PR: approval
             self.check_approval(child_prs)
@@ -555,13 +552,13 @@ class WallE:
             if interactive and not confirm('Do you want to merge ?'):
                 return
 
-            for integration_branch in self.integration_branches:
+            for integration_branch in integration_branches:
                 integration_branch.update_to_development_branch()
 
             self.check_git_repo_health(repo)
 
         raise SuccessMessage(versions=[x.version for x in
-                                       self.integration_branches],
+                                       integration_branches],
                              issue=self.source_branch.jira_issue_id,
                              author=self.author)
 
@@ -582,9 +579,9 @@ class WallE:
 
         return True
 
-    def get_comments_options(self):
+    def get_comments_options(self, comments):
         """Load settings from pull-request comments."""
-        for index, comment in enumerate(self.main_pr.get_comments()):
+        for comment in comments:
             raw = comment['content']['raw']
             if not raw.strip().startswith('@%s' % WALL_E_USERNAME):
                 continue
@@ -637,9 +634,9 @@ class WallE:
 
         return True
 
-    def handle_commands(self):
+    def handle_commands(self, comments):
         """Detect the last command in pull-request comments and act on it."""
-        for index, comment in enumerate(self.main_pr.get_comments()):
+        for comment in comments:
             author = comment['user']['username']
             if isinstance(author, list):
                 # python2 returns a list
