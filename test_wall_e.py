@@ -586,6 +586,7 @@ class TestWallE(unittest.TestCase):
             pr.add_comment('random comment %s' % i)
         for i in range(10):
             pr.add_comment('@%s bypass_tester_approval' % i)
+        pr_admin.add_comment('@%s bypass_tester_approval' % WALL_E_USERNAME)
 
         with self.assertRaises(SuccessMessage):
             self.handle(pr['id'],
@@ -903,6 +904,7 @@ class TestWallE(unittest.TestCase):
 
         with self.assertRaises(SuccessMessage):
             self.handle(pr['id'],
+                        bypass_tester_approval=True,
                         bypass_jira_version_check=True,
                         bypass_jira_type_check=True,
                         bypass_build_status=True,
@@ -928,6 +930,7 @@ class TestWallE(unittest.TestCase):
 
         with self.assertRaises(MalformedGitRepo):
             self.handle(pr['id'],
+                        bypass_tester_approval=True,
                         bypass_jira_version_check=True,
                         bypass_jira_type_check=True,
                         bypass_build_status=True)
