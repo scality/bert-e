@@ -95,6 +95,7 @@ class Branch(object):
     def includes_commit(self, sha1):
         try:
             name = 'origin/' + self.name
+            self.checkout()
             self.repo.cmd('git merge-base --is-ancestor %s %s' % (sha1, name))
         except subprocess.CalledProcessError:
             return False
