@@ -44,6 +44,7 @@ from wall_e_exceptions import (AuthorApprovalRequired,
                                PeerApprovalRequired,
                                PrefixCannotBeMerged,
                                StatusReport,
+                               SuccessMessage,
                                UnableToSendEmail,
                                WallE_SilentException,
                                WallE_TemplateException,
@@ -351,7 +352,7 @@ class WallE:
             if not confirm('Do you want to send this comment?'):
                 return
 
-        logging.info('SENDING MSG %s', msg)
+        logging.debug('SENDING MSG %s', msg)
 
         self.main_pr.add_comment(msg)
 
@@ -448,8 +449,8 @@ class WallE:
     def clone_git_repo(self, reference_git_repo):
         git_repo = GitRepository(self.bbrepo.get_git_url())
         git_repo.clone(reference_git_repo)
-        git_repo.config('user.email', '"%s"')
-        git_repo.config('user.name', '"Wall-E"')
+        git_repo.config('user.email', WALL_E_EMAIL)
+        git_repo.config('user.name', WALL_E_USERNAME)
         return git_repo
 
     def init(self, comments):
@@ -480,18 +481,14 @@ class WallE:
         self.init(comments)
 
         # must be called before any options is checked
+        comments = self.main_pr.get_comments()
         self.get_comments_options(comments)
 
+        comments = self.main_pr.get_comments()
         self.handle_commands(comments)
 
         if self.option_is_set('wait'):
             raise NothingToDo('wait option is set')
-
-        # TODO: Check the size of the diff and issue warnings
-
-        # TODO: Check build status
-
-        # TODO: make it idempotent
 
         dst_brnch_name = self.main_pr['destination']['branch']['name']
         src_brnch_name = self.main_pr['source']['branch']['name']
@@ -541,8 +538,10 @@ class WallE:
             if interactive and not confirm('Do you want to merge ?'):
                 return
 
-            for integration_branch in integration_branches:
-                integration_branch.update_to_development_branch()
+        raise SuccessMessage(versions=[x.version for x in
+                                       integration_branches],
+                             issue=self.source_branch.jira_issue_id,
+                             author=self.author)
 
     def check_options(self, author, keyword_list):
         logging.debug('checking keywords %s', keyword_list)
@@ -593,8 +592,8 @@ class WallE:
             keywords = match_.group('keywords').strip().split()
 
             if not self.check_options(author, keywords):
-                logging.warning('Keyword comment ignored. '
-                                'Checks failed: %s', raw)
+                logging.debug('Keyword comment ignored. '
+                              'Checks failed: %s', raw)
                 continue
 
             for keyword in keywords:
@@ -763,12 +762,22 @@ def main():
         '--alert-email', action='store', default=None, type=str,
         help='Where to send notifications in case of '
              'incorrect behaviour')
+    parser.add_argument(
+        '--backtrace', action='store_true', default=False,
+        help='Show backtrace instead of return code on console')
+    parser.add_argument(
+        '--quiet', action='store_true', default=False,
+        help='Don\'t print return codes on the console')
     args = parser.parse_args()
 
     if args.verbose:
         logging.basicConfig(level=logging.DEBUG)
     else:
         logging.basicConfig(level=logging.INFO)
+        # request lib is noisy
+        requests_log = logging.getLogger("requests.packages.urllib3")
+        requests_log.setLevel(logging.WARNING)
+        requests_log.propagate = True
 
     if args.alert_email:
         try:
@@ -809,13 +818,13 @@ def main():
         'bypass_commit_size':
             Option(priviledged=True,
                    value=False,
-                   help='Bypass the check on the size of the changeset'
+                   help='Bypass the check on the size of the changeset '
                         '```TBA```'),
         'unanimity':
             Option(priviledged=False,
                    help="Change review acceptance criteria from "
-                        "`one reviewer at least` to `all reviewers`"
-                        " ```TBA```"),
+                        "`one reviewer at least` to `all reviewers` "
+                        "```TBA```"),
         'wait':
             Option(priviledged=False,
                    help="Instruct Wall-E not to run until further notice")
@@ -860,13 +869,28 @@ def main():
         )
 
     except WallE_TemplateException as excp:
-        wall_e.send_bitbucket_msg(str(excp),
-                                  no_comment=args.no_comment,
-                                  interactive=args.interactive)
-        raise
+        try:
+            wall_e.send_bitbucket_msg(str(excp),
+                                      no_comment=args.no_comment,
+                                      interactive=args.interactive)
+        except CommentAlreadyExists:
+            logging.info('Comment already posted.')
 
-    except WallE_SilentException:
-        raise
+
+        if args.backtrace:
+            raise excp
+
+        if not args.quiet:
+            print('%d - %s' % (excp.code, excp.__class__.__name__))
+        return excp.code
+
+    except WallE_SilentException as excp:
+        if args.backtrace:
+            raise excp
+
+        if not args.quiet:
+            print('%d - %s' % (0, excp.__class__.__name__))
+        return 0
 
     except Exception:
         if args.alert_email:

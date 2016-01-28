@@ -6,7 +6,12 @@ from template_loader import render
 
 # base exceptions
 class WallE_TemplateException(Exception):
+    code = 0
+    template = None
+
     def __init__(self, **kwargs):
+        assert self.code != 0
+        assert self.template
         self.msg = render(self.template, code=self.code, **kwargs)
         super(WallE_TemplateException, self).__init__(self.msg)
 
@@ -108,6 +113,11 @@ class JiraIssueNotFound(WallE_TemplateException):
 class ParentJiraIssueNotFound(JiraIssueNotFound):
     code = 117
     template = 'parent_jira_issue_not_found.md'
+
+
+class SuccessMessage(WallE_TemplateException):
+    code = 118
+    template = 'successfull_merge.md'
 
 
 # internal exceptions
