@@ -695,13 +695,13 @@ class WallE:
 
     def check_approval(self, child_prs):
         """Check approval of a PR (or a child of a PR)
-            PR must be approve by the author a  QA champion and a peer
-            Args:
-                child_prs (json): all the child PRs
-            Raises:
-                AuthorApprovalRequired
-                PeerApprovalRequired
-                TesterApprovalRequired
+        PR must be approved by the author a  QA champion and a peer
+        Args:
+            child_prs (json): all the child PRs
+        Raises:
+            AuthorApprovalRequired
+            PeerApprovalRequired
+            TesterApprovalRequired
         """
         approved_by_author = self.option_is_set('bypass_author_approval')
         approved_by_peer = self.option_is_set('bypass_peer_approval')
@@ -789,7 +789,7 @@ def main():
         '--bypass-build-status', action='store_true', default=False,
         help=bypass_build_status_help)
     parser.add_argument(
-        '--bypass-tester-approval', action='store_true', default=True,
+        '--bypass-tester-approval', action='store_true', default=False,
         help=bypass_tester_approval_help)
     parser.add_argument(
         'pull_request_id',
