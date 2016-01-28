@@ -503,11 +503,6 @@ class WallE:
         if self.option_is_set('wait'):
             raise NothingToDo('wait option is set')
 
-<<<<<<< HEAD
-=======
-        # TODO: Check the size of the diff and issue warnings
-
->>>>>>> origin
         dst_brnch_name = self.main_pr['destination']['branch']['name']
         src_brnch_name = self.main_pr['source']['branch']['name']
         try:
