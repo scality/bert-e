@@ -938,8 +938,7 @@ class TestWallE(unittest.TestCase):
     def test_bypass_tester_approval_through_comment(self):
         pr = self.create_pr('bugfix/RING-00075', 'development/4.3')
         pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id'])
-        pr_admin.add_comment('@%s'
-                             ' bypass_tester_approval' % WALL_E_USERNAME)
+        pr_admin.add_comment('@%s bypass_tester_approval' % WALL_E_USERNAME)
 
         retcode = self.handle(pr['id'],
                               bypass_author_approval=True,
