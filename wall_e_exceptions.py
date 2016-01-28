@@ -149,6 +149,14 @@ class JiraUnknownIssueType(WallE_InternalException):
         super(JiraUnknownIssueType, self).__init__(msg)
 
 
+class MalformedGitRepo(WallE_InternalException):
+    def __init__(self, upstream_branch, downstream_branch):
+        msg = ("The git repository appears to be in a bad shape. "
+               "Branch `%s` is not included in branch `%s`." % (
+               upstream_branch, downstream_branch))
+        super(MalformedGitRepo, self).__init__(msg)
+
+
 # silent exceptions
 class CommentAlreadyExists(WallE_SilentException):
     pass

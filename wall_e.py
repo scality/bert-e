@@ -36,6 +36,7 @@ from wall_e_exceptions import (AuthorApprovalRequired,
                                InitMessage,
                                JiraIssueNotFound,
                                JiraUnknownIssueType,
+                               MalformedGitRepo,
                                MismatchPrefixIssueType,
                                MissingJiraIdMaintenance,
                                NothingToDo,
@@ -457,6 +458,18 @@ class WallE:
         git_repo.config('user.name', WALL_E_USERNAME)
         return git_repo
 
+    def check_git_repo_health(self, git_repo):
+        previous_dev_branch_name = 'development/%s' % KNOWN_VERSIONS.keys()[0]
+        Branch(git_repo, previous_dev_branch_name).checkout()
+        for version in KNOWN_VERSIONS.keys()[1:]:
+            dev_branch_name = 'development/%s' % version
+            dev_branch = Branch(git_repo, dev_branch_name)
+            dev_branch.checkout()
+            if not dev_branch.includes_commit(previous_dev_branch_name):
+                raise MalformedGitRepo(previous_dev_branch_name,
+                                       dev_branch_name)
+            previous_dev_branch_name = dev_branch_name
+
     def init(self):
         """Displays a welcome message if conditions are met."""
         for comment in self.main_pr.get_comments():
@@ -493,10 +506,6 @@ class WallE:
 
         # TODO: Check the size of the diff and issue warnings
 
-        # TODO: Check build status
-
-        # TODO: make it idempotent
-
         dst_brnch_name = self.main_pr['destination']['branch']['name']
         src_brnch_name = self.main_pr['source']['branch']['name']
         try:
@@ -529,6 +538,7 @@ class WallE:
 
         self.jira_checks()
         with self.clone_git_repo(reference_git_repo) as repo:
+            self.check_git_repo_health(repo)
             self.integration_branches = self.create_integration_branches(repo)
             self.update_integration_branches_from_development_branches()
             self.update_integration_branches_from_feature_branch()
@@ -547,6 +557,8 @@ class WallE:
 
             for integration_branch in self.integration_branches:
                 integration_branch.update_to_development_branch()
+
+            self.check_git_repo_health(repo)
 
         raise SuccessMessage(versions=[x.version for x in
                                        self.integration_branches],
