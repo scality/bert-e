@@ -944,7 +944,6 @@ class TestWallE(unittest.TestCase):
         retcode = self.handle(pr['id'],
                               bypass_author_approval=True,
                               bypass_peer_approval=True,
-                              bypass_tester_approval=True,
                               bypass_jira_version_check=True,
                               bypass_jira_type_check=True,
                               bypass_build_status=True)
