@@ -792,12 +792,45 @@ class TestWallE(unittest.TestCase):
                         bypass_build_status=False,
                         backtrace=True)
 
-        # We don't want to push without being up to date
-        self.gitrepo.cmd('git checkout development/4.3')
-        self.gitrepo.cmd('git pull')
+        # create another PR and merge it entirely
+        pr2 = self.create_pr('bugfix/RING-00075', 'development/4.3')
+        retcode = self.handle(pr2['id'],
+                              bypass_author_approval=True,
+                              bypass_peer_approval=True,
+                              bypass_jira_version_check=True,
+                              bypass_jira_type_check=True,
+                              bypass_build_status=True)
+        self.assertEqual(retcode, SuccessMessage.code)
 
-        add_file_to_branch(self.gitrepo, 'development/4.3', 'rebase_on_me')
-        rebase_branch(self.gitrepo, 'bugfix/RING-00074', 'development/4.3')
+        rebase_branch(self.gitrepo, 'bugfix/RING-00075', 'development/4.3')
+        with self.assertRaises(SuccessMessage):
+            self.handle(pr['id'],
+                        bypass_author_approval=True,
+                        bypass_peer_approval=True,
+                        bypass_jira_version_check=True,
+                        bypass_jira_type_check=True,
+                        bypass_build_status=True,
+                        backtrace=True)
+
+    def test_first_integration_branch_manually_updated(self):
+        feature_branch = 'bugfix/RING-0076'
+        first_integration_branch = 'w/4.3/bugfix/RING-0076'
+        pr = self.create_pr(feature_branch, 'development/4.3')
+        with self.assertRaises(BuildNotStarted):
+            self.handle(pr['id'],
+                        bypass_author_approval=True,
+                        bypass_peer_approval=True,
+                        bypass_jira_version_check=True,
+                        bypass_jira_type_check=True,
+                        bypass_build_status=False,
+                        backtrace=True)
+
+        self.gitrepo.cmd('git pull')
+        self.gitrepo.cmd('git checkout %s' % first_integration_branch)
+
+        add_file_to_branch(self.gitrepo, first_integration_branch,
+                           'file_added_on_int_branch')
+
         with self.assertRaises(BranchHistoryMismatch):
             self.handle(pr['id'],
                         bypass_author_approval=True,
@@ -809,7 +842,7 @@ class TestWallE(unittest.TestCase):
 
     def test_success_message(self):
         """Check the success message."""
-        feature_branch = 'bugfix/RING-0010'
+        feature_branch = 'bugfix/RING-0076'
         dst_branch = 'development/4.3'
         reviewers = ['scality_wall-e']
 
@@ -832,7 +865,7 @@ class TestWallE(unittest.TestCase):
 
     def test_malformed_git_repo(self):
         """Test check that we can detect malformed git repositories"""
-        feature_branch = 'bugfix/RING-0450'
+        feature_branch = 'bugfix/RING-0077'
         dst_branch = 'development/4.3'
         reviewers = ['scality_wall-e']
 

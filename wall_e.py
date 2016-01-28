@@ -466,11 +466,8 @@ class WallE:
             dev_branch = Branch(git_repo, dev_branch_name)
             dev_branch.checkout()
             if not dev_branch.includes_commit(previous_dev_branch_name):
-                raise MalformedGitRepo('The git repository is in a bad shape. '
-                                       'Branch `%s` is not a included in '
-                                       'branch `%s`.'
-                                       % (previous_dev_branch_name,
-                                          dev_branch_name))
+                raise MalformedGitRepo(previous_dev_branch_name,
+                                       dev_branch_name)
             previous_dev_branch_name = dev_branch_name
 
     def init(self):
