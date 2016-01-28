@@ -46,6 +46,7 @@ from wall_e_exceptions import (AuthorApprovalRequired,
                                PrefixCannotBeMerged,
                                StatusReport,
                                SuccessMessage,
+                               TesterApprovalRequired,
                                UnableToSendEmail,
                                WallE_SilentException,
                                WallE_TemplateException,
@@ -81,6 +82,16 @@ RELEASE_ENGINEERS = [
     'pierre_louis_bonicoli',
     'rayene_benrayana',
     'sylvain_killian',
+]
+
+QA_CHAMPIONS = [  # List of QA champions
+    'anneharper',
+    'christophe_meron',
+    'christophe_stoyanov',
+    'lpantou',
+    'mcolzi',
+    'romain_thebaud',
+    'sleibo'
 ]
 
 
@@ -683,10 +694,24 @@ class WallE:
             handler(match_.group('args'))
 
     def check_approval(self, child_prs):
+        """Check approval of a PR (or a child of a PR)
+            PR must be approve by the author a  QA champion and a peer
+            Args:
+                child_prs (json): all the child PRs
+            Raises:
+                AuthorApprovalRequired
+                PeerApprovalRequired
+                TesterApprovalRequired
+        """
         approved_by_author = self.option_is_set('bypass_author_approval')
         approved_by_peer = self.option_is_set('bypass_peer_approval')
+        approved_by_tester = self.option_is_set('bypass_tester_approval')
 
-        if approved_by_author and approved_by_peer:
+        # If a QA champion is the author of the PR we will bypass his approval
+        if self.author in QA_CHAMPIONS:
+            approved_by_tester = True
+
+        if approved_by_author and approved_by_peer and approved_by_tester:
             return
 
         # NB: when author hasn't approved the PR, author isn't listed in
@@ -696,6 +721,8 @@ class WallE:
                 continue
             if participant['user']['username'] == self.author:
                 approved_by_author = True
+            elif participant['user']['username'] in QA_CHAMPIONS:
+                approved_by_tester = True
             else:
                 approved_by_peer = True
 
@@ -706,6 +733,10 @@ class WallE:
         if not approved_by_peer:
             raise PeerApprovalRequired(pr=self.main_pr,
                                        child_prs=child_prs)
+
+        if not approved_by_tester:
+            raise TesterApprovalRequired(pr=self.main_pr,
+                                         child_prs=child_prs)
 
     def get_active_options(self):
         return [option for option in self.options.keys() if
@@ -740,6 +771,7 @@ def main():
         'Bypass the Jira Fix Version/s field check'
     bypass_jira_type_check_help = 'Bypass the Jira issue Type field check'
     bypass_build_status_help = 'Bypass the build and test status'
+    bypass_tester_approval_help = 'Bypass the pull request tester\'s approval'
 
     parser.add_argument(
         '--bypass-author-approval', action='store_true', default=False,
@@ -756,6 +788,9 @@ def main():
     parser.add_argument(
         '--bypass-build-status', action='store_true', default=False,
         help=bypass_build_status_help)
+    parser.add_argument(
+        '--bypass-tester-approval', action='store_true', default=False,
+        help=bypass_tester_approval_help)
     parser.add_argument(
         'pull_request_id',
         help='The ID of the pull request')
@@ -823,8 +858,8 @@ def main():
                    help=bypass_author_peer_help),
         'bypass_tester_approval':
             Option(priviledged=True,
-                   value=args.bypass_author_approval,
-                   help='Bypass the pull request tester\'s approval'),
+                   value=args.bypass_tester_approval,
+                   help=bypass_tester_approval_help),
         'bypass_jira_version_check':
             Option(priviledged=True,
                    value=args.bypass_jira_version_check,
@@ -897,7 +932,6 @@ def main():
                                       interactive=args.interactive)
         except CommentAlreadyExists:
             logging.info('Comment already posted.')
-
 
         if args.backtrace:
             raise excp
