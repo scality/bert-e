@@ -928,7 +928,7 @@ class TestWallE(unittest.TestCase):
         self.assertEqual(retcode, SuccessMessage.code)
 
     def test_non_default_build_key_successful(self):
-        pr = self.create_pr('bugfix/RING-00078', 'development/4.3')
+        pr = self.create_pr('bugfix/RING-00080', 'development/4.3')
         retcode =  self.handle(pr['id'],
                                bypass_author_approval=True,
                                bypass_peer_approval=True,
@@ -953,7 +953,7 @@ class TestWallE(unittest.TestCase):
         self.assertEqual(retcode, SuccessMessage.code)
 
     def test_build_status_failed(self):
-        pr = self.create_pr('bugfix/RING-00079', 'development/4.3')
+        pr = self.create_pr('bugfix/RING-00081', 'development/4.3')
         retcode =  self.handle(pr['id'],
                                bypass_author_approval=True,
                                bypass_peer_approval=True,
@@ -971,7 +971,7 @@ class TestWallE(unittest.TestCase):
         self.assertEqual(retcode, BuildFailed.code)
 
     def test_build_status_inprogress(self):
-        pr = self.create_pr('bugfix/RING-00080', 'development/4.3')
+        pr = self.create_pr('bugfix/RING-00082', 'development/4.3')
         retcode =  self.handle(pr['id'],
                                bypass_author_approval=True,
                                bypass_peer_approval=True,
