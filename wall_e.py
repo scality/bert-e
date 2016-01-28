@@ -303,7 +303,7 @@ class WallE:
             return
         ordered_state = ['SUCCESSFUL', 'INPROGRESS', 'NOTSTARTED', 'FAILED']
         g_state = 'SUCCESSFUL'
-        worst_pr = 0
+        worst_pr = child_prs[0]
         for pr in child_prs:
             try:
                 build_state = self.bbrepo.get_build_status(
@@ -323,11 +323,11 @@ class WallE:
                     worst_pr = pr
 
         if g_state == 'FAILED':
-            raise BuildFailed(pr_id=pr['id'])
+            raise BuildFailed(pr_id=worst_pr['id'])
         elif g_state == 'NOTSTARTED':
-            raise BuildNotStarted(pr_id=pr['id'])
+            raise BuildNotStarted(pr_id=worst_pr['id'])
         elif g_state == 'INPROGRESS':
-            raise BuildInProgress(pr_id=pr['id'])
+            raise BuildInProgress(pr_id=worst_pr['id'])
         assert build_state == 'SUCCESSFUL'
 
     def find_bitbucket_comment(self,
@@ -913,7 +913,6 @@ def main():
                                       interactive=args.interactive)
         except CommentAlreadyExists:
             logging.info('Comment already posted.')
-
 
         if args.backtrace:
             raise excp
