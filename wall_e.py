@@ -552,7 +552,7 @@ class WallE:
             if interactive and not confirm('Do you want to merge ?'):
                 return
 
-            for integration_branch in self.integration_branches:
+            for integration_branch in integration_branches:
                 integration_branch.update_to_development_branch()
 
             self.check_git_repo_health(repo)
