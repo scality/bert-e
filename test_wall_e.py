@@ -811,7 +811,6 @@ class TestWallE(unittest.TestCase):
                         'bypass_peer_approval',
                         'bypass_jira_version_check',
                         'bypass_jira_type_check'],
-                        bypass_build_status=False,
                         backtrace=True)
 
         # create another PR and merge it entirely
@@ -847,7 +846,6 @@ class TestWallE(unittest.TestCase):
                         'bypass_peer_approval',
                         'bypass_jira_version_check',
                         'bypass_jira_type_check'],
-                        bypass_build_status=False,
                         backtrace=True)
 
         self.gitrepo.cmd('git pull')
@@ -863,7 +861,6 @@ class TestWallE(unittest.TestCase):
                         'bypass_peer_approval',
                         'bypass_jira_version_check',
                         'bypass_jira_type_check'],
-                        bypass_build_status=False,
                         backtrace=True)
 
     def test_success_message(self):
