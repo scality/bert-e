@@ -455,9 +455,9 @@ class WallE:
         return git_repo
 
     def check_git_repo_health(self, git_repo):
-        previous_dev_branch_name = 'development/%s' % KNOWN_VERSIONS.keys()[0]
+        previous_dev_branch_name = 'development/%s' % list(KNOWN_VERSIONS)[0]
         Branch(git_repo, previous_dev_branch_name).checkout()
-        for version in KNOWN_VERSIONS.keys()[1:]:
+        for version in list(KNOWN_VERSIONS)[1:]:
             dev_branch_name = 'development/%s' % version
             dev_branch = Branch(git_repo, dev_branch_name)
             dev_branch.checkout()
