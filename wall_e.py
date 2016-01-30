@@ -781,8 +781,6 @@ def main():
         '--option', '-o', action='append', type=str, dest='cmd_line_options',
         help="Activate additional options")
     parser.add_argument(
-        '--bypass-tester-approval', action='store_true', default=False,
-    parser.add_argument(
         'pull_request_id',
         help="The ID of the pull request")
     parser.add_argument(
