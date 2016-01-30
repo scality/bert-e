@@ -231,18 +231,12 @@ class IntegrationBranch(Branch):
         self.development_branch = Branch(repo=repo, name='development/%s' %
                                          self.version)
 
-    def create_from_dev_if_not_exists(self):
-        self.create_if_not_exists(self.development_branch)
-
     def merge_from_branch(self, source_branch):
         try:
             self.merge(source_branch, do_push=True)
         except MergeFailedException:
             raise Conflict(source=source_branch,
                            destination=self)
-
-    def merge_from_development_branch(self):
-        self.merge_from_branch(self.development_branch)
 
     def check_history_did_not_change(self):
         feature_branch = FeatureBranchName(self.subname)
@@ -302,31 +296,44 @@ class WallE:
         self.commands = commands
         self.source_branch = None
         self.destination_branch = None
-        self.integration_branches = None
 
     def option_is_set(self, name):
         if name not in self.options.keys():
             return False
         return self.options[name].is_set()
 
-    def check_build_status(self, pr, key):
+    def check_build_status(self, key, child_prs):
+        """Report the worst status available."""
         if self.option_is_set('bypass_build_status'):
             return
-        try:
-            build_state = self.bbrepo.get_build_status(
-                revision=pr['source']['commit']['hash'],
-                key=key
-            )['state']
-        except requests.exceptions.HTTPError as e:
-            if e.response.status_code == 404:
-                raise BuildNotStarted(pr_id=pr['id'])
-            raise
-        else:
-            if build_state == 'FAILED':
-                raise BuildFailed(pr_id=pr['id'])
-            elif build_state == 'INPROGRESS':
-                raise BuildInProgress(pr_id=pr['id'])
-            assert build_state == 'SUCCESSFUL'
+        ordered_state = ['SUCCESSFUL', 'INPROGRESS', 'NOTSTARTED', 'FAILED']
+        g_state = 'SUCCESSFUL'
+        worst_pr = child_prs[0]
+        for pr in child_prs:
+            try:
+                build_state = self.bbrepo.get_build_status(
+                    revision=pr['source']['commit']['hash'],
+                    key=key
+                )['state']
+            except requests.exceptions.HTTPError as e:
+                if e.response.status_code == 404:
+                    if ordered_state.index(g_state) < ordered_state.index('NOTSTARTED'):
+                        g_state = 'NOTSTARTED'
+                        worst_pr = pr
+                else:
+                    raise
+            else:
+                if ordered_state.index(g_state) < ordered_state.index(build_state):
+                    g_state = build_state
+                    worst_pr = pr
+
+        if g_state == 'FAILED':
+            raise BuildFailed(pr_id=worst_pr['id'])
+        elif g_state == 'NOTSTARTED':
+            raise BuildNotStarted(pr_id=worst_pr['id'])
+        elif g_state == 'INPROGRESS':
+            raise BuildInProgress(pr_id=worst_pr['id'])
+        assert build_state == 'SUCCESSFUL'
 
     def find_bitbucket_comment(self,
                                username=None,
@@ -441,25 +448,28 @@ class WallE:
         for version in self.destination_branch.impacted_versions:
             integration_branch = IntegrationBranch(repo, 'w/%s/%s' % (version,
                                                    self.source_branch.name))
-            integration_branch.create_from_dev_if_not_exists()
+            if not integration_branch.exists():
+                integration_branch.create(
+                    integration_branch.development_branch)
             integration_branches.append(integration_branch)
         return integration_branches
 
-    def create_pull_requests(self):
+    def create_pull_requests(self, integration_branches):
         return [integration_branch.
                 create_pull_request(self.main_pr, self.bbrepo) for
-                integration_branch in self.integration_branches]
+                integration_branch in integration_branches]
 
-    def update_integration_branches_from_development_branches(self):
+    def update_integration_from_dev(self, integration_branches):
         # The first integration branch should not contain commits
         # that are not in development/* or in the feature branch.
-        self.integration_branches[0].check_history_did_not_change()
-        for integration_branch in self.integration_branches:
-            integration_branch.merge_from_development_branch()
+        integration_branches[0].check_history_did_not_change()
+        for integration_branch in integration_branches:
+            integration_branch.merge_from_branch(
+                integration_branch.development_branch)
 
-    def update_integration_branches_from_feature_branch(self):
+    def update_integration_from_feature(self, integration_branches):
         branch_to_merge_from = self.source_branch
-        for integration_branch in self.integration_branches:
+        for integration_branch in integration_branches:
             integration_branch.merge_from_branch(branch_to_merge_from)
             branch_to_merge_from = integration_branch
 
@@ -471,9 +481,9 @@ class WallE:
         return git_repo
 
     def check_git_repo_health(self, git_repo):
-        previous_dev_branch_name = 'development/%s' % KNOWN_VERSIONS.keys()[0]
+        previous_dev_branch_name = 'development/%s' % list(KNOWN_VERSIONS)[0]
         Branch(git_repo, previous_dev_branch_name).checkout()
-        for version in KNOWN_VERSIONS.keys()[1:]:
+        for version in list(KNOWN_VERSIONS)[1:]:
             dev_branch_name = 'development/%s' % version
             dev_branch = Branch(git_repo, dev_branch_name)
             dev_branch.checkout()
@@ -482,9 +492,9 @@ class WallE:
                                        dev_branch_name)
             previous_dev_branch_name = dev_branch_name
 
-    def init(self):
+    def init(self, comments):
         """Displays a welcome message if conditions are met."""
-        for comment in self.main_pr.get_comments():
+        for comment in comments:
             author = comment['user']['username']
             if isinstance(author, list):
                 # python2 returns a list
@@ -499,24 +509,25 @@ class WallE:
                           status=self.get_status_report(),
                           active_options=self.get_active_options())
 
-    def handle_pull_request(self, reference_git_repo='', no_comment=False,
+    def handle_pull_request(self, build_key, reference_git_repo='', no_comment=False,
                             interactive=False):
 
         if self.main_pr['state'] != 'OPEN':  # REJECTED or FULFILLED
             raise NothingToDo('The pull-request\'s state is "%s"'
                               % self.main_pr['state'])
 
-        self.init()
+        comments_ = self.main_pr.get_comments()
+        # transform yield into list for multiple usage
+        comments = [com for com in comments_]
+        self.init(comments)
 
         # must be called before any options is checked
-        self.get_comments_options()
+        self.get_comments_options(comments)
 
-        self.handle_commands()
+        self.handle_commands(comments)
 
         if self.option_is_set('wait'):
             raise NothingToDo('wait option is set')
-
-        # TODO: Check the size of the diff and issue warnings
 
         dst_brnch_name = self.main_pr['destination']['branch']['name']
         src_brnch_name = self.main_pr['source']['branch']['name']
@@ -551,29 +562,27 @@ class WallE:
         self.jira_checks()
         with self.clone_git_repo(reference_git_repo) as repo:
             self.check_git_repo_health(repo)
-            self.integration_branches = self.create_integration_branches(repo)
-            self.update_integration_branches_from_development_branches()
-            self.update_integration_branches_from_feature_branch()
-            child_prs = self.create_pull_requests()
+            integration_branches = self.create_integration_branches(repo)
+            self.update_integration_from_dev(integration_branches)
+            self.update_integration_from_feature(integration_branches)
+            child_prs = self.create_pull_requests(integration_branches)
 
             # Check parent PR: approval
             self.check_approval(child_prs)
 
             # Check integration PR: build status
-            for pr in child_prs:
-                self.check_build_status(pr, 'jenkins_build')
-                self.check_build_status(pr, 'jenkins_utest')
+            self.check_build_status(build_key, child_prs)
 
             if interactive and not confirm('Do you want to merge ?'):
                 return
 
-            for integration_branch in self.integration_branches:
+            for integration_branch in integration_branches:
                 integration_branch.update_to_development_branch()
 
             self.check_git_repo_health(repo)
 
         raise SuccessMessage(versions=[x.version for x in
-                                       self.integration_branches],
+                                       integration_branches],
                              issue=self.source_branch.jira_issue_id,
                              author=self.author)
 
@@ -594,9 +603,9 @@ class WallE:
 
         return True
 
-    def get_comments_options(self):
+    def get_comments_options(self, comments):
         """Load settings from pull-request comments."""
-        for index, comment in enumerate(self.main_pr.get_comments()):
+        for comment in comments:
             raw = comment['content']['raw']
             if not raw.strip().startswith('@%s' % WALL_E_USERNAME):
                 continue
@@ -649,9 +658,9 @@ class WallE:
 
         return True
 
-    def handle_commands(self):
+    def handle_commands(self, comments):
         """Detect the last command in pull-request comments and act on it."""
-        for index, comment in enumerate(self.main_pr.get_comments()):
+        for comment in comments:
             author = comment['user']['username']
             if isinstance(author, list):
                 # python2 returns a list
@@ -768,67 +777,51 @@ def main():
     parser = argparse.ArgumentParser(add_help=False,
                                      description='Merges bitbucket '
                                                  'pull requests.')
-    bypass_author_approval_help = 'Bypass the pull request author\'s approval'
-    bypass_author_peer_help = 'Bypass the pull request peer\'s approval'
-    bypass_jira_version_check_help = \
-        'Bypass the Jira Fix Version/s field check'
-    bypass_jira_type_check_help = 'Bypass the Jira issue Type field check'
-    bypass_build_status_help = 'Bypass the build and test status'
-    bypass_tester_approval_help = 'Bypass the pull request tester\'s approval'
-
     parser.add_argument(
-        '--bypass-author-approval', action='store_true', default=False,
-        help=bypass_author_approval_help)
-    parser.add_argument(
-        '--bypass-peer-approval', action='store_true', default=False,
-        help=bypass_author_peer_help)
-    parser.add_argument(
-        '--bypass-jira-version-check', action='store_true', default=False,
-        help=bypass_jira_version_check_help)
-    parser.add_argument(
-        '--bypass-jira-type-check', action='store_true', default=False,
-        help=bypass_jira_type_check_help)
-    parser.add_argument(
-        '--bypass-build-status', action='store_true', default=False,
-        help=bypass_build_status_help)
+        '--option', '-o', action='append', type=str, dest='cmd_line_options',
+        help="Activate additional options")
     parser.add_argument(
         '--bypass-tester-approval', action='store_true', default=False,
-        help=bypass_tester_approval_help)
     parser.add_argument(
         'pull_request_id',
-        help='The ID of the pull request')
+        help="The ID of the pull request")
     parser.add_argument(
         'password',
-        help='Wall-E\'s password [for Jira and Bitbucket]')
+        help="Wall-E's password [for Jira and Bitbucket]")
     parser.add_argument(
         '--reference-git-repo', default='',
-        help='Reference to a local git repo to improve cloning delay')
+        help="Reference to a local git repo to improve cloning delay")
     parser.add_argument(
         '--owner', default='scality',
-        help='The owner of the repo (default: scality)')
+        help="The owner of the repo (default: scality)")
     parser.add_argument(
         '--slug', default='ring',
-        help='The repo\'s slug (default: ring)')
+        help="The repo's slug (default: ring)")
+    parser.add_argument(
+        '--build-key', action='store', default='pipeline', type=str,
+        help="The build key to consider for approval (default: pipeline)")
     parser.add_argument(
         '--interactive', action='store_true', default=False,
-        help='Ask before merging or sending comments')
+        help="Ask before merging or sending comments")
     parser.add_argument(
         '--no-comment', action='store_true', default=False,
-        help='Do not add any comment to the pull request page')
+        help="Do not add any comment to the pull request page")
     parser.add_argument(
         '-v', action='store_true', dest='verbose', default=False,
-        help='Verbose mode')
+        help="Verbose mode")
     parser.add_argument(
         '--alert-email', action='store', default=None, type=str,
-        help='Where to send notifications in case of '
-             'incorrect behaviour')
+        help="Where to send notifications in case of "
+             "incorrect behaviour")
     parser.add_argument(
         '--backtrace', action='store_true', default=False,
-        help='Show backtrace instead of return code on console')
+        help="Show backtrace instead of return code on console")
     parser.add_argument(
         '--quiet', action='store_true', default=False,
-        help='Don\'t print return codes on the console')
+        help="Don't print return codes on the console")
     args = parser.parse_args()
+    if not args.cmd_line_options:
+        args.cmd_line_options = []
 
     if args.verbose:
         logging.basicConfig(level=logging.DEBUG)
@@ -853,40 +846,42 @@ def main():
     options = {
         'bypass_peer_approval':
             Option(priviledged=True,
-                   value=args.bypass_peer_approval,
-                   help=bypass_author_approval_help),
+                   value='bypass_peer_approval' in args.cmd_line_options,
+                   help="Bypass the pull request author's approval"),
         'bypass_author_approval':
             Option(priviledged=True,
-                   value=args.bypass_author_approval,
-                   help=bypass_author_peer_help),
+                   value='bypass_author_approval' in args.cmd_line_options,
+                   help="Bypass the pull request peer's approval"),
         'bypass_tester_approval':
             Option(priviledged=True,
-                   value=args.bypass_tester_approval,
-                   help=bypass_tester_approval_help),
+                   value='bypass_tester_approval' in args.cmd_line_options,
+                   help="Bypass the pull request tester's approval"),
         'bypass_jira_version_check':
             Option(priviledged=True,
-                   value=args.bypass_jira_version_check,
-                   help=bypass_jira_version_check_help),
+                   value='bypass_jira_version_check' in args.cmd_line_options,
+                   help="Bypass the Jira Fix Version/s field check"),
         'bypass_jira_type_check':
             Option(priviledged=True,
-                   value=args.bypass_jira_type_check,
-                   help=bypass_jira_type_check_help),
+                   value='bypass_jira_type_check' in args.cmd_line_options,
+                   help="Bypass the Jira issue Type field check"),
         'bypass_build_status':
             Option(priviledged=True,
-                   value=args.bypass_build_status,
-                   help=bypass_build_status_help),
+                   value='bypass_build_status' in args.cmd_line_options,
+                   help="Bypass the build and test status"),
         'bypass_commit_size':
             Option(priviledged=True,
-                   value=False,
+                   value='bypass_commit_size' in args.cmd_line_options,
                    help='Bypass the check on the size of the changeset '
                         '```TBA```'),
         'unanimity':
             Option(priviledged=False,
+                   value='unanimity' in args.cmd_line_options,
                    help="Change review acceptance criteria from "
                         "`one reviewer at least` to `all reviewers` "
                         "```TBA```"),
         'wait':
             Option(priviledged=False,
+                   value='wait' in args.cmd_line_options,
                    help="Instruct Wall-E not to run until further notice")
     }
 
@@ -923,6 +918,7 @@ def main():
 
     try:
         wall_e.handle_pull_request(
+            build_key=args.build_key,
             reference_git_repo=args.reference_git_repo,
             no_comment=args.no_comment,
             interactive=args.interactive
