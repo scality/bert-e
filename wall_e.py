@@ -84,7 +84,8 @@ RELEASE_ENGINEERS = [
     'sylvain_killian',
 ]
 
-QA_CHAMPIONS = [  # List of QA champions
+TEST_ENGINEERS = [
+    WALL_E_USERNAME,   # we need this for test purposes
     'anneharper',
     'christophe_meron',
     'christophe_stoyanov',
@@ -694,21 +695,23 @@ class WallE:
             handler(match_.group('args'))
 
     def check_approval(self, child_prs):
-        """Check approval of a PR (or a child of a PR)
-        PR must be approved by the author a  QA champion and a peer
+        """Check approval of a PR by author, tester and peer.
+
         Args:
-            child_prs (json): all the child PRs
+            - child_prs (json): all the child PRs
+
         Raises:
-            AuthorApprovalRequired
-            PeerApprovalRequired
-            TesterApprovalRequired
+            - AuthorApprovalRequired
+            - PeerApprovalRequired
+            - TesterApprovalRequired
+
         """
         approved_by_author = self.option_is_set('bypass_author_approval')
         approved_by_peer = self.option_is_set('bypass_peer_approval')
         approved_by_tester = self.option_is_set('bypass_tester_approval')
 
-        # If a QA champion is the author of the PR we will bypass his approval
-        if self.author in QA_CHAMPIONS:
+        # If a tester is the author of the PR we will bypass the tester approval
+        if self.author in TEST_ENGINEERS:
             approved_by_tester = True
 
         if approved_by_author and approved_by_peer and approved_by_tester:
@@ -721,7 +724,7 @@ class WallE:
                 continue
             if participant['user']['username'] == self.author:
                 approved_by_author = True
-            elif participant['user']['username'] in QA_CHAMPIONS:
+            elif participant['user']['username'] in TEST_ENGINEERS:
                 approved_by_tester = True
             else:
                 approved_by_peer = True
