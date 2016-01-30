@@ -8,7 +8,7 @@ import unittest
 import requests
 
 import wall_e
-from bitbucket_api import (Client, PullRequest,
+from bitbucket_api import (Client,
                            Repository as BitbucketRepository)
 from git_api import Repository as GitRepository
 from wall_e_exceptions import (AuthorApprovalRequired,
