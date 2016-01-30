@@ -2,7 +2,9 @@ import os
 from shutil import rmtree
 from simplecmd import cmd
 import subprocess
+import time
 from tempfile import mkdtemp
+import logging
 
 
 class Repository(object):
@@ -29,9 +31,6 @@ class Repository(object):
 
     def config(self, key, value):
         self.cmd('git config %s %s' % (key, value))
-
-    def push_everything(self):
-        self.cmd('git push --all origin -u')
 
     def remote_branch_exists(self, name):
         """Test if a remote branch exists.
@@ -62,9 +61,20 @@ class Repository(object):
         except subprocess.CalledProcessError:
             raise PushFailedException(name)
 
-    def cmd(self, command, **kwargs):
+    def cmd(self, command, retry=0, **kwargs):
         cwd = kwargs.get('cwd', self.directory)
-        return cmd(command, cwd=cwd, **kwargs)
+        try:
+            ret = cmd(command, cwd=cwd, **kwargs)
+        except subprocess.CalledProcessError:
+            if retry:
+                logging.warning('The following command failed:\n'
+                                ' %s\n'
+                                '[%s retry left]', command, retry)
+                time.sleep(120)  # helps stabilize requests to bitbucket
+                ret = self.cmd(command, retry=retry-1, **kwargs)
+            else:
+                raise
+        return ret
 
 
 class Branch(object):

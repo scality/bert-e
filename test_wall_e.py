@@ -49,7 +49,9 @@ def initialize_git_repo(repo):
         create_branch(repo, 'development/'+version,
                       'release/'+version, file_=True, do_push=False)
 
-        repo.push_everything()
+        # following commands fail randomly on bitbucket, so retry
+        repo.cmd('git push -u origin release/'+version, retry=3)
+        repo.cmd('git push -u origin development/'+version, retry=3)
 
 
 def create_branch(repo, name, from_branch=None, file_=False, do_push=True):
