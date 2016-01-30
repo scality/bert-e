@@ -290,24 +290,38 @@ class WallE:
             return False
         return self.options[name].is_set()
 
-    def check_build_status(self, pr, key):
+    def check_build_status(self, key, child_prs):
+        """Report the worst status available."""
         if self.option_is_set('bypass_build_status'):
             return
-        try:
-            build_state = self.bbrepo.get_build_status(
-                revision=pr['source']['commit']['hash'],
-                key=key
-            )['state']
-        except requests.exceptions.HTTPError as e:
-            if e.response.status_code == 404:
-                raise BuildNotStarted(pr_id=pr['id'])
-            raise
-        else:
-            if build_state == 'FAILED':
-                raise BuildFailed(pr_id=pr['id'])
-            elif build_state == 'INPROGRESS':
-                raise BuildInProgress(pr_id=pr['id'])
-            assert build_state == 'SUCCESSFUL'
+        ordered_state = ['SUCCESSFUL', 'INPROGRESS', 'NOTSTARTED', 'FAILED']
+        g_state = 'SUCCESSFUL'
+        worst_pr = child_prs[0]
+        for pr in child_prs:
+            try:
+                build_state = self.bbrepo.get_build_status(
+                    revision=pr['source']['commit']['hash'],
+                    key=key
+                )['state']
+            except requests.exceptions.HTTPError as e:
+                if e.response.status_code == 404:
+                    if ordered_state.index(g_state) < ordered_state.index('NOTSTARTED'):
+                        g_state = 'NOTSTARTED'
+                        worst_pr = pr
+                else:
+                    raise
+            else:
+                if ordered_state.index(g_state) < ordered_state.index(build_state):
+                    g_state = build_state
+                    worst_pr = pr
+
+        if g_state == 'FAILED':
+            raise BuildFailed(pr_id=worst_pr['id'])
+        elif g_state == 'NOTSTARTED':
+            raise BuildNotStarted(pr_id=worst_pr['id'])
+        elif g_state == 'INPROGRESS':
+            raise BuildInProgress(pr_id=worst_pr['id'])
+        assert build_state == 'SUCCESSFUL'
 
     def find_bitbucket_comment(self,
                                username=None,
@@ -483,7 +497,7 @@ class WallE:
                           status=self.get_status_report(),
                           active_options=self.get_active_options())
 
-    def handle_pull_request(self, reference_git_repo='', no_comment=False,
+    def handle_pull_request(self, build_key, reference_git_repo='', no_comment=False,
                             interactive=False):
 
         if self.main_pr['state'] != 'OPEN':  # REJECTED or FULFILLED
@@ -545,9 +559,7 @@ class WallE:
             self.check_approval(child_prs)
 
             # Check integration PR: build status
-            for pr in child_prs:
-                self.check_build_status(pr, 'jenkins_build')
-                self.check_build_status(pr, 'jenkins_utest')
+            self.check_build_status(build_key, child_prs)
 
             if interactive and not confirm('Do you want to merge ?'):
                 return
@@ -769,6 +781,9 @@ def main():
         '--slug', default='ring',
         help='The repo\'s slug (default: ring)')
     parser.add_argument(
+        '--build-key', action='store', default='pipeline', type=str,
+        help='The build key to consider for approval (default: pipeline)')
+    parser.add_argument(
         '--interactive', action='store_true', default=False,
         help='Ask before merging or sending comments')
     parser.add_argument(
@@ -882,6 +897,7 @@ def main():
 
     try:
         wall_e.handle_pull_request(
+            build_key=args.build_key,
             reference_git_repo=args.reference_git_repo,
             no_comment=args.no_comment,
             interactive=args.interactive
@@ -894,7 +910,6 @@ def main():
                                       interactive=args.interactive)
         except CommentAlreadyExists:
             logging.info('Comment already posted.')
-
 
         if args.backtrace:
             raise excp

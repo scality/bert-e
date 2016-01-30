@@ -15,6 +15,8 @@ from wall_e_exceptions import (AuthorApprovalRequired,
                                BranchDoesNotAcceptFeatures,
                                BranchHistoryMismatch,
                                BranchNameInvalid,
+                               BuildInProgress,
+                               BuildFailed,
                                BuildNotStarted,
                                CommandNotImplemented,
                                Conflict,
@@ -165,7 +167,8 @@ class TestWallE(unittest.TestCase):
                reference_git_repo='',
                no_comment=False,
                interactive=False,
-               backtrace=False):
+               backtrace=False,
+               build_key=None):
 
         sys.argv = ["wall-e.py"]
         if bypass_author_approval:
@@ -184,6 +187,9 @@ class TestWallE(unittest.TestCase):
             sys.argv.append('--interactive')
         if backtrace:
             sys.argv.append('--backtrace')
+        if build_key:
+            sys.argv.append('--build-key')
+            sys.argv.append(build_key)
         sys.argv.append('--quiet')
 
         sys.argv.append('--slug')
@@ -366,22 +372,6 @@ class TestWallE(unittest.TestCase):
 
         # check absence of a missing branch
         self.assertFalse(self.gitrepo.remote_branch_exists('missing_branch'))
-
-    # FIXME: Find a way to test not started build
-    def test_build_status_not_there_yet(self):
-        pass
-
-    # FIXME: Find a way to test failed build
-    def test_build_status_fail(self):
-        pass
-
-    # FIXME: Find a way to test build in progress
-    def test_build_status_inprogress(self):
-        pass
-
-    # FIXME: Find a way to test successful build
-    def test_build_status_success(self):
-        pass
 
     def test_bypass_all_approvals_through_a_bitbucket_comment(self):
         # normal user creates the PR
@@ -874,7 +864,7 @@ class TestWallE(unittest.TestCase):
                         backtrace=True)
 
     def test_malformed_git_repo(self):
-        """Test check that we can detect malformed git repositories"""
+        """Check that we can detect malformed git repositories."""
         feature_branch = 'bugfix/RING-0077'
         dst_branch = 'development/4.3'
         reviewers = ['scality_wall-e']
@@ -896,6 +886,117 @@ class TestWallE(unittest.TestCase):
                         bypass_jira_version_check=True,
                         bypass_jira_type_check=True,
                         bypass_build_status=True)
+
+    def set_build_status_on_pr_id(self, pr_id, state,
+                                  key='pipeline',
+                                  name='Test build status',
+                                  url='http://www.scality.com'):
+        pr = self.bbrepo_wall_e.get_pull_request(
+                pull_request_id=pr_id)
+        self.bbrepo_wall_e.set_build_status(
+                revision=pr['source']['commit']['hash'],
+                key=key,
+                state=state,
+                name=name,
+                url=url
+        )
+
+    def test_build_key_on_main_pr_has_no_effect(self):
+        pr = self.create_pr('bugfix/RING-00078', 'development/4.3')
+        retcode =  self.handle(pr['id'],
+                               bypass_author_approval=True,
+                               bypass_peer_approval=True,
+                               bypass_jira_version_check=True,
+                               bypass_jira_type_check=True)
+        self.assertEqual(retcode, BuildNotStarted.code)
+        # create another PR, so that integration PR will have different
+        # commits than source PR
+        pr2 = self.create_pr('bugfix/RING-00079', 'development/4.3')
+        retcode =  self.handle(pr2['id'],
+                               bypass_author_approval=True,
+                               bypass_peer_approval=True,
+                               bypass_jira_version_check=True,
+                               bypass_jira_type_check=True,
+                               bypass_build_status=True)
+        self.assertEqual(retcode, SuccessMessage.code)
+        # restart PR number 1 to update it with content of 2
+        retcode =  self.handle(pr['id'],
+                               bypass_author_approval=True,
+                               bypass_peer_approval=True,
+                               bypass_jira_version_check=True,
+                               bypass_jira_type_check=True)
+        self.assertEqual(retcode, BuildNotStarted.code)
+        self.set_build_status_on_pr_id(pr['id']+1, 'SUCCESSFUL')
+        self.set_build_status_on_pr_id(pr['id']+2, 'SUCCESSFUL')
+        self.set_build_status_on_pr_id(pr['id']+3, 'SUCCESSFUL')
+        self.set_build_status_on_pr_id(pr['id'], 'FAILED')
+        retcode =  self.handle(pr['id'],
+                               bypass_author_approval=True,
+                               bypass_peer_approval=True,
+                               bypass_jira_version_check=True,
+                               bypass_jira_type_check=True)
+        self.assertEqual(retcode, SuccessMessage.code)
+
+    def test_non_default_build_key_successful(self):
+        pr = self.create_pr('bugfix/RING-00080', 'development/4.3')
+        retcode =  self.handle(pr['id'],
+                               bypass_author_approval=True,
+                               bypass_peer_approval=True,
+                               bypass_jira_version_check=True,
+                               bypass_jira_type_check=True)
+        self.assertEqual(retcode, BuildNotStarted.code)
+        self.set_build_status_on_pr_id(pr['id']+1, 'SUCCESSFUL', key='pipelin')
+        self.set_build_status_on_pr_id(pr['id']+2, 'SUCCESSFUL', key='pipelin')
+        self.set_build_status_on_pr_id(pr['id']+3, 'SUCCESSFUL', key='pipelin')
+        retcode =  self.handle(pr['id'],
+                               bypass_author_approval=True,
+                               bypass_peer_approval=True,
+                               bypass_jira_version_check=True,
+                               bypass_jira_type_check=True)
+        self.assertEqual(retcode, BuildNotStarted.code)
+        retcode =  self.handle(pr['id'],
+                               bypass_author_approval=True,
+                               bypass_peer_approval=True,
+                               bypass_jira_version_check=True,
+                               bypass_jira_type_check=True,
+                               build_key='pipelin')  # note the missing e
+        self.assertEqual(retcode, SuccessMessage.code)
+
+    def test_build_status_failed(self):
+        pr = self.create_pr('bugfix/RING-00081', 'development/4.3')
+        retcode =  self.handle(pr['id'],
+                               bypass_author_approval=True,
+                               bypass_peer_approval=True,
+                               bypass_jira_version_check=True,
+                               bypass_jira_type_check=True)
+        self.assertEqual(retcode, BuildNotStarted.code)
+        self.set_build_status_on_pr_id(pr['id']+1, 'SUCCESSFUL')
+        self.set_build_status_on_pr_id(pr['id']+2, 'INPROGRESS')
+        self.set_build_status_on_pr_id(pr['id']+3, 'FAILED')
+        retcode =  self.handle(pr['id'],
+                               bypass_author_approval=True,
+                               bypass_peer_approval=True,
+                               bypass_jira_version_check=True,
+                               bypass_jira_type_check=True)
+        self.assertEqual(retcode, BuildFailed.code)
+
+    def test_build_status_inprogress(self):
+        pr = self.create_pr('bugfix/RING-00082', 'development/4.3')
+        retcode =  self.handle(pr['id'],
+                               bypass_author_approval=True,
+                               bypass_peer_approval=True,
+                               bypass_jira_version_check=True,
+                               bypass_jira_type_check=True)
+        self.assertEqual(retcode, BuildNotStarted.code)
+        self.set_build_status_on_pr_id(pr['id']+1, 'SUCCESSFUL')
+        self.set_build_status_on_pr_id(pr['id']+2, 'INPROGRESS')
+        self.set_build_status_on_pr_id(pr['id']+3, 'SUCCESSFUL')
+        retcode =  self.handle(pr['id'],
+                               bypass_author_approval=True,
+                               bypass_peer_approval=True,
+                               bypass_jira_version_check=True,
+                               bypass_jira_type_check=True)
+        self.assertEqual(retcode, BuildInProgress.code)
 
 
 def main():
