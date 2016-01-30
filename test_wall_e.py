@@ -1039,12 +1039,12 @@ class TestWallE(unittest.TestCase):
         pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id'])
         pr_admin.add_comment('@%s bypass_tester_approval' % WALL_E_USERNAME)
 
-        retcode = self.handle(pr['id'],
-                              bypass_author_approval=True,
-                              bypass_peer_approval=True,
-                              bypass_jira_version_check=True,
-                              bypass_jira_type_check=True,
-                              bypass_build_status=True)
+        retcode = self.handle(pr['id'], options=[
+                              'bypass_author_approval',
+                              'bypass_peer_approval',
+                              'bypass_jira_version_check',
+                              'bypass_jira_type_check',
+                              'bypass_build_status'])
         self.assertEqual(retcode, SuccessMessage.code)
 
 
