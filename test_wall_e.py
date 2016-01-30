@@ -915,6 +915,8 @@ def main():
                         help='Prefix of the test repository')
     parser.add_argument('-v', action='store_true', dest='verbose',
                         help='Verbose mode')
+    parser.add_argument('--failfast', action='store_true', default=False,
+                        help='Return on first failure')
     TestWallE.args = parser.parse_args()
 
     if TestWallE.args.your_login == WALL_E_USERNAME:
@@ -941,7 +943,7 @@ def main():
     sys.argv.extend(TestWallE.args.tests)
     loader = unittest.TestLoader()
     loader.testMethodPrefix = "test_"
-    unittest.main(failfast=True, testLoader=loader)
+    unittest.main(failfast=TestWallE.args.failfast, testLoader=loader)
 
 
 if __name__ == '__main__':
