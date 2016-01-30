@@ -35,12 +35,14 @@ EVA_USERNAME = 'scality_eva'
 EVA_EMAIL = 'eva.scality@gmail.com'
 
 
-def initialize_git_repo(repo):
+def initialize_git_repo(repo, username, usermail):
     """resets the git repo"""
     assert '/ring/' not in repo._url  # This is a security, do not remove
     repo.cmd('git init')
     repo.cmd('touch a')
     repo.cmd('git add a')
+    repo.cmd('git config user.email %s' % usermail)
+    repo.cmd('git config user.name %s' % username)
     repo.cmd('git commit -m "Initial commit"')
     repo.cmd('git remote add origin ' + repo._url)
     for version in ['4.3', '5.1', '6.0', 'trunk']:
@@ -130,7 +132,9 @@ class TestWallE(unittest.TestCase):
                                   self.args.your_login)),
         )
         self.gitrepo = GitRepository(self.bbrepo.get_git_url())
-        initialize_git_repo(self.gitrepo)
+        initialize_git_repo(self.gitrepo,
+                            self.args.your_login,
+                            self.args.your_mail)
 
     def tearDown(self):
         self.gitrepo.delete()
