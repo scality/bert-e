@@ -24,4 +24,5 @@ build:
         name: Test Wall-E 
         code: |
           coverage run test_wall_e.py -v $WALL_E_PWD $EVE_PWD $USER_NAME $USER_PWD $USER_MAIL 
-
+          coverage report
+          coverage html
