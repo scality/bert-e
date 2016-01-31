@@ -765,8 +765,8 @@ class TestWallE(unittest.TestCase):
 
     def test_rebased_feature_branch(self):
         pr = self.create_pr('bugfix/RING-00074', 'development/4.3')
-        retcode =  self.handle(pr['id'],
-                               options=self.bypass_all_but_build_status)
+        retcode = self.handle(pr['id'],
+                              options=self.bypass_all_but_build_status)
         self.assertEqual(retcode, BuildNotStarted.code)
 
         # create another PR and merge it entirely
@@ -782,8 +782,8 @@ class TestWallE(unittest.TestCase):
         feature_branch = 'bugfix/RING-0076'
         first_integration_branch = 'w/4.3/bugfix/RING-0076'
         pr = self.create_pr(feature_branch, 'development/4.3')
-        retcode =  self.handle(pr['id'],
-                               options=self.bypass_all_but_build_status)
+        retcode = self.handle(pr['id'],
+                              options=self.bypass_all_but_build_status)
         self.assertEqual(retcode, BuildNotStarted.code)
 
         self.gitrepo.cmd('git pull')

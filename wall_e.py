@@ -932,8 +932,8 @@ def main():
     except WallE_TemplateException as excp:
         try:
             wall_e.send_bitbucket_msg(str(excp),
-                                      dont_repeat_if_in_history=\
-                                          excp.dont_repeat_if_in_history,
+                                      dont_repeat_if_in_history=excp.
+                                      dont_repeat_if_in_history,
                                       no_comment=args.no_comment,
                                       interactive=args.interactive)
         except CommentAlreadyExists:
