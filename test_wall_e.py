@@ -370,6 +370,11 @@ class TestWallE(unittest.TestCase):
         with self.assertRaises(NotMyJob):
             self.handle(pr['id'], backtrace=True)
 
+        # test invalid branch name
+        pr = self.create_pr('featur/RING-00003', 'development/4.3')
+        retcode = self.handle(pr['id'])
+        self.assertEqual(retcode, IncorrectBranchName.code)
+
     def test_conflict(self):
         pr1 = self.create_pr('bugfix/RING-0006', 'development/4.3',
                              file_='toto.txt')

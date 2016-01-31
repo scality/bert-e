@@ -182,15 +182,20 @@ class BranchName(object):
     def __init__(self, name):
         self.name = name
         if '/' not in name:
-            raise BranchNameInvalid(name=name)
+            raise BranchNameInvalid(name)
 
 
 class FeatureBranch(BranchName):
     def __init__(self, name):
         super(FeatureBranch, self).__init__(name)
         self.prefix, self.subname = name.split('/', 1)
+
         if not self.prefix or not self.subname:
-            raise BranchNameInvalid(name=name)
+            raise BranchNameInvalid(name)
+
+        if self.prefix not in ['feature', 'bugfix', 'improvement', 'project']:
+            raise BranchNameInvalid(name)
+
         match = re.match('(?P<issue_id>(?P<key>[A-Z]+)-\d+).*',
                          self.subname)
         if match:
@@ -201,9 +206,6 @@ class FeatureBranch(BranchName):
                             'issue id number', self.name)
             self.jira_issue_id = None
             self.jira_project_key = None
-
-        if self.prefix not in ['feature', 'bugfix', 'improvement', 'project']:
-            raise BranchNameInvalid(name=name)
 
     def check_compatibility_with(self, destination_branch):
         if (self.prefix in ['feature', 'project'] and
@@ -557,7 +559,7 @@ class WallE:
         # check source branch
         try:
             self.source_branch = FeatureBranch(src_brnch_name)
-        except BranchNameInvalid as excp:
+        except BranchNameInvalid:
             raise IncorrectBranchName(source=src_brnch_name,
                                       destination=dst_brnch_name)
 
