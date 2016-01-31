@@ -38,7 +38,7 @@ build:
         name: notify bitbucket that the build is over
         code: |
           JSON="{\"state\": \"FAILED\",\"key\": \"WERCKER_BUILD\",\"name\": \"wall-e tests\",\"url\": \"$WERCKER_BUILD_URL\",\"description\": \"Tests $WERCKER_RESULT in step $WERCKER_FAILED_STEP_DISPLAY_NAME. $WERCKER_FAILED_STEP_MESSAGE\"}"
-          curl -u $USER_NAME:$USER_PWD -H "Content-Type: application/json" -X POST https://api.bitbucket.org/2.0/repositories/scality/wall-e/commit/$WERCKER_GIT_COMMIT/statuses/build -d $JSON
+          curl -u $USER_NAME:$USER_PWD -H "Content-Type: application/json" -X POST https://api.bitbucket.org/2.0/repositories/scality/wall-e/commit/$WERCKER_GIT_COMMIT/statuses/build -d "$JSON"
 
 
 
