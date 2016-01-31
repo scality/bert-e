@@ -5,8 +5,10 @@ Waiting for approval
 {% endblock %}
 
 {% block message %}
-Please approve this pull request (reviewers and author), if you think
+Please approve this pull request (reviewers, tester and author), if you think
 that the integration pull requests are **ready to be merged**.
+Note that you need at least the approval of the author, a QA champion and also
+a reviewer to merge your pull request.
 
 Before approving, you should double check the diffs of the integration
 pull requests to ensure that the changesets I'm about to merge into the

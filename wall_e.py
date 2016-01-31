@@ -46,6 +46,7 @@ from wall_e_exceptions import (AuthorApprovalRequired,
                                PrefixCannotBeMerged,
                                StatusReport,
                                SuccessMessage,
+                               TesterApprovalRequired,
                                UnableToSendEmail,
                                WallE_SilentException,
                                WallE_TemplateException,
@@ -81,6 +82,17 @@ RELEASE_ENGINEERS = [
     'pierre_louis_bonicoli',
     'rayene_benrayana',
     'sylvain_killian',
+]
+
+TEST_ENGINEERS = [
+    WALL_E_USERNAME,   # we need this for test purposes
+    'anneharper',
+    'christophe_meron',
+    'christophe_stoyanov',
+    'lpantou',
+    'mcolzi',
+    'romain_thebaud',
+    'sleibo'
 ]
 
 
@@ -692,10 +704,26 @@ class WallE:
             handler(match_.group('args'))
 
     def check_approval(self, child_prs):
+        """Check approval of a PR by author, tester and peer.
+
+        Args:
+            - child_prs (json): all the child PRs
+
+        Raises:
+            - AuthorApprovalRequired
+            - PeerApprovalRequired
+            - TesterApprovalRequired
+
+        """
         approved_by_author = self.option_is_set('bypass_author_approval')
         approved_by_peer = self.option_is_set('bypass_peer_approval')
+        approved_by_tester = self.option_is_set('bypass_tester_approval')
 
-        if approved_by_author and approved_by_peer:
+        # If a tester is the author of the PR we will bypass the tester approval
+        if self.author in TEST_ENGINEERS:
+            approved_by_tester = True
+
+        if approved_by_author and approved_by_peer and approved_by_tester:
             return
 
         # NB: when author hasn't approved the PR, author isn't listed in
@@ -705,6 +733,8 @@ class WallE:
                 continue
             if participant['user']['username'] == self.author:
                 approved_by_author = True
+            elif participant['user']['username'] in TEST_ENGINEERS:
+                approved_by_tester = True
             else:
                 approved_by_peer = True
 
@@ -715,6 +745,10 @@ class WallE:
         if not approved_by_peer:
             raise PeerApprovalRequired(pr=self.main_pr,
                                        child_prs=child_prs)
+
+        if not approved_by_tester:
+            raise TesterApprovalRequired(pr=self.main_pr,
+                                         child_prs=child_prs)
 
     def get_active_options(self):
         return [option for option in self.options.keys() if
@@ -818,7 +852,7 @@ def main():
                    help="Bypass the pull request peer's approval"),
         'bypass_tester_approval':
             Option(priviledged=True,
-                   value='bypass_author_approval' in args.cmd_line_options,
+                   value='bypass_tester_approval' in args.cmd_line_options,
                    help="Bypass the pull request tester's approval"),
         'bypass_jira_version_check':
             Option(priviledged=True,
