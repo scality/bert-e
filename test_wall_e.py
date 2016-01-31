@@ -89,6 +89,13 @@ class QuickTest(unittest.TestCase):
         with self.assertRaises(BranchDoesNotAcceptFeatures):
             src.check_if_should_handle(dest)
 
+    def test_branch_name_invalid(self):
+        dst_branch = 'feature/RING-0005'
+        src_branch = 'user/4.3/RING-0005'
+        with self.assertRaises(BranchNameInvalid):
+            wall_e.DestinationBranchName(dst_branch)
+            wall_e.FeatureBranchName(src_branch)
+
 
 class TestWallE(unittest.TestCase):
     bypass_all = [
@@ -225,7 +232,7 @@ class TestWallE(unittest.TestCase):
 
         - Author approval required,
         - can merge successfully by bypassing all checks,
-        - can not merge a second time.
+        - cannot merge a second time.
 
         """
         pr = self.create_pr('bugfix/RING-0001', 'development/4.3')
@@ -250,13 +257,6 @@ class TestWallE(unittest.TestCase):
         pr = self.create_pr('feature/RING-0004', 'development/4.3')
         retcode = self.handle(pr['id'], options=self.bypass_all)
         self.assertEqual(retcode, BranchDoesNotAcceptFeatures.code)
-
-    def test_branch_name_invalid(self):
-        dst_branch = 'feature/RING-0005'
-        src_branch = 'user/4.3/RING-0005'
-        with self.assertRaises(BranchNameInvalid):
-            wall_e.DestinationBranchName(dst_branch)
-            wall_e.FeatureBranchName(src_branch)
 
     def test_conflict(self):
         pr1 = self.create_pr('bugfix/RING-0006', 'development/4.3',
