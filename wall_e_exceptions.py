@@ -8,6 +8,8 @@ from template_loader import render
 class WallE_TemplateException(Exception):
     code = 0
     template = None
+    # whether to re-publish if the message is already in the history
+    dont_repeat_if_in_history = 10
 
     def __init__(self, **kwargs):
         assert self.code != 0
@@ -33,16 +35,19 @@ class InitMessage(WallE_TemplateException):
 class HelpMessage(WallE_TemplateException):
     code = 101
     template = 'help.md'
+    dont_repeat_if_in_history = 0  # allow repeating if requested by user
 
 
 class CommandNotImplemented(WallE_TemplateException):
     code = 102
     template = 'not_implemented.md'
+    dont_repeat_if_in_history = 0  # allow repeating if requested by user
 
 
 class StatusReport(WallE_TemplateException):
     code = 103
     template = 'status.md'
+    dont_repeat_if_in_history = 0  # allow repeating if requested by user
 
 
 class BuildFailed(WallE_TemplateException):
@@ -90,7 +95,7 @@ class IncorrectFixVersion(WallE_TemplateException):
     template = 'incorrect_fix_version.md'
 
 
-class PrefixCannotBeMerged(WallE_TemplateException):
+class IncorrectBranchName(WallE_TemplateException):
     code = 113
     template = 'forbidden_branch.md'
 
@@ -118,6 +123,11 @@ class ParentJiraIssueNotFound(JiraIssueNotFound):
 class SuccessMessage(WallE_TemplateException):
     code = 118
     template = 'successfull_merge.md'
+
+
+class TesterApprovalRequired(WallE_TemplateException):
+    code = 119
+    template = 'need_approval.md'
 
 
 # internal exceptions
