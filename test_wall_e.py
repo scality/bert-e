@@ -292,6 +292,12 @@ class TestWallE(unittest.TestCase):
         retcode = self.handle(pr['id'], options=self.bypass_jira_checks)
         self.assertEqual(retcode, AuthorApprovalRequired.code)
 
+        # test approval on sub pr has not effect
+        pr_child = self.bbrepo.get_pull_request(pull_request_id=pr['id']+1)
+        pr_child.approve()
+        retcode = self.handle(pr['id']+1, options=self.bypass_jira_checks)
+        self.assertEqual(retcode, AuthorApprovalRequired.code)
+
         # Author adds approval
         pr.approve()
         retcode = self.handle(pr['id'], options=self.bypass_jira_checks)
@@ -630,20 +636,6 @@ class TestWallE(unittest.TestCase):
         with self.assertRaises(SuccessMessage):
             self.handle(pr['id']+1,
                         options=self.bypass_all,
-                        backtrace=True)
-
-    def test_no_effect_sub_pr_approval(self):
-        pr = self.create_pr('bugfix/RING-00067', 'development/4.3')
-        # create integration PRs first:
-        with self.assertRaises(AuthorApprovalRequired):
-            self.handle(pr['id'],
-                        options=self.bypass_jira_checks,
-                        backtrace=True)
-        pr_child = self.bbrepo.get_pull_request(pull_request_id=pr['id']+1)
-        pr_child.approve()
-        with self.assertRaises(AuthorApprovalRequired):
-            self.handle(pr['id']+1,
-                        options=self.bypass_jira_checks,
                         backtrace=True)
 
     def test_no_effect_sub_pr_options(self):
