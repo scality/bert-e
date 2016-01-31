@@ -8,6 +8,8 @@ from template_loader import render
 class WallE_TemplateException(Exception):
     code = 0
     template = None
+    # whether to re-publish if the message is already in the history
+    dont_repeat_if_in_history = 10
 
     def __init__(self, **kwargs):
         assert self.code != 0
@@ -33,16 +35,19 @@ class InitMessage(WallE_TemplateException):
 class HelpMessage(WallE_TemplateException):
     code = 101
     template = 'help.md'
+    dont_repeat_if_in_history = 0  # allow repeating if requested by user
 
 
 class CommandNotImplemented(WallE_TemplateException):
     code = 102
     template = 'not_implemented.md'
+    dont_repeat_if_in_history = 0  # allow repeating if requested by user
 
 
 class StatusReport(WallE_TemplateException):
     code = 103
     template = 'status.md'
+    dont_repeat_if_in_history = 0  # allow repeating if requested by user
 
 
 class BuildFailed(WallE_TemplateException):

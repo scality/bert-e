@@ -356,6 +356,7 @@ class WallE:
             return comment
 
     def send_bitbucket_msg(self, msg, no_comment=False,
+                           dont_repeat_if_in_history=10,
                            interactive=False):
         logging.debug('considering sending: %s', msg)
 
@@ -365,14 +366,15 @@ class WallE:
 
         # if wall-e doesn't do anything in the last 10 comments,
         # allow him to run again
-        if self.find_bitbucket_comment(username=WALL_E_USERNAME,
-                                       startswith=msg,
-                                       max_history=10):
+        if dont_repeat_if_in_history:
+            if self.find_bitbucket_comment(username=WALL_E_USERNAME,
+                                           startswith=msg,
+                                           max_history=dont_repeat_if_in_history):
 
-            raise CommentAlreadyExists('The same comment has '
-                                       'already been posted by '
-                                       'Wall-E in the past. '
-                                       'Nothing to do here!')
+                raise CommentAlreadyExists('The same comment has '
+                                           'already been posted by '
+                                           'Wall-E in the past. '
+                                           'Nothing to do here!')
 
         if interactive:
             print('%s\n' % msg)
@@ -925,6 +927,8 @@ def main():
     except WallE_TemplateException as excp:
         try:
             wall_e.send_bitbucket_msg(str(excp),
+                                      dont_repeat_if_in_history=\
+                                          excp.dont_repeat_if_in_history,
                                       no_comment=args.no_comment,
                                       interactive=args.interactive)
         except CommentAlreadyExists:
