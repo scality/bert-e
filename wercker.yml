@@ -29,7 +29,7 @@ build:
     - script:
         name: run tests
         code: |
-          coverage run test_wall_e.py -v --failfast $WALL_E_PWD $EVE_PWD $USER_NAME $USER_PWD $USER_MAIL 
+          coverage run test_wall_e.py --failfast $WALL_E_PWD $EVE_PWD $USER_NAME $USER_PWD $USER_MAIL 
           coverage report
           coverage html
 
