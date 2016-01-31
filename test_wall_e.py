@@ -344,11 +344,168 @@ class TestWallE(unittest.TestCase):
         # check absence of a missing branch
         self.assertFalse(self.gitrepo.remote_branch_exists('missing_branch'))
 
-    def test_bypass_all_approvals_through_a_bitbucket_comment(self):
-        # normal user creates the PR
-        pr = self.create_pr('bugfix/RING-00045', 'development/4.3')
-        # and priviledged user gets it back
+    def test_main_pr_retrieval(self):
+        pr = self.create_pr('bugfix/RING-00066', 'development/4.3')
+        # create integration PRs first:
+        with self.assertRaises(AuthorApprovalRequired):
+            self.handle(pr['id'],
+                        options=self.bypass_jira_checks,
+                        backtrace=True)
+        # simulate a child pr update
+        with self.assertRaises(SuccessMessage):
+            self.handle(pr['id']+1,
+                        options=self.bypass_all,
+                        backtrace=True)
+
+    def test_child_pr_without_parent(self):
+        # simulate creation of an integration branch with Wall-E
+        create_branch(self.gitrepo, 'w/bugfix/RING-00069',
+                      from_branch='development/4.3', file_=True)
+        pr = self.bbrepo_wall_e.create_pull_request(
+            title='title',
+            name='name',
+            source={'branch': {'name': 'w/bugfix/RING-00069'}},
+            destination={'branch': {'name': 'development/4.3'}},
+            close_source_branch=True,
+            reviewers=[{'username': EVA_USERNAME}],
+            description=''
+        )
+        with self.assertRaises(ParentPullRequestNotFound):
+            self.handle(pr['id'], backtrace=True)
+
+    def test_options_and_commands(self):
+        pr = self.create_pr('bugfix/RING-00001', 'development/4.3')
+
+        # option: wait
+        comment = pr.add_comment('@%s wait' % WALL_E_USERNAME)
+        with self.assertRaises(NothingToDo):
+            self.handle(pr['id'], backtrace=True)
+        comment.delete()
+
+        # command: build
+        pr.add_comment('@%s build' % WALL_E_USERNAME)
+        retcode = self.handle(pr['id'])
+        self.assertEqual(retcode, CommandNotImplemented.code)
+
+        # command: clear
+        pr.add_comment('@%s clear' % WALL_E_USERNAME)
+        retcode = self.handle(pr['id'])
+        self.assertEqual(retcode, CommandNotImplemented.code)
+
+        # command: status
+        pr.add_comment('@%s status' % WALL_E_USERNAME)
+        retcode = self.handle(pr['id'])
+        self.assertEqual(retcode, StatusReport.code)
+
+        # mix of option and command
+        pr.add_comment('@%s unanimity' % WALL_E_USERNAME)
+        pr.add_comment('@%s status' % WALL_E_USERNAME)
+        retcode = self.handle(pr['id'])
+        self.assertEqual(retcode, StatusReport.code)
+
+        # test_help command
+        pr.add_comment('@%s help' % WALL_E_USERNAME)
+        retcode = self.handle(pr['id'])
+        self.assertEqual(retcode, HelpMessage.code)
+
+        # test help command with inter comment
+        pr.add_comment('@%s: help' % WALL_E_USERNAME)
+        pr.add_comment('an irrelevant comment')
+        retcode = self.handle(pr['id'])
+        self.assertEqual(retcode, HelpMessage.code)
+
+        # test help command with inter comment from wall-e
+        pr.add_comment('@%s help' % WALL_E_USERNAME)
+        pr_wall_e = self.bbrepo_wall_e.get_pull_request(
+            pull_request_id=pr['id'])
+        pr_wall_e.add_comment('this is my help already')
+        retcode = self.handle(pr['id'], options=self.bypass_jira_checks)
+        self.assertEqual(retcode, AuthorApprovalRequired.code)
+
+        # test unknown command
+        pr.add_comment('@%s helpp' % WALL_E_USERNAME)
+        retcode = self.handle(pr['id'], options=self.bypass_jira_checks)
+        self.assertEqual(retcode, AuthorApprovalRequired.code)
+
+        # test command args
+        pr.add_comment('@%s help some arguments --hehe' % WALL_E_USERNAME)
+        retcode = self.handle(pr['id'])
+        self.assertEqual(retcode, HelpMessage.code)
+
+        # test incorrect address when setting options through comments
+        pr.add_comment('@toto'  # toto is not Wall-E
+                       ' bypass_author_approval'
+                       ' bypass_peer_approval'
+                       ' bypass_tester_approval'
+                       ' bypass_build_status'
+                       ' bypass_jira_version_check'
+                       ' bypass_jira_type_check')
+        retcode = self.handle(pr['id'], options=self.bypass_jira_checks)
+        self.assertEqual(retcode, AuthorApprovalRequired.code)
+
+        # test options set through deleted comment(self):
+        comment = pr.add_comment(
+            '@%s'
+            ' bypass_author_approval'
+            ' bypass_peer_approval'
+            ' bypass_tester_approval'
+            ' bypass_build_status'
+            ' bypass_jira_version_check'
+            ' bypass_jira_type_check' % WALL_E_USERNAME
+        )
+        comment.delete()
+        retcode = self.handle(pr['id'], options=self.bypass_jira_checks)
+        self.assertEqual(retcode, AuthorApprovalRequired.code)
+
+        # test no effect sub pr options
+        sub_pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id']+1)
+        sub_pr_admin.add_comment('@%s'
+                                 ' bypass_author_approval'
+                                 ' bypass_peer_approval'
+                                 ' bypass_build_status'
+                                 ' bypass_jira_version_check'
+                                 ' bypass_jira_type_check' % WALL_E_USERNAME)
+        retcode = self.handle(pr['id'], options=self.bypass_jira_checks)
+        self.assertEqual(retcode, AuthorApprovalRequired.code)
+
+    def test_bypass_options(self):
+        # test bypass all approvals through an incorrect bitbucket comment
+        pr = self.create_pr('bugfix/RING-00001', 'development/4.3')
         pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id'])
+        pr_admin.add_comment('@%s'
+                             ' bypass_author_aproval'  # a p is missing
+                             ' bypass_peer_approval'
+                             ' bypass_tester_approval'
+                             ' bypass_build_status'
+                             ' bypass_jira_version_check'
+                             ' bypass_jira_type_check' % WALL_E_USERNAME)
+        retcode = self.handle(pr['id'], options=self.bypass_jira_checks)
+        self.assertEqual(retcode, AuthorApprovalRequired.code)
+
+        # test bypass all approvals through unauthorized bitbucket comment
+        pr.add_comment('@%s'  # comment is made by unpriviledged Eva
+                       ' bypass_author_approval'
+                       ' bypass_peer_approval'
+                       ' bypass_tester_approval'
+                       ' bypass_build_status'
+                       ' bypass_jira_version_check'
+                       ' bypass_jira_type_check' % WALL_E_USERNAME)
+        retcode = self.handle(pr['id'], options=self.bypass_jira_checks)
+        self.assertEqual(retcode, AuthorApprovalRequired.code)
+
+        # test bypass all approvals through an unknown bitbucket comment
+        pr_admin.add_comment('@%s'
+                             ' bypass_author_approval'
+                             ' bypass_peer_approval'
+                             ' bypass_tester_approval'
+                             ' bypass_build_status'
+                             ' mmm_never_seen_that_before'  # this is unknown
+                             ' bypass_jira_version_check'
+                             ' bypass_jira_type_check' % WALL_E_USERNAME)
+        retcode = self.handle(pr['id'], options=self.bypass_jira_checks)
+        self.assertEqual(retcode, AuthorApprovalRequired.code)
+
+        # test approvals through a single bitbucket comment
         pr_admin.add_comment('@%s'
                              ' bypass_author_approval'
                              ' bypass_peer_approval'
@@ -359,10 +516,8 @@ class TestWallE(unittest.TestCase):
         retcode = self.handle(pr['id'])
         self.assertEqual(retcode, SuccessMessage.code)
 
-    def test_bypass_all_approvals_through_bitbucket_comment_extra_spaces(self):
-        # normal user creates the PR
-        pr = self.create_pr('bugfix/RING-00046', 'development/4.3')
-        # and priviledged user gets it back
+        # test bypass all approvals through bitbucket comment extra spaces
+        pr = self.create_pr('bugfix/RING-00002', 'development/4.3')
         pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id'])
         pr_admin.add_comment('  @%s  '
                              '   bypass_author_approval  '
@@ -374,53 +529,8 @@ class TestWallE(unittest.TestCase):
         retcode = self.handle(pr['id'])
         self.assertEqual(retcode, SuccessMessage.code)
 
-    def test_bypass_all_approvals_through_an_incorrect_bitbucket_comment(self):
-        pr = self.create_pr('bugfix/RING-00047', 'development/4.3')
-        pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id'])
-        pr_admin.add_comment('@%s'
-                             ' bypass_author_aproval'  # a p is missing
-                             ' bypass_peer_approval'
-                             ' bypass_tester_approval'
-                             ' bypass_build_status'
-                             ' bypass_jira_version_check'
-                             ' bypass_jira_type_check' % WALL_E_USERNAME)
-        with self.assertRaises(AuthorApprovalRequired):
-            self.handle(pr['id'],
-                        options=self.bypass_jira_checks,
-                        backtrace=True)
-
-    def test_bypass_all_approvals_through_unauthorized_bitbucket_comment(self):
-        pr = self.create_pr('bugfix/RING-00048', 'development/4.3')
-        pr.add_comment('@%s'  # comment is made by unpriviledged Eva
-                       ' bypass_author_approval'
-                       ' bypass_peer_approval'
-                       ' bypass_tester_approval'
-                       ' bypass_build_status'
-                       ' bypass_jira_version_check'
-                       ' bypass_jira_type_check' % WALL_E_USERNAME)
-        with self.assertRaises(AuthorApprovalRequired):
-            self.handle(pr['id'],
-                        options=self.bypass_jira_checks,
-                        backtrace=True)
-
-    def test_bypass_all_approvals_through_an_unknown_bitbucket_comment(self):
-        pr = self.create_pr('bugfix/RING-00049', 'development/4.3')
-        pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id'])
-        pr_admin.add_comment('@%s'
-                             ' bypass_author_approval'
-                             ' bypass_peer_approval'
-                             ' bypass_tester_approval'
-                             ' bypass_build_status'
-                             ' mmm_never_seen_that_before'  # this is unknown
-                             ' bypass_jira_version_check'
-                             ' bypass_jira_type_check' % WALL_E_USERNAME)
-        with self.assertRaises(AuthorApprovalRequired):
-            self.handle(pr['id'],
-                        options=self.bypass_jira_checks,
-                        backtrace=True)
-
-    def test_bypass_all_approvals_through_many_comments(self):
-        pr = self.create_pr('bugfix/RING-00050', 'development/4.3')
+        # test bypass all approvals through many comments
+        pr = self.create_pr('bugfix/RING-00003', 'development/4.3')
         pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id'])
         pr_admin.add_comment('@%s bypass_author_approval' % WALL_E_USERNAME)
         pr_admin.add_comment('@%s bypass_peer_approval' % WALL_E_USERNAME)
@@ -428,87 +538,78 @@ class TestWallE(unittest.TestCase):
         pr_admin.add_comment('@%s bypass_build_status' % WALL_E_USERNAME)
         pr_admin.add_comment('@%s bypass_jira_version_check' % WALL_E_USERNAME)
         pr_admin.add_comment('@%s bypass_jira_type_check' % WALL_E_USERNAME)
-        with self.assertRaises(SuccessMessage):
-            self.handle(pr['id'], backtrace=True)
+        retcode = self.handle(pr['id'])
+        self.assertEqual(retcode, SuccessMessage.code)
 
-    def test_bypass_all_approvals_through_mix_comments_and_cmdline(self):
-        pr = self.create_pr('bugfix/RING-00051', 'development/4.3')
+        # test bypass all approvals through mix comments and cmdline
+        pr = self.create_pr('bugfix/RING-00004', 'development/4.3')
         pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id'])
         pr_admin.add_comment('@%s'
                              ' bypass_author_approval'
                              ' bypass_peer_approval'
                              ' bypass_tester_approval'
                              ' bypass_jira_type_check' % WALL_E_USERNAME)
-        with self.assertRaises(SuccessMessage):
-            self.handle(pr['id'], options=[
-                        'bypass_build_status',
-                        'bypass_jira_version_check'],
-                        backtrace=True)
+        retcode = self.handle(pr['id'], options=['bypass_build_status',
+                                                 'bypass_jira_version_check'])
+        self.assertEqual(retcode, SuccessMessage.code)
 
-    def test_bypass_author_approval_through_comment(self):
-        pr = self.create_pr('bugfix/RING-00052', 'development/4.3')
+        # test bypass author approval through comment
+        pr = self.create_pr('bugfix/RING-00005', 'development/4.3')
         pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id'])
         pr_admin.add_comment('@%s'
                              ' bypass_author_approval' % WALL_E_USERNAME)
-        with self.assertRaises(SuccessMessage):
-            self.handle(pr['id'],
-                        options=self.bypass_all_but_author_approval,
-                        backtrace=True)
+        retcode = self.handle(pr['id'],
+                              options=self.bypass_all_but_author_approval)
+        self.assertEqual(retcode, SuccessMessage.code)
 
-    def test_bypass_peer_approval_through_comment(self):
-        pr = self.create_pr('bugfix/RING-00053', 'development/4.3')
+        # test bypass peer approval through comment
+        pr = self.create_pr('bugfix/RING-00006', 'development/4.3')
         pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id'])
         pr_admin.add_comment('@%s'
                              ' bypass_peer_approval' % WALL_E_USERNAME)
-        with self.assertRaises(SuccessMessage):
-            self.handle(pr['id'], options=[
-                        'bypass_author_approval',
-                        'bypass_tester_approval',
-                        'bypass_jira_version_check',
-                        'bypass_jira_type_check',
-                        'bypass_build_status'],
-                        backtrace=True)
+        retcode = self.handle(pr['id'],
+                              options=['bypass_author_approval',
+                                       'bypass_tester_approval',
+                                       'bypass_jira_version_check',
+                                       'bypass_jira_type_check',
+                                       'bypass_build_status'])
+        self.assertEqual(retcode, SuccessMessage.code)
 
-    def test_bypass_jira_version_check_through_comment(self):
-        pr = self.create_pr('bugfix/RING-00054', 'development/4.3')
+        # test bypass jira version check through comment
+        pr = self.create_pr('bugfix/RING-00007', 'development/4.3')
         pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id'])
         pr_admin.add_comment('@%s'
                              ' bypass_jira_version_check' % WALL_E_USERNAME)
-        with self.assertRaises(SuccessMessage):
-            self.handle(pr['id'], options=[
-                        'bypass_author_approval',
-                        'bypass_tester_approval',
-                        'bypass_peer_approval',
-                        'bypass_jira_type_check',
-                        'bypass_build_status'],
-                        backtrace=True)
+        retcode = self.handle(pr['id'], options=['bypass_author_approval',
+                                                 'bypass_tester_approval',
+                                                 'bypass_peer_approval',
+                                                 'bypass_jira_type_check',
+                                                 'bypass_build_status'])
+        self.assertEqual(retcode, SuccessMessage.code)
 
-    def test_bypass_jira_type_check_through_comment(self):
-        pr = self.create_pr('bugfix/RING-00055', 'development/4.3')
+        # test bypass jira type check through comment
+        pr = self.create_pr('bugfix/RING-00008', 'development/4.3')
         pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id'])
         pr_admin.add_comment('@%s'
                              ' bypass_jira_type_check' % WALL_E_USERNAME)
-        with self.assertRaises(SuccessMessage):
-            self.handle(pr['id'], options=[
-                        'bypass_author_approval',
-                        'bypass_tester_approval',
-                        'bypass_peer_approval',
-                        'bypass_jira_version_check',
-                        'bypass_build_status'],
-                        backtrace=True)
+        retcode = self.handle(pr['id'], options=['bypass_author_approval',
+                                                 'bypass_tester_approval',
+                                                 'bypass_peer_approval',
+                                                 'bypass_jira_version_check',
+                                                 'bypass_build_status'])
+        self.assertEqual(retcode, SuccessMessage.code)
 
-    def test_bypass_build_status_through_comment(self):
-        pr = self.create_pr('bugfix/RING-00056', 'development/4.3')
+        # test bypass build status through comment
+        pr = self.create_pr('bugfix/RING-00009', 'development/4.3')
         pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id'])
         pr_admin.add_comment('@%s'
                              ' bypass_build_status' % WALL_E_USERNAME)
-        with self.assertRaises(SuccessMessage):
-            self.handle(pr['id'],
-                        options=self.bypass_all_but_build_status,
-                        backtrace=True)
+        retcode = self.handle(pr['id'],
+                              options=self.bypass_all_but_build_status)
+        self.assertEqual(retcode, SuccessMessage.code)
 
-    def test_options_lost_in_many_comments(self):
-        pr = self.create_pr('bugfix/RING-00057', 'development/4.3')
+        # test options lost in many comments
+        pr = self.create_pr('bugfix/RING-00010', 'development/4.3')
         pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id'])
         for i in range(5):
             pr.add_comment('random comment %s' % i)
@@ -531,47 +632,11 @@ class TestWallE(unittest.TestCase):
             pr.add_comment('@%s bypass_tester_approval' % i)
         pr_admin.add_comment('@%s bypass_tester_approval' % WALL_E_USERNAME)
 
-        with self.assertRaises(SuccessMessage):
-            self.handle(pr['id'],
-                        backtrace=True)
+        retcode = self.handle(pr['id'])
+        self.assertEqual(retcode, SuccessMessage.code)
 
-    def test_incorrect_address_when_setting_options_through_comments(self):
-        pr = self.create_pr('bugfix/RING-00058', 'development/4.3')
-        pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id'])
-        pr_admin.add_comment('@toto'  # toto is not Wall-E
-                             ' bypass_author_approval'
-                             ' bypass_peer_approval'
-                             ' bypass_tester_approval'
-                             ' bypass_build_status'
-                             ' bypass_jira_version_check'
-                             ' bypass_jira_type_check')
-        with self.assertRaises(AuthorApprovalRequired):
-            self.handle(pr['id'],
-                        options=self.bypass_jira_checks,
-                        backtrace=True)
-
-    def test_options_set_through_deleted_comment(self):
-        pr = self.create_pr('bugfix/RING-00059', 'development/4.3')
-        pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id'])
-        comment = pr_admin.add_comment(
-            '@%s'
-            ' bypass_author_approval'
-            ' bypass_peer_approval'
-            ' bypass_tester_approval'
-            ' bypass_build_status'
-            ' bypass_jira_version_check'
-            ' bypass_jira_type_check' % WALL_E_USERNAME
-        )
-        comment.delete()
-        with self.assertRaises(AuthorApprovalRequired):
-            self.handle(pr['id'],
-                        options=self.bypass_jira_checks,
-                        backtrace=True)
-
-    def test_bypass_all_approvals_through_bitbucket_comment_extra_chars(self):
-        # normal user creates the PR
-        pr = self.create_pr('bugfix/RING-00060', 'development/4.3')
-        # and priviledged user gets it back
+        # test bypass all approvals through bitbucket comment extra chars
+        pr = self.create_pr('bugfix/RING-00011', 'development/4.3')
         pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id'])
         pr_admin.add_comment('@%s:'
                              'bypass_author_approval,  '
@@ -580,130 +645,8 @@ class TestWallE(unittest.TestCase):
                              '  bypass_build_status-bypass_jira_version_check'
                              '   bypass_jira_type_check -   ' %
                              WALL_E_USERNAME)
-        with self.assertRaises(SuccessMessage):
-            self.handle(pr['id'],
-                        backtrace=True)
-
-    def test_help_command(self):
-        pr = self.create_pr('bugfix/RING-00061', 'development/4.3')
-        pr.add_comment('@%s help' % WALL_E_USERNAME)
-        with self.assertRaises(HelpMessage):
-            self.handle(pr['id'],
-                        backtrace=True)
-
-    def test_help_command_with_inter_comment(self):
-        pr = self.create_pr('bugfix/RING-00062', 'development/4.3')
-        pr.add_comment('@%s: help' % WALL_E_USERNAME)
-        pr.add_comment('an irrelevant comment')
-        with self.assertRaises(HelpMessage):
-            self.handle(pr['id'],
-                        backtrace=True)
-
-    def test_help_command_with_inter_comment_from_wall_e(self):
-        pr = self.create_pr('bugfix/RING-00063', 'development/4.3')
-        pr.add_comment('@%s help' % WALL_E_USERNAME)
-        pr_wall_e = self.bbrepo_wall_e.get_pull_request(
-            pull_request_id=pr['id'])
-        pr_wall_e.add_comment('this is my help already')
-        with self.assertRaises(SuccessMessage):
-            self.handle(pr['id'],
-                        options=self.bypass_all,
-                        backtrace=True)
-
-    def test_unknown_command(self):
-        pr = self.create_pr('bugfix/RING-00064', 'development/4.3')
-        pr.add_comment('@%s helpp' % WALL_E_USERNAME)
-        with self.assertRaises(SuccessMessage):
-            self.handle(pr['id'],
-                        options=self.bypass_all,
-                        backtrace=True)
-
-    def test_command_args(self):
-        pr = self.create_pr('bugfix/RING-00065', 'development/4.3')
-        pr.add_comment('@%s help some arguments --hehe' % WALL_E_USERNAME)
-        with self.assertRaises(HelpMessage):
-            self.handle(pr['id'],
-                        backtrace=True)
-
-    def test_main_pr_retrieval(self):
-        pr = self.create_pr('bugfix/RING-00066', 'development/4.3')
-        # create integration PRs first:
-        with self.assertRaises(AuthorApprovalRequired):
-            self.handle(pr['id'],
-                        options=self.bypass_jira_checks,
-                        backtrace=True)
-        # simulate a child pr update
-        with self.assertRaises(SuccessMessage):
-            self.handle(pr['id']+1,
-                        options=self.bypass_all,
-                        backtrace=True)
-
-    def test_no_effect_sub_pr_options(self):
-        pr = self.create_pr('bugfix/RING-00068', 'development/4.3')
-        # create integration PRs first:
-        with self.assertRaises(AuthorApprovalRequired):
-            self.handle(pr['id'],
-                        options=self.bypass_jira_checks,
-                        backtrace=True)
-        pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id']+1)
-        pr_admin.add_comment('@%s'
-                             ' bypass_author_approval'
-                             ' bypass_peer_approval'
-                             ' bypass_build_status'
-                             ' bypass_jira_version_check'
-                             ' bypass_jira_type_check' % WALL_E_USERNAME)
-        with self.assertRaises(AuthorApprovalRequired):
-            self.handle(pr['id'],
-                        options=self.bypass_jira_checks,
-                        backtrace=True)
-
-    def test_child_pr_without_parent(self):
-        # simulate creation of an integration branch with Wall-E
-        create_branch(self.gitrepo, 'w/bugfix/RING-00069',
-                      from_branch='development/4.3', file_=True)
-        pr = self.bbrepo_wall_e.create_pull_request(
-            title='title',
-            name='name',
-            source={'branch': {'name': 'w/bugfix/RING-00069'}},
-            destination={'branch': {'name': 'development/4.3'}},
-            close_source_branch=True,
-            reviewers=[{'username': EVA_USERNAME}],
-            description=''
-        )
-        with self.assertRaises(ParentPullRequestNotFound):
-            self.handle(pr['id'], backtrace=True)
-
-    def test_status_command(self):
-        pr = self.create_pr('bugfix/RING-00070', 'development/4.3')
-        pr.add_comment('@%s status' % WALL_E_USERNAME)
         retcode = self.handle(pr['id'])
-        self.assertEqual(retcode, StatusReport.code)
-
-        pr.add_comment('@%s unanimity' % WALL_E_USERNAME)
-        pr.add_comment('@%s status' % WALL_E_USERNAME)
-        retcode = self.handle(pr['id'])
-        self.assertEqual(retcode, StatusReport.code)
-
-    def test_wait_option(self):
-        pr = self.create_pr('bugfix/RING-00071', 'development/4.3')
-        pr.add_comment('@%s wait' % WALL_E_USERNAME)
-
-        with self.assertRaises(NothingToDo):
-            self.handle(pr['id'], backtrace=True)
-
-    def test_build_command(self):
-        pr = self.create_pr('bugfix/RING-00072', 'development/4.3')
-        pr.add_comment('@%s build' % WALL_E_USERNAME)
-
-        retcode = self.handle(pr['id'])
-        self.assertEqual(retcode, CommandNotImplemented.code)
-
-    def test_clear_command(self):
-        pr = self.create_pr('bugfix/RING-00073', 'development/4.3')
-        pr.add_comment('@%s clear' % WALL_E_USERNAME)
-
-        retcode = self.handle(pr['id'])
-        self.assertEqual(retcode, CommandNotImplemented.code)
+        self.assertEqual(retcode, SuccessMessage.code)
 
     def test_rebased_feature_branch(self):
         pr = self.create_pr('bugfix/RING-00074', 'development/4.3')
@@ -806,11 +749,15 @@ class TestWallE(unittest.TestCase):
                               build_key='pipelin')  # note the missing e
         self.assertEqual(retcode, SuccessMessage.code)
 
-    def test_build_status_failed(self):
+    def test_build_status(self):
         pr = self.create_pr('bugfix/RING-00081', 'development/4.3')
+
+        # test build not started
         retcode = self.handle(pr['id'],
                               options=self.bypass_all_but_build_status)
         self.assertEqual(retcode, BuildNotStarted.code)
+
+        # test build status failed
         self.set_build_status_on_pr_id(pr['id']+1, 'SUCCESSFUL')
         self.set_build_status_on_pr_id(pr['id']+2, 'INPROGRESS')
         self.set_build_status_on_pr_id(pr['id']+3, 'FAILED')
@@ -818,11 +765,7 @@ class TestWallE(unittest.TestCase):
                               options=self.bypass_all_but_build_status)
         self.assertEqual(retcode, BuildFailed.code)
 
-    def test_build_status_inprogress(self):
-        pr = self.create_pr('bugfix/RING-00082', 'development/4.3')
-        retcode = self.handle(pr['id'],
-                              options=self.bypass_all_but_build_status)
-        self.assertEqual(retcode, BuildNotStarted.code)
+        # test build status inprogress
         self.set_build_status_on_pr_id(pr['id']+1, 'SUCCESSFUL')
         self.set_build_status_on_pr_id(pr['id']+2, 'INPROGRESS')
         self.set_build_status_on_pr_id(pr['id']+3, 'SUCCESSFUL')
@@ -830,7 +773,7 @@ class TestWallE(unittest.TestCase):
                               options=self.bypass_all_but_build_status)
         self.assertEqual(retcode, BuildInProgress.code)
 
-    def test_bypass_tester_approval_through_comment(self):
+        # test bypass tester approval through comment
         pr = self.create_pr('bugfix/RING-00078', 'development/4.3')
         pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id'])
         pr_admin.add_comment('@%s bypass_tester_approval' % WALL_E_USERNAME)
