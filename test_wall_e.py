@@ -161,7 +161,6 @@ class QuickTest(unittest.TestCase):
         self.assertIsNone(src.jira_issue_id)
         self.assertIsNone(src.jira_project_key)
 
-
     def test_destination_branch_names(self):
         with self.assertRaises(BranchNameInvalid):
             wall_e.DestinationBranch('feature/RING-0005')
@@ -346,8 +345,10 @@ class TestWallE(unittest.TestCase):
         # check what happens when trying to do it again
         with self.assertRaises(NothingToDo):
             self.handle(pr['id'],
-                        options=self.bypass_all,
                         backtrace=True)
+        # test the return code of a silent exception is 0
+        retcode = self.handle(pr['id'])
+        self.assertEqual(retcode, 0)
 
     def test_refuse_feature_on_maintenance_branch(self):
         pr = self.create_pr('feature/RING-0004', 'development/4.3')
@@ -443,15 +444,13 @@ class TestWallE(unittest.TestCase):
     def test_main_pr_retrieval(self):
         pr = self.create_pr('bugfix/RING-00066', 'development/4.3')
         # create integration PRs first:
-        with self.assertRaises(AuthorApprovalRequired):
-            self.handle(pr['id'],
-                        options=self.bypass_jira_checks,
-                        backtrace=True)
+        retcode = self.handle(pr['id'],
+                              options=self.bypass_jira_checks)
+        self.assertEqual(retcode, AuthorApprovalRequired.code)
         # simulate a child pr update
-        with self.assertRaises(SuccessMessage):
-            self.handle(pr['id']+1,
-                        options=self.bypass_all,
-                        backtrace=True)
+        retcode = self.handle(pr['id']+1,
+                              options=self.bypass_all)
+        self.assertEqual(retcode, SuccessMessage.code)
 
     def test_child_pr_without_parent(self):
         # simulate creation of an integration branch with Wall-E
@@ -746,10 +745,9 @@ class TestWallE(unittest.TestCase):
 
     def test_rebased_feature_branch(self):
         pr = self.create_pr('bugfix/RING-00074', 'development/4.3')
-        with self.assertRaises(BuildNotStarted):
-            self.handle(pr['id'],
-                        options=self.bypass_all_but_build_status,
-                        backtrace=True)
+        retcode =  self.handle(pr['id'],
+                               options=self.bypass_all_but_build_status)
+        self.assertEqual(retcode, BuildNotStarted.code)
 
         # create another PR and merge it entirely
         pr2 = self.create_pr('bugfix/RING-00075', 'development/4.3')
@@ -757,19 +755,16 @@ class TestWallE(unittest.TestCase):
         self.assertEqual(retcode, SuccessMessage.code)
 
         rebase_branch(self.gitrepo, 'bugfix/RING-00075', 'development/4.3')
-        with self.assertRaises(SuccessMessage):
-            self.handle(pr['id'],
-                        options=self.bypass_all,
-                        backtrace=True)
+        retcode = self.handle(pr['id'], options=self.bypass_all)
+        self.assertEqual(retcode, SuccessMessage.code)
 
     def test_first_integration_branch_manually_updated(self):
         feature_branch = 'bugfix/RING-0076'
         first_integration_branch = 'w/4.3/bugfix/RING-0076'
         pr = self.create_pr(feature_branch, 'development/4.3')
-        with self.assertRaises(BuildNotStarted):
-            self.handle(pr['id'],
-                        options=self.bypass_all_but_build_status,
-                        backtrace=True)
+        retcode =  self.handle(pr['id'],
+                               options=self.bypass_all_but_build_status)
+        self.assertEqual(retcode, BuildNotStarted.code)
 
         self.gitrepo.cmd('git pull')
         self.gitrepo.cmd('git checkout %s' % first_integration_branch)
@@ -777,10 +772,9 @@ class TestWallE(unittest.TestCase):
         add_file_to_branch(self.gitrepo, first_integration_branch,
                            'file_added_on_int_branch')
 
-        with self.assertRaises(BranchHistoryMismatch):
-            self.handle(pr['id'],
-                        options=self.bypass_jira_checks,
-                        backtrace=True)
+        retcode = self.handle(pr['id'],
+                              options=self.bypass_jira_checks)
+        self.assertEqual(retcode, BranchHistoryMismatch.code)
 
     def test_malformed_git_repo(self):
         """Check that we can detect malformed git repositories."""
@@ -895,10 +889,6 @@ class TestWallE(unittest.TestCase):
         )
         with self.assertRaises(NotMyJob):
             self.handle(pr['id'], backtrace=True)
-
-        # test the return code of a silent exception is 0
-        retcode = self.handle(pr['id'])
-        self.assertEqual(retcode, 0)
 
 
 def main():
