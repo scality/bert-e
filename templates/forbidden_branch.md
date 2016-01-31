@@ -7,7 +7,7 @@ Invalid branch name
 {% block message %}
 I cannot merge the branch `{{ source.name }}` into
 `{{ destination.name }}`.
-The only patterns accepted in this branch are :
+The only patterns accepted in the source branch are :
 ```
 feature/*
 bugfix/*

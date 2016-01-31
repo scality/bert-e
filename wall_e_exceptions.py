@@ -95,7 +95,7 @@ class IncorrectFixVersion(WallE_TemplateException):
     template = 'incorrect_fix_version.md'
 
 
-class PrefixCannotBeMerged(WallE_TemplateException):
+class IncorrectBranchName(WallE_TemplateException):
     code = 113
     template = 'forbidden_branch.md'
 
@@ -141,7 +141,6 @@ class ImproperEmailFormat(WallE_InternalException):
 
 class BranchNameInvalid(WallE_InternalException):
     def __init__(self, name):
-        self.branch = name
         msg = 'Invalid name: %r' % name
         super(BranchNameInvalid, self).__init__(msg)
 

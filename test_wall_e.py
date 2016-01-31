@@ -21,9 +21,11 @@ from wall_e_exceptions import (AuthorApprovalRequired,
                                CommandNotImplemented,
                                Conflict,
                                HelpMessage,
+                               IncorrectBranchName,
                                InitMessage,
                                MalformedGitRepo,
                                NothingToDo,
+                               NotMyJob,
                                ParentPullRequestNotFound,
                                PeerApprovalRequired,
                                StatusReport,
@@ -84,17 +86,111 @@ class QuickTest(unittest.TestCase):
     """Tests which don't need to interact with an external web services"""
 
     def test_refuse_feature_on_maintenance_branch(self):
-        src = wall_e.FeatureBranchName('feature/RING-0004')
-        dest = wall_e.DestinationBranchName('development/4.3')
-        with self.assertRaises(BranchDoesNotAcceptFeatures):
-            src.check_if_should_handle(dest)
+        dest = wall_e.DestinationBranch('development/4.3')
 
-    def test_branch_name_invalid(self):
-        dst_branch = 'feature/RING-0005'
-        src_branch = 'user/4.3/RING-0005'
+        src = wall_e.FeatureBranch('bugfix/RING-0001')
+        src.check_compatibility_with(dest)
+
+        src = wall_e.FeatureBranch('feature/RING-0001')
+        with self.assertRaises(BranchDoesNotAcceptFeatures):
+            src.check_compatibility_with(dest)
+
+        src = wall_e.FeatureBranch('project/RING-0001')
+        with self.assertRaises(BranchDoesNotAcceptFeatures):
+            src.check_compatibility_with(dest)
+
+        src = wall_e.FeatureBranch('improvement/RING-0001')
+        src.check_compatibility_with(dest)
+
+        dest = wall_e.DestinationBranch('development/6.0')
+
+        src = wall_e.FeatureBranch('bugfix/RING-0001')
+        src.check_compatibility_with(dest)
+
+        src = wall_e.FeatureBranch('feature/RING-0001')
+        src.check_compatibility_with(dest)
+
+        src = wall_e.FeatureBranch('project/RING-0001')
+        src.check_compatibility_with(dest)
+
+        src = wall_e.FeatureBranch('improvement/RING-0001')
+        src.check_compatibility_with(dest)
+
+    def test_feature_branch_names(self):
         with self.assertRaises(BranchNameInvalid):
-            wall_e.DestinationBranchName(dst_branch)
-            wall_e.FeatureBranchName(src_branch)
+            wall_e.FeatureBranch('user/4.3/RING-0005')
+
+        with self.assertRaises(BranchNameInvalid):
+            wall_e.FeatureBranch('RING-0001-my-fix')
+
+        with self.assertRaises(BranchNameInvalid):
+            wall_e.FeatureBranch('my-fix')
+
+        with self.assertRaises(BranchNameInvalid):
+            wall_e.FeatureBranch('origin/feature/RING-0001')
+
+        with self.assertRaises(BranchNameInvalid):
+            wall_e.FeatureBranch('/feature/RING-0001')
+
+        with self.assertRaises(BranchNameInvalid):
+            wall_e.FeatureBranch('toto/RING-0005')
+
+        with self.assertRaises(BranchNameInvalid):
+            wall_e.FeatureBranch('release/4.3')
+
+        with self.assertRaises(BranchNameInvalid):
+            wall_e.FeatureBranch('feature')
+
+        with self.assertRaises(BranchNameInvalid):
+            wall_e.FeatureBranch('feature/')
+
+        # valid names
+        wall_e.FeatureBranch('feature/RING-0005')
+        wall_e.FeatureBranch('improvement/RING-1234')
+        wall_e.FeatureBranch('bugfix/RING-1234')
+
+        src = wall_e.FeatureBranch('project/RING-0005')
+        self.assertEqual(src.jira_issue_id, 'RING-0005')
+        self.assertEqual(src.jira_project_key, 'RING')
+
+        src = wall_e.FeatureBranch('feature/PROJECT-05-some-text_here')
+        self.assertEqual(src.jira_issue_id, 'PROJECT-05')
+        self.assertEqual(src.jira_project_key, 'PROJECT')
+
+        src = wall_e.FeatureBranch('feature/some-text_here')
+        self.assertIsNone(src.jira_issue_id)
+        self.assertIsNone(src.jira_project_key)
+
+
+    def test_destination_branch_names(self):
+        with self.assertRaises(BranchNameInvalid):
+            wall_e.DestinationBranch('feature/RING-0005')
+
+        with self.assertRaises(BranchNameInvalid):
+            wall_e.DestinationBranch('toto/RING-0005')
+
+        with self.assertRaises(BranchNameInvalid):
+            wall_e.DestinationBranch('user/RING-0005')
+
+        with self.assertRaises(BranchNameInvalid):
+            wall_e.DestinationBranch('improvement/RING-0005')
+
+        with self.assertRaises(BranchNameInvalid):
+            wall_e.DestinationBranch('release/4.3')
+
+        with self.assertRaises(BranchNameInvalid):
+            wall_e.DestinationBranch('release/4.3')
+
+        with self.assertRaises(BranchNameInvalid):
+            wall_e.DestinationBranch('release/5.1')
+
+        with self.assertRaises(BranchNameInvalid):
+            wall_e.DestinationBranch('release/6.0')
+
+        # valid names
+        wall_e.DestinationBranch('development/4.3')
+        wall_e.DestinationBranch('development/5.1')
+        wall_e.DestinationBranch('development/6.0')
 
 
 class TestWallE(unittest.TestCase):
@@ -785,6 +881,24 @@ class TestWallE(unittest.TestCase):
                               'bypass_jira_type_check',
                               'bypass_build_status'])
         self.assertEqual(retcode, SuccessMessage.code)
+
+    def test_hotfix_branch(self):
+        create_branch(self.gitrepo, 'hotfix/RING-00001',
+                      from_branch='development/4.3', file_=True)
+        pr = self.bbrepo_eva.create_pull_request(
+            title='title',
+            name='name',
+            source={'branch': {'name': 'hotfix/RING-00001'}},
+            destination={'branch': {'name': 'development/4.3'}},
+            close_source_branch=True,
+            description=''
+        )
+        with self.assertRaises(NotMyJob):
+            self.handle(pr['id'], backtrace=True)
+
+        # test the return code of a silent exception is 0
+        retcode = self.handle(pr['id'])
+        self.assertEqual(retcode, 0)
 
 
 def main():

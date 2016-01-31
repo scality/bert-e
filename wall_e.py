@@ -43,7 +43,7 @@ from wall_e_exceptions import (AuthorApprovalRequired,
                                ParentPullRequestNotFound,
                                ParentJiraIssueNotFound,
                                PeerApprovalRequired,
-                               PrefixCannotBeMerged,
+                               IncorrectBranchName,
                                StatusReport,
                                SuccessMessage,
                                TesterApprovalRequired,
@@ -182,45 +182,50 @@ class BranchName(object):
     def __init__(self, name):
         self.name = name
         if '/' not in name:
-            raise BranchNameInvalid(name)
+            raise BranchNameInvalid(name=name)
 
 
-class FeatureBranchName(BranchName):
+class FeatureBranch(BranchName):
     def __init__(self, name):
-        super(FeatureBranchName, self).__init__(name)
+        super(FeatureBranch, self).__init__(name)
         self.prefix, self.subname = name.split('/', 1)
-        self.jira_issue_id = None
-        match = re.match('(?P<issue_id>[A-Z]+-\d+).*', self.subname)
+        if not self.prefix or not self.subname:
+            raise BranchNameInvalid(name=name)
+        match = re.match('(?P<issue_id>(?P<key>[A-Z]+)-\d+).*',
+                         self.subname)
         if match:
             self.jira_issue_id = match.group('issue_id')
+            self.jira_project_key = match.group('key')
         else:
             logging.warning('%s does not contain a correct '
                             'issue id number', self.name)
-            # Fixme : send a comment instead ? or ignore the jira checks ?
+            self.jira_issue_id = None
+            self.jira_project_key = None
 
-    def check_if_should_handle(self, destination_branch):
-        if self.prefix not in ['feature', 'bugfix', 'improvement']:
-            raise PrefixCannotBeMerged(source=self,
-                                       destination=destination_branch)
-        if (self.prefix == 'feature' and
+        if self.prefix not in ['feature', 'bugfix', 'improvement', 'project']:
+            raise BranchNameInvalid(name=name)
+
+    def check_compatibility_with(self, destination_branch):
+        if (self.prefix in ['feature', 'project'] and
                 destination_branch.version in ['4.3', '5.1']):
             raise BranchDoesNotAcceptFeatures(
                 source=self,
                 destination=destination_branch)
 
 
-class DestinationBranchName(BranchName):
+class DestinationBranch(BranchName):
     def __init__(self, name):
-        super(DestinationBranchName, self).__init__(name)
+        super(DestinationBranch, self).__init__(name)
         self.prefix, self.version = name.split('/', 1)
-        if (self.prefix != 'development' or
-                self.version not in KNOWN_VERSIONS.keys()):
-            raise BranchNameInvalid(name)
 
         self.impacted_versions = OrderedDict(
             [(version, release) for (version, release) in
                 KNOWN_VERSIONS.items()
                 if version >= self.version])
+
+        if (self.prefix != 'development' or
+                self.version not in KNOWN_VERSIONS.keys()):
+            raise BranchNameInvalid(name)
 
 
 class IntegrationBranch(Branch):
@@ -239,7 +244,7 @@ class IntegrationBranch(Branch):
                            destination=self)
 
     def check_history_did_not_change(self):
-        feature_branch = FeatureBranchName(self.subname)
+        feature_branch = FeatureBranch(self.subname)
         for commit in self.get_all_commits_since_started_from(feature_branch):
             if not self.development_branch.includes_commit(commit):
                 raise BranchHistoryMismatch(
@@ -386,8 +391,7 @@ class WallE:
         self.main_pr.add_comment(msg)
 
     def jira_checks(self):
-        """performs checks using the Jira issue id specified in the source
-        branch name"""
+        """Check the Jira issue id specified in the source branch."""
         if (self.option_is_set('bypass_jira_version_check') and
                 self.option_is_set('bypass_jira_type_check')):
             return
@@ -396,7 +400,6 @@ class WallE:
             if self.destination_branch.version in ['6.0', 'trunk']:
                 # We do not want to merge in maintenance branches without
                 # proper ticket handling but it is OK for future releases.
-                # FIXME : versions should not be hardcoded
                 return
 
             raise MissingJiraIdMaintenance(branch=self.source_branch.name)
@@ -514,54 +517,54 @@ class WallE:
     def handle_pull_request(self, build_key, reference_git_repo='', no_comment=False,
                             interactive=False):
 
+        # check PR state
         if self.main_pr['state'] != 'OPEN':  # REJECTED or FULFILLED
             raise NothingToDo('The pull-request\'s state is "%s"'
                               % self.main_pr['state'])
 
+        # check destination branch
+        dst_brnch_name = self.main_pr['destination']['branch']['name']
+        src_brnch_name = self.main_pr['source']['branch']['name']
+        try:
+            self.destination_branch = DestinationBranch(dst_brnch_name)
+        except BranchNameInvalid as excp:
+            logging.info('Destination branch %r not handled, ignore PR %s',
+                         excp.branch, self.main_pr['id'])
+            # Nothing to do
+            raise NotMyJob(src_brnch_name, dst_brnch_name)
+
+        # check special cases for source branch
+        if src_brnch_name.startswith('hotfix'):
+            # hotfix branches are ignored
+            raise NotMyJob(src_brnch_name, dst_brnch_name)
+
+        # read comments and store them for multiple usage
         comments_ = self.main_pr.get_comments()
-        # transform yield into list for multiple usage
         comments = [com for com in comments_]
+
+        # send greetings if first time
         self.init(comments)
 
-        # must be called before any options is checked
+        # retrieve options
         self.get_comments_options(comments)
 
+        # check for commands
         self.handle_commands(comments)
 
         if self.option_is_set('wait'):
             raise NothingToDo('wait option is set')
 
-        dst_brnch_name = self.main_pr['destination']['branch']['name']
-        src_brnch_name = self.main_pr['source']['branch']['name']
+        # check source branch
         try:
-            self.destination_branch = DestinationBranchName(dst_brnch_name)
-        except BranchNameInvalid as e:
-            logging.info('Destination branch %r not handled, ignore PR %s',
-                         e.branch, self.main_pr['id'])
-            # Nothing to do
-            raise NotMyJob(src_brnch_name, dst_brnch_name)
+            self.source_branch = FeatureBranch(src_brnch_name)
+        except BranchNameInvalid as excp:
+            raise IncorrectBranchName(source=src_brnch_name,
+                                      destination=dst_brnch_name)
 
-        try:
-            self.source_branch = FeatureBranchName(
-                self.main_pr['source']['branch']['name'])
-        except BranchNameInvalid as e:
-            raise PrefixCannotBeMerged(e.branch)
-
-        self.source_branch.check_if_should_handle(self.destination_branch)
-
-        if self.source_branch.prefix == 'hotfix':
-            # hotfix branches are ignored, nothing todo
-            logging.info("Ignore branch %r", self.source_branch.name)
-            return
-
-        if self.source_branch.prefix not in [
-            'feature',
-            'bugfix',
-            'improvement'
-        ]:
-            raise PrefixCannotBeMerged(self.source_branch.name)
+        self.source_branch.check_compatibility_with(self.destination_branch)
 
         self.jira_checks()
+
         with self.clone_git_repo(reference_git_repo) as repo:
             self.check_git_repo_health(repo)
             integration_branches = self.create_integration_branches(repo)
