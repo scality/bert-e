@@ -5,5 +5,5 @@ Issue not found
 {% endblock %}
 
 {% block message %}
-Jira issue {{ issue }} not found.
+Jira issue `{{ issue }}` was not found.
 {% endblock %}

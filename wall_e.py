@@ -33,6 +33,7 @@ from wall_e_exceptions import (AuthorApprovalRequired,
                                HelpMessage,
                                ImproperEmailFormat,
                                IncorrectFixVersion,
+                               IncorrectJiraProject,
                                InitMessage,
                                JiraIssueNotFound,
                                JiraUnknownIssueType,
@@ -55,11 +56,84 @@ from wall_e_exceptions import (AuthorApprovalRequired,
 if six.PY3:
     raw_input = input
 
-KNOWN_VERSIONS = OrderedDict([
-    ('4.3', '4.3.18'),
-    ('5.1', '5.1.4'),
-    ('6.0', '6.0.0')
-])
+
+WALL_E_USERNAME = 'scality_wall-e'
+WALL_E_EMAIL = 'wall_e@scality.com'
+
+
+SETTINGS = {
+    'ring': {
+        'jira_key': 'RING',
+        'release_branch':{
+            'prefix': 'release'
+        },
+        'development_branch':{
+            'prefix': 'development',
+            'versions': OrderedDict([
+                ('4.3', {
+                    'release': '4.3.18',
+                    'prefix': [
+                        'bugfix',
+                        'improvement'
+                    ]
+                }),
+                ('5.1', {
+                    'release': '5.1.4',
+                    'prefix': [
+                        'bugfix',
+                        'improvement'
+                    ]
+                }),
+                ('6.0', {
+                    'release': '6.0.0',
+                    'prefix': [
+                        'bugfix',
+                        'improvement',
+                        'feature',
+                        'project']
+                })
+            ]),
+        },
+        'integration_branch':{
+            'prefix': 'w',
+        },
+        'feature_branch':{
+            'prefix': [
+                'feature',
+                'bugfix',
+                'improvement',
+                'project'
+            ],
+            'ignore_prefix': [
+                'hotfix',
+                'user'
+            ]
+        },
+        'testers': [
+            WALL_E_USERNAME,   # we need this for test purposes
+            'anneharper',
+            'christophe_meron',
+            'christophe_stoyanov',
+            'lpantou',
+            'mcolzi',
+            'romain_thebaud',
+            'sleibo'
+        ],
+        'admins': [
+            WALL_E_USERNAME,   # we need this for test purposes
+            'anneharper',
+            'bertrand_demiddelaer_scality',
+            'ludovicmaillard',
+            'mcolzi',
+            'mouhamet7',
+            'mvaude',
+            'pierre_louis_bonicoli',
+            'rayene_benrayana',
+            'sylvain_killian'
+        ]
+    }
+}
+
 
 JIRA_ISSUE_BRANCH_PREFIX = {
     'Epic': 'project',
@@ -67,33 +141,6 @@ JIRA_ISSUE_BRANCH_PREFIX = {
     'Bug': 'bugfix',
     'Improvement': 'improvement'
 }
-
-WALL_E_USERNAME = 'scality_wall-e'
-WALL_E_EMAIL = 'wall_e@scality.com'
-
-RELEASE_ENGINEERS = [
-    WALL_E_USERNAME,   # we need this for test purposes
-    'anneharper',
-    'bertrand_demiddelaer_scality',
-    'ludovicmaillard',
-    'mcolzi',
-    'mouhamet7',
-    'mvaude',
-    'pierre_louis_bonicoli',
-    'rayene_benrayana',
-    'sylvain_killian',
-]
-
-TEST_ENGINEERS = [
-    WALL_E_USERNAME,   # we need this for test purposes
-    'anneharper',
-    'christophe_meron',
-    'christophe_stoyanov',
-    'lpantou',
-    'mcolzi',
-    'romain_thebaud',
-    'sleibo'
-]
 
 
 class Option(object):
@@ -110,7 +157,7 @@ class Option(object):
     active until this comment is deleted.
 
     An option may require priviledges, in which case only
-    members of RELEASE_ENGINEERS will be able to activate
+    members of admin will be able to activate
     it.
 
     """
@@ -135,7 +182,7 @@ class Command(object):
     pull-request.
 
     A command may require priviledges, in which case only
-    members of RELEASE_ENGINEERS will be able to activate
+    members of admin will be able to activate
     it.
 
     """
@@ -207,36 +254,27 @@ class FeatureBranch(BranchName):
             self.jira_issue_id = None
             self.jira_project_key = None
 
-    def check_compatibility_with(self, destination_branch):
-        if (self.prefix in ['feature', 'project'] and
-                destination_branch.version in ['4.3', '5.1']):
-            raise BranchDoesNotAcceptFeatures(
-                source=self,
-                destination=destination_branch)
-
 
 class DestinationBranch(BranchName):
-    def __init__(self, name):
+    def __init__(self, name, expected_prefix, versions):
         super(DestinationBranch, self).__init__(name)
         self.prefix, self.version = name.split('/', 1)
 
-        self.impacted_versions = OrderedDict(
-            [(version, release) for (version, release) in
-                KNOWN_VERSIONS.items()
-                if version >= self.version])
-
-        if (self.prefix != 'development' or
-                self.version not in KNOWN_VERSIONS.keys()):
+        if (self.prefix != expected_prefix or
+                self.version not in versions):
             raise BranchNameInvalid(name)
 
 
 class IntegrationBranch(Branch):
-    def __init__(self, repo, name):
+    def __init__(self, repo, name, prefix):
         Branch.__init__(self, repo, name)
         w, self.version, self.subname = name.split('/', 2)
-        assert w == 'w'
-        self.development_branch = Branch(repo=repo, name='development/%s' %
-                                         self.version)
+        assert w == prefix
+        self.development_branch = Branch(
+            repo=repo,
+            name='%s/%s' % (self.settings['development_branch']['prefix']
+                            self.version)
+        )
 
     def merge_from_branch(self, source_branch):
         try:
@@ -280,7 +318,7 @@ class IntegrationBranch(Branch):
 
 class WallE:
     def __init__(self, bitbucket_login, bitbucket_password, bitbucket_mail,
-                 owner, slug, pull_request_id, options, commands):
+                 owner, slug, pull_request_id, options, commands, settings):
         self._bbconn = Client(bitbucket_login,
                               bitbucket_password, bitbucket_mail)
         self.bbrepo = BitBucketRepository(self._bbconn, owner=owner,
@@ -301,8 +339,10 @@ class WallE:
             self.author = self.main_pr['author']['username']
         self.options = options
         self.commands = commands
+        self.settings = settings
         self.source_branch = None
         self.destination_branch = None
+        self.target_versions = {}
 
     def option_is_set(self, name):
         if name not in self.options.keys():
@@ -394,8 +434,7 @@ class WallE:
 
     def jira_checks(self):
         """Check the Jira issue id specified in the source branch."""
-        if (self.option_is_set('bypass_jira_version_check') and
-                self.option_is_set('bypass_jira_type_check')):
+        if self.option_is_set('bypass_jira_check'):
             return
 
         if not self.source_branch.jira_issue_id:
@@ -429,32 +468,42 @@ class WallE:
                 else:
                     raise
 
-        # Fixme : add proper error handling
-        # What happens in case of network failure ? -> fail silently ?
-        # What else can happen ?
-        if not self.option_is_set('bypass_jira_type_check'):
-            issuetype = issue.fields.issuetype.name
-            expected_prefix = JIRA_ISSUE_BRANCH_PREFIX.get(issuetype)
-            if expected_prefix is None:
-                raise JiraUnknownIssueType(issuetype)
-            if expected_prefix != self.source_branch.prefix:
-                raise MismatchPrefixIssueType(prefix=self.source_branch.prefix,
-                                              expected=expected_prefix)
+        # check the project
+        if (self.source_branch.jira_project_key !=
+                self.settings['jira_key']):
+            raise IncorrectJiraProject(
+                expected_project=self.settings['jira_key'],
+                issue=issue_id
+            )
 
-        if not self.option_is_set('bypass_jira_version_check'):
-            issue_versions = set([version.name for version in
-                                  issue.fields.fixVersions])
-            expect_versions = set(
-                self.destination_branch.impacted_versions.values())
-            if issue_versions != expect_versions:
-                raise IncorrectFixVersion(issues=issue_versions,
-                                          expects=expect_versions)
+        # check the issue type
+        issuetype = issue.fields.issuetype.name
+        expected_prefix = JIRA_ISSUE_BRANCH_PREFIX.get(issuetype)
+        if expected_prefix is None:
+            raise JiraUnknownIssueType(issuetype)
+        if expected_prefix != self.source_branch.prefix:
+            raise MismatchPrefixIssueType(prefix=self.source_branch.prefix,
+                                          expected=expected_prefix)
+
+        # check the expected version field
+        issue_versions = set([version.name for version in
+                              issue.fields.fixVersions])
+        expect_versions = set(
+            self.target_versions.values())
+        if issue_versions != expect_versions:
+            raise IncorrectFixVersion(issues=issue_versions,
+                                      expects=expect_versions)
 
     def create_integration_branches(self, repo):
         integration_branches = []
-        for version in self.destination_branch.impacted_versions:
-            integration_branch = IntegrationBranch(repo, 'w/%s/%s' % (version,
-                                                   self.source_branch.name))
+        for version in self.target_versions:
+            integration_branch = IntegrationBranch(
+                repo,
+                '%s/%s/%s' % (self.settings['integration_branch']['prefix'],
+                              version,
+                              self.source_branch.name),
+                self.settings['integration_branch']['prefix']
+            )
             if not integration_branch.exists():
                 integration_branch.create(
                     integration_branch.development_branch)
@@ -488,10 +537,17 @@ class WallE:
         return git_repo
 
     def check_git_repo_health(self, git_repo):
-        previous_dev_branch_name = 'development/%s' % list(KNOWN_VERSIONS)[0]
+        previous_dev_branch_name = '%s/%s' % (
+            self.settings['development_branch']['prefix'],
+            list(self.settings['development_branch']['versions'])[0]
+        )
         Branch(git_repo, previous_dev_branch_name).checkout()
-        for version in list(KNOWN_VERSIONS)[1:]:
-            dev_branch_name = 'development/%s' % version
+        for version in list(
+                self.settings['development_branch']['versions'])[1:]:
+            dev_branch_name = '%s/%s' % (
+                self.settings['development_branch']['prefix'],
+                version
+            )
             dev_branch = Branch(git_repo, dev_branch_name)
             dev_branch.checkout()
             if not dev_branch.includes_commit(previous_dev_branch_name):
@@ -516,8 +572,22 @@ class WallE:
                           status=self.get_status_report(),
                           active_options=self.get_active_options())
 
-    def handle_pull_request(self, build_key, reference_git_repo='', no_comment=False,
-                            interactive=False):
+    def build_target_versions(self):
+        self.target_versions = OrderedDict(
+            [(version, data['release']) for (version, data) in
+                self.settings['development_branch']['versions'].items()
+                if version >= self.destination_branch.version])
+
+    def check_compatibility_src_dest(self):
+        if (self.source_branch.prefix not in
+                self.settings['development_branch']['versions']
+                [self.destination_branch.version]['prefix']):
+            raise BranchDoesNotAcceptFeatures(
+                source=self.source_branch,
+                destination=self.destination_branch)
+
+    def handle_pull_request(self, build_key, reference_git_repo='',
+                            no_comment=False, interactive=False):
 
         # check PR state
         if self.main_pr['state'] != 'OPEN':  # REJECTED or FULFILLED
@@ -528,17 +598,21 @@ class WallE:
         dst_brnch_name = self.main_pr['destination']['branch']['name']
         src_brnch_name = self.main_pr['source']['branch']['name']
         try:
-            self.destination_branch = DestinationBranch(dst_brnch_name)
+            self.destination_branch = DestinationBranch(
+                dst_brnch_name,
+                self.settings['development_branch']['prefix'],
+                self.settings['development_branch']['versions'].keys()
+            )
         except BranchNameInvalid as excp:
             logging.info('Destination branch %r not handled, ignore PR %s',
                          excp.branch, self.main_pr['id'])
             # Nothing to do
             raise NotMyJob(src_brnch_name, dst_brnch_name)
 
-        # check special cases for source branch
-        if src_brnch_name.startswith('hotfix'):
-            # hotfix branches are ignored
-            raise NotMyJob(src_brnch_name, dst_brnch_name)
+        # check feature branches to ignore
+        for prefix in self.settings['feature_branch']['ignore_prefix']:
+            if src_brnch_name.startswith(prefix):
+                raise NotMyJob(src_brnch_name, dst_brnch_name)
 
         # read comments and store them for multiple usage
         comments_ = self.main_pr.get_comments()
@@ -563,7 +637,9 @@ class WallE:
             raise IncorrectBranchName(source=src_brnch_name,
                                       destination=dst_brnch_name)
 
-        self.source_branch.check_compatibility_with(self.destination_branch)
+        self.check_compatibility_src_dest()
+
+        self.build_target_versions()
 
         self.jira_checks()
 
@@ -603,7 +679,7 @@ class WallE:
                 return False
 
             limited_access = self.options[keyword].priviledged
-            if limited_access and author not in RELEASE_ENGINEERS:
+            if limited_access and author not in self.settings['admins']:
                 logging.debug('ignoring keywords in this comment due to '
                               'unsufficient credentials `%s`', keyword_list)
                 return False
@@ -658,7 +734,7 @@ class WallE:
             return False
 
         limited_access = self.commands[command].priviledged
-        if limited_access and author not in RELEASE_ENGINEERS:
+        if limited_access and author not in self.settings['admins']:
             logging.debug('ignoring command in this comment due to '
                           'unsufficient credentials `%s`', command)
             return False
@@ -727,7 +803,7 @@ class WallE:
         approved_by_tester = self.option_is_set('bypass_tester_approval')
 
         # If a tester is the author of the PR we will bypass the tester approval
-        if self.author in TEST_ENGINEERS:
+        if self.author in self.settings['testers']:
             approved_by_tester = True
 
         if approved_by_author and approved_by_peer and approved_by_tester:
@@ -740,7 +816,7 @@ class WallE:
                 continue
             if participant['user']['username'] == self.author:
                 approved_by_author = True
-            elif participant['user']['username'] in TEST_ENGINEERS:
+            elif participant['user']['username'] in self.settings['testers']:
                 approved_by_tester = True
             else:
                 approved_by_peer = True
@@ -803,6 +879,9 @@ def main():
         '--slug', default='ring',
         help="The repo's slug (default: ring)")
     parser.add_argument(
+        '--settings', default='',
+        help="The settings to use (default to repository slug)")
+    parser.add_argument(
         '--build-key', action='store', default='pipeline', type=str,
         help="The build key to consider for approval (default: pipeline)")
     parser.add_argument(
@@ -837,6 +916,15 @@ def main():
         requests_log.setLevel(logging.WARNING)
         requests_log.propagate = True
 
+    if not args.settings:
+        args.settings = args.slug
+
+    if args.settings not in SETTINGS:
+        print("Invalid repository/settings. I don't know how to work "
+              "with %s. Specify settings with the --settings options." %
+              args.settings)
+        sys.exit(1)
+
     if args.alert_email:
         try:
             setup_email(args.alert_email)
@@ -861,14 +949,10 @@ def main():
             Option(priviledged=True,
                    value='bypass_tester_approval' in args.cmd_line_options,
                    help="Bypass the pull request tester's approval"),
-        'bypass_jira_version_check':
+        'bypass_jira_check':
             Option(priviledged=True,
-                   value='bypass_jira_version_check' in args.cmd_line_options,
-                   help="Bypass the Jira Fix Version/s field check"),
-        'bypass_jira_type_check':
-            Option(priviledged=True,
-                   value='bypass_jira_type_check' in args.cmd_line_options,
-                   help="Bypass the Jira issue Type field check"),
+                   value='bypass_jira_check' in args.cmd_line_options,
+                   help="Bypass the Jira issue check"),
         'bypass_build_status':
             Option(priviledged=True,
                    value='bypass_build_status' in args.cmd_line_options,
@@ -919,7 +1003,7 @@ def main():
 
     wall_e = WallE(WALL_E_USERNAME, args.password, WALL_E_EMAIL,
                    args.owner, args.slug, args.pull_request_id,
-                   options, commands)
+                   options, commands, SETTINGS[args.settings])
 
     try:
         wall_e.handle_pull_request(

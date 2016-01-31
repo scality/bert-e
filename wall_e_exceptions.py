@@ -130,6 +130,11 @@ class TesterApprovalRequired(WallE_TemplateException):
     template = 'need_approval.md'
 
 
+class IncorrectJiraProject(WallE_TemplateException):
+    code = 120
+    template = 'incorrect_jira_project.md'
+
+
 # internal exceptions
 class UnableToSendEmail(WallE_InternalException):
     pass
