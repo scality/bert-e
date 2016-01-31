@@ -350,10 +350,25 @@ class TestWallE(unittest.TestCase):
         retcode = self.handle(pr['id'])
         self.assertEqual(retcode, 0)
 
-    def test_refuse_feature_on_maintenance_branch(self):
-        pr = self.create_pr('feature/RING-0004', 'development/4.3')
+    def test_not_my_job_cases(self):
+        # refuse feature on maintenance branch
+        pr = self.create_pr('feature/RING-00001', 'development/4.3')
         retcode = self.handle(pr['id'], options=self.bypass_all)
         self.assertEqual(retcode, BranchDoesNotAcceptFeatures.code)
+
+        # check an attempt at merging into a feature branch
+        create_branch(self.gitrepo, 'feature/RING-00002',
+                      from_branch='development/4.3', file_=True)
+        pr = self.bbrepo_eva.create_pull_request(
+            title='title',
+            name='name',
+            source={'branch': {'name': 'feature/RING-00002'}},
+            destination={'branch': {'name': 'feature/RING-00001'}},
+            close_source_branch=True,
+            description=''
+        )
+        with self.assertRaises(NotMyJob):
+            self.handle(pr['id'], backtrace=True)
 
     def test_conflict(self):
         pr1 = self.create_pr('bugfix/RING-0006', 'development/4.3',

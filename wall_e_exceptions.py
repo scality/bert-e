@@ -141,6 +141,7 @@ class ImproperEmailFormat(WallE_InternalException):
 
 class BranchNameInvalid(WallE_InternalException):
     def __init__(self, name):
+        self.branch = name
         msg = 'Invalid name: %r' % name
         super(BranchNameInvalid, self).__init__(msg)
 
