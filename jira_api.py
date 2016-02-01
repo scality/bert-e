@@ -7,7 +7,9 @@ class JiraIssue:
         self._credentials = (login, passwd)
         self._jira = JIRA('https://scality.atlassian.net',
                           basic_auth=self._credentials)
-        self.fields = self._jira.issue(issue_id).fields
+        issue = self._jira.issue(issue_id)
+        self.fields = issue.fields
+        self.key = issue.key
 
 
 if __name__ == '__main__':
