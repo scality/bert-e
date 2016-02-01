@@ -751,6 +751,11 @@ class WallE:
         approved_by_peer = self.option_is_set('bypass_peer_approval')
         approved_by_tester = self.option_is_set('bypass_tester_approval')
 
+        if not self.settings['testers']:
+            # if the project does not declare any testers,
+            # just assume a pseudo-tester has approved the PR
+            approved_by_tester = True
+
         # If a tester is the author of the PR we will bypass the tester approval
         if self.author in self.settings['testers']:
             approved_by_tester = True
