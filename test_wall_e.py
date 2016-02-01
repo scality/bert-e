@@ -12,7 +12,6 @@ from bitbucket_api import (Client,
                            Repository as BitbucketRepository)
 from git_api import Repository as GitRepository
 from wall_e_exceptions import (AuthorApprovalRequired,
-                               BranchDoesNotAcceptFeatures,
                                BranchHistoryMismatch,
                                BranchNameInvalid,
                                BuildInProgress,
@@ -23,7 +22,8 @@ from wall_e_exceptions import (AuthorApprovalRequired,
                                DevBranchDoesNotExist,
                                DevBranchesNotSelfContained,
                                HelpMessage,
-                               IncorrectBranchName,
+                               IncompatibleSourceBranchPrefix,
+                               IncorrectSourceBranchName,
                                InitMessage,
                                NothingToDo,
                                NotMyJob,
@@ -86,48 +86,54 @@ def rebase_branch(repo, branch_name, on_branch):
 class QuickTest(unittest.TestCase):
     """Tests which don't need to interact with an external web services"""
 
+    def feature_branch(self, name):
+        return wall_e.FeatureBranch(
+            name,
+            wall_e.SETTINGS['ring']['feature_branch']['prefix']
+        )
+
     def test_feature_branch_names(self):
         with self.assertRaises(BranchNameInvalid):
-            wall_e.FeatureBranch('user/4.3/RING-0005')
+            self.feature_branch('user/4.3/RING-0005')
 
         with self.assertRaises(BranchNameInvalid):
-            wall_e.FeatureBranch('RING-0001-my-fix')
+            self.feature_branch('RING-0001-my-fix')
 
         with self.assertRaises(BranchNameInvalid):
-            wall_e.FeatureBranch('my-fix')
+            self.feature_branch('my-fix')
 
         with self.assertRaises(BranchNameInvalid):
-            wall_e.FeatureBranch('origin/feature/RING-0001')
+            self.feature_branch('origin/feature/RING-0001')
 
         with self.assertRaises(BranchNameInvalid):
-            wall_e.FeatureBranch('/feature/RING-0001')
+            self.feature_branch('/feature/RING-0001')
 
         with self.assertRaises(BranchNameInvalid):
-            wall_e.FeatureBranch('toto/RING-0005')
+            self.feature_branch('toto/RING-0005')
 
         with self.assertRaises(BranchNameInvalid):
-            wall_e.FeatureBranch('release/4.3')
+            self.feature_branch('release/4.3')
 
         with self.assertRaises(BranchNameInvalid):
-            wall_e.FeatureBranch('feature')
+            self.feature_branch('feature')
 
         with self.assertRaises(BranchNameInvalid):
-            wall_e.FeatureBranch('feature/')
+            self.feature_branch('feature/')
 
         # valid names
-        wall_e.FeatureBranch('feature/RING-0005')
-        wall_e.FeatureBranch('improvement/RING-1234')
-        wall_e.FeatureBranch('bugfix/RING-1234')
+        self.feature_branch('feature/RING-0005')
+        self.feature_branch('improvement/RING-1234')
+        self.feature_branch('bugfix/RING-1234')
 
-        src = wall_e.FeatureBranch('project/RING-0005')
+        src = self.feature_branch('project/RING-0005')
         self.assertEqual(src.jira_issue_id, 'RING-0005')
         self.assertEqual(src.jira_project_key, 'RING')
 
-        src = wall_e.FeatureBranch('feature/PROJECT-05-some-text_here')
+        src = self.feature_branch('feature/PROJECT-05-some-text_here')
         self.assertEqual(src.jira_issue_id, 'PROJECT-05')
         self.assertEqual(src.jira_project_key, 'PROJECT')
 
-        src = wall_e.FeatureBranch('feature/some-text_here')
+        src = self.feature_branch('feature/some-text_here')
         self.assertIsNone(src.jira_issue_id)
         self.assertIsNone(src.jira_project_key)
 
@@ -310,7 +316,7 @@ class TestWallE(unittest.TestCase):
         # refuse feature on maintenance branch
         pr = self.create_pr('feature/RING-00001', 'development/4.3')
         retcode = self.handle(pr['id'], options=self.bypass_all)
-        self.assertEqual(retcode, BranchDoesNotAcceptFeatures.code)
+        self.assertEqual(retcode, IncompatibleSourceBranchPrefix.code)
 
         # check an attempt at merging into a feature branch
         create_branch(self.gitrepo, 'feature/RING-00002',
@@ -329,7 +335,7 @@ class TestWallE(unittest.TestCase):
         # test invalid branch name
         pr = self.create_pr('featur/RING-00003', 'development/4.3')
         retcode = self.handle(pr['id'])
-        self.assertEqual(retcode, IncorrectBranchName.code)
+        self.assertEqual(retcode, IncorrectSourceBranchName.code)
 
     def test_conflict(self):
         pr1 = self.create_pr('bugfix/RING-0006', 'development/4.3',

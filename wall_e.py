@@ -24,7 +24,6 @@ from git_api import (Repository as GitRepository,
 from jira_api import JiraIssue
 
 from wall_e_exceptions import (AuthorApprovalRequired,
-                               BranchDoesNotAcceptFeatures,
                                BranchHistoryMismatch,
                                BranchNameInvalid,
                                BuildFailed,
@@ -37,25 +36,26 @@ from wall_e_exceptions import (AuthorApprovalRequired,
                                DevBranchesNotSelfContained,
                                HelpMessage,
                                ImproperEmailFormat,
+                               IncompatibleSourceBranchPrefix,
                                IncorrectFixVersion,
                                IncorrectJiraProject,
+                               IncorrectSourceBranchName,
                                InitMessage,
                                JiraIssueNotFound,
                                JiraUnknownIssueType,
                                MismatchPrefixIssueType,
                                MissingJiraId,
                                NothingToDo,
+                               NotMyJob,
                                ParentPullRequestNotFound,
                                ParentJiraIssueNotFound,
                                PeerApprovalRequired,
-                               IncorrectBranchName,
                                StatusReport,
                                SuccessMessage,
                                TesterApprovalRequired,
                                UnableToSendEmail,
                                WallE_SilentException,
-                               WallE_TemplateException,
-                               NotMyJob)
+                               WallE_TemplateException)
 
 if six.PY3:
     raw_input = input
@@ -241,14 +241,14 @@ class BranchName(object):
 
 
 class FeatureBranch(BranchName):
-    def __init__(self, name):
+    def __init__(self, name, valid_prefixes):
         super(FeatureBranch, self).__init__(name)
         self.prefix, self.subname = name.split('/', 1)
 
         if not self.prefix or not self.subname:
             raise BranchNameInvalid(name)
 
-        if self.prefix not in ['feature', 'bugfix', 'improvement', 'project']:
+        if self.prefix not in valid_prefixes:
             raise BranchNameInvalid(name)
 
         match = re.match('(?P<issue_id>(?P<key>[A-Z]+)-\d+).*',
@@ -287,17 +287,6 @@ class IntegrationBranch(Branch):
         except MergeFailedException:
             raise Conflict(source=source_branch,
                            destination=self)
-
-    def check_history_did_not_change(self):
-        feature_branch = FeatureBranch(self.subname)
-        for commit in self.get_all_commits_since_started_from(feature_branch):
-            if not self.development_branch.includes_commit(commit):
-                raise BranchHistoryMismatch(
-                    commit=commit,
-                    integration_branch=self,
-                    feature_branch=feature_branch,
-                    development_branch=self.development_branch
-                )
 
     def update_to_development_branch(self):
         self.development_branch.merge(self, force_commit=False)
@@ -592,10 +581,16 @@ class WallE:
 
     def _setup_source_branch(self, src_branch_name, dst_branch_name):
         try:
-            self.source_branch = FeatureBranch(src_branch_name)
+            self.source_branch = FeatureBranch(
+                src_branch_name,
+                self.settings['feature_branch']['prefix']
+            )
         except BranchNameInvalid:
-            raise IncorrectBranchName(source=src_branch_name,
-                                      destination=dst_branch_name)
+            raise IncorrectSourceBranchName(
+                source=src_branch_name,
+                destination=dst_branch_name,
+                valid_prefixes=self.settings['feature_branch']['prefix']
+            )
 
     def _setup_destination_branches(self, src_branch_name, dst_branch_name):
         for version in self.target_versions:
@@ -613,7 +608,7 @@ class WallE:
         for destination_branch in self.destination_branches:
             if (self.source_branch.prefix not in
                     destination_branch.allow_prefix):
-                raise BranchDoesNotAcceptFeatures(
+                raise IncompatibleSourceBranchPrefix(
                     source=self.source_branch,
                     destination=destination_branch)
 
@@ -742,10 +737,25 @@ class WallE:
             integration_branches.append(integration_branch)
         return integration_branches
 
+    def _check_history_did_not_change(self, integration_branch):
+        feature_branch = FeatureBranch(
+            integration_branch.subname,
+            self.settings['feature_branch']['prefix']
+        )
+        development_branch = integration_branch.development_branch
+        for commit in integration_branch.get_all_commits(feature_branch):
+            if not development_branch.includes_commit(commit):
+                raise BranchHistoryMismatch(
+                    commit=commit,
+                    integration_branch=integration_branch,
+                    feature_branch=feature_branch,
+                    development_branch=development_branch
+                )
+
     def _update_integration_from_dev(self, integration_branches):
         # The first integration branch should not contain commits
         # that are not in development/* or in the feature branch.
-        integration_branches[0].check_history_did_not_change()
+        self._check_history_did_not_change(integration_branches[0])
         for integration_branch in integration_branches:
             integration_branch.merge_from_branch(
                 integration_branch.development_branch)

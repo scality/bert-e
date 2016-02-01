@@ -95,14 +95,14 @@ class IncorrectFixVersion(WallE_TemplateException):
     template = 'incorrect_fix_version.md'
 
 
-class IncorrectBranchName(WallE_TemplateException):
+class IncorrectSourceBranchName(WallE_TemplateException):
     code = 113
-    template = 'forbidden_branch.md'
+    template = 'incorrect_source_branch_name.md'
 
 
-class BranchDoesNotAcceptFeatures(WallE_TemplateException):
+class IncompatibleSourceBranchPrefix(WallE_TemplateException):
     code = 114
-    template = 'forbidden_branch_in_maintenance.md'
+    template = 'incorrect_source_branch_prefix.md'
 
 
 class BranchHistoryMismatch(WallE_TemplateException):
