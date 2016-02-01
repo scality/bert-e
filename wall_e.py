@@ -803,10 +803,15 @@ class WallE:
                 raise
         return build_state
 
-    def _check_build_status(self, key, child_prs):
+    def _check_build_status(self, child_prs):
         """Report the worst status available."""
         if self.option_is_set('bypass_build_status'):
             return
+
+        key = self.settings['build_key']
+        if not key:
+            return
+
         ordered_state = ['SUCCESSFUL', 'INPROGRESS', 'NOTSTARTED', 'FAILED']
         g_state = 'SUCCESSFUL'
         worst_pr = child_prs[0]
@@ -858,7 +863,7 @@ class WallE:
             self._update_integration_from_feature(integration_branches)
             child_prs = self._create_pull_requests(integration_branches)
             self._check_approvals(child_prs)
-            self._check_build_status(self.settings['build_key'], child_prs)
+            self._check_build_status(child_prs)
 
             if interactive and not confirm('Do you want to merge ?'):
                 return
