@@ -65,10 +65,10 @@ SETTINGS = {
     'ring': {
         'jira_key': 'RING',
         'build_key': 'pipeline',
-        'release_branch':{
+        'release_branch': {
             'prefix': 'release'
         },
-        'development_branch':{
+        'development_branch': {
             'prefix': 'development',
             'versions': OrderedDict([
                 ('4.3', {
@@ -95,10 +95,10 @@ SETTINGS = {
                 })
             ]),
         },
-        'integration_branch':{
+        'integration_branch': {
             'prefix': 'w',
         },
-        'feature_branch':{
+        'feature_branch': {
             'prefix': [
                 'feature',
                 'bugfix',
@@ -350,38 +350,27 @@ class WallE:
             return False
         return self.options[name].is_set()
 
-    def check_build_status(self, key, child_prs):
-        """Report the worst status available."""
-        if self.option_is_set('bypass_build_status'):
-            return
-        ordered_state = ['SUCCESSFUL', 'INPROGRESS', 'NOTSTARTED', 'FAILED']
-        g_state = 'SUCCESSFUL'
-        worst_pr = child_prs[0]
-        for pr in child_prs:
-            try:
-                build_state = self.bbrepo.get_build_status(
-                    revision=pr['source']['commit']['hash'],
-                    key=key
-                )['state']
-            except requests.exceptions.HTTPError as e:
-                if e.response.status_code == 404:
-                    if ordered_state.index(g_state) < ordered_state.index('NOTSTARTED'):
-                        g_state = 'NOTSTARTED'
-                        worst_pr = pr
-                else:
-                    raise
-            else:
-                if ordered_state.index(g_state) < ordered_state.index(build_state):
-                    g_state = build_state
-                    worst_pr = pr
+    def _get_active_options(self):
+        return [option for option in self.options.keys() if
+                self.option_is_set(option)]
 
-        if g_state == 'FAILED':
-            raise BuildFailed(pr_id=worst_pr['id'])
-        elif g_state == 'NOTSTARTED':
-            raise BuildNotStarted(pr_id=worst_pr['id'])
-        elif g_state == 'INPROGRESS':
-            raise BuildInProgress(pr_id=worst_pr['id'])
-        assert build_state == 'SUCCESSFUL'
+    def print_help(self, args):
+        raise HelpMessage(options=self.options,
+                          commands=self.commands,
+                          active_options=self._get_active_options())
+
+    def get_status_report(self):
+        # tmp hard coded
+        return {}
+
+    def publish_status_report(self, args):
+        raise StatusReport(status=self.get_status_report(),
+                           active_options=self._get_active_options())
+
+    def command_not_implemented(self, args):
+        raise CommandNotImplemented(
+            active_options=self._get_active_options()
+        )
 
     def find_bitbucket_comment(self,
                                username=None,
@@ -433,130 +422,31 @@ class WallE:
 
         self.main_pr.add_comment(msg)
 
-    def jira_checks(self):
-        """Check the Jira issue id specified in the source branch."""
-        if self.option_is_set('bypass_jira_check'):
-            return
+    def _check_pr_state(self):
+        if self.main_pr['state'] != 'OPEN':  # REJECTED or FULFILLED
+            raise NothingToDo('The pull-request\'s state is "%s"'
+                              % self.main_pr['state'])
 
-        if not self.source_branch.jira_issue_id:
-            if self.destination_branch.version in ['6.0', 'trunk']:
-                # We do not want to merge in maintenance branches without
-                # proper ticket handling but it is OK for future releases.
-                return
-
-            raise MissingJiraIdMaintenance(branch=self.source_branch.name)
-
+    def _setup_destination_branch(self, src_brnch_name, dst_brnch_name):
         try:
-            issue_id = self.source_branch.jira_issue_id
-            issue = JiraIssue(issue_id=issue_id, login='wall_e',
-                              passwd=self._bbconn.auth.password)
-        except JIRAError as e:
-            if e.status_code == 404:
-                raise JiraIssueNotFound(issue=issue_id)
-            else:
-                raise
-
-        # Use parent task instead
-        if issue.fields.issuetype.name == 'Sub-task':
-            try:
-                parent_id = issue.fields.parent.key
-                issue = JiraIssue(issue_id=parent_id, login='wall_e',
-                                  passwd=self._bbconn.auth.password)
-            except JIRAError as e:
-                if e.status_code == 404:
-                    raise ParentJiraIssueNotFound(parent=parent_id,
-                                                  issue=issue_id)
-                else:
-                    raise
-
-        # check the project
-        if (self.source_branch.jira_project_key !=
-                self.settings['jira_key']):
-            raise IncorrectJiraProject(
-                expected_project=self.settings['jira_key'],
-                issue=issue_id
-            )
-
-        # check the issue type
-        issuetype = issue.fields.issuetype.name
-        expected_prefix = JIRA_ISSUE_BRANCH_PREFIX.get(issuetype)
-        if expected_prefix is None:
-            raise JiraUnknownIssueType(issuetype)
-        if expected_prefix != self.source_branch.prefix:
-            raise MismatchPrefixIssueType(prefix=self.source_branch.prefix,
-                                          expected=expected_prefix)
-
-        # check the expected version field
-        issue_versions = set([version.name for version in
-                              issue.fields.fixVersions])
-        expect_versions = set(
-            self.target_versions.values())
-        if issue_versions != expect_versions:
-            raise IncorrectFixVersion(issues=issue_versions,
-                                      expects=expect_versions)
-
-    def create_integration_branches(self, repo):
-        integration_branches = []
-        for version in self.target_versions:
-            integration_branch = IntegrationBranch(
-                repo,
-                '%s/%s/%s' % (self.settings['integration_branch']['prefix'],
-                              version,
-                              self.source_branch.name),
-                self.settings['integration_branch']['prefix']
-            )
-            if not integration_branch.exists():
-                integration_branch.create(
-                    integration_branch.development_branch)
-            integration_branches.append(integration_branch)
-        return integration_branches
-
-    def create_pull_requests(self, integration_branches):
-        return [integration_branch.
-                create_pull_request(self.main_pr, self.bbrepo) for
-                integration_branch in integration_branches]
-
-    def update_integration_from_dev(self, integration_branches):
-        # The first integration branch should not contain commits
-        # that are not in development/* or in the feature branch.
-        integration_branches[0].check_history_did_not_change()
-        for integration_branch in integration_branches:
-            integration_branch.merge_from_branch(
-                integration_branch.development_branch)
-
-    def update_integration_from_feature(self, integration_branches):
-        branch_to_merge_from = self.source_branch
-        for integration_branch in integration_branches:
-            integration_branch.merge_from_branch(branch_to_merge_from)
-            branch_to_merge_from = integration_branch
-
-    def clone_git_repo(self, reference_git_repo):
-        git_repo = GitRepository(self.bbrepo.get_git_url())
-        git_repo.clone(reference_git_repo)
-        git_repo.config('user.email', WALL_E_EMAIL)
-        git_repo.config('user.name', WALL_E_USERNAME)
-        return git_repo
-
-    def check_git_repo_health(self, git_repo):
-        previous_dev_branch_name = '%s/%s' % (
-            self.settings['development_branch']['prefix'],
-            list(self.settings['development_branch']['versions'])[0]
-        )
-        Branch(git_repo, previous_dev_branch_name).checkout()
-        for version in list(
-                self.settings['development_branch']['versions'])[1:]:
-            dev_branch_name = '%s/%s' % (
+            self.destination_branch = DestinationBranch(
+                dst_brnch_name,
                 self.settings['development_branch']['prefix'],
-                version
+                self.settings['development_branch']['versions'].keys()
             )
-            dev_branch = Branch(git_repo, dev_branch_name)
-            dev_branch.checkout()
-            if not dev_branch.includes_commit(previous_dev_branch_name):
-                raise MalformedGitRepo(previous_dev_branch_name,
-                                       dev_branch_name)
-            previous_dev_branch_name = dev_branch_name
+        except BranchNameInvalid as excp:
+            logging.info('Destination branch %r not handled, ignore PR %s',
+                         excp.branch, self.main_pr['id'])
+            # Nothing to do
+            raise NotMyJob(src_brnch_name, dst_brnch_name)
 
-    def init(self, comments):
+    def _check_if_ignored(self, src_brnch_name, dst_brnch_name):
+        # check feature branches to ignore
+        for prefix in self.settings['feature_branch']['ignore_prefix']:
+            if src_brnch_name.startswith(prefix):
+                raise NotMyJob(src_brnch_name, dst_brnch_name)
+
+    def _send_greetings(self, comments):
         """Displays a welcome message if conditions are met."""
         for comment in comments:
             author = comment['user']['username']
@@ -571,106 +461,9 @@ class WallE:
 
         raise InitMessage(author=self.author,
                           status=self.get_status_report(),
-                          active_options=self.get_active_options())
+                          active_options=self._get_active_options())
 
-    def build_target_versions(self):
-        self.target_versions = OrderedDict(
-            [(version, data['release']) for (version, data) in
-                self.settings['development_branch']['versions'].items()
-                if version >= self.destination_branch.version])
-
-    def check_compatibility_src_dest(self):
-        if (self.source_branch.prefix not in
-                self.settings['development_branch']['versions']
-                [self.destination_branch.version]['prefix']):
-            raise BranchDoesNotAcceptFeatures(
-                source=self.source_branch,
-                destination=self.destination_branch)
-
-    def handle_pull_request(self, reference_git_repo='',
-                            no_comment=False, interactive=False):
-
-        # check PR state
-        if self.main_pr['state'] != 'OPEN':  # REJECTED or FULFILLED
-            raise NothingToDo('The pull-request\'s state is "%s"'
-                              % self.main_pr['state'])
-
-        # check destination branch
-        dst_brnch_name = self.main_pr['destination']['branch']['name']
-        src_brnch_name = self.main_pr['source']['branch']['name']
-        try:
-            self.destination_branch = DestinationBranch(
-                dst_brnch_name,
-                self.settings['development_branch']['prefix'],
-                self.settings['development_branch']['versions'].keys()
-            )
-        except BranchNameInvalid as excp:
-            logging.info('Destination branch %r not handled, ignore PR %s',
-                         excp.branch, self.main_pr['id'])
-            # Nothing to do
-            raise NotMyJob(src_brnch_name, dst_brnch_name)
-
-        # check feature branches to ignore
-        for prefix in self.settings['feature_branch']['ignore_prefix']:
-            if src_brnch_name.startswith(prefix):
-                raise NotMyJob(src_brnch_name, dst_brnch_name)
-
-        # read comments and store them for multiple usage
-        comments_ = self.main_pr.get_comments()
-        comments = [com for com in comments_]
-
-        # send greetings if first time
-        self.init(comments)
-
-        # retrieve options
-        self.get_comments_options(comments)
-
-        # check for commands
-        self.handle_commands(comments)
-
-        if self.option_is_set('wait'):
-            raise NothingToDo('wait option is set')
-
-        # check source branch
-        try:
-            self.source_branch = FeatureBranch(src_brnch_name)
-        except BranchNameInvalid:
-            raise IncorrectBranchName(source=src_brnch_name,
-                                      destination=dst_brnch_name)
-
-        self.check_compatibility_src_dest()
-
-        self.build_target_versions()
-
-        self.jira_checks()
-
-        with self.clone_git_repo(reference_git_repo) as repo:
-            self.check_git_repo_health(repo)
-            integration_branches = self.create_integration_branches(repo)
-            self.update_integration_from_dev(integration_branches)
-            self.update_integration_from_feature(integration_branches)
-            child_prs = self.create_pull_requests(integration_branches)
-
-            # Check parent PR: approval
-            self.check_approval(child_prs)
-
-            # Check integration PR: build status
-            self.check_build_status(self.settings['build_key'], child_prs)
-
-            if interactive and not confirm('Do you want to merge ?'):
-                return
-
-            for integration_branch in integration_branches:
-                integration_branch.update_to_development_branch()
-
-            self.check_git_repo_health(repo)
-
-        raise SuccessMessage(versions=[x.version for x in
-                                       integration_branches],
-                             issue=self.source_branch.jira_issue_id,
-                             author=self.author)
-
-    def check_options(self, author, keyword_list):
+    def _check_options(self, author, keyword_list):
         logging.debug('checking keywords %s', keyword_list)
 
         for keyword in keyword_list:
@@ -687,7 +480,7 @@ class WallE:
 
         return True
 
-    def get_comments_options(self, comments):
+    def _get_options(self, comments):
         """Load settings from pull-request comments."""
         for comment in comments:
             raw = comment['content']['raw']
@@ -718,7 +511,7 @@ class WallE:
 
             keywords = match_.group('keywords').strip().split()
 
-            if not self.check_options(author, keywords):
+            if not self._check_options(author, keywords):
                 logging.debug('Keyword comment ignored. '
                               'Checks failed: %s', raw)
                 continue
@@ -726,7 +519,7 @@ class WallE:
             for keyword in keywords:
                 self.options[keyword].set(True)
 
-    def check_command(self, author, command):
+    def _check_command(self, author, command):
         logging.debug('checking command %s', command)
 
         if command not in self.commands.keys():
@@ -742,7 +535,7 @@ class WallE:
 
         return True
 
-    def handle_commands(self, comments):
+    def _handle_commands(self, comments):
         """Detect the last command in pull-request comments and act on it."""
         for comment in comments:
             author = comment['user']['username']
@@ -777,7 +570,7 @@ class WallE:
 
             command = match_.group('command')
 
-            if not self.check_command(author, command):
+            if not self._check_command(author, command):
                 logging.warning('Command comment ignored. '
                                 'Checks failed: %s' % raw)
                 continue
@@ -787,7 +580,162 @@ class WallE:
             handler = getattr(self, self.commands[command].handler)
             handler(match_.group('args'))
 
-    def check_approval(self, child_prs):
+    def _setup_source_branch(self, src_brnch_name, dst_brnch_name):
+        try:
+            self.source_branch = FeatureBranch(src_brnch_name)
+        except BranchNameInvalid:
+            raise IncorrectBranchName(source=src_brnch_name,
+                                      destination=dst_brnch_name)
+
+    def _check_compatibility_src_dest(self):
+        if (self.source_branch.prefix not in
+                self.settings['development_branch']['versions']
+                [self.destination_branch.version]['prefix']):
+            raise BranchDoesNotAcceptFeatures(
+                source=self.source_branch,
+                destination=self.destination_branch)
+
+    def _build_target_versions(self):
+        self.target_versions = OrderedDict(
+            [(version, data['release']) for (version, data) in
+                self.settings['development_branch']['versions'].items()
+                if version >= self.destination_branch.version])
+
+    def _jira_check_reference(self):
+        if not self.source_branch.jira_issue_id:
+            if self.destination_branch.version in ['6.0', 'trunk']:
+                # We do not want to merge in maintenance branches without
+                # proper ticket handling but it is OK for future releases.
+                return
+
+            raise MissingJiraIdMaintenance(branch=self.source_branch.name)
+
+    def _jira_get_issue(self, issue_id):
+        try:
+            issue = JiraIssue(issue_id=issue_id, login='wall_e',
+                              passwd=self._bbconn.auth.password)
+        except JIRAError as e:
+            if e.status_code == 404:
+                raise JiraIssueNotFound(issue=issue_id)
+            else:
+                raise
+
+        # Use parent task if subtask
+        if issue.fields.issuetype.name == 'Sub-task':
+            try:
+                parent_id = issue.fields.parent.key
+                issue = JiraIssue(issue_id=parent_id, login='wall_e',
+                                  passwd=self._bbconn.auth.password)
+            except JIRAError as e:
+                if e.status_code == 404:
+                    raise ParentJiraIssueNotFound(parent=parent_id,
+                                                  issue=issue_id)
+                else:
+                    raise
+
+    def _jira_check_project(self, issue_id, issue):
+        # check the project
+        if (self.source_branch.jira_project_key !=
+                self.settings['jira_key']):
+            raise IncorrectJiraProject(
+                expected_project=self.settings['jira_key'],
+                issue=issue_id
+            )
+
+    def _jira_check_issue_type(self, issue):
+        issuetype = issue.fields.issuetype.name
+        expected_prefix = JIRA_ISSUE_BRANCH_PREFIX.get(issuetype)
+        if expected_prefix is None:
+            raise JiraUnknownIssueType(issuetype)
+        if expected_prefix != self.source_branch.prefix:
+            raise MismatchPrefixIssueType(prefix=self.source_branch.prefix,
+                                          expected=expected_prefix)
+
+    def _jira_check_version(self, issue):
+        issue_versions = set([version.name for version in
+                              issue.fields.fixVersions])
+        expect_versions = set(
+            self.target_versions.values())
+        if issue_versions != expect_versions:
+            raise IncorrectFixVersion(issues=issue_versions,
+                                      expects=expect_versions)
+
+    def _jira_checks(self):
+        """Check the Jira issue id specified in the source branch."""
+        if self.option_is_set('bypass_jira_check'):
+            return
+
+        self._jira_check_reference()
+
+        issue_id = self.source_branch.jira_issue_id
+        issue = self._jira_get_issue(issue_id)
+
+        self._jira_check_project(issue_id, issue)
+        self._jira_check_issue_type(issue)
+        self._jira_check_version(issue)
+
+    def _clone_git_repo(self, reference_git_repo):
+        git_repo = GitRepository(self.bbrepo.get_git_url())
+        git_repo.clone(reference_git_repo)
+        git_repo.config('user.email', WALL_E_EMAIL)
+        git_repo.config('user.name', WALL_E_USERNAME)
+        return git_repo
+
+    def _check_git_repo_health(self, git_repo):
+        previous_dev_branch_name = '%s/%s' % (
+            self.settings['development_branch']['prefix'],
+            list(self.settings['development_branch']['versions'])[0]
+        )
+        Branch(git_repo, previous_dev_branch_name).checkout()
+        for version in list(
+                self.settings['development_branch']['versions'])[1:]:
+            dev_branch_name = '%s/%s' % (
+                self.settings['development_branch']['prefix'],
+                version
+            )
+            dev_branch = Branch(git_repo, dev_branch_name)
+            dev_branch.checkout()
+            if not dev_branch.includes_commit(previous_dev_branch_name):
+                raise MalformedGitRepo(previous_dev_branch_name,
+                                       dev_branch_name)
+            previous_dev_branch_name = dev_branch_name
+
+    def _create_integration_branches(self, repo):
+        integration_branches = []
+        for version in self.target_versions:
+            integration_branch = IntegrationBranch(
+                repo,
+                '%s/%s/%s' % (self.settings['integration_branch']['prefix'],
+                              version,
+                              self.source_branch.name),
+                self.settings['integration_branch']['prefix']
+            )
+            if not integration_branch.exists():
+                integration_branch.create(
+                    integration_branch.development_branch)
+            integration_branches.append(integration_branch)
+        return integration_branches
+
+    def _update_integration_from_dev(self, integration_branches):
+        # The first integration branch should not contain commits
+        # that are not in development/* or in the feature branch.
+        integration_branches[0].check_history_did_not_change()
+        for integration_branch in integration_branches:
+            integration_branch.merge_from_branch(
+                integration_branch.development_branch)
+
+    def _update_integration_from_feature(self, integration_branches):
+        branch_to_merge_from = self.source_branch
+        for integration_branch in integration_branches:
+            integration_branch.merge_from_branch(branch_to_merge_from)
+            branch_to_merge_from = integration_branch
+
+    def _create_pull_requests(self, integration_branches):
+        return [integration_branch.
+                create_pull_request(self.main_pr, self.bbrepo) for
+                integration_branch in integration_branches]
+
+    def _check_approvals(self, child_prs):
         """Check approval of a PR by author, tester and peer.
 
         Args:
@@ -834,30 +782,91 @@ class WallE:
             raise TesterApprovalRequired(pr=self.main_pr,
                                          child_prs=child_prs)
 
-    def get_active_options(self):
-        return [option for option in self.options.keys() if
-                self.option_is_set(option)]
+    def _get_pr_build_status(self, key, pr):
+        try:
+            build_state = self.bbrepo.get_build_status(
+                revision=pr['source']['commit']['hash'],
+                key=key
+            )['state']
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 404:
+                return 'NOTSTARTED'
+            else:
+                raise
+        return build_state
 
-    def print_help(self, args):
-        raise HelpMessage(options=self.options,
-                          commands=self.commands,
-                          active_options=self.get_active_options())
+    def _check_build_status(self, key, child_prs):
+        """Report the worst status available."""
+        if self.option_is_set('bypass_build_status'):
+            return
+        ordered_state = ['SUCCESSFUL', 'INPROGRESS', 'NOTSTARTED', 'FAILED']
+        g_state = 'SUCCESSFUL'
+        worst_pr = child_prs[0]
+        for pr in child_prs:
+            build_state = self._get_pr_build_status(key, pr)
+            if ordered_state.index(g_state) < ordered_state.index(build_state):
+                g_state = build_state
+                worst_pr = pr
 
-    def get_status_report(self):
-        # tmp hard coded
-        return {}
+        if g_state == 'FAILED':
+            raise BuildFailed(pr_id=worst_pr['id'])
+        elif g_state == 'NOTSTARTED':
+            raise BuildNotStarted(pr_id=worst_pr['id'])
+        elif g_state == 'INPROGRESS':
+            raise BuildInProgress(pr_id=worst_pr['id'])
+        assert build_state == 'SUCCESSFUL'
 
-    def publish_status_report(self, args):
-        raise StatusReport(status=self.get_status_report(),
-                           active_options=self.get_active_options())
+    def handle_pull_request(self, reference_git_repo='',
+                            no_comment=False, interactive=False):
 
-    def command_not_implemented(self, args):
-        raise CommandNotImplemented(
-            active_options=self.get_active_options()
-        )
+        self._check_pr_state()
+
+        dst_brnch_name = self.main_pr['destination']['branch']['name']
+        src_brnch_name = self.main_pr['source']['branch']['name']
+
+        self._setup_destination_branch(src_brnch_name, dst_brnch_name)
+        self._check_if_ignored(src_brnch_name, dst_brnch_name)
+
+        # read comments and store them for multiple usage
+        comments_ = self.main_pr.get_comments()
+        comments = [com for com in comments_]
+
+        self._send_greetings(comments)
+        self._get_options(comments)
+        self._handle_commands(comments)
+
+        if self.option_is_set('wait'):
+            raise NothingToDo('wait option is set')
+
+        self._setup_source_branch(src_brnch_name, dst_brnch_name)
+        self._check_compatibility_src_dest()
+        self._build_target_versions()
+        self._jira_checks()
+
+        with self._clone_git_repo(reference_git_repo) as repo:
+            self._check_git_repo_health(repo)
+            integration_branches = self._create_integration_branches(repo)
+            self._update_integration_from_dev(integration_branches)
+            self._update_integration_from_feature(integration_branches)
+            child_prs = self._create_pull_requests(integration_branches)
+            self._check_approvals(child_prs)
+            self._check_build_status(self.settings['build_key'], child_prs)
+
+            if interactive and not confirm('Do you want to merge ?'):
+                return
+
+            for integration_branch in integration_branches:
+                integration_branch.update_to_development_branch()
+
+            self._check_git_repo_health(repo)
+
+        raise SuccessMessage(versions=[x.version for x in
+                                       integration_branches],
+                             issue=self.source_branch.jira_issue_id,
+                             author=self.author)
 
 
-def main():
+def setup_parser():
     parser = argparse.ArgumentParser(add_help=False,
                                      description='Merges bitbucket '
                                                  'pull requests.')
@@ -901,39 +910,11 @@ def main():
     parser.add_argument(
         '--quiet', action='store_true', default=False,
         help="Don't print return codes on the console")
-    args = parser.parse_args()
-    if not args.cmd_line_options:
-        args.cmd_line_options = []
 
-    if args.verbose:
-        logging.basicConfig(level=logging.DEBUG)
-    else:
-        logging.basicConfig(level=logging.INFO)
-        # request lib is noisy
-        requests_log = logging.getLogger("requests.packages.urllib3")
-        requests_log.setLevel(logging.WARNING)
-        requests_log.propagate = True
+    return parser
 
-    if not args.settings:
-        args.settings = args.slug
 
-    if args.settings not in SETTINGS:
-        print("Invalid repository/settings. I don't know how to work "
-              "with %s. Specify settings with the --settings options." %
-              args.settings)
-        sys.exit(1)
-
-    if args.alert_email:
-        try:
-            setup_email(args.alert_email)
-        except ImproperEmailFormat:
-            print("Invalid email (%s)" % args.alert_email)
-            sys.exit(1)
-        except UnableToSendEmail:
-            print("It appears I won't be able to send emails, please check "
-                  "the email server.")
-            sys.exit(1)
-
+def setup_options(args):
     options = {
         'bypass_peer_approval':
             Option(priviledged=True,
@@ -971,7 +952,10 @@ def main():
                    value='wait' in args.cmd_line_options,
                    help="Instruct Wall-E not to run until further notice")
     }
+    return options
 
+
+def setup_commands():
     commands = {
         'help':
             Command(priviledged=False,
@@ -998,6 +982,46 @@ def main():
                          'requests, and restart merge process from the '
                          'beginning ```TBA```')
     }
+    return commands
+
+
+def main():
+    parser = setup_parser()
+    args = parser.parse_args()
+    if not args.cmd_line_options:
+        args.cmd_line_options = []
+
+    if args.verbose:
+        logging.basicConfig(level=logging.DEBUG)
+    else:
+        logging.basicConfig(level=logging.INFO)
+        # request lib is noisy
+        requests_log = logging.getLogger("requests.packages.urllib3")
+        requests_log.setLevel(logging.WARNING)
+        requests_log.propagate = True
+
+    if not args.settings:
+        args.settings = args.slug
+
+    if args.settings not in SETTINGS:
+        print("Invalid repository/settings. I don't know how to work "
+              "with %s. Specify settings with the --settings options." %
+              args.settings)
+        sys.exit(1)
+
+    if args.alert_email:
+        try:
+            setup_email(args.alert_email)
+        except ImproperEmailFormat:
+            print("Invalid email (%s)" % args.alert_email)
+            sys.exit(1)
+        except UnableToSendEmail:
+            print("It appears I won't be able to send emails, please check "
+                  "the email server.")
+            sys.exit(1)
+
+    options = setup_options(args)
+    commands = setup_commands()
 
     wall_e = WallE(WALL_E_USERNAME, args.password, WALL_E_EMAIL,
                    args.owner, args.slug, args.pull_request_id,
