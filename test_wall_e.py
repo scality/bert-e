@@ -20,10 +20,11 @@ from wall_e_exceptions import (AuthorApprovalRequired,
                                BuildNotStarted,
                                CommandNotImplemented,
                                Conflict,
+                               DevBranchDoesNotExist,
+                               DevBranchesNotSelfContained,
                                HelpMessage,
                                IncorrectBranchName,
                                InitMessage,
-                               MalformedGitRepo,
                                NothingToDo,
                                NotMyJob,
                                ParentPullRequestNotFound,
@@ -733,7 +734,7 @@ class TestWallE(unittest.TestCase):
                               options=self.bypass_jira_check)
         self.assertEqual(retcode, BranchHistoryMismatch.code)
 
-    def test_malformed_git_repo(self):
+    def test_branches_not_self_contained(self):
         """Check that we can detect malformed git repositories."""
         feature_branch = 'bugfix/RING-0077'
         dst_branch = 'development/4.3'
@@ -742,7 +743,18 @@ class TestWallE(unittest.TestCase):
         add_file_to_branch(self.gitrepo, 'development/4.3',
                            'file_pushed_without_wall-e.txt', do_push=True)
 
-        with self.assertRaises(MalformedGitRepo):
+        with self.assertRaises(DevBranchesNotSelfContained):
+            self.handle(pr['id'], options=self.bypass_all)
+
+    def test_missing_development_branch(self):
+        """Check that we can detect malformed git repositories."""
+        feature_branch = 'bugfix/RING-0077'
+        dst_branch = 'development/4.3'
+
+        pr = self.create_pr(feature_branch, dst_branch)
+        self.gitrepo.cmd('git push origin :development/6.0')
+
+        with self.assertRaises(DevBranchDoesNotExist):
             self.handle(pr['id'], options=self.bypass_all)
 
     def set_build_status_on_pr_id(self, pr_id, state,

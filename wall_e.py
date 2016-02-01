@@ -17,7 +17,10 @@ import six
 from template_loader import render
 from bitbucket_api import (Repository as BitBucketRepository,
                            Client)
-from git_api import Repository as GitRepository, Branch, MergeFailedException
+from git_api import (Repository as GitRepository,
+                     Branch,
+                     MergeFailedException,
+                     CheckoutFailedException)
 from jira_api import JiraIssue
 
 from wall_e_exceptions import (AuthorApprovalRequired,
@@ -30,6 +33,8 @@ from wall_e_exceptions import (AuthorApprovalRequired,
                                CommandNotImplemented,
                                CommentAlreadyExists,
                                Conflict,
+                               DevBranchDoesNotExist,
+                               DevBranchesNotSelfContained,
                                HelpMessage,
                                ImproperEmailFormat,
                                IncorrectFixVersion,
@@ -37,7 +42,6 @@ from wall_e_exceptions import (AuthorApprovalRequired,
                                InitMessage,
                                JiraIssueNotFound,
                                JiraUnknownIssueType,
-                               MalformedGitRepo,
                                MismatchPrefixIssueType,
                                MissingJiraIdMaintenance,
                                NothingToDo,
@@ -273,7 +277,7 @@ class IntegrationBranch(Branch):
         assert w == prefix
         self.development_branch = Branch(
             repo=repo,
-            name='%s/%s' % (self.settings['development_branch']['prefix']
+            name='%s/%s' % (self.settings['development_branch']['prefix'],
                             self.version)
         )
 
@@ -689,7 +693,10 @@ class WallE:
             self.settings['development_branch']['prefix'],
             list(self.settings['development_branch']['versions'])[0]
         )
-        Branch(git_repo, previous_dev_branch_name).checkout()
+        try:
+            Branch(git_repo, previous_dev_branch_name).checkout()
+        except CheckoutFailedException:
+            raise DevBranchDoesNotExist(previous_dev_branch_name)
         for version in list(
                 self.settings['development_branch']['versions'])[1:]:
             dev_branch_name = '%s/%s' % (
@@ -697,10 +704,13 @@ class WallE:
                 version
             )
             dev_branch = Branch(git_repo, dev_branch_name)
-            dev_branch.checkout()
+            try:
+                dev_branch.checkout()
+            except CheckoutFailedException:
+                raise DevBranchDoesNotExist(dev_branch_name)
             if not dev_branch.includes_commit(previous_dev_branch_name):
-                raise MalformedGitRepo(previous_dev_branch_name,
-                                       dev_branch_name)
+                raise DevBranchesNotSelfContained(previous_dev_branch_name,
+                                                  dev_branch_name)
             previous_dev_branch_name = dev_branch_name
 
     def _create_integration_branches(self, repo):
