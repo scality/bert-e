@@ -77,7 +77,7 @@ SETTINGS = {
             'versions': OrderedDict([
                 ('4.3', {
                     'upcoming_release': '4.3.18',
-                    'allow_ticketless_commit': False,
+                    'allow_ticketless': False,
                     'allow_prefix': [
                         'bugfix',
                         'improvement'
@@ -85,7 +85,7 @@ SETTINGS = {
                 }),
                 ('5.1', {
                     'upcoming_release': '5.1.4',
-                    'allow_ticketless_commit': False,
+                    'allow_ticketless': False,
                     'allow_prefix': [
                         'bugfix',
                         'improvement'
@@ -93,7 +93,7 @@ SETTINGS = {
                 }),
                 ('6.0', {
                     'upcoming_release': '6.0.0',
-                    'allow_ticketless_commit': True,
+                    'allow_ticketless': True,
                     'allow_prefix': [
                         'bugfix',
                         'improvement',
@@ -135,6 +135,50 @@ SETTINGS = {
             'mcolzi',
             'mouhamet7',
             'mvaude',
+            'pierre_louis_bonicoli',
+            'rayene_benrayana',
+            'sylvain_killian'
+        ]
+    },
+    'wall-e': {
+        'jira_key': 'RELENG',
+        'build_key': 'autotest',
+        'release_branch': {
+            'prefix': 'release'
+        },
+        'development_branch': {
+            'prefix': 'development',
+            'versions': OrderedDict([
+                ('1.0', {
+                    'upcoming_release': '1.0.0',
+                    'allow_ticketless': False,
+                    'allow_prefix': [
+                        'bugfix',
+                        'improvement',
+                        'feature',
+                        'project'
+                    ]
+                })
+            ]),
+        },
+        'integration_branch': {
+            'prefix': 'w',
+        },
+        'feature_branch': {
+            'prefix': [
+                'feature',
+                'bugfix',
+                'improvement',
+                'project'
+            ],
+            'ignore_prefix': [
+                'hotfix',
+                'user'
+            ]
+        },
+        'testers': [
+        ],
+        'admins': [
             'pierre_louis_bonicoli',
             'rayene_benrayana',
             'sylvain_killian'
@@ -268,7 +312,7 @@ class DestinationBranch(BranchName):
         super(DestinationBranch, self).__init__(name)
         self.prefix, self.version = name.split('/', 1)
         self.upcoming_release = settings['upcoming_release']
-        self.allow_ticketless_commit = settings['allow_ticketless_commit']
+        self.allow_ticketless = settings['allow_ticketless']
         self.allow_prefix = settings['allow_prefix']
 
 
@@ -617,7 +661,7 @@ class WallE:
             return
 
         for destination_branch in self.destination_branches:
-            if not destination_branch.allow_ticketless_commit:
+            if not destination_branch.allow_ticketless:
                 raise MissingJiraId(branch=self.source_branch.name)
 
     def _jira_get_issue(self, issue_id):
