@@ -689,13 +689,13 @@ class WallE:
 
         return issue
 
-    def _jira_check_project(self, issue_id, issue):
+    def _jira_check_project(self, issue):
         # check the project
         if (self.source_branch.jira_project_key !=
                 self.settings['jira_key']):
             raise IncorrectJiraProject(
                 expected_project=self.settings['jira_key'],
-                issue=issue_id
+                issue=issue.key
             )
 
     def _jira_check_issue_type(self, issue):
@@ -714,7 +714,8 @@ class WallE:
             self.target_versions.values())
 
         if issue_versions != expect_versions:
-            raise IncorrectFixVersion(issues=issue_versions,
+            raise IncorrectFixVersion(issue=issue.key,
+                                      issues=issue_versions,
                                       expects=expect_versions)
 
     def _jira_checks(self):
@@ -730,7 +731,7 @@ class WallE:
         issue_id = self.source_branch.jira_issue_id
         issue = self._jira_get_issue(issue_id)
 
-        self._jira_check_project(issue_id, issue)
+        self._jira_check_project(issue)
         self._jira_check_issue_type(issue)
         self._jira_check_version(issue)
 
