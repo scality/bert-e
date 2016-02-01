@@ -665,6 +665,9 @@ class WallE:
         if self.option_is_set('bypass_jira_check'):
             return
 
+        if not self.settings['jira_key']:
+            return
+
         self._jira_check_reference()
 
         issue_id = self.source_branch.jira_issue_id
