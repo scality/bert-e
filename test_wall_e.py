@@ -266,8 +266,7 @@ class TestWallE(unittest.TestCase):
                reference_git_repo='',
                no_comment=False,
                interactive=False,
-               backtrace=False,
-               build_key=None):
+               backtrace=False):
 
         sys.argv = ["wall-e.py"]
         for option in options:
@@ -279,9 +278,6 @@ class TestWallE(unittest.TestCase):
             sys.argv.append('--interactive')
         if backtrace:
             sys.argv.append('--backtrace')
-        if build_key:
-            sys.argv.append('--build-key')
-            sys.argv.append(build_key)
         sys.argv.append('--quiet')
         sys.argv.append('--settings')
         sys.argv.append('ring')
@@ -784,26 +780,18 @@ class TestWallE(unittest.TestCase):
                               options=self.bypass_all_but_build_status)
         self.assertEqual(retcode, SuccessMessage.code)
 
-    def test_non_default_build_key_successful(self):
-        pr = self.create_pr('bugfix/RING-00080', 'development/4.3')
-        retcode = self.handle(pr['id'],
-                              options=self.bypass_all_but_build_status)
-        self.assertEqual(retcode, BuildNotStarted.code)
-        self.set_build_status_on_pr_id(pr['id']+1, 'SUCCESSFUL', key='pipelin')
-        self.set_build_status_on_pr_id(pr['id']+2, 'SUCCESSFUL', key='pipelin')
-        self.set_build_status_on_pr_id(pr['id']+3, 'SUCCESSFUL', key='pipelin')
-        retcode = self.handle(pr['id'],
-                              options=self.bypass_all_but_build_status)
-        self.assertEqual(retcode, BuildNotStarted.code)
-        retcode = self.handle(pr['id'],
-                              options=self.bypass_all_but_build_status,
-                              build_key='pipelin')  # note the missing e
-        self.assertEqual(retcode, SuccessMessage.code)
-
     def test_build_status(self):
         pr = self.create_pr('bugfix/RING-00081', 'development/4.3')
 
         # test build not started
+        retcode = self.handle(pr['id'],
+                              options=self.bypass_all_but_build_status)
+        self.assertEqual(retcode, BuildNotStarted.code)
+
+        # test non related build key
+        self.set_build_status_on_pr_id(pr['id']+1, 'SUCCESSFUL', key='pipelin')
+        self.set_build_status_on_pr_id(pr['id']+2, 'SUCCESSFUL', key='pipelin')
+        self.set_build_status_on_pr_id(pr['id']+3, 'SUCCESSFUL', key='pipelin')
         retcode = self.handle(pr['id'],
                               options=self.bypass_all_but_build_status)
         self.assertEqual(retcode, BuildNotStarted.code)

@@ -64,6 +64,7 @@ WALL_E_EMAIL = 'wall_e@scality.com'
 SETTINGS = {
     'ring': {
         'jira_key': 'RING',
+        'build_key': 'pipeline',
         'release_branch':{
             'prefix': 'release'
         },
@@ -586,7 +587,7 @@ class WallE:
                 source=self.source_branch,
                 destination=self.destination_branch)
 
-    def handle_pull_request(self, build_key, reference_git_repo='',
+    def handle_pull_request(self, reference_git_repo='',
                             no_comment=False, interactive=False):
 
         # check PR state
@@ -654,7 +655,7 @@ class WallE:
             self.check_approval(child_prs)
 
             # Check integration PR: build status
-            self.check_build_status(build_key, child_prs)
+            self.check_build_status(self.settings['build_key'], child_prs)
 
             if interactive and not confirm('Do you want to merge ?'):
                 return
@@ -882,9 +883,6 @@ def main():
         '--settings', default='',
         help="The settings to use (default to repository slug)")
     parser.add_argument(
-        '--build-key', action='store', default='pipeline', type=str,
-        help="The build key to consider for approval (default: pipeline)")
-    parser.add_argument(
         '--interactive', action='store_true', default=False,
         help="Ask before merging or sending comments")
     parser.add_argument(
@@ -1007,7 +1005,6 @@ def main():
 
     try:
         wall_e.handle_pull_request(
-            build_key=args.build_key,
             reference_git_repo=args.reference_git_repo,
             no_comment=args.no_comment,
             interactive=args.interactive
