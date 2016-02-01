@@ -43,7 +43,7 @@ from wall_e_exceptions import (AuthorApprovalRequired,
                                JiraIssueNotFound,
                                JiraUnknownIssueType,
                                MismatchPrefixIssueType,
-                               MissingJiraIdMaintenance,
+                               MissingJiraId,
                                NothingToDo,
                                ParentPullRequestNotFound,
                                ParentJiraIssueNotFound,
@@ -76,22 +76,25 @@ SETTINGS = {
             'prefix': 'development',
             'versions': OrderedDict([
                 ('4.3', {
-                    'release': '4.3.18',
-                    'prefix': [
+                    'upcoming_release': '4.3.18',
+                    'allow_ticketless_commit': False,
+                    'allow_prefix': [
                         'bugfix',
                         'improvement'
                     ]
                 }),
                 ('5.1', {
-                    'release': '5.1.4',
-                    'prefix': [
+                    'upcoming_release': '5.1.4',
+                    'allow_ticketless_commit': False,
+                    'allow_prefix': [
                         'bugfix',
                         'improvement'
                     ]
                 }),
                 ('6.0', {
-                    'release': '6.0.0',
-                    'prefix': [
+                    'upcoming_release': '6.0.0',
+                    'allow_ticketless_commit': True,
+                    'allow_prefix': [
                         'bugfix',
                         'improvement',
                         'feature',
@@ -261,24 +264,21 @@ class FeatureBranch(BranchName):
 
 
 class DestinationBranch(BranchName):
-    def __init__(self, name, expected_prefix, versions):
+    def __init__(self, name, settings):
         super(DestinationBranch, self).__init__(name)
         self.prefix, self.version = name.split('/', 1)
-
-        if (self.prefix != expected_prefix or
-                self.version not in versions):
-            raise BranchNameInvalid(name)
+        self.upcoming_release = settings['upcoming_release']
+        self.allow_ticketless_commit = settings['allow_ticketless_commit']
+        self.allow_prefix = settings['allow_prefix']
 
 
 class IntegrationBranch(Branch):
-    def __init__(self, repo, name, prefix):
+    def __init__(self, repo, name, dev_branch_name):
         Branch.__init__(self, repo, name)
         w, self.version, self.subname = name.split('/', 2)
-        assert w == prefix
         self.development_branch = Branch(
             repo=repo,
-            name='%s/%s' % (self.settings['development_branch']['prefix'],
-                            self.version)
+            name=dev_branch_name
         )
 
     def merge_from_branch(self, source_branch):
@@ -346,7 +346,7 @@ class WallE:
         self.commands = commands
         self.settings = settings
         self.source_branch = None
-        self.destination_branch = None
+        self.destination_branches = []
         self.target_versions = {}
 
     def option_is_set(self, name):
@@ -431,24 +431,21 @@ class WallE:
             raise NothingToDo('The pull-request\'s state is "%s"'
                               % self.main_pr['state'])
 
-    def _setup_destination_branch(self, src_brnch_name, dst_brnch_name):
-        try:
-            self.destination_branch = DestinationBranch(
-                dst_brnch_name,
-                self.settings['development_branch']['prefix'],
-                self.settings['development_branch']['versions'].keys()
-            )
-        except BranchNameInvalid as excp:
-            logging.info('Destination branch %r not handled, ignore PR %s',
-                         excp.branch, self.main_pr['id'])
-            # Nothing to do
-            raise NotMyJob(src_brnch_name, dst_brnch_name)
+    def _check_if_ignored(self, src_branch_name, dst_branch_name):
+        # check selected destination branch
+        dev_branch_settings = self.settings['development_branch']
+        prefix = dev_branch_settings['prefix']
+        match_ = re.match("%s/(?P<version>.*)" % prefix, dst_branch_name)
+        if not match_:
+            raise NotMyJob(src_branch_name, dst_branch_name)
 
-    def _check_if_ignored(self, src_brnch_name, dst_brnch_name):
-        # check feature branches to ignore
+        if match_.group('version') not in dev_branch_settings['versions']:
+            raise NotMyJob(src_branch_name, dst_branch_name)
+
+        # check feature branch
         for prefix in self.settings['feature_branch']['ignore_prefix']:
-            if src_brnch_name.startswith(prefix):
-                raise NotMyJob(src_brnch_name, dst_brnch_name)
+            if src_branch_name.startswith(prefix):
+                raise NotMyJob(src_branch_name, dst_branch_name)
 
     def _send_greetings(self, comments):
         """Displays a welcome message if conditions are met."""
@@ -584,35 +581,49 @@ class WallE:
             handler = getattr(self, self.commands[command].handler)
             handler(match_.group('args'))
 
-    def _setup_source_branch(self, src_brnch_name, dst_brnch_name):
+    def _build_target_versions(self, dst_branch_name):
+        match_ = re.match("[^/]*/(?P<minver>.*)", dst_branch_name)
+        assert match_  # should work, already tested
+        # target versions are all versions above `minver`
+        self.target_versions = OrderedDict(
+            [(version, data['upcoming_release']) for (version, data) in
+                self.settings['development_branch']['versions'].items()
+                if version >= match_.group('minver')])
+
+    def _setup_source_branch(self, src_branch_name, dst_branch_name):
         try:
-            self.source_branch = FeatureBranch(src_brnch_name)
+            self.source_branch = FeatureBranch(src_branch_name)
         except BranchNameInvalid:
-            raise IncorrectBranchName(source=src_brnch_name,
-                                      destination=dst_brnch_name)
+            raise IncorrectBranchName(source=src_branch_name,
+                                      destination=dst_branch_name)
+
+    def _setup_destination_branches(self, src_branch_name, dst_branch_name):
+        for version in self.target_versions:
+            branch_name = "%s/%s" % (
+                self.settings['development_branch']['prefix'],
+                version
+            )
+            destination_branch = DestinationBranch(
+                branch_name,
+                self.settings['development_branch']['versions'][version]
+            )
+            self.destination_branches.append(destination_branch)
 
     def _check_compatibility_src_dest(self):
-        if (self.source_branch.prefix not in
-                self.settings['development_branch']['versions']
-                [self.destination_branch.version]['prefix']):
-            raise BranchDoesNotAcceptFeatures(
-                source=self.source_branch,
-                destination=self.destination_branch)
-
-    def _build_target_versions(self):
-        self.target_versions = OrderedDict(
-            [(version, data['release']) for (version, data) in
-                self.settings['development_branch']['versions'].items()
-                if version >= self.destination_branch.version])
+        for destination_branch in self.destination_branches:
+            if (self.source_branch.prefix not in
+                    destination_branch.allow_prefix):
+                raise BranchDoesNotAcceptFeatures(
+                    source=self.source_branch,
+                    destination=destination_branch)
 
     def _jira_check_reference(self):
-        if not self.source_branch.jira_issue_id:
-            if self.destination_branch.version in ['6.0', 'trunk']:
-                # We do not want to merge in maintenance branches without
-                # proper ticket handling but it is OK for future releases.
-                return
+        if self.source_branch.jira_issue_id:
+            return
 
-            raise MissingJiraIdMaintenance(branch=self.source_branch.name)
+        for destination_branch in self.destination_branches:
+            if not destination_branch.allow_ticketless_commit:
+                raise MissingJiraId(branch=self.source_branch.name)
 
     def _jira_get_issue(self, issue_id):
         try:
@@ -660,6 +671,7 @@ class WallE:
                               issue.fields.fixVersions])
         expect_versions = set(
             self.target_versions.values())
+
         if issue_versions != expect_versions:
             raise IncorrectFixVersion(issues=issue_versions,
                                       expects=expect_versions)
@@ -721,7 +733,8 @@ class WallE:
                 '%s/%s/%s' % (self.settings['integration_branch']['prefix'],
                               version,
                               self.source_branch.name),
-                self.settings['integration_branch']['prefix']
+                '%s/%s' % (self.settings['development_branch']['prefix'],
+                           version)
             )
             if not integration_branch.exists():
                 integration_branch.create(
@@ -844,11 +857,10 @@ class WallE:
 
         self._check_pr_state()
 
-        dst_brnch_name = self.main_pr['destination']['branch']['name']
-        src_brnch_name = self.main_pr['source']['branch']['name']
+        dst_branch_name = self.main_pr['destination']['branch']['name']
+        src_branch_name = self.main_pr['source']['branch']['name']
 
-        self._setup_destination_branch(src_brnch_name, dst_brnch_name)
-        self._check_if_ignored(src_brnch_name, dst_brnch_name)
+        self._check_if_ignored(src_branch_name, dst_branch_name)
 
         # read comments and store them for multiple usage
         comments_ = self.main_pr.get_comments()
@@ -861,9 +873,10 @@ class WallE:
         if self.option_is_set('wait'):
             raise NothingToDo('wait option is set')
 
-        self._setup_source_branch(src_brnch_name, dst_brnch_name)
+        self._build_target_versions(dst_branch_name)
+        self._setup_source_branch(src_branch_name, dst_branch_name)
+        self._setup_destination_branches(src_branch_name, dst_branch_name)
         self._check_compatibility_src_dest()
-        self._build_target_versions()
         self._jira_checks()
 
         with self._clone_git_repo(reference_git_repo) as repo:

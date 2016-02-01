@@ -86,12 +86,6 @@ def rebase_branch(repo, branch_name, on_branch):
 class QuickTest(unittest.TestCase):
     """Tests which don't need to interact with an external web services"""
 
-    def get_destination_branch(self, name):
-        return wall_e.DestinationBranch(
-            name=name,
-            expected_prefix='development',
-            versions=['4.3', '5.1', '6.0'])
-
     def test_feature_branch_names(self):
         with self.assertRaises(BranchNameInvalid):
             wall_e.FeatureBranch('user/4.3/RING-0005')
@@ -138,31 +132,26 @@ class QuickTest(unittest.TestCase):
         self.assertIsNone(src.jira_project_key)
 
     def test_destination_branch_names(self):
-        with self.assertRaises(BranchNameInvalid):
-            self.get_destination_branch('feature/RING-0005')
 
         with self.assertRaises(BranchNameInvalid):
-            self.get_destination_branch('toto/RING-0005')
-
-        with self.assertRaises(BranchNameInvalid):
-            self.get_destination_branch('user/RING-0005')
-
-        with self.assertRaises(BranchNameInvalid):
-            self.get_destination_branch('improvement/RING-0005')
-
-        with self.assertRaises(BranchNameInvalid):
-            self.get_destination_branch('release/4.3')
-
-        with self.assertRaises(BranchNameInvalid):
-            self.get_destination_branch('release/5.1')
-
-        with self.assertRaises(BranchNameInvalid):
-            self.get_destination_branch('release/6.0')
+            wall_e.DestinationBranch(
+                name='feature-RING-0005',
+                settings=wall_e.SETTINGS['ring']['development_branch'][
+                    'versions']['4.3'])
 
         # valid names
-        self.get_destination_branch('development/4.3')
-        self.get_destination_branch('development/5.1')
-        self.get_destination_branch('development/6.0')
+        wall_e.DestinationBranch(
+            name='development/4.3',
+            settings=wall_e.SETTINGS['ring']['development_branch'][
+                'versions']['4.3'])
+        wall_e.DestinationBranch(
+            name='development/5.1',
+            settings=wall_e.SETTINGS['ring']['development_branch'][
+                'versions']['5.1'])
+        wall_e.DestinationBranch(
+            name='development/6.0',
+            settings=wall_e.SETTINGS['ring']['development_branch'][
+                'versions']['6.0'])
 
 
 class TestWallE(unittest.TestCase):

@@ -80,9 +80,9 @@ class PeerApprovalRequired(WallE_TemplateException):
     template = 'need_approval.md'
 
 
-class MissingJiraIdMaintenance(WallE_TemplateException):
+class MissingJiraId(WallE_TemplateException):
     code = 110
-    template = 'missing_jira_id_for_maintenance_branch.md'
+    template = 'missing_jira_id.md'
 
 
 class MismatchPrefixIssueType(WallE_TemplateException):
