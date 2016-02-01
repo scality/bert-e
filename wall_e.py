@@ -687,6 +687,8 @@ class WallE:
                 else:
                     raise
 
+        return issue
+
     def _jira_check_project(self, issue_id, issue):
         # check the project
         if (self.source_branch.jira_project_key !=
