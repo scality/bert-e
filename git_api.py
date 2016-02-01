@@ -66,14 +66,14 @@ class Repository(object):
         try:
             ret = cmd(command, cwd=cwd, **kwargs)
         except subprocess.CalledProcessError:
-            if retry:
-                logging.warning('The following command failed:\n'
-                                ' %s\n'
-                                '[%s retry left]', command, retry)
-                time.sleep(120)  # helps stabilize requests to bitbucket
-                ret = self.cmd(command, retry=retry-1, **kwargs)
-            else:
+            if retry == 0:
                 raise
+
+            logging.warning('The following command failed:\n'
+                            ' %s\n'
+                            '[%s retry left]', command, retry)
+            time.sleep(120)  # helps stabilize requests to bitbucket
+            ret = self.cmd(command, retry=retry-1, **kwargs)
         return ret
 
 
