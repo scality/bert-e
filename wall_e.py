@@ -98,7 +98,8 @@ SETTINGS = {
                         'bugfix',
                         'improvement',
                         'feature',
-                        'project']
+                        'project'
+                    ]
                 })
             ]),
         },
