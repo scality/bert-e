@@ -208,15 +208,15 @@ class Option(object):
     comment in the pull-request. The options then remain
     active until this comment is deleted.
 
-    An option may require priviledges, in which case only
+    An option may require privileges, in which case only
     members of admin will be able to activate
     it.
 
     """
-    def __init__(self, priviledged, help, value=False):
+    def __init__(self, privileged, help, value=False):
         self.value = value
         self.help = help
-        self.priviledged = priviledged
+        self.privileged = privileged
 
     def set(self, value):
         self.value = value
@@ -233,15 +233,15 @@ class Command(object):
     Commands are triggered by adding a comment in the
     pull-request.
 
-    A command may require priviledges, in which case only
+    A command may require privileges, in which case only
     members of admin will be able to activate
     it.
 
     """
-    def __init__(self, priviledged, help, handler):
+    def __init__(self, privileged, help, handler):
         self.handler = handler
         self.help = help
-        self.priviledged = priviledged
+        self.privileged = privileged
 
 
 def setup_email(destination):
@@ -497,7 +497,7 @@ class WallE:
                           status=self.get_status_report(),
                           active_options=self._get_active_options())
 
-    def _check_options(self, author, keyword_list):
+    def _check_options(self, comment_author, pr_author, keyword_list):
         logging.debug('checking keywords %s', keyword_list)
 
         for keyword in keyword_list:
@@ -506,15 +506,21 @@ class WallE:
                               'an unknown keyword `%s`', keyword_list)
                 return False
 
-            limited_access = self.options[keyword].priviledged
-            if limited_access and author not in self.settings['admins']:
-                logging.debug('ignoring keywords in this comment due to '
-                              'unsufficient credentials `%s`', keyword_list)
-                return False
+            limited_access = self.options[keyword].privileged
+            if limited_access:
+                if comment_author == pr_author:
+                    logging.debug('cannot use privileges on own PR')
+                    return False
+
+                if comment_author not in self.settings['admins']:
+                    logging.debug('ignoring keywords in this comment due to '
+                                  'unsufficient credentials `%s`',
+                                  keyword_list)
+                    return False
 
         return True
 
-    def _get_options(self, comments):
+    def _get_options(self, comments, pr_author):
         """Load settings from pull-request comments."""
         for comment in comments:
             raw = comment['content']['raw']
@@ -545,7 +551,7 @@ class WallE:
 
             keywords = match_.group('keywords').strip().split()
 
-            if not self._check_options(author, keywords):
+            if not self._check_options(author, pr_author, keywords):
                 logging.debug('Keyword comment ignored. '
                               'Checks failed: %s', raw)
                 continue
@@ -561,7 +567,7 @@ class WallE:
                           'an unknown command `%s`', command)
             return False
 
-        limited_access = self.commands[command].priviledged
+        limited_access = self.commands[command].privileged
         if limited_access and author not in self.settings['admins']:
             logging.debug('ignoring command in this comment due to '
                           'unsufficient credentials `%s`', command)
@@ -924,7 +930,7 @@ class WallE:
         comments = [com for com in comments_]
 
         self._send_greetings(comments)
-        self._get_options(comments)
+        self._get_options(comments, self.author)
         self._handle_commands(comments)
 
         if self.option_is_set('wait'):
@@ -1010,38 +1016,38 @@ def setup_parser():
 def setup_options(args):
     options = {
         'bypass_peer_approval':
-            Option(priviledged=True,
+            Option(privileged=True,
                    value='bypass_peer_approval' in args.cmd_line_options,
                    help="Bypass the pull request author's approval"),
         'bypass_author_approval':
-            Option(priviledged=True,
+            Option(privileged=True,
                    value='bypass_author_approval' in args.cmd_line_options,
                    help="Bypass the pull request peer's approval"),
         'bypass_tester_approval':
-            Option(priviledged=True,
+            Option(privileged=True,
                    value='bypass_tester_approval' in args.cmd_line_options,
                    help="Bypass the pull request tester's approval"),
         'bypass_jira_check':
-            Option(priviledged=True,
+            Option(privileged=True,
                    value='bypass_jira_check' in args.cmd_line_options,
                    help="Bypass the Jira issue check"),
         'bypass_build_status':
-            Option(priviledged=True,
+            Option(privileged=True,
                    value='bypass_build_status' in args.cmd_line_options,
                    help="Bypass the build and test status"),
         'bypass_commit_size':
-            Option(priviledged=True,
+            Option(privileged=True,
                    value='bypass_commit_size' in args.cmd_line_options,
                    help='Bypass the check on the size of the changeset '
                         '```TBA```'),
         'unanimity':
-            Option(priviledged=False,
+            Option(privileged=False,
                    value='unanimity' in args.cmd_line_options,
                    help="Change review acceptance criteria from "
                         "`one reviewer at least` to `all reviewers` "
                         "```TBA```"),
         'wait':
-            Option(priviledged=False,
+            Option(privileged=False,
                    value='wait' in args.cmd_line_options,
                    help="Instruct Wall-E not to run until further notice")
     }
@@ -1051,25 +1057,25 @@ def setup_options(args):
 def setup_commands():
     commands = {
         'help':
-            Command(priviledged=False,
+            Command(privileged=False,
                     handler='print_help',
                     help='print Wall-E\'s manual in the pull-request'),
         'status':
-            Command(priviledged=False,
+            Command(privileged=False,
                     handler='publish_status_report',
                     help='print Wall-E\'s current status in '
                          'the pull-request ```TBA```'),
         'build':
-            Command(priviledged=False,
+            Command(privileged=False,
                     handler='command_not_implemented',
                     help='re-start a fresh build ```TBA```'),
         'clear':
-            Command(priviledged=False,
+            Command(privileged=False,
                     handler='command_not_implemented',
                     help='remove all comments from Wall-E from the '
                          'history ```TBA```'),
         'reset':
-            Command(priviledged=False,
+            Command(privileged=False,
                     handler='command_not_implemented',
                     help='delete integration branches, integration pull '
                          'requests, and restart merge process from the '
