@@ -22,7 +22,6 @@ from git_api import (Repository as GitRepository,
                      MergeFailedException,
                      CheckoutFailedException)
 from jira_api import JiraIssue
-
 from wall_e_exceptions import (AuthorApprovalRequired,
                                BranchHistoryMismatch,
                                BranchNameInvalid,
