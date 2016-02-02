@@ -890,16 +890,31 @@ class WallE:
                 approved_by_peer = True
 
         if not approved_by_author:
-            raise AuthorApprovalRequired(pr=self.main_pr,
-                                         child_prs=child_prs)
+            raise AuthorApprovalRequired(
+                pr=self.main_pr,
+                child_prs=child_prs,
+                author_approval=approved_by_author,
+                peer_approval=approved_by_peer,
+                tester_approval=approved_by_tester,
+            )
 
         if not approved_by_peer:
-            raise PeerApprovalRequired(pr=self.main_pr,
-                                       child_prs=child_prs)
+            raise PeerApprovalRequired(
+                pr=self.main_pr,
+                child_prs=child_prs,
+                author_approval=approved_by_author,
+                peer_approval=approved_by_peer,
+                tester_approval=approved_by_tester,
+            )
 
         if not approved_by_tester:
-            raise TesterApprovalRequired(pr=self.main_pr,
-                                         child_prs=child_prs)
+            raise TesterApprovalRequired(
+                pr=self.main_pr,
+                child_prs=child_prs,
+                author_approval=approved_by_author,
+                peer_approval=approved_by_peer,
+                tester_approval=approved_by_tester,
+            )
 
     def _get_pr_build_status(self, key, pr):
         try:
