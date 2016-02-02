@@ -96,7 +96,7 @@ class Branch(object):
         if do_push:
             self.push()  # FIXME push will do an unnecessary checkout
 
-    def get_all_commits_since_started_from(self, source_branch):
+    def get_all_commits(self, source_branch):
         self.repo.checkout(source_branch.name)
         log = self.repo.cmd('git log --no-merges --pretty=%%H %s..%s' % (
             source_branch.name, self.name), universal_newlines=True)

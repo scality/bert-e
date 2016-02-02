@@ -80,9 +80,9 @@ class PeerApprovalRequired(WallE_TemplateException):
     template = 'need_approval.md'
 
 
-class MissingJiraIdMaintenance(WallE_TemplateException):
+class MissingJiraId(WallE_TemplateException):
     code = 110
-    template = 'missing_jira_id_for_maintenance_branch.md'
+    template = 'missing_jira_id.md'
 
 
 class MismatchPrefixIssueType(WallE_TemplateException):
@@ -95,14 +95,14 @@ class IncorrectFixVersion(WallE_TemplateException):
     template = 'incorrect_fix_version.md'
 
 
-class IncorrectBranchName(WallE_TemplateException):
+class IncorrectSourceBranchName(WallE_TemplateException):
     code = 113
-    template = 'forbidden_branch.md'
+    template = 'incorrect_source_branch_name.md'
 
 
-class BranchDoesNotAcceptFeatures(WallE_TemplateException):
+class IncompatibleSourceBranchPrefix(WallE_TemplateException):
     code = 114
-    template = 'forbidden_branch_in_maintenance.md'
+    template = 'incompatible_source_branch_prefix.md'
 
 
 class BranchHistoryMismatch(WallE_TemplateException):
@@ -128,6 +128,11 @@ class SuccessMessage(WallE_TemplateException):
 class TesterApprovalRequired(WallE_TemplateException):
     code = 119
     template = 'need_approval.md'
+
+
+class IncorrectJiraProject(WallE_TemplateException):
+    code = 120
+    template = 'incorrect_jira_project.md'
 
 
 # internal exceptions
@@ -159,12 +164,19 @@ class JiraUnknownIssueType(WallE_InternalException):
         super(JiraUnknownIssueType, self).__init__(msg)
 
 
-class MalformedGitRepo(WallE_InternalException):
+class DevBranchesNotSelfContained(WallE_InternalException):
     def __init__(self, upstream_branch, downstream_branch):
         msg = ("The git repository appears to be in a bad shape. "
                "Branch `%s` is not included in branch `%s`." % (
-               upstream_branch, downstream_branch))
-        super(MalformedGitRepo, self).__init__(msg)
+                   upstream_branch, downstream_branch))
+        super(DevBranchesNotSelfContained, self).__init__(msg)
+
+
+class DevBranchDoesNotExist(WallE_InternalException):
+    def __init__(self, branch):
+        msg = ("The git repository appears to be in a bad shape. "
+               "Branch `%s` does not exist." % branch)
+        super(DevBranchDoesNotExist, self).__init__(msg)
 
 
 # silent exceptions
