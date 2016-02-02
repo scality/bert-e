@@ -1,12 +1,23 @@
 {% extends "message.md" %}
 
 {% block title -%}
-Issue and branch mismatch
+Issue type vs branch prefix mismatch
 {% endblock %}
 
 {% block message %}
-Branch prefix `{{ prefix }}` mismatches
-jira issue type `{{ expected }}`.
+The specified branch prefix, `{{ prefix }}`, does not correspond
+to the issue type `{{ expected }}` specified in {{ issue }}.
 
-Please correct and comment this pull request to try again.
+The following table shows the accepted pairs:
+
+Jira issue type  |  accepted prefix
+-----------------|------------------
+{% for pair in pairs -%}
+`{{ pair }}` | `{{ pairs[pair] }}`
+{% endfor %}
+
+To fix this problem:
+
+- either correct the issue type in Jira, and comment this pull request to try again,
+- or, rename the source branch, and open a new pull request.
 {% endblock %}

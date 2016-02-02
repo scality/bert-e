@@ -97,7 +97,8 @@ SETTINGS = {
                         'bugfix',
                         'improvement',
                         'feature',
-                        'project']
+                        'project'
+                    ]
                 })
             ]),
         },
@@ -179,6 +180,50 @@ SETTINGS = {
         ],
         'admins': [
             'ludovicmaillard',
+            'pierre_louis_bonicoli',
+            'rayene_benrayana',
+            'sylvain_killian'
+        ]
+    },
+    'gollum': {
+        'jira_key': 'RELENG',
+        'build_key': 'autotest',
+        'release_branch': {
+            'prefix': 'release'
+        },
+        'development_branch': {
+            'prefix': 'development',
+            'versions': OrderedDict([
+                ('1.0', {
+                    'upcoming_release': '1.0.0',
+                    'allow_ticketless': False,
+                    'allow_prefix': [
+                        'bugfix',
+                        'improvement',
+                        'feature',
+                        'project'
+                    ]
+                })
+            ]),
+        },
+        'integration_branch': {
+            'prefix': 'w',
+        },
+        'feature_branch': {
+            'prefix': [
+                'feature',
+                'bugfix',
+                'improvement',
+                'project'
+            ],
+            'ignore_prefix': [
+                'hotfix',
+                'user'
+            ]
+        },
+        'testers': [
+        ],
+        'admins': [
             'pierre_louis_bonicoli',
             'rayene_benrayana',
             'sylvain_killian'
@@ -690,7 +735,8 @@ class WallE:
 
         for destination_branch in self.destination_branches:
             if not destination_branch.allow_ticketless:
-                raise MissingJiraId(branch=self.source_branch.name)
+                raise MissingJiraId(source_branch=self.source_branch.name,
+                                    dest_branch=destination_branch.name)
 
     def _jira_get_issue(self, issue_id):
         try:
@@ -733,7 +779,9 @@ class WallE:
             raise JiraUnknownIssueType(issuetype)
         if expected_prefix != self.source_branch.prefix:
             raise MismatchPrefixIssueType(prefix=self.source_branch.prefix,
-                                          expected=expected_prefix)
+                                          expected=expected_prefix,
+                                          pairs=JIRA_ISSUE_BRANCH_PREFIX,
+                                          issue=issue.key)
 
     def _jira_check_version(self, issue):
         issue_versions = set([version.name for version in

@@ -354,7 +354,8 @@ class TestWallE(unittest.TestCase):
                         backtrace=True)
         except Conflict as e:
             self.assertIn(
-                "`improvement/RING-0006` into `w/4.3/improvement/RING-0006`",
+                "`improvement/RING-0006`\ninto integration branch "
+                "`w/4.3/improvement/RING-0006`",
                 e.msg)
             self.assertIn(
                 "git checkout w/4.3/improvement/RING-0006",
