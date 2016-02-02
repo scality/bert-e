@@ -179,6 +179,7 @@ SETTINGS = {
         'testers': [
         ],
         'admins': [
+            'ludovicmaillard',
             'pierre_louis_bonicoli',
             'rayene_benrayana',
             'sylvain_killian'
