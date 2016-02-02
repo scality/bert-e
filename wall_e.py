@@ -779,7 +779,9 @@ class WallE:
             raise JiraUnknownIssueType(issuetype)
         if expected_prefix != self.source_branch.prefix:
             raise MismatchPrefixIssueType(prefix=self.source_branch.prefix,
-                                          expected=expected_prefix)
+                                          expected=expected_prefix,
+                                          pairs=JIRA_ISSUE_BRANCH_PREFIX,
+                                          issue=issue.key)
 
     def _jira_check_version(self, issue):
         issue_versions = set([version.name for version in
