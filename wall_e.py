@@ -688,7 +688,8 @@ class WallE:
 
         for destination_branch in self.destination_branches:
             if not destination_branch.allow_ticketless:
-                raise MissingJiraId(branch=self.source_branch.name)
+                raise MissingJiraId(source_branch=self.source_branch.name,
+                                    dest_branch=destination_branch.name)
 
     def _jira_get_issue(self, issue_id):
         try:

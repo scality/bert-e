@@ -5,9 +5,9 @@ Missing Jira issue
 {% endblock %}
 
 {% block message %}
-You must specify a Jira issue in the source branch name in order to
-be able to merge to {% branch %}.
+It is mandatory to specify a Jira issue in the source branch name
+in order to merge into `{{ dest_branch }}`. The issue key must follow
+the prefix of the branch.
 
-It is only possible to merge code without a ticket reference in the
-most recent development branch.
+I could not find such an issue in `{{ source_branch }}`.
 {% endblock %}
