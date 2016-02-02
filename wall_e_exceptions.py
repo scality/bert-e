@@ -102,7 +102,7 @@ class IncorrectSourceBranchName(WallE_TemplateException):
 
 class IncompatibleSourceBranchPrefix(WallE_TemplateException):
     code = 114
-    template = 'incorrect_source_branch_prefix.md'
+    template = 'incompatible_source_branch_prefix.md'
 
 
 class BranchHistoryMismatch(WallE_TemplateException):
