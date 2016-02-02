@@ -184,6 +184,50 @@ SETTINGS = {
             'rayene_benrayana',
             'sylvain_killian'
         ]
+    },
+    'gollum': {
+        'jira_key': 'RELENG',
+        'build_key': 'autotest',
+        'release_branch': {
+            'prefix': 'release'
+        },
+        'development_branch': {
+            'prefix': 'development',
+            'versions': OrderedDict([
+                ('1.0', {
+                    'upcoming_release': '1.0.0',
+                    'allow_ticketless': False,
+                    'allow_prefix': [
+                        'bugfix',
+                        'improvement',
+                        'feature',
+                        'project'
+                    ]
+                })
+            ]),
+        },
+        'integration_branch': {
+            'prefix': 'w',
+        },
+        'feature_branch': {
+            'prefix': [
+                'feature',
+                'bugfix',
+                'improvement',
+                'project'
+            ],
+            'ignore_prefix': [
+                'hotfix',
+                'user'
+            ]
+        },
+        'testers': [
+        ],
+        'admins': [
+            'pierre_louis_bonicoli',
+            'rayene_benrayana',
+            'sylvain_killian'
+        ]
     }
 }
 
