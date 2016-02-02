@@ -84,7 +84,7 @@ SETTINGS = {
                     ]
                 }),
                 ('5.1', {
-                    'upcoming_release': '5.1.4',
+                    'upcoming_release': '5.1.5',
                     'allow_ticketless': False,
                     'allow_prefix': [
                         'bugfix',
@@ -319,7 +319,7 @@ class DestinationBranch(BranchName):
 
 class IntegrationBranch(Branch):
     def __init__(self, repo, name, dev_branch_name):
-        Branch.__init__(self, repo, name)
+        super(IntegrationBranch, self).__init__(repo, name)
         w, self.version, self.subname = name.split('/', 2)
         self.development_branch = Branch(
             repo=repo,
@@ -337,21 +337,40 @@ class IntegrationBranch(Branch):
         self.development_branch.merge(self, force_commit=False)
         self.development_branch.push()
 
-    def create_pull_request(self, parent_pr, bitbucket_repo):
+    def _get_pull_request_from_list(self, open_prs):
+        pr = None
+        for pr_ in open_prs:
+            if pr_['source']['branch']['name'] != self.name:
+                continue
+            if pr_['destination']['branch']['name'] != \
+                    self.development_branch.name:
+                continue
+            pr = pr_
+            break
+        return pr
+
+    def get_or_create_pull_request(self, parent_pr, open_prs, bitbucket_repo):
         title = '[%s] #%s: %s' % (self.development_branch.name,
                                   parent_pr['id'], parent_pr['title'])
 
-        description = render('pull_request_description.md',
-                             wall_e=WALL_E_USERNAME,
-                             pr=parent_pr)
-        pr = bitbucket_repo.create_pull_request(
-            title=title,
-            name='name',
-            source={'branch': {'name': self.name}},
-            destination={'branch': {'name': self.development_branch.name}},
-            close_source_branch=True,
-            reviewers=[{'username': parent_pr['author']['username']}],
-            description=description)
+        # WARNING potential infinite loop:
+        # creating a child pr will trigger a 'pr update' webhook
+        # wall-e will analyse it, retrieve the main pr, then
+        # re-enter here and recreate the children pr.
+        # solution: do not create the pr if it already exists
+        pr = self._get_pull_request_from_list(open_prs)
+        if not pr:
+            description = render('pull_request_description.md',
+                                 wall_e=WALL_E_USERNAME,
+                                 pr=parent_pr)
+            pr = bitbucket_repo.create_pull_request(
+                title=title,
+                name='name',
+                source={'branch': {'name': self.name}},
+                destination={'branch': {'name': self.development_branch.name}},
+                close_source_branch=True,
+                reviewers=[{'username': parent_pr['author']['username']}],
+                description=description)
         return pr
 
 
@@ -821,8 +840,13 @@ class WallE:
             branch_to_merge_from = integration_branch
 
     def _create_pull_requests(self, integration_branches):
+        # read open PRs and store them for multiple usage
+        open_prs = list(self.bbrepo.get_pull_requests())
         return [integration_branch.
-                create_pull_request(self.main_pr, self.bbrepo) for
+                get_or_create_pull_request(
+                    self.main_pr,
+                    open_prs,
+                    self.bbrepo) for
                 integration_branch in integration_branches]
 
     def _check_approvals(self, child_prs):
@@ -927,8 +951,7 @@ class WallE:
         self._check_if_ignored(src_branch_name, dst_branch_name)
 
         # read comments and store them for multiple usage
-        comments_ = self.main_pr.get_comments()
-        comments = [com for com in comments_]
+        comments = list(self.main_pr.get_comments())
 
         self._send_greetings(comments)
         self._get_options(comments, self.author)
