@@ -14,6 +14,7 @@ class WallE_TemplateException(Exception):
     def __init__(self, **kwargs):
         assert self.code != 0
         assert self.template
+        assert self.dont_repeat_if_in_history >= 0
         self.msg = render(self.template, code=self.code, **kwargs)
         super(WallE_TemplateException, self).__init__(self.msg)
 
