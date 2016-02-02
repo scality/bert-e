@@ -350,8 +350,11 @@ class IntegrationBranch(Branch):
         return pr
 
     def get_or_create_pull_request(self, parent_pr, open_prs, bitbucket_repo):
-        title = '[%s] #%s: %s' % (self.development_branch.name,
-                                  parent_pr['id'], parent_pr['title'])
+        title = 'INTEGRATION [PR#%s > %s] %s' % (
+            parent_pr['id'],
+            self.development_branch.name,
+            parent_pr['title']
+        )
 
         # WARNING potential infinite loop:
         # creating a child pr will trigger a 'pr update' webhook
