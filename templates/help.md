@@ -93,17 +93,25 @@ See below for the list of available commands and their effects.
 
 ## Options ##
 
+{% if options %}
 name   | description  | privileged
 ------ | ------------ | ------------
 {% for option in options -%}
 :arrow_right: **{{option}}** | {{options[option].help}} | {% if options[option].priviledged %} :star: {% endif %}
 {% endfor %}
+{% else %}
+*No options available at this time, please check again later.*
+{% endif %}
 
 ## Commands ##
 
+{% if commands %}
 name   | description  | privileged
 ------ | ------------ | ------------
 {% for cmd in commands -%}
 :arrow_right: **{{cmd}}** | {{commands[cmd].help}} | {% if commands[cmd].priviledged %} :star: {% endif %}
 {% endfor %}
+{% else %}
+*No commands available at this time, please check again later.*
+{% endif %}
 {% endblock %}

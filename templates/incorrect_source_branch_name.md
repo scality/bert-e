@@ -12,6 +12,8 @@ Make sure the source branch contains one of these prefixes:
 
 {% for prefix in valid_prefixes %}
 * `{{ prefix }}/`
+{% else %}
+* *None*
 {% endfor %}
 
 Please rename the source branch and create a new pull request.
