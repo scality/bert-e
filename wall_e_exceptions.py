@@ -56,16 +56,6 @@ class BuildFailed(WallE_TemplateException):
     template = 'build_failed.md'
 
 
-class BuildInProgress(WallE_TemplateException):
-    code = 105
-    template = 'build_in_progress.md'
-
-
-class BuildNotStarted(WallE_TemplateException):
-    code = 106
-    template = 'build_not_started.md'
-
-
 class Conflict(WallE_TemplateException):
     code = 107
     template = 'conflict.md'
@@ -190,4 +180,12 @@ class NotMyJob(WallE_SilentException):
 
 
 class NothingToDo(WallE_SilentException):
+    pass
+
+
+class BuildInProgress(WallE_SilentException):
+    pass
+
+
+class BuildNotStarted(WallE_SilentException):
     pass

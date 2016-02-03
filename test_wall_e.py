@@ -703,9 +703,10 @@ class TestWallE(unittest.TestCase):
 
     def test_rebased_feature_branch(self):
         pr = self.create_pr('bugfix/RING-00074', 'development/4.3')
-        retcode = self.handle(pr['id'],
-                              options=self.bypass_all_but_build_status)
-        self.assertEqual(retcode, BuildNotStarted.code)
+        with self.assertRaises(BuildNotStarted):
+            retcode = self.handle(pr['id'],
+                                  options=self.bypass_all_but_build_status,
+                                  backtrace=True)
 
         # create another PR and merge it entirely
         pr2 = self.create_pr('bugfix/RING-00075', 'development/4.3')
@@ -720,9 +721,10 @@ class TestWallE(unittest.TestCase):
         feature_branch = 'bugfix/RING-0076'
         first_integration_branch = 'w/4.3/bugfix/RING-0076'
         pr = self.create_pr(feature_branch, 'development/4.3')
-        retcode = self.handle(pr['id'],
-                              options=self.bypass_all_but_build_status)
-        self.assertEqual(retcode, BuildNotStarted.code)
+        with self.assertRaises(BuildNotStarted):
+            self.handle(pr['id'],
+                        options=self.bypass_all_but_build_status,
+                        backtrace=True)
 
         self.gitrepo.cmd('git pull')
         self.gitrepo.cmd('git checkout %s' % first_integration_branch)
@@ -772,18 +774,20 @@ class TestWallE(unittest.TestCase):
 
     def test_build_key_on_main_pr_has_no_effect(self):
         pr = self.create_pr('bugfix/RING-00078', 'development/4.3')
-        retcode = self.handle(pr['id'],
-                              options=self.bypass_all_but_build_status)
-        self.assertEqual(retcode, BuildNotStarted.code)
+        with self.assertRaises(BuildNotStarted):
+            self.handle(pr['id'],
+                        options=self.bypass_all_but_build_status,
+                        backtrace=True)
         # create another PR, so that integration PR will have different
         # commits than source PR
         pr2 = self.create_pr('bugfix/RING-00079', 'development/4.3')
         retcode = self.handle(pr2['id'], options=self.bypass_all)
         self.assertEqual(retcode, SuccessMessage.code)
         # restart PR number 1 to update it with content of 2
-        retcode = self.handle(pr['id'],
-                              options=self.bypass_all_but_build_status)
-        self.assertEqual(retcode, BuildNotStarted.code)
+        with self.assertRaises(BuildNotStarted):
+            self.handle(pr['id'],
+                        options=self.bypass_all_but_build_status,
+                        backtrace=True)
         self.set_build_status_on_pr_id(pr['id']+1, 'SUCCESSFUL')
         self.set_build_status_on_pr_id(pr['id']+2, 'SUCCESSFUL')
         self.set_build_status_on_pr_id(pr['id']+3, 'SUCCESSFUL')
@@ -796,17 +800,19 @@ class TestWallE(unittest.TestCase):
         pr = self.create_pr('bugfix/RING-00081', 'development/4.3')
 
         # test build not started
-        retcode = self.handle(pr['id'],
-                              options=self.bypass_all_but_build_status)
-        self.assertEqual(retcode, BuildNotStarted.code)
+        with self.assertRaises(BuildNotStarted):
+            self.handle(pr['id'],
+                        options=self.bypass_all_but_build_status,
+                        backtrace=True)
 
         # test non related build key
         self.set_build_status_on_pr_id(pr['id']+1, 'SUCCESSFUL', key='pipelin')
         self.set_build_status_on_pr_id(pr['id']+2, 'SUCCESSFUL', key='pipelin')
         self.set_build_status_on_pr_id(pr['id']+3, 'SUCCESSFUL', key='pipelin')
-        retcode = self.handle(pr['id'],
-                              options=self.bypass_all_but_build_status)
-        self.assertEqual(retcode, BuildNotStarted.code)
+        with self.assertRaises(BuildNotStarted):
+            self.handle(pr['id'],
+                        options=self.bypass_all_but_build_status,
+                        backtrace=True)
 
         # test build status failed
         self.set_build_status_on_pr_id(pr['id']+1, 'SUCCESSFUL')
@@ -820,9 +826,10 @@ class TestWallE(unittest.TestCase):
         self.set_build_status_on_pr_id(pr['id']+1, 'SUCCESSFUL')
         self.set_build_status_on_pr_id(pr['id']+2, 'INPROGRESS')
         self.set_build_status_on_pr_id(pr['id']+3, 'SUCCESSFUL')
-        retcode = self.handle(pr['id'],
-                              options=self.bypass_all_but_build_status)
-        self.assertEqual(retcode, BuildInProgress.code)
+        with self.assertRaises(BuildInProgress):
+            self.handle(pr['id'],
+                        options=self.bypass_all_but_build_status,
+                        backtrace=True)
 
         # test bypass tester approval through comment
         pr = self.create_pr('bugfix/RING-00078', 'development/4.3')

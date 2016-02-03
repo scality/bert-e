@@ -1006,9 +1006,9 @@ class WallE:
         if g_state == 'FAILED':
             raise BuildFailed(pr_id=worst_pr['id'])
         elif g_state == 'NOTSTARTED':
-            raise BuildNotStarted(pr_id=worst_pr['id'])
+            raise BuildNotStarted()
         elif g_state == 'INPROGRESS':
-            raise BuildInProgress(pr_id=worst_pr['id'])
+            raise BuildInProgress()
         assert build_state == 'SUCCESSFUL'
 
     def handle_pull_request(self, reference_git_repo='',
