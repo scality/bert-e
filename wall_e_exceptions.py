@@ -123,7 +123,7 @@ class ParentJiraIssueNotFound(JiraIssueNotFound):
 
 class SuccessMessage(WallE_TemplateException):
     code = 118
-    template = 'successfull_merge.md'
+    template = 'successful_merge.md'
 
 
 class TesterApprovalRequired(WallE_TemplateException):

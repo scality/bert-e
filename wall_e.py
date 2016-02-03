@@ -1048,8 +1048,7 @@ class WallE:
 
             self._check_git_repo_health(repo)
 
-        raise SuccessMessage(versions=[x.version for x in
-                                       integration_branches],
+        raise SuccessMessage(branches=self.destination_branches,
                              issue=self.source_branch.jira_issue_id,
                              author=self.author)
 
