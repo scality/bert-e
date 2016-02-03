@@ -1,9 +1,9 @@
 {% extends "message.md" %}
 
 {% block title -%}
-Issue not found
+Jira issue not found
 {% endblock %}
 
 {% block message %}
-Jira issue `{{ issue }}` was not found.
+The Jira issue {{ issue }} was not found.
 {% endblock %}

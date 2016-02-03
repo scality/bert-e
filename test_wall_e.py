@@ -128,16 +128,16 @@ class QuickTest(unittest.TestCase):
         self.feature_branch('bugfix/RING-1234')
 
         src = self.feature_branch('project/RING-0005')
-        self.assertEqual(src.jira_issue_id, 'RING-0005')
-        self.assertEqual(src.jira_project_key, 'RING')
+        self.assertEqual(src.jira_issue_key, 'RING-0005')
+        self.assertEqual(src.jira_project, 'RING')
 
         src = self.feature_branch('feature/PROJECT-05-some-text_here')
-        self.assertEqual(src.jira_issue_id, 'PROJECT-05')
-        self.assertEqual(src.jira_project_key, 'PROJECT')
+        self.assertEqual(src.jira_issue_key, 'PROJECT-05')
+        self.assertEqual(src.jira_project, 'PROJECT')
 
         src = self.feature_branch('feature/some-text_here')
-        self.assertIsNone(src.jira_issue_id)
-        self.assertIsNone(src.jira_project_key)
+        self.assertIsNone(src.jira_issue_key)
+        self.assertIsNone(src.jira_project)
 
     def test_destination_branch_names(self):
 

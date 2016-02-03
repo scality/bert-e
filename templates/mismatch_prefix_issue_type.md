@@ -6,7 +6,8 @@ Issue type vs branch prefix mismatch
 
 {% block message %}
 The specified branch prefix, `{{ prefix }}`, does not correspond
-to the issue type `{{ expected }}` specified in {{ issue }}.
+to the issue type `{{ expected }}` specified in {{ issue.key }}{% if subtask %},
+parent of sub-task `{{ subtask.key }}`{% endif %}.
 
 The following table shows the accepted pairs:
 
@@ -18,6 +19,6 @@ Jira issue type  |  accepted prefix
 
 To fix this problem:
 
-- either correct the issue type in Jira, and comment this pull request to try again,
+- either correct the type of {{ issue.key }}, and comment this pull request to try again,
 - or, rename the source branch, and open a new pull request.
 {% endblock %}

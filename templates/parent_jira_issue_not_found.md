@@ -5,5 +5,5 @@ Jira parent issue not found
 {% endblock %}
 
 {% block message %}
-Parent Jira issue `{{ parent }}` of subtask `{{ issue }}` not found.
+The parent Jira issue {{ parent_id }} of subtask {{ subtask.key }} was not found.
 {% endblock %}

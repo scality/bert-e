@@ -5,6 +5,7 @@ Incorrect Jira project
 {% endblock %}
 
 {% block message %}
-The Jira issue `{{ issue }}`, extracted from the feature branch name,
-does not belong to the project `{{ expected_project }}`.
+The Jira issue {{ issue.key }}{% if subtask %}, parent of the
+sub-task {{ subtask.key }}{% endif %} specified in the source
+branch name, does not belong to project `{{ expected_project }}`.
 {% endblock %}
