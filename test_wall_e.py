@@ -857,9 +857,10 @@ class TestWallE(unittest.TestCase):
 
     def test_source_branch_history_changed(self):
         pr = self.create_pr('bugfix/RING-00001', 'development/4.3')
-        retcode = self.handle(pr['id'],
-                              options=self.bypass_all_but_build_status)
-        self.assertEqual(retcode, BuildNotStarted.code)
+        with self.assertRaises(BuildNotStarted):
+            self.handle(pr['id'],
+                        options=self.bypass_all_but_build_status,
+                        backtrace=True)
         # see what happens when the source branch is deleted
         self.gitrepo.cmd('git checkout development/4.3')
         self.gitrepo.cmd('git push origin :bugfix/RING-00001')
@@ -877,9 +878,10 @@ class TestWallE(unittest.TestCase):
 
     def test_source_branch_commit_added(self):
         pr = self.create_pr('bugfix/RING-00001', 'development/4.3')
-        retcode = self.handle(pr['id'],
-                              options=self.bypass_all_but_build_status)
-        self.assertEqual(retcode, BuildNotStarted.code)
+        with self.assertRaises(BuildNotStarted):
+            self.handle(pr['id'],
+                        options=self.bypass_all_but_build_status,
+                        backtrace=True)
         add_file_to_branch(self.gitrepo, 'bugfix/RING-00001',
                            'file_added_on_source_branch')
         retcode = self.handle(pr['id'],
@@ -888,9 +890,10 @@ class TestWallE(unittest.TestCase):
 
     def test_source_branch_forced_pushed(self):
         pr = self.create_pr('bugfix/RING-00001', 'development/4.3')
-        retcode = self.handle(pr['id'],
-                              options=self.bypass_all_but_build_status)
-        self.assertEqual(retcode, BuildNotStarted.code)
+        with self.assertRaises(BuildNotStarted):
+            self.handle(pr['id'],
+                        options=self.bypass_all_but_build_status,
+                        backtrace=True)
         create_branch(self.gitrepo, 'bugfix/RING-00002',
                       from_branch='development/4.3',
                       file_="another_new_file", do_push=False)
@@ -902,9 +905,10 @@ class TestWallE(unittest.TestCase):
 
     def test_integration_branch_and_source_branch_updated(self):
         pr = self.create_pr('bugfix/RING-00001', 'development/4.3')
-        retcode = self.handle(pr['id'],
-                              options=self.bypass_all_but_build_status)
-        self.assertEqual(retcode, BuildNotStarted.code)
+        with self.assertRaises(BuildNotStarted):
+            self.handle(pr['id'],
+                        options=self.bypass_all_but_build_status,
+                        backtrace=True)
         first_integration_branch = 'w/4.3/bugfix/RING-00001'
         self.gitrepo.cmd('git pull')
         add_file_to_branch(self.gitrepo, first_integration_branch,
@@ -917,9 +921,10 @@ class TestWallE(unittest.TestCase):
 
     def test_integration_branch_and_source_branch_force_updated(self):
         pr = self.create_pr('bugfix/RING-00001', 'development/4.3')
-        retcode = self.handle(pr['id'],
-                              options=self.bypass_all_but_build_status)
-        self.assertEqual(retcode, BuildNotStarted.code)
+        with self.assertRaises(BuildNotStarted):
+            self.handle(pr['id'],
+                        options=self.bypass_all_but_build_status,
+                        backtrace=True)
         first_integration_branch = 'w/4.3/bugfix/RING-00001'
         self.gitrepo.cmd('git pull')
         add_file_to_branch(self.gitrepo, first_integration_branch,
