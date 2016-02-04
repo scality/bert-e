@@ -725,8 +725,6 @@ class TestWallE(unittest.TestCase):
         self.assertEqual(retcode, BuildNotStarted.code)
 
         self.gitrepo.cmd('git pull')
-        self.gitrepo.cmd('git checkout %s' % first_integration_branch)
-
         add_file_to_branch(self.gitrepo, first_integration_branch,
                            'file_added_on_int_branch')
 
@@ -850,16 +848,83 @@ class TestWallE(unittest.TestCase):
         with self.assertRaises(NotMyJob):
             self.handle(pr['id'], backtrace=True)
 
-    def test_source_branch_deleted(self):
+    def test_source_branch_history_changed(self):
         pr = self.create_pr('bugfix/RING-00001', 'development/4.3')
         retcode = self.handle(pr['id'],
                               options=self.bypass_all_but_build_status)
         self.assertEqual(retcode, BuildNotStarted.code)
+        # see what happens when the source branch is deleted
+        self.gitrepo.cmd('git checkout development/4.3')
         self.gitrepo.cmd('git push origin :bugfix/RING-00001')
+        self.gitrepo.cmd('git branch -D bugfix/RING-00001')
         with self.assertRaises(NothingToDo):
             self.handle(pr['id'],
                         options=self.bypass_all,
                         backtrace=True)
+        # recreate branch with a different history
+        create_branch(self.gitrepo, 'bugfix/RING-00001',
+                      from_branch='development/4.3', file_="a_new_file")
+        retcode = self.handle(pr['id'],
+                              options=self.bypass_all_but_build_status)
+        self.assertEqual(retcode, BranchHistoryMismatch.code)
+
+    def test_source_branch_commit_added(self):
+        pr = self.create_pr('bugfix/RING-00001', 'development/4.3')
+        retcode = self.handle(pr['id'],
+                              options=self.bypass_all_but_build_status)
+        self.assertEqual(retcode, BuildNotStarted.code)
+        add_file_to_branch(self.gitrepo, 'bugfix/RING-00001',
+                           'file_added_on_source_branch')
+        retcode = self.handle(pr['id'],
+                              options=self.bypass_all)
+        self.assertEqual(retcode, SuccessMessage.code)
+
+    def test_source_branch_forced_pushed(self):
+        pr = self.create_pr('bugfix/RING-00001', 'development/4.3')
+        retcode = self.handle(pr['id'],
+                              options=self.bypass_all_but_build_status)
+        self.assertEqual(retcode, BuildNotStarted.code)
+        create_branch(self.gitrepo, 'bugfix/RING-00002',
+                      from_branch='development/4.3',
+                      file_="another_new_file", do_push=False)
+        self.gitrepo.cmd(
+            'git push -u -f origin bugfix/RING-00002:bugfix/RING-00001')
+        retcode = self.handle(pr['id'],
+                              options=self.bypass_all)
+        self.assertEqual(retcode, BranchHistoryMismatch.code)
+
+    def test_integration_branch_and_source_branch_updated(self):
+        pr = self.create_pr('bugfix/RING-00001', 'development/4.3')
+        retcode = self.handle(pr['id'],
+                              options=self.bypass_all_but_build_status)
+        self.assertEqual(retcode, BuildNotStarted.code)
+        first_integration_branch = 'w/4.3/bugfix/RING-00001'
+        self.gitrepo.cmd('git pull')
+        add_file_to_branch(self.gitrepo, first_integration_branch,
+                           'file_added_on_int_branch')
+        add_file_to_branch(self.gitrepo, 'bugfix/RING-00001',
+                           'file_added_on_source_branch')
+        retcode = self.handle(pr['id'],
+                              options=self.bypass_all)
+        self.assertEqual(retcode, BranchHistoryMismatch.code)
+
+    def test_integration_branch_and_source_branch_force_updated(self):
+        pr = self.create_pr('bugfix/RING-00001', 'development/4.3')
+        retcode = self.handle(pr['id'],
+                              options=self.bypass_all_but_build_status)
+        self.assertEqual(retcode, BuildNotStarted.code)
+        first_integration_branch = 'w/4.3/bugfix/RING-00001'
+        self.gitrepo.cmd('git pull')
+        add_file_to_branch(self.gitrepo, first_integration_branch,
+                           'file_added_on_int_branch')
+        create_branch(self.gitrepo, 'bugfix/RING-00002',
+                      from_branch='development/4.3',
+                      file_="another_new_file", do_push=False)
+        self.gitrepo.cmd(
+            'git push -u -f origin bugfix/RING-00002:bugfix/RING-00001')
+        retcode = self.handle(pr['id'],
+                              options=self.bypass_all)
+        self.assertEqual(retcode, BranchHistoryMismatch.code)
 
 
 def main():
