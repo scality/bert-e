@@ -5,8 +5,7 @@ Incorrect fix version
 {% endblock %}
 
 {% block message %}
-The `Fix Version/s` in issue {{ issue.key }}{% if subtask %},
-parent of sub-task {{ subtask.key }},{% endif %} contains:
+The `Fix Version/s` in issue {{ issue.key }} contains:
 
 {% for version in issue_versions %}
 * `{{ version }}`

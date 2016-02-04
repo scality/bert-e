@@ -76,9 +76,9 @@ class JiraIssueNotFound(WallE_TemplateException):
     template = 'jira_issue_not_found.md'
 
 
-class ParentJiraIssueNotFound(JiraIssueNotFound):
+class SubtaskIssueNotSupported(WallE_TemplateException):
     code = 109
-    template = 'parent_jira_issue_not_found.md'
+    template = 'subtask_issue_not_supported.md'
 
 
 class IncorrectJiraProject(WallE_TemplateException):

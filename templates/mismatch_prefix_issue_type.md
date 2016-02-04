@@ -6,8 +6,7 @@ Issue type vs branch prefix mismatch
 
 {% block message %}
 The specified branch prefix, `{{ prefix }}`, does not correspond
-to the issue type `{{ expected }}` specified in {{ issue.key }}{% if subtask %},
-parent of sub-task `{{ subtask.key }}`{% endif %}.
+to the issue type `{{ expected }}` specified in {{ issue.key }}.
 
 The following table shows the accepted pairs:
 

@@ -47,7 +47,7 @@ from wall_e_exceptions import (AuthorApprovalRequired,
                                NothingToDo,
                                NotMyJob,
                                ParentPullRequestNotFound,
-                               ParentJiraIssueNotFound,
+                               SubtaskIssueNotSupported,
                                PeerApprovalRequired,
                                StatusReport,
                                SuccessMessage,
@@ -748,47 +748,35 @@ class WallE:
             else:
                 raise
 
-        if issue.fields.issuetype.name != 'Sub-task':
-            return (issue, None)
+        return issue
 
-        # Use parent task if subtask
-        subtask = issue
-        try:
-            parent_id = issue.fields.parent.key
-            issue = JiraIssue(issue_id=parent_id, login='wall_e',
-                              passwd=self._bbconn.auth.password)
-        except JIRAError as e:
-            if e.status_code == 404:
-                raise ParentJiraIssueNotFound(parent_id=parent_id,
-                                              subtask=subtask)
-            else:
-                raise
-
-        return (issue, subtask)
-
-    def _jira_check_project(self, issue, subtask):
+    def _jira_check_project(self, issue):
         # check the project
         if (self.source_branch.jira_project !=
                 self.settings['jira_key']):
             raise IncorrectJiraProject(
                 expected_project=self.settings['jira_key'],
-                issue=issue,
-                subtask=subtask
+                issue=issue
             )
 
-    def _jira_check_issue_type(self, issue, subtask):
+    def _jira_check_issue_type(self, issue):
         issuetype = issue.fields.issuetype.name
+
+        if issuetype == 'Sub-task':
+            raise SubtaskIssueNotSupported(issue=issue,
+                                           pairs=JIRA_ISSUE_BRANCH_PREFIX)
+
         expected_prefix = JIRA_ISSUE_BRANCH_PREFIX.get(issuetype)
         if expected_prefix is None:
             raise JiraUnknownIssueType(issuetype)
+
         if expected_prefix != self.source_branch.prefix:
             raise MismatchPrefixIssueType(prefix=self.source_branch.prefix,
                                           expected=expected_prefix,
                                           pairs=JIRA_ISSUE_BRANCH_PREFIX,
-                                          issue=issue,
-                                          subtask=subtask)
+                                          issue=issue)
 
-    def _jira_check_version(self, issue, subtask):
+    def _jira_check_version(self, issue):
         issue_versions = set([version.name for version in
                               issue.fields.fixVersions])
         expect_versions = set(
@@ -796,7 +784,6 @@ class WallE:
 
         if issue_versions != expect_versions:
             raise IncorrectFixVersion(issue=issue,
-                                      subtask=subtask,
                                       issue_versions=issue_versions,
                                       expect_versions=expect_versions)
 
@@ -811,11 +798,11 @@ class WallE:
         self._jira_check_reference()
 
         issue_id = self.source_branch.jira_issue_key
-        (issue, subtask) = self._jira_get_issue(issue_id)
+        issue = self._jira_get_issue(issue_id)
 
-        self._jira_check_project(issue, subtask)
-        self._jira_check_issue_type(issue, subtask)
-        self._jira_check_version(issue, subtask)
+        self._jira_check_project(issue)
+        self._jira_check_issue_type(issue)
+        self._jira_check_version(issue)
 
     def _clone_git_repo(self, reference_git_repo):
         git_repo = GitRepository(self.bbrepo.get_git_url())
