@@ -819,6 +819,14 @@ class WallE:
         return git_repo
 
     def _check_git_repo_health(self, git_repo):
+        # check source branch still exists
+        # (it may have been deleted by developers)
+        try:
+            Branch(git_repo, self.source_branch.name).checkout()
+        except CheckoutFailedException:
+            raise NothingToDo(self.source_branch.name)
+
+        # check target branches
         previous_dev_branch_name = '%s/%s' % (
             self.settings['development_branch']['prefix'],
             list(self.settings['development_branch']['versions'])[0]

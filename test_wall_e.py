@@ -850,6 +850,17 @@ class TestWallE(unittest.TestCase):
         with self.assertRaises(NotMyJob):
             self.handle(pr['id'], backtrace=True)
 
+    def test_source_branch_deleted(self):
+        pr = self.create_pr('bugfix/RING-00001', 'development/4.3')
+        retcode = self.handle(pr['id'],
+                              options=self.bypass_all_but_build_status)
+        self.assertEqual(retcode, BuildNotStarted.code)
+        self.gitrepo.cmd('git push origin :bugfix/RING-00001')
+        with self.assertRaises(NothingToDo):
+            self.handle(pr['id'],
+                        options=self.bypass_all,
+                        backtrace=True)
+
 
 def main():
     parser = argparse.ArgumentParser(description='Launches Wall-E tests.')
