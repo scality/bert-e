@@ -612,15 +612,15 @@ class WallE:
             regexp = r"\s*(?P<keywords>(\s+\w+)+)\s*$"
             match_ = re.match(regexp, raw_cleaned)
             if not match_:
-                logging.warning('Keyword comment ignored. '
-                                'Unknown format: %s', raw)
+                logging.debug('Keyword comment ignored. '
+                              'Not an option, unknown format: %s', raw)
                 continue
 
             keywords = match_.group('keywords').strip().split()
 
             if not self._check_options(author, pr_author, keywords):
                 logging.debug('Keyword comment ignored. '
-                              'Checks failed: %s', raw)
+                              'Not an option, checks failed: %s', raw)
                 continue
 
             for keyword in keywords:
@@ -672,14 +672,14 @@ class WallE:
             match_ = re.match(regexp, raw_cleaned)
             if not match_:
                 logging.warning('Command comment ignored. '
-                                'Unknown format: %s' % raw)
+                                'Not a command, unknown format: %s' % raw)
                 continue
 
             command = match_.group('command')
 
             if not self._check_command(author, command):
-                logging.warning('Command comment ignored. '
-                                'Checks failed: %s' % raw)
+                logging.debug('Command comment ignored. '
+                              'Not a command, checks failed: %s' % raw)
                 continue
 
             # get command handler and execute it
