@@ -128,16 +128,16 @@ class QuickTest(unittest.TestCase):
         self.feature_branch('bugfix/RING-1234')
 
         src = self.feature_branch('project/RING-0005')
-        self.assertEqual(src.jira_issue_id, 'RING-0005')
-        self.assertEqual(src.jira_project_key, 'RING')
+        self.assertEqual(src.jira_issue_key, 'RING-0005')
+        self.assertEqual(src.jira_project, 'RING')
 
         src = self.feature_branch('feature/PROJECT-05-some-text_here')
-        self.assertEqual(src.jira_issue_id, 'PROJECT-05')
-        self.assertEqual(src.jira_project_key, 'PROJECT')
+        self.assertEqual(src.jira_issue_key, 'PROJECT-05')
+        self.assertEqual(src.jira_project, 'PROJECT')
 
         src = self.feature_branch('feature/some-text_here')
-        self.assertIsNone(src.jira_issue_id)
-        self.assertIsNone(src.jira_project_key)
+        self.assertIsNone(src.jira_issue_key)
+        self.assertIsNone(src.jira_project)
 
     def test_destination_branch_names(self):
 
@@ -703,9 +703,10 @@ class TestWallE(unittest.TestCase):
 
     def test_rebased_feature_branch(self):
         pr = self.create_pr('bugfix/RING-00074', 'development/4.3')
-        retcode = self.handle(pr['id'],
-                              options=self.bypass_all_but_build_status)
-        self.assertEqual(retcode, BuildNotStarted.code)
+        with self.assertRaises(BuildNotStarted):
+            retcode = self.handle(pr['id'],
+                                  options=self.bypass_all_but_build_status,
+                                  backtrace=True)
 
         # create another PR and merge it entirely
         pr2 = self.create_pr('bugfix/RING-00075', 'development/4.3')
@@ -720,13 +721,12 @@ class TestWallE(unittest.TestCase):
         feature_branch = 'bugfix/RING-0076'
         first_integration_branch = 'w/4.3/bugfix/RING-0076'
         pr = self.create_pr(feature_branch, 'development/4.3')
-        retcode = self.handle(pr['id'],
-                              options=self.bypass_all_but_build_status)
-        self.assertEqual(retcode, BuildNotStarted.code)
+        with self.assertRaises(BuildNotStarted):
+            self.handle(pr['id'],
+                        options=self.bypass_all_but_build_status,
+                        backtrace=True)
 
         self.gitrepo.cmd('git pull')
-        self.gitrepo.cmd('git checkout %s' % first_integration_branch)
-
         add_file_to_branch(self.gitrepo, first_integration_branch,
                            'file_added_on_int_branch')
 
@@ -772,18 +772,20 @@ class TestWallE(unittest.TestCase):
 
     def test_build_key_on_main_pr_has_no_effect(self):
         pr = self.create_pr('bugfix/RING-00078', 'development/4.3')
-        retcode = self.handle(pr['id'],
-                              options=self.bypass_all_but_build_status)
-        self.assertEqual(retcode, BuildNotStarted.code)
+        with self.assertRaises(BuildNotStarted):
+            self.handle(pr['id'],
+                        options=self.bypass_all_but_build_status,
+                        backtrace=True)
         # create another PR, so that integration PR will have different
         # commits than source PR
         pr2 = self.create_pr('bugfix/RING-00079', 'development/4.3')
         retcode = self.handle(pr2['id'], options=self.bypass_all)
         self.assertEqual(retcode, SuccessMessage.code)
         # restart PR number 1 to update it with content of 2
-        retcode = self.handle(pr['id'],
-                              options=self.bypass_all_but_build_status)
-        self.assertEqual(retcode, BuildNotStarted.code)
+        with self.assertRaises(BuildNotStarted):
+            self.handle(pr['id'],
+                        options=self.bypass_all_but_build_status,
+                        backtrace=True)
         self.set_build_status_on_pr_id(pr['id']+1, 'SUCCESSFUL')
         self.set_build_status_on_pr_id(pr['id']+2, 'SUCCESSFUL')
         self.set_build_status_on_pr_id(pr['id']+3, 'SUCCESSFUL')
@@ -796,17 +798,19 @@ class TestWallE(unittest.TestCase):
         pr = self.create_pr('bugfix/RING-00081', 'development/4.3')
 
         # test build not started
-        retcode = self.handle(pr['id'],
-                              options=self.bypass_all_but_build_status)
-        self.assertEqual(retcode, BuildNotStarted.code)
+        with self.assertRaises(BuildNotStarted):
+            self.handle(pr['id'],
+                        options=self.bypass_all_but_build_status,
+                        backtrace=True)
 
         # test non related build key
         self.set_build_status_on_pr_id(pr['id']+1, 'SUCCESSFUL', key='pipelin')
         self.set_build_status_on_pr_id(pr['id']+2, 'SUCCESSFUL', key='pipelin')
         self.set_build_status_on_pr_id(pr['id']+3, 'SUCCESSFUL', key='pipelin')
-        retcode = self.handle(pr['id'],
-                              options=self.bypass_all_but_build_status)
-        self.assertEqual(retcode, BuildNotStarted.code)
+        with self.assertRaises(BuildNotStarted):
+            self.handle(pr['id'],
+                        options=self.bypass_all_but_build_status,
+                        backtrace=True)
 
         # test build status failed
         self.set_build_status_on_pr_id(pr['id']+1, 'SUCCESSFUL')
@@ -820,9 +824,10 @@ class TestWallE(unittest.TestCase):
         self.set_build_status_on_pr_id(pr['id']+1, 'SUCCESSFUL')
         self.set_build_status_on_pr_id(pr['id']+2, 'INPROGRESS')
         self.set_build_status_on_pr_id(pr['id']+3, 'SUCCESSFUL')
-        retcode = self.handle(pr['id'],
-                              options=self.bypass_all_but_build_status)
-        self.assertEqual(retcode, BuildInProgress.code)
+        with self.assertRaises(BuildInProgress):
+            self.handle(pr['id'],
+                        options=self.bypass_all_but_build_status,
+                        backtrace=True)
 
         # test bypass tester approval through comment
         pr = self.create_pr('bugfix/RING-00078', 'development/4.3')
@@ -849,6 +854,89 @@ class TestWallE(unittest.TestCase):
         )
         with self.assertRaises(NotMyJob):
             self.handle(pr['id'], backtrace=True)
+
+    def test_source_branch_history_changed(self):
+        pr = self.create_pr('bugfix/RING-00001', 'development/4.3')
+        with self.assertRaises(BuildNotStarted):
+            self.handle(pr['id'],
+                        options=self.bypass_all_but_build_status,
+                        backtrace=True)
+        # see what happens when the source branch is deleted
+        self.gitrepo.cmd('git checkout development/4.3')
+        self.gitrepo.cmd('git push origin :bugfix/RING-00001')
+        self.gitrepo.cmd('git branch -D bugfix/RING-00001')
+        with self.assertRaises(NothingToDo):
+            self.handle(pr['id'],
+                        options=self.bypass_all,
+                        backtrace=True)
+        # recreate branch with a different history
+        create_branch(self.gitrepo, 'bugfix/RING-00001',
+                      from_branch='development/4.3', file_="a_new_file")
+        retcode = self.handle(pr['id'],
+                              options=self.bypass_all_but_build_status)
+        self.assertEqual(retcode, BranchHistoryMismatch.code)
+
+    def test_source_branch_commit_added(self):
+        pr = self.create_pr('bugfix/RING-00001', 'development/4.3')
+        with self.assertRaises(BuildNotStarted):
+            self.handle(pr['id'],
+                        options=self.bypass_all_but_build_status,
+                        backtrace=True)
+        add_file_to_branch(self.gitrepo, 'bugfix/RING-00001',
+                           'file_added_on_source_branch')
+        retcode = self.handle(pr['id'],
+                              options=self.bypass_all)
+        self.assertEqual(retcode, SuccessMessage.code)
+
+    def test_source_branch_forced_pushed(self):
+        pr = self.create_pr('bugfix/RING-00001', 'development/4.3')
+        with self.assertRaises(BuildNotStarted):
+            self.handle(pr['id'],
+                        options=self.bypass_all_but_build_status,
+                        backtrace=True)
+        create_branch(self.gitrepo, 'bugfix/RING-00002',
+                      from_branch='development/4.3',
+                      file_="another_new_file", do_push=False)
+        self.gitrepo.cmd(
+            'git push -u -f origin bugfix/RING-00002:bugfix/RING-00001')
+        retcode = self.handle(pr['id'],
+                              options=self.bypass_all)
+        self.assertEqual(retcode, BranchHistoryMismatch.code)
+
+    def test_integration_branch_and_source_branch_updated(self):
+        pr = self.create_pr('bugfix/RING-00001', 'development/4.3')
+        with self.assertRaises(BuildNotStarted):
+            self.handle(pr['id'],
+                        options=self.bypass_all_but_build_status,
+                        backtrace=True)
+        first_integration_branch = 'w/4.3/bugfix/RING-00001'
+        self.gitrepo.cmd('git pull')
+        add_file_to_branch(self.gitrepo, first_integration_branch,
+                           'file_added_on_int_branch')
+        add_file_to_branch(self.gitrepo, 'bugfix/RING-00001',
+                           'file_added_on_source_branch')
+        retcode = self.handle(pr['id'],
+                              options=self.bypass_all)
+        self.assertEqual(retcode, BranchHistoryMismatch.code)
+
+    def test_integration_branch_and_source_branch_force_updated(self):
+        pr = self.create_pr('bugfix/RING-00001', 'development/4.3')
+        with self.assertRaises(BuildNotStarted):
+            self.handle(pr['id'],
+                        options=self.bypass_all_but_build_status,
+                        backtrace=True)
+        first_integration_branch = 'w/4.3/bugfix/RING-00001'
+        self.gitrepo.cmd('git pull')
+        add_file_to_branch(self.gitrepo, first_integration_branch,
+                           'file_added_on_int_branch')
+        create_branch(self.gitrepo, 'bugfix/RING-00002',
+                      from_branch='development/4.3',
+                      file_="another_new_file", do_push=False)
+        self.gitrepo.cmd(
+            'git push -u -f origin bugfix/RING-00002:bugfix/RING-00001')
+        retcode = self.handle(pr['id'],
+                              options=self.bypass_all)
+        self.assertEqual(retcode, BranchHistoryMismatch.code)
 
 
 def main():

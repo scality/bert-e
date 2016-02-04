@@ -343,13 +343,13 @@ class FeatureBranch(BranchName):
         match = re.match('(?P<issue_id>(?P<key>[A-Z]+)-\d+).*',
                          self.subname)
         if match:
-            self.jira_issue_id = match.group('issue_id')
-            self.jira_project_key = match.group('key')
+            self.jira_issue_key = match.group('issue_id')
+            self.jira_project = match.group('key')
         else:
             logging.warning('%s does not contain a correct '
                             'issue id number', self.name)
-            self.jira_issue_id = None
-            self.jira_project_key = None
+            self.jira_issue_key = None
+            self.jira_project = None
 
 
 class DestinationBranch(BranchName):
@@ -612,15 +612,15 @@ class WallE:
             regexp = r"\s*(?P<keywords>(\s+\w+)+)\s*$"
             match_ = re.match(regexp, raw_cleaned)
             if not match_:
-                logging.warning('Keyword comment ignored. '
-                                'Unknown format: %s', raw)
+                logging.debug('Keyword comment ignored. '
+                              'Not an option, unknown format: %s', raw)
                 continue
 
             keywords = match_.group('keywords').strip().split()
 
             if not self._check_options(author, pr_author, keywords):
                 logging.debug('Keyword comment ignored. '
-                              'Checks failed: %s', raw)
+                              'Not an option, checks failed: %s', raw)
                 continue
 
             for keyword in keywords:
@@ -672,14 +672,14 @@ class WallE:
             match_ = re.match(regexp, raw_cleaned)
             if not match_:
                 logging.warning('Command comment ignored. '
-                                'Unknown format: %s' % raw)
+                                'Not a command, unknown format: %s' % raw)
                 continue
 
             command = match_.group('command')
 
             if not self._check_command(author, command):
-                logging.warning('Command comment ignored. '
-                                'Checks failed: %s' % raw)
+                logging.debug('Command comment ignored. '
+                              'Not a command, checks failed: %s' % raw)
                 continue
 
             # get command handler and execute it
@@ -730,7 +730,7 @@ class WallE:
                     destination=destination_branch)
 
     def _jira_check_reference(self):
-        if self.source_branch.jira_issue_id:
+        if self.source_branch.jira_issue_key:
             return
 
         for destination_branch in self.destination_branches:
@@ -748,31 +748,35 @@ class WallE:
             else:
                 raise
 
+        if issue.fields.issuetype.name != 'Sub-task':
+            return (issue, None)
+
         # Use parent task if subtask
-        if issue.fields.issuetype.name == 'Sub-task':
-            try:
-                parent_id = issue.fields.parent.key
-                issue = JiraIssue(issue_id=parent_id, login='wall_e',
-                                  passwd=self._bbconn.auth.password)
-            except JIRAError as e:
-                if e.status_code == 404:
-                    raise ParentJiraIssueNotFound(parent=parent_id,
-                                                  issue=issue_id)
-                else:
-                    raise
+        subtask = issue
+        try:
+            parent_id = issue.fields.parent.key
+            issue = JiraIssue(issue_id=parent_id, login='wall_e',
+                              passwd=self._bbconn.auth.password)
+        except JIRAError as e:
+            if e.status_code == 404:
+                raise ParentJiraIssueNotFound(parent_id=parent_id,
+                                              subtask=subtask)
+            else:
+                raise
 
-        return issue
+        return (issue, subtask)
 
-    def _jira_check_project(self, issue):
+    def _jira_check_project(self, issue, subtask):
         # check the project
-        if (self.source_branch.jira_project_key !=
+        if (self.source_branch.jira_project !=
                 self.settings['jira_key']):
             raise IncorrectJiraProject(
                 expected_project=self.settings['jira_key'],
-                issue=issue.key
+                issue=issue,
+                subtask=subtask
             )
 
-    def _jira_check_issue_type(self, issue):
+    def _jira_check_issue_type(self, issue, subtask):
         issuetype = issue.fields.issuetype.name
         expected_prefix = JIRA_ISSUE_BRANCH_PREFIX.get(issuetype)
         if expected_prefix is None:
@@ -781,18 +785,20 @@ class WallE:
             raise MismatchPrefixIssueType(prefix=self.source_branch.prefix,
                                           expected=expected_prefix,
                                           pairs=JIRA_ISSUE_BRANCH_PREFIX,
-                                          issue=issue.key)
+                                          issue=issue,
+                                          subtask=subtask)
 
-    def _jira_check_version(self, issue):
+    def _jira_check_version(self, issue, subtask):
         issue_versions = set([version.name for version in
                               issue.fields.fixVersions])
         expect_versions = set(
             self.target_versions.values())
 
         if issue_versions != expect_versions:
-            raise IncorrectFixVersion(issue=issue.key,
-                                      issues=issue_versions,
-                                      expects=expect_versions)
+            raise IncorrectFixVersion(issue=issue,
+                                      subtask=subtask,
+                                      issue_versions=issue_versions,
+                                      expect_versions=expect_versions)
 
     def _jira_checks(self):
         """Check the Jira issue id specified in the source branch."""
@@ -804,12 +810,12 @@ class WallE:
 
         self._jira_check_reference()
 
-        issue_id = self.source_branch.jira_issue_id
-        issue = self._jira_get_issue(issue_id)
+        issue_id = self.source_branch.jira_issue_key
+        (issue, subtask) = self._jira_get_issue(issue_id)
 
-        self._jira_check_project(issue)
-        self._jira_check_issue_type(issue)
-        self._jira_check_version(issue)
+        self._jira_check_project(issue, subtask)
+        self._jira_check_issue_type(issue, subtask)
+        self._jira_check_version(issue, subtask)
 
     def _clone_git_repo(self, reference_git_repo):
         git_repo = GitRepository(self.bbrepo.get_git_url())
@@ -819,6 +825,14 @@ class WallE:
         return git_repo
 
     def _check_git_repo_health(self, git_repo):
+        # check source branch still exists
+        # (it may have been deleted by developers)
+        try:
+            Branch(git_repo, self.source_branch.name).checkout()
+        except CheckoutFailedException:
+            raise NothingToDo(self.source_branch.name)
+
+        # check target branches
         previous_dev_branch_name = '%s/%s' % (
             self.settings['development_branch']['prefix'],
             list(self.settings['development_branch']['versions'])[0]
@@ -1000,9 +1014,9 @@ class WallE:
         if g_state == 'FAILED':
             raise BuildFailed(pr_id=worst_pr['id'])
         elif g_state == 'NOTSTARTED':
-            raise BuildNotStarted(pr_id=worst_pr['id'])
+            raise BuildNotStarted()
         elif g_state == 'INPROGRESS':
-            raise BuildInProgress(pr_id=worst_pr['id'])
+            raise BuildInProgress()
         assert build_state == 'SUCCESSFUL'
 
     def handle_pull_request(self, reference_git_repo='',
@@ -1048,9 +1062,8 @@ class WallE:
 
             self._check_git_repo_health(repo)
 
-        raise SuccessMessage(versions=[x.version for x in
-                                       integration_branches],
-                             issue=self.source_branch.jira_issue_id,
+        raise SuccessMessage(branches=self.destination_branches,
+                             issue=self.source_branch.jira_issue_key,
                              author=self.author)
 
 

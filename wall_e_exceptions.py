@@ -39,51 +39,51 @@ class HelpMessage(WallE_TemplateException):
     dont_repeat_if_in_history = 0  # allow repeating if requested by user
 
 
-class CommandNotImplemented(WallE_TemplateException):
+class SuccessMessage(WallE_TemplateException):
     code = 102
+    template = 'successful_merge.md'
+
+
+class CommandNotImplemented(WallE_TemplateException):
+    code = 103
     template = 'not_implemented.md'
     dont_repeat_if_in_history = 0  # allow repeating if requested by user
 
 
 class StatusReport(WallE_TemplateException):
-    code = 103
+    code = 104
     template = 'status.md'
     dont_repeat_if_in_history = 0  # allow repeating if requested by user
 
 
-class BuildFailed(WallE_TemplateException):
-    code = 104
-    template = 'build_failed.md'
-
-
-class BuildInProgress(WallE_TemplateException):
+class IncorrectSourceBranchName(WallE_TemplateException):
     code = 105
-    template = 'build_in_progress.md'
+    template = 'incorrect_source_branch_name.md'
 
 
-class BuildNotStarted(WallE_TemplateException):
+class IncompatibleSourceBranchPrefix(WallE_TemplateException):
     code = 106
-    template = 'build_not_started.md'
-
-
-class Conflict(WallE_TemplateException):
-    code = 107
-    template = 'conflict.md'
-
-
-class AuthorApprovalRequired(WallE_TemplateException):
-    code = 108
-    template = 'need_approval.md'
-
-
-class PeerApprovalRequired(WallE_TemplateException):
-    code = 109
-    template = 'need_approval.md'
+    template = 'incompatible_source_branch_prefix.md'
 
 
 class MissingJiraId(WallE_TemplateException):
-    code = 110
+    code = 107
     template = 'missing_jira_id.md'
+
+
+class JiraIssueNotFound(WallE_TemplateException):
+    code = 108
+    template = 'jira_issue_not_found.md'
+
+
+class ParentJiraIssueNotFound(JiraIssueNotFound):
+    code = 109
+    template = 'parent_jira_issue_not_found.md'
+
+
+class IncorrectJiraProject(WallE_TemplateException):
+    code = 110
+    template = 'incorrect_jira_project.md'
 
 
 class MismatchPrefixIssueType(WallE_TemplateException):
@@ -96,44 +96,34 @@ class IncorrectFixVersion(WallE_TemplateException):
     template = 'incorrect_fix_version.md'
 
 
-class IncorrectSourceBranchName(WallE_TemplateException):
-    code = 113
-    template = 'incorrect_source_branch_name.md'
-
-
-class IncompatibleSourceBranchPrefix(WallE_TemplateException):
-    code = 114
-    template = 'incompatible_source_branch_prefix.md'
-
-
 class BranchHistoryMismatch(WallE_TemplateException):
-    code = 115
+    code = 113
     template = 'history_mismatch.md'
 
 
-class JiraIssueNotFound(WallE_TemplateException):
-    code = 116
-    template = 'jira_issue_not_found.md'
+class Conflict(WallE_TemplateException):
+    code = 114
+    template = 'conflict.md'
 
 
-class ParentJiraIssueNotFound(JiraIssueNotFound):
-    code = 117
-    template = 'parent_jira_issue_not_found.md'
-
-
-class SuccessMessage(WallE_TemplateException):
-    code = 118
-    template = 'successfull_merge.md'
-
-
-class TesterApprovalRequired(WallE_TemplateException):
-    code = 119
+class AuthorApprovalRequired(WallE_TemplateException):
+    code = 115
     template = 'need_approval.md'
 
 
-class IncorrectJiraProject(WallE_TemplateException):
-    code = 120
-    template = 'incorrect_jira_project.md'
+class PeerApprovalRequired(WallE_TemplateException):
+    code = 116
+    template = 'need_approval.md'
+
+
+class TesterApprovalRequired(WallE_TemplateException):
+    code = 117
+    template = 'need_approval.md'
+
+
+class BuildFailed(WallE_TemplateException):
+    code = 118
+    template = 'build_failed.md'
 
 
 # internal exceptions
@@ -190,4 +180,12 @@ class NotMyJob(WallE_SilentException):
 
 
 class NothingToDo(WallE_SilentException):
+    pass
+
+
+class BuildInProgress(WallE_SilentException):
+    pass
+
+
+class BuildNotStarted(WallE_SilentException):
     pass
