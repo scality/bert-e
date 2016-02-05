@@ -10,7 +10,8 @@ import logging
 class Repository(object):
     def __init__(self, url):
         self._url = url
-        self.directory = mkdtemp()
+        self.tmp_directory = mkdtemp()
+        self.cmd_directory = self.tmp_directory
 
     def __enter__(self):
         return self
@@ -19,15 +20,17 @@ class Repository(object):
         self.delete()
 
     def delete(self):
-        rmtree(self.directory)
-        self.directory = None
+        rmtree(self.tmp_directory)
+        self.tmp_directory = None
+        self.cmd_directory = None
 
     def clone(self, reference=''):
         if reference:
             reference = '--reference ' + reference
         self.cmd('git clone %s %s' % (reference, self._url))
         repo_slug = self._url.split('/')[-1].replace('.git', '')
-        self.directory = os.path.join(self.directory, repo_slug)
+        # all commands will now execute from repo directory
+        self.cmd_directory = os.path.join(self.tmp_directory, repo_slug)
 
     def config(self, key, value):
         self.cmd('git config %s %s' % (key, value))
@@ -62,7 +65,7 @@ class Repository(object):
             raise PushFailedException(name)
 
     def cmd(self, command, retry=0, **kwargs):
-        cwd = kwargs.get('cwd', self.directory)
+        cwd = kwargs.get('cwd', self.cmd_directory)
         try:
             ret = cmd(command, cwd=cwd, **kwargs)
         except subprocess.CalledProcessError:
