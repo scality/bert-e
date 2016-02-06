@@ -70,6 +70,10 @@ SETTINGS = {
         'release_branch': {
             'prefix': 'release'
         },
+        'stabilization_branch': {
+            'prefix': 'stabilization',
+            'versions': OrderedDict([('4.3.18', None)])
+        },
         'development_branch': {
             'prefix': 'development',
             'versions': OrderedDict([
@@ -145,6 +149,9 @@ SETTINGS = {
         'release_branch': {
             'prefix': 'release'
         },
+        'stabilization_branch': {
+            'prefix': 'stabilization'
+        },
         'development_branch': {
             'prefix': 'development',
             'versions': OrderedDict([
@@ -189,6 +196,9 @@ SETTINGS = {
         'build_key': 'autotest',
         'release_branch': {
             'prefix': 'release'
+        },
+        'stabilization_branch': {
+            'prefix': 'stabilization'
         },
         'development_branch': {
             'prefix': 'development',
@@ -352,12 +362,12 @@ class FeatureBranch(BranchName):
 
 
 class DestinationBranch(BranchName):
-    def __init__(self, name, settings):
+    def __init__(self, name):
         super(DestinationBranch, self).__init__(name)
         self.prefix, self.version = name.split('/', 1)
-        self.upcoming_release = settings['upcoming_release']
-        self.allow_ticketless = settings['allow_ticketless']
-        self.allow_prefix = settings['allow_prefix']
+        #self.upcoming_release = settings['upcoming_release']
+        #self.allow_ticketless = settings['allow_ticketless']
+        #self.allow_prefix = settings['allow_prefix']
 
 
 class IntegrationBranch(Branch):
@@ -531,20 +541,28 @@ class WallE:
                               % self.main_pr['state'])
 
     def _check_if_ignored(self, src_branch_name, dst_branch_name):
-        # check selected destination branch
-        dev_branch_settings = self.settings['development_branch']
-        prefix = dev_branch_settings['prefix']
-        match_ = re.match("%s/(?P<version>.*)" % prefix, dst_branch_name)
-        if not match_:
-            raise NotMyJob(src_branch_name, dst_branch_name)
-
-        if match_.group('version') not in dev_branch_settings['versions']:
-            raise NotMyJob(src_branch_name, dst_branch_name)
-
         # check feature branch
         for prefix in self.settings['feature_branch']['ignore_prefix']:
             if src_branch_name.startswith(prefix):
                 raise NotMyJob(src_branch_name, dst_branch_name)
+
+        # check selected destination branch
+        dev_branch_settings = self.settings['development_branch']
+        prefix = dev_branch_settings['prefix']
+        match_ = re.match("%s/(?P<version>.*)" % prefix, dst_branch_name)
+        if match_ and match_.group('version') in dev_branch_settings['versions']:
+            return
+
+        stb_branch_settings = self.settings['stabilization_branch']
+        prefix = stb_branch_settings['prefix']
+        match_ = re.match("%s/(?P<version>.*)" % prefix, dst_branch_name)
+        if match_ and match_.group('version') in stb_branch_settings['versions']:
+            return
+
+        raise NotMyJob(src_branch_name, dst_branch_name)
+
+
+
 
     def _send_greetings(self, comments):
         """Displays a welcome message if conditions are met."""
@@ -843,6 +861,14 @@ class WallE:
                                                   dev_branch_name)
             previous_dev_branch_name = dev_branch_name
 
+    def _extract_destination_branches(self, git_repo):
+        print git_repo.cmd('git branch -a')
+        for branch in git_repo.cmd('git branch -a').split('\n')[:-1]:
+            branch = branch[17:]
+            print branch
+            self.destination_branches.append(DestinationBranch(branch))
+        print self.destination_branches
+
     def _create_integration_branches(self, repo):
         integration_branches = []
         for version in self.target_versions:
@@ -1014,6 +1040,10 @@ class WallE:
         dst_branch_name = self.main_pr['destination']['branch']['name']
         src_branch_name = self.main_pr['source']['branch']['name']
 
+        with self._clone_git_repo(reference_git_repo) as repo:
+            #self._check_git_repo_health(repo)
+            self._extract_destination_branches(repo)
+
         self._check_if_ignored(src_branch_name, dst_branch_name)
 
         # read comments and store them for multiple usage
@@ -1026,6 +1056,8 @@ class WallE:
         if self.option_is_set('wait'):
             raise NothingToDo('wait option is set')
 
+
+
         self._build_target_versions(dst_branch_name)
         self._setup_source_branch(src_branch_name, dst_branch_name)
         self._setup_destination_branches(src_branch_name, dst_branch_name)
@@ -1033,7 +1065,7 @@ class WallE:
         self._jira_checks()
 
         with self._clone_git_repo(reference_git_repo) as repo:
-            self._check_git_repo_health(repo)
+            # self._check_git_repo_health(repo)
             integration_branches = self._create_integration_branches(repo)
             self._update_integration_from_dev(integration_branches)
             self._update_integration_from_feature(integration_branches)

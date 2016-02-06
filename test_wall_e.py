@@ -49,20 +49,23 @@ def initialize_git_repo(repo, username, usermail):
     repo.cmd('git add a')
     repo.cmd('git commit -m "Initial commit"')
     repo.cmd('git remote add origin ' + repo._url)
-    for version in ['4.3', '5.1', '6.0', 'trunk']:
-        create_branch(repo, 'release/'+version, do_push=False)
-        create_branch(repo, 'development/'+version,
-                      'release/'+version, file_=True, do_push=False)
+    for version in ['4.3.18', '5.1.4', '6.0.0']:
+        major_minor = version[0:3]
+        create_branch(repo, 'release/'+major_minor, do_push=False)
+        create_branch(repo, 'stabilization/'+version,
+                      'release/'+major_minor, file_=True, do_push=False)
+        create_branch(repo, 'development/'+major_minor,
+                      'stabilization/'+version, file_=True, do_push=False)
 
-        # following commands fail randomly on bitbucket, so retry
-        repo.cmd('git push -u origin release/'+version, retry=3)
-        repo.cmd('git push -u origin development/'+version, retry=3)
+    repo.cmd('git branch -d master')
+    # the following command fail randomly on bitbucket, so retry
+    repo.cmd("git push --all origin", retry=3)
 
 
 def create_branch(repo, name, from_branch=None, file_=False, do_push=True):
     if from_branch:
         repo.cmd('git checkout '+from_branch)
-    repo.cmd('git checkout -b '+name)
+    repo.cmd('git checkout -b %s' % name)
     if file_:
         add_file_to_branch(repo, name, file_, do_push)
 
@@ -246,7 +249,8 @@ class TestWallE(unittest.TestCase):
             feature_branch,
             from_branch,
             reviewers=None,
-            file_=True):
+            file_=True,
+            backtrace=False):
         if reviewers is None:
             reviewers = [self.creator]
         create_branch(self.gitrepo, feature_branch, from_branch=from_branch,
@@ -260,7 +264,7 @@ class TestWallE(unittest.TestCase):
             reviewers=[{'username': rev} for rev in reviewers],
             description=''
         )
-        retcode = self.handle(pr['id'])
+        retcode = self.handle(pr['id'], backtrace=backtrace)
         self.assertEqual(retcode, InitMessage.code)
         return pr
 
@@ -941,6 +945,25 @@ class TestWallE(unittest.TestCase):
         retcode = self.handle(pr['id'],
                               options=self.bypass_all)
         self.assertEqual(retcode, BranchHistoryMismatch.code)
+
+
+    def test_push_into_stabilization_branch(self):
+        pr = self.create_pr('bugfix/RING-00001', 'stabilization/4.3.18', backtrace=True)
+        self.handle(pr['id'],
+                        options=self.bypass_all,
+                        backtrace=True)
+        #first_integration_branch = 'w/4.3/bugfix/RING-00001'
+        #self.gitrepo.cmd('git pull')
+        #add_file_to_branch(self.gitrepo, first_integration_branch,
+        #                   'file_added_on_int_branch')
+        #create_branch(self.gitrepo, 'bugfix/RING-00002',
+        #              from_branch='development/4.3',
+        #              file_="another_new_file", do_push=False)
+        #self.gitrepo.cmd(
+        #    'git push -u -f origin bugfix/RING-00002:bugfix/RING-00001')
+        #retcode = self.handle(pr['id'],
+        #                      options=self.bypass_all)
+        #self.assertEqual(retcode, BranchHistoryMismatch.code)
 
 
 def main():
