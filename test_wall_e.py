@@ -7,9 +7,12 @@ import sys
 import unittest
 import requests
 
+
+from bitbucket_api_mock import (Client,
+                                Repository as BitbucketRepository)
 import wall_e
-from bitbucket_api import (Client,
-                           Repository as BitbucketRepository)
+wall_e.BitBucketRepository = BitbucketRepository
+wall_e.Client = Client
 from git_api import Repository as GitRepository
 from wall_e_exceptions import (AuthorApprovalRequired,
                                BranchHistoryMismatch,
@@ -235,6 +238,7 @@ class TestWallE(unittest.TestCase):
                             self.args.your_mail)
 
     def tearDown(self):
+        self.bbrepo.delete()
         self.gitrepo.delete()
 
     def create_pr(
