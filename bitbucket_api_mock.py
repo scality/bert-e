@@ -249,9 +249,8 @@ class Comment(BitBucketObject):
 
     @staticmethod
     def get_list(client, full_name, pull_request_id):
-        return [c for c in Comment.items
-                if c.full_name == full_name
-                and c.pull_request_id == pull_request_id]
+        return [c for c in Comment.items if c.full_name == full_name and
+                c.pull_request_id == pull_request_id]
 
 
 class BuildStatus(BitBucketObject):

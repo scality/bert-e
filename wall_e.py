@@ -15,8 +15,7 @@ import requests
 import six
 
 from template_loader import render
-from bitbucket_api import (Repository as BitBucketRepository,
-                           Client)
+import bitbucket_api
 from git_api import (Repository as GitRepository,
                      Branch,
                      MergeFailedException,
@@ -424,13 +423,12 @@ class IntegrationBranch(Branch):
 class WallE:
     def __init__(self, bitbucket_login, bitbucket_password, bitbucket_mail,
                  owner, slug, pull_request_id, options, commands, settings):
-        self._bbconn = Client(bitbucket_login,
-                              bitbucket_password, bitbucket_mail)
-        self.bbrepo = BitBucketRepository(self._bbconn, owner=owner,
-                                          repo_slug=slug)
+        self._bbconn = bitbucket_api.Client(
+            bitbucket_login, bitbucket_password, bitbucket_mail)
+        self.bbrepo = bitbucket_api.Repository(
+            self._bbconn, owner=owner, repo_slug=slug)
         self.main_pr = self.bbrepo.get_pull_request(
-            pull_request_id=pull_request_id
-        )
+            pull_request_id=pull_request_id)
         self.author = self.main_pr['author']['username']
         if WALL_E_USERNAME == self.author:
             res = re.search('(?P<pr_id>\d+)',

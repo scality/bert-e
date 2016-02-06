@@ -7,12 +7,9 @@ import sys
 import unittest
 import requests
 
-
-from bitbucket_api_mock import (Client,
-                                Repository as BitbucketRepository)
+import bitbucket_api
+import bitbucket_api_mock
 import wall_e
-wall_e.BitBucketRepository = BitbucketRepository
-wall_e.Client = Client
 from git_api import Repository as GitRepository
 from wall_e_exceptions import (AuthorApprovalRequired,
                                BranchHistoryMismatch,
@@ -193,16 +190,17 @@ class TestWallE(unittest.TestCase):
         # repo creator and reviewer
         self.creator = self.args.your_login
         assert self.args.your_login in wall_e.SETTINGS['ring']['admins']
-        client = Client(self.args.your_login,
-                        self.args.your_password,
-                        self.args.your_mail)
-        self.bbrepo = BitbucketRepository(client,
-                                          owner='scality',
-                                          repo_slug=('%s_%s'
-                                                     % (self.args.repo_prefix,
-                                                        self.args.your_login)),
-                                          is_private=True,
-                                          scm='git')
+        client = bitbucket_api.Client(
+            self.args.your_login,
+            self.args.your_password,
+            self.args.your_mail)
+        self.bbrepo = bitbucket_api.Repository(
+            client,
+            owner='scality',
+            repo_slug=('%s_%s' % (self.args.repo_prefix,
+                                  self.args.your_login)),
+            is_private=True,
+            scm='git')
         try:
             self.bbrepo.delete()
         except requests.exceptions.HTTPError as e:
@@ -213,20 +211,22 @@ class TestWallE(unittest.TestCase):
 
         # Use Eva as our unprivileged user
         assert EVA_USERNAME not in wall_e.SETTINGS['ring']['admins']
-        client_eva = Client(EVA_USERNAME,
-                            self.args.eva_password,
-                            EVA_EMAIL)
-        self.bbrepo_eva = BitbucketRepository(
+        client_eva = bitbucket_api.Client(
+            EVA_USERNAME,
+            self.args.eva_password,
+            EVA_EMAIL)
+        self.bbrepo_eva = bitbucket_api.Repository(
             client_eva,
             owner='scality',
             repo_slug=('%s_%s' % (self.args.repo_prefix,
                                   self.args.your_login)),
         )
         # Wall-E may want to comment manually too
-        client_wall_e = Client(WALL_E_USERNAME,
-                               self.args.wall_e_password,
-                               WALL_E_EMAIL)
-        self.bbrepo_wall_e = BitbucketRepository(
+        client_wall_e = bitbucket_api.Client(
+            WALL_E_USERNAME,
+            self.args.wall_e_password,
+            WALL_E_EMAIL)
+        self.bbrepo_wall_e = bitbucket_api.Repository(
             client_wall_e,
             owner='scality',
             repo_slug=('%s_%s' % (self.args.repo_prefix,
@@ -962,6 +962,8 @@ def main():
                         help='Verbose mode')
     parser.add_argument('--failfast', action='store_true', default=False,
                         help='Return on first failure')
+    parser.add_argument('--disable_mock', action='store_true', default=False,
+                        help='Return on first failure')
     TestWallE.args = parser.parse_args()
 
     if TestWallE.args.your_login == WALL_E_USERNAME:
@@ -976,6 +978,10 @@ def main():
         print('Cannot use %s as the tester, it does not belong to '
               'admins.' % TestWallE.args.your_login)
         sys.exit(1)
+
+    if not TestWallE.args.disable_mock:
+        bitbucket_api.Client = bitbucket_api_mock.Client
+        bitbucket_api.Repository = bitbucket_api_mock.Repository
 
     if TestWallE.args.verbose:
         logging.basicConfig(level=logging.DEBUG)
