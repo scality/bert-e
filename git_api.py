@@ -29,6 +29,12 @@ class Repository(object):
         repo_slug = self._url.split('/')[-1].replace('.git', '')
         self.directory = os.path.join(self.directory, repo_slug)
 
+    def get_all_branches_locally(self):
+        for remote in self.cmd("git branch -r").split('\n')[:-1]:
+            local = remote.replace('origin/', '')
+            self.cmd('git checkout ' + local)
+
+
     def config(self, key, value):
         self.cmd('git config %s %s' % (key, value))
 
