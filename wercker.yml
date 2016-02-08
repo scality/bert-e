@@ -26,6 +26,10 @@ build:
           JSON="{\"state\": \"INPROGRESS\",\"key\": \"WERCKER_BUILD\",\"name\": \"wall-e tests\",\"url\": \"$WERCKER_BUILD_URL\",\"description\": \"Building $WERCKER_GIT_BRANCH...\"}"
           curl -u $USER_NAME:$USER_PWD -H "Content-Type: application/json" -X POST https://api.bitbucket.org/2.0/repositories/scality/wall-e/commit/$WERCKER_GIT_COMMIT/statuses/build -d "$JSON"
     - script:
+        name: flake8 checks
+        code: |
+          flake8 *.py
+    - script:
         name: run tests
         code: |
           coverage run test_wall_e.py --failfast $WALL_E_PWD $EVE_PWD $USER_NAME $USER_PWD $USER_MAIL 

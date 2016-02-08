@@ -107,12 +107,15 @@ class Branch(object):
 
     def includes_commit(self, sha1):
         try:
-            name = 'origin/' + self.name
-            self.checkout()
-            self.repo.cmd('git merge-base --is-ancestor %s %s' % (sha1, name))
+            self.repo.cmd('git merge-base --is-ancestor %s %s' % (sha1,
+                                                                  self.name))
         except subprocess.CalledProcessError:
             return False
         return True
+
+    def get_latest_commit(self):
+        return self.repo.cmd(('git log -1 --format="%%H" %s ' %
+                              self.name))[0:12]
 
     def exists(self):
         try:
