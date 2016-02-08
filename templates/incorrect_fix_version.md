@@ -21,6 +21,6 @@ Considering where you are trying to merge, I expected to find:
 * *None*
 {% endfor %}
 
-Please check the `Fix Version/s` of {{ issue }}, or the target
+Please check the `Fix Version/s` of {{ issue.key }}, or the target
 branch of this pull request.
 {% endblock %}
