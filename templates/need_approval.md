@@ -1,29 +1,34 @@
-Please approve this pull request (reviewers and author), if you think
-that the integration pull requests are **ready to be merged**.
+{% extends "message.md" %}
 
-Before approving, you should double check the diffs of the integration
-pull requests to ensure that the changesets I'm about to merge into the
-development branches are correct:
+{% block title -%}
+Waiting for approval
+{% endblock %}
 
-* this pull request #{{ pr['id'] }}
-will merge `{{ pr['source']['branch']['name'] }}`
-into `{{ pr['destination']['branch']['name'] }}`
+{% block message %}
+The following approvals are missing before I can proceed with the merge:
+
+{% if not author_approval %}
+* the author
+{% endif %}
+{% if not peer_approval %}
+* at least one peer
+{% endif %}
+{% if not tester_approval %}
+* at least one tester
+{% endif %}
+
+*Please note*
+
+The integration branches and associated pull requests have been created,
+and now is a great time to review that the changesets match your expectations.
+You may also cancel a changeset on a specific target version if required.
+
 {% for pr in child_prs -%}
- * pull request #{{ pr['id'] }} will merge `{{ pr['source']['branch']['name'] }}`
+* child pull request #{{ pr['id'] }} will merge `{{ pr['source']['branch']['name'] }}`
  into `{{ pr['destination']['branch']['name'] }}`
 {% endfor %}
-If you think that one of the auto-generated changesets is not ok, you can
-modify the `w/*` integration branches accordingly.
 
-For example, if you don't want this changeset to land in
-`{{ child_prs[0]['destination']['branch']['name'] }}`:
-
-```
-#!bash
- $ git fetch
- $ git checkout {{ child_prs[0]['source']['branch']['name'] }}
- $ git log --oneline # to have the <sha1> of the commit(s) you need to revert
- $ git revert <sha1>
- $ git push
-```
-I will then relaunch the checks with your new changesets and try to merge.
+The method to update the changeset is described in each child pull request. I will
+re-analyse this pull request automatically after changes are pushed to the central
+repository.
+{% endblock %}

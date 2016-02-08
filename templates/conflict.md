@@ -1,17 +1,24 @@
-There was a conflict during the merge of
-`{{ source.name }}` into `{{ destination.name }}`.
+{% extends "message.md" %}
+
+{% block title -%}
+Conflict during merge
+{% endblock %}
+
+{% block message %}
+A conflict has been raised during the merge of `{{ source.name }}`
+into integration branch `{{ destination.name }}`. You must
+resolve the conflict on the integration branch manually.
 
 Here are the steps to resolve this conflict:
 
 ```
-#!bash\n
+#!bash
  $ git fetch
  $ git checkout {{ destination.name }}
  $ git merge origin/{{ source.name }}
- $ # intense conflict fixing
- $ git add <any modified file>
- $ git commit
+ $ # <intense conflict resolution>
  $ git push
 ```
 
-After the push, please comment the original PR to resume the procedure.
+After the push, please comment here to resume the procedure.
+{% endblock %}

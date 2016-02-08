@@ -6,7 +6,15 @@ from template_loader import render
 
 # base exceptions
 class WallE_TemplateException(Exception):
+    code = 0
+    template = None
+    # whether to re-publish if the message is already in the history
+    dont_repeat_if_in_history = 10
+
     def __init__(self, **kwargs):
+        assert self.code != 0
+        assert self.template
+        assert self.dont_repeat_if_in_history >= 0
         self.msg = render(self.template, code=self.code, **kwargs)
         super(WallE_TemplateException, self).__init__(self.msg)
 
@@ -28,51 +36,54 @@ class InitMessage(WallE_TemplateException):
 class HelpMessage(WallE_TemplateException):
     code = 101
     template = 'help.md'
+    dont_repeat_if_in_history = 0  # allow repeating if requested by user
+
+
+class SuccessMessage(WallE_TemplateException):
+    code = 102
+    template = 'successful_merge.md'
 
 
 class CommandNotImplemented(WallE_TemplateException):
-    code = 102
+    code = 103
     template = 'not_implemented.md'
+    dont_repeat_if_in_history = 0  # allow repeating if requested by user
 
 
 class StatusReport(WallE_TemplateException):
-    code = 103
-    template = 'status.md'
-
-
-class BuildFailed(WallE_TemplateException):
     code = 104
-    template = 'build_failed.md'
+    template = 'status.md'
+    dont_repeat_if_in_history = 0  # allow repeating if requested by user
 
 
-class BuildInProgress(WallE_TemplateException):
+class IncorrectSourceBranchName(WallE_TemplateException):
     code = 105
-    template = 'build_in_progress.md'
+    template = 'incorrect_source_branch_name.md'
 
 
-class BuildNotStarted(WallE_TemplateException):
+class IncompatibleSourceBranchPrefix(WallE_TemplateException):
     code = 106
-    template = 'build_not_started.md'
+    template = 'incompatible_source_branch_prefix.md'
 
 
-class Conflict(WallE_TemplateException):
+class MissingJiraId(WallE_TemplateException):
     code = 107
-    template = 'conflict.md'
+    template = 'missing_jira_id.md'
 
 
-class AuthorApprovalRequired(WallE_TemplateException):
+class JiraIssueNotFound(WallE_TemplateException):
     code = 108
-    template = 'need_approval.md'
+    template = 'jira_issue_not_found.md'
 
 
-class PeerApprovalRequired(WallE_TemplateException):
+class SubtaskIssueNotSupported(WallE_TemplateException):
     code = 109
-    template = 'need_approval.md'
+    template = 'subtask_issue_not_supported.md'
 
 
-class MissingJiraIdMaintenance(WallE_TemplateException):
+class IncorrectJiraProject(WallE_TemplateException):
     code = 110
-    template = 'missing_jira_id_for_maintenance_branch.md'
+    template = 'incorrect_jira_project.md'
 
 
 class MismatchPrefixIssueType(WallE_TemplateException):
@@ -85,34 +96,34 @@ class IncorrectFixVersion(WallE_TemplateException):
     template = 'incorrect_fix_version.md'
 
 
-class PrefixCannotBeMerged(WallE_TemplateException):
-    code = 113
-    template = 'forbidden_branch.md'
-
-
-class BranchDoesNotAcceptFeatures(WallE_TemplateException):
-    code = 114
-    template = 'forbidden_branch_in_maintenance.md'
-
-
 class BranchHistoryMismatch(WallE_TemplateException):
-    code = 115
+    code = 113
     template = 'history_mismatch.md'
 
 
-class JiraIssueNotFound(WallE_TemplateException):
+class Conflict(WallE_TemplateException):
+    code = 114
+    template = 'conflict.md'
+
+
+class AuthorApprovalRequired(WallE_TemplateException):
+    code = 115
+    template = 'need_approval.md'
+
+
+class PeerApprovalRequired(WallE_TemplateException):
     code = 116
-    template = 'jira_issue_not_found.md'
+    template = 'need_approval.md'
 
 
-class ParentJiraIssueNotFound(JiraIssueNotFound):
+class TesterApprovalRequired(WallE_TemplateException):
     code = 117
-    template = 'parent_jira_issue_not_found.md'
+    template = 'need_approval.md'
 
 
-class SuccessMessage(WallE_TemplateException):
+class BuildFailed(WallE_TemplateException):
     code = 118
-    template = 'successfull_merge.md'
+    template = 'build_failed.md'
 
 
 class UnanimApprovalRequired(WallE_TemplateException):
@@ -149,6 +160,21 @@ class JiraUnknownIssueType(WallE_InternalException):
         super(JiraUnknownIssueType, self).__init__(msg)
 
 
+class DevBranchesNotSelfContained(WallE_InternalException):
+    def __init__(self, upstream_branch, downstream_branch):
+        msg = ("The git repository appears to be in a bad shape. "
+               "Branch `%s` is not included in branch `%s`." % (
+                   upstream_branch, downstream_branch))
+        super(DevBranchesNotSelfContained, self).__init__(msg)
+
+
+class DevBranchDoesNotExist(WallE_InternalException):
+    def __init__(self, branch):
+        msg = ("The git repository appears to be in a bad shape. "
+               "Branch `%s` does not exist." % branch)
+        super(DevBranchDoesNotExist, self).__init__(msg)
+
+
 # silent exceptions
 class CommentAlreadyExists(WallE_SilentException):
     pass
@@ -159,4 +185,12 @@ class NotMyJob(WallE_SilentException):
 
 
 class NothingToDo(WallE_SilentException):
+    pass
+
+
+class BuildInProgress(WallE_SilentException):
+    pass
+
+
+class BuildNotStarted(WallE_SilentException):
     pass

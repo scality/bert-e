@@ -1,16 +1,16 @@
 This pull request has been created automatically by @{{ wall_e }}.
 It is linked to its parent pull request #{{ pr['id'] }}.
-Please do not edit the contents nor the title!
-The only actions allowed are "Approve" or "Comment".
-You may want to refactor the branch `{{ pr['source']['branch']['name'] }}`
-manually:
+
+**Do not edit this pull request directly.**
+
+If you need to amend/cancel the changeset on branch
+`{{ pr['source']['branch']['name'] }}`, please follow this
+procedure:
 
 ```
 #!bash
+ $ git fetch
  $ git checkout {{ pr['source']['branch']['name'] }}
- $ git pull
- $ # do interesting stuff\n'
- $ git add <modified_files>
- $ git commit
+ $ # <amend or cancel the changeset by _adding_ new commits>
  $ git push
 ```

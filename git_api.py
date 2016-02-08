@@ -2,13 +2,16 @@ import os
 from shutil import rmtree
 from simplecmd import cmd
 import subprocess
+import time
 from tempfile import mkdtemp
+import logging
 
 
 class Repository(object):
     def __init__(self, url):
         self._url = url
-        self.directory = mkdtemp()
+        self.tmp_directory = mkdtemp()
+        self.cmd_directory = self.tmp_directory
 
     def __enter__(self):
         return self
@@ -17,21 +20,20 @@ class Repository(object):
         self.delete()
 
     def delete(self):
-        rmtree(self.directory)
-        self.directory = None
+        rmtree(self.tmp_directory)
+        self.tmp_directory = None
+        self.cmd_directory = None
 
     def clone(self, reference=''):
         if reference:
             reference = '--reference ' + reference
         self.cmd('git clone %s %s' % (reference, self._url))
         repo_slug = self._url.split('/')[-1].replace('.git', '')
-        self.directory = os.path.join(self.directory, repo_slug)
+        # all commands will now execute from repo directory
+        self.cmd_directory = os.path.join(self.tmp_directory, repo_slug)
 
     def config(self, key, value):
         self.cmd('git config %s %s' % (key, value))
-
-    def push_everything(self):
-        self.cmd('git push --all origin -u')
 
     def remote_branch_exists(self, name):
         """Test if a remote branch exists.
@@ -62,9 +64,20 @@ class Repository(object):
         except subprocess.CalledProcessError:
             raise PushFailedException(name)
 
-    def cmd(self, command, **kwargs):
-        cwd = kwargs.get('cwd', self.directory)
-        return cmd(command, cwd=cwd, **kwargs)
+    def cmd(self, command, retry=0, **kwargs):
+        cwd = kwargs.get('cwd', self.cmd_directory)
+        try:
+            ret = cmd(command, cwd=cwd, **kwargs)
+        except subprocess.CalledProcessError:
+            if retry == 0:
+                raise
+
+            logging.warning('The following command failed:\n'
+                            ' %s\n'
+                            '[%s retry left]', command, retry)
+            time.sleep(120)  # helps stabilize requests to bitbucket
+            ret = self.cmd(command, retry=retry-1, **kwargs)
+        return ret
 
 
 class Branch(object):
@@ -86,7 +99,7 @@ class Branch(object):
         if do_push:
             self.push()  # FIXME push will do an unnecessary checkout
 
-    def get_all_commits_since_started_from(self, source_branch):
+    def get_all_commits(self, source_branch):
         self.repo.checkout(source_branch.name)
         log = self.repo.cmd('git log --no-merges --pretty=%%H %s..%s' % (
             source_branch.name, self.name), universal_newlines=True)
@@ -94,11 +107,15 @@ class Branch(object):
 
     def includes_commit(self, sha1):
         try:
-            name = 'origin/' + self.name
-            self.repo.cmd('git merge-base --is-ancestor %s %s' % (sha1, name))
+            self.repo.cmd('git merge-base --is-ancestor %s %s' % (sha1,
+                                                                  self.name))
         except subprocess.CalledProcessError:
             return False
         return True
+
+    def get_latest_commit(self):
+        return self.repo.cmd(('git log -1 --format="%%H" %s ' %
+                              self.name))[0:12]
 
     def exists(self):
         try:
@@ -121,10 +138,6 @@ class Branch(object):
             msg = "branch:%s source:%s" % (self.name, source_branch.name)
             raise BranchCreationFailedException(msg)
         self.push()
-
-    def create_if_not_exists(self, source_branch):
-        if not self.exists():
-            self.create(source_branch)
 
 
 class GitException(Exception):

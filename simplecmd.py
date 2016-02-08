@@ -4,6 +4,7 @@
 import subprocess
 import logging
 import os
+import os.path
 
 
 def cmd(command, shell=True, stderr=None, **kwargs):
@@ -20,9 +21,8 @@ def cmd(command, shell=True, stderr=None, **kwargs):
     """
     if logging.getLogger().isEnabledFor(logging.DEBUG):
         logging.debug('')
-        logging.debug('#' * 50)
+        logging.debug('#' * 50 + ' pwd = ' + kwargs.get('cwd', os.getcwd()))
         logging.debug('# BASH : %s', command)
-
         return subprocess.check_output(command, shell=shell, stderr=stderr,
                                        **kwargs)
     else:
