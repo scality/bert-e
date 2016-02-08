@@ -13,7 +13,8 @@ import json
 if __name__ == '__main__':
 
     if len(sys.argv) != 3:
-        print('Error: the script needs two arguments (properties filename and JSON string).')
+        print('Error: the script needs two arguments '
+              '(properties filename and JSON string).')
         sys.exit(1)
 
     prop_file = sys.argv[1]

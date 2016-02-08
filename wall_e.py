@@ -15,8 +15,7 @@ import requests
 import six
 
 from template_loader import render
-from bitbucket_api import (Repository as BitBucketRepository,
-                           Client)
+import bitbucket_api
 from git_api import (Repository as GitRepository,
                      Branch,
                      MergeFailedException,
@@ -424,13 +423,12 @@ class IntegrationBranch(Branch):
 class WallE:
     def __init__(self, bitbucket_login, bitbucket_password, bitbucket_mail,
                  owner, slug, pull_request_id, options, commands, settings):
-        self._bbconn = Client(bitbucket_login,
-                              bitbucket_password, bitbucket_mail)
-        self.bbrepo = BitBucketRepository(self._bbconn, owner=owner,
-                                          repo_slug=slug)
+        self._bbconn = bitbucket_api.Client(
+            bitbucket_login, bitbucket_password, bitbucket_mail)
+        self.bbrepo = bitbucket_api.Repository(
+            self._bbconn, owner=owner, repo_slug=slug)
         self.main_pr = self.bbrepo.get_pull_request(
-            pull_request_id=pull_request_id
-        )
+            pull_request_id=pull_request_id)
         self.author = self.main_pr['author']['username']
         if WALL_E_USERNAME == self.author:
             res = re.search('(?P<pr_id>\d+)',
@@ -439,7 +437,7 @@ class WallE:
                 raise ParentPullRequestNotFound('Not found')
             self.pull_request_id = res.group('pr_id')
             self.main_pr = self.bbrepo.get_pull_request(
-                pull_request_id=res.group()
+                pull_request_id=int(res.group())
             )
             self.author = self.main_pr['author']['username']
         self.options = options
@@ -508,9 +506,10 @@ class WallE:
         # if wall-e doesn't do anything in the last 10 comments,
         # allow him to run again
         if dont_repeat_if_in_history:
-            if self.find_bitbucket_comment(username=WALL_E_USERNAME,
-                                           startswith=msg,
-                                           max_history=dont_repeat_if_in_history):
+            if self.find_bitbucket_comment(
+                    username=WALL_E_USERNAME,
+                    startswith=msg,
+                    max_history=dont_repeat_if_in_history):
 
                 raise CommentAlreadyExists('The same comment has '
                                            'already been posted by '
@@ -921,7 +920,8 @@ class WallE:
             # just assume a pseudo-tester has approved the PR
             approved_by_tester = True
 
-        # If a tester is the author of the PR we will bypass the tester approval
+        #  If a tester is the author of the PR we will bypass
+        #  the tester approval
         if self.author in self.settings['testers']:
             approved_by_tester = True
 
@@ -1212,7 +1212,7 @@ def main():
     commands = setup_commands()
 
     wall_e = WallE(WALL_E_USERNAME, args.password, WALL_E_EMAIL,
-                   args.owner, args.slug, args.pull_request_id,
+                   args.owner, args.slug, int(args.pull_request_id),
                    options, commands, SETTINGS[args.settings])
 
     try:
