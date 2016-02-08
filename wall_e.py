@@ -1073,9 +1073,6 @@ def setup_parser():
         '--option', '-o', action='append', type=str, dest='cmd_line_options',
         help="Activate additional options")
     parser.add_argument(
-        '--unanimity', action='store_true', default=False,
-        help=unanimity_help)
-    parser.add_argument(
         'pull_request_id',
         help="The ID of the pull request")
     parser.add_argument(
