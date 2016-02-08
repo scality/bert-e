@@ -243,7 +243,6 @@ class TestWallE(unittest.TestCase):
             from_branch,
             reviewers=None,
             file_=True,
-            expected_retcode = InitMessage.code,
             backtrace=False):
         if reviewers is None:
             reviewers = [self.creator]
@@ -259,7 +258,7 @@ class TestWallE(unittest.TestCase):
             description=''
         )
         retcode = self.handle(pr['id'], backtrace=backtrace)
-        self.assertEqual(retcode, expected_retcode)
+        self.assertEqual(retcode, InitMessage.code)
         return pr
 
     def handle(self,
