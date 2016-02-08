@@ -435,9 +435,9 @@ class WallE:
                             self.main_pr['description'])
             if not res:
                 raise ParentPullRequestNotFound('Not found')
-            self.pull_request_id = res.group('pr_id')
+            self.pull_request_id = int(res.group('pr_id'))
             self.main_pr = self.bbrepo.get_pull_request(
-                pull_request_id=int(res.group())
+                pull_request_id=self.pull_request_id
             )
             self.author = self.main_pr['author']['username']
         self.options = options
