@@ -34,7 +34,6 @@ class Repository(object):
             local = remote.replace('origin/', '')
             self.cmd('git checkout ' + local)
 
-
     def config(self, key, value):
         self.cmd('git config %s %s' % (key, value))
 

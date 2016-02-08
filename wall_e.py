@@ -58,10 +58,8 @@ from wall_e_exceptions import (AuthorApprovalRequired,
 if six.PY3:
     raw_input = input
 
-
 WALL_E_USERNAME = 'scality_wall-e'
 WALL_E_EMAIL = 'wall_e@scality.com'
-
 
 SETTINGS = {
     'ring': {
@@ -121,7 +119,7 @@ SETTINGS = {
             ]
         },
         'testers': [
-            WALL_E_USERNAME,   # we need this for test purposes
+            WALL_E_USERNAME,  # we need this for test purposes
             'anneharper',
             'christophe_meron',
             'christophe_stoyanov',
@@ -131,7 +129,7 @@ SETTINGS = {
             'sleibo'
         ],
         'admins': [
-            WALL_E_USERNAME,   # we need this for test purposes
+            WALL_E_USERNAME,  # we need this for test purposes
             'anneharper',
             'bertrand_demiddelaer_scality',
             'ludovicmaillard',
@@ -240,7 +238,6 @@ SETTINGS = {
     }
 }
 
-
 JIRA_ISSUE_BRANCH_PREFIX = {
     'Epic': 'project',
     'Story': 'feature',
@@ -267,6 +264,7 @@ class Option(object):
     it.
 
     """
+
     def __init__(self, privileged, help, value=False):
         self.value = value
         self.help = help
@@ -292,6 +290,7 @@ class Command(object):
     it.
 
     """
+
     def __init__(self, privileged, help, handler):
         self.handler = handler
         self.help = help
@@ -339,7 +338,7 @@ class BranchName(Branch):
 
     def __init__(self, repo, name, settings=None):
         Branch.__init__(self, repo, name)
-        #self.name = name
+        # self.name = name
         match = re.match(self.pattern, name)
         if not match:
             raise BranchNameInvalid(name)
@@ -354,13 +353,14 @@ class BranchName(Branch):
     def __unicode__(self):
         return self.name
 
+
 class HotfixBranch(BranchName):
     pattern = 'hotfix/(?P<label>.*)'
 
 
-
 class DevelopmentBranch(BranchName):
-    pattern = 'development/(?P<version>(?P<major>\d+)\.(?P<minor>\d+))'
+    pattern = 'development/' \
+              '(?P<version>(?P<major>\d+)\.(?P<minor>\d+))'
     micro = None
     cascade_producer = True
     cascade_consumer = True
@@ -368,12 +368,13 @@ class DevelopmentBranch(BranchName):
 
     def __eq__(self, other):
         return self.__class__ == other.__class__ and \
-               self.major == other.major and \
-               self.minor == other.minor
+            self.major == other.major and \
+            self.minor == other.minor
 
 
 class StabilizationBranch(DevelopmentBranch):
-    pattern = 'stabilization/(?P<version>(?P<major>\d+)\.(?P<minor>\d+)\.(?P<micro>\d+))'
+    pattern = 'stabilization/' \
+              '(?P<version>(?P<major>\d+)\.(?P<minor>\d+)\.(?P<micro>\d+))'
     cascade_producer = True
     can_be_destination = True
 
@@ -383,16 +384,21 @@ class StabilizationBranch(DevelopmentBranch):
 
 
 class ReleaseBranch(BranchName):
-    pattern = 'release/(?P<version>(?P<major>\d+)\.(?P<minor>\d+))'
+    pattern = 'release/' \
+              '(?P<version>(?P<major>\d+)\.(?P<minor>\d+))'
+
 
 class FeatureBranch(BranchName):
-    jira_issue_pattern = '(?P<jira_issue_key>(?P<jira_project>[A-Z0-9_]+)-[0-9]+)'
+    jira_issue_pattern = '(?P<jira_issue_key>' \
+                         '(?P<jira_project>[A-Z0-9_]+)-[0-9]+)'
     prefixes = '(?P<prefix>(feature|improvement|bugfix|project))'
     pattern = "%s/(%s(?P<label>.*)|.+)" % (prefixes, jira_issue_pattern)
     cascade_producer = True
 
+
 class IntegrationBranch(BranchName):
-    pattern = 'w/(?P<version>(?P<major>\d+)\.(?P<minor>\d+)(\.(?P<micro>\d+))?)/' + FeatureBranch.pattern
+    pattern = 'w/(?P<version>(?P<major>\d+)' \
+              '\.(?P<minor>\d+)(\.(?P<micro>\d+))?)/' + FeatureBranch.pattern
 
     def merge_from_branch(self, source_branch):
         try:
@@ -461,7 +467,6 @@ class NoMicroVersionForDevelopmentBranch(Exception):
     pass
 
 
-
 def branch_factory(repo, branch_name):
     for cls in [StabilizationBranch, DevelopmentBranch, ReleaseBranch,
                 FeatureBranch, HotfixBranch, IntegrationBranch]:
@@ -472,6 +477,7 @@ def branch_factory(repo, branch_name):
             pass
 
     raise UnrecognizedBranchPattern(branch_name)
+
 
 class BranchCascade(object):
     def __init__(self):
@@ -490,14 +496,16 @@ class BranchCascade(object):
             # Sort the cascade again
             self._cascade = OrderedDict(sorted(self._cascade.items()))
         cur_branch = self._cascade[(major, minor)][branch.__class__]
-        self._cascade[(major, minor)][branch.__class__] = max(cur_branch, branch)
+        self._cascade[(major, minor)][branch.__class__] = max(cur_branch,
+                                                              branch)
 
     def validate(self):
         previous_dev_branch = None
         for (major, minor), branch_set in self._cascade.items():
             dev_branch = branch_set[DevelopmentBranch]
             if dev_branch is None:
-                raise DevBranchDoesNotExist("associated to %s" % stb_branch)
+                raise DevBranchDoesNotExist(
+                    'development/%d.%d' % (major, minor))
 
             stb_branch = branch_set[StabilizationBranch]
 
@@ -509,16 +517,14 @@ class BranchCascade(object):
             elif dev_branch.micro - int(stb_branch.micro) != 1:
                 raise VersionMismatch(stb_branch, dev_branch)
 
-
             if stb_branch:
                 if not dev_branch.includes_commit(stb_branch):
                     raise DevBranchesNotSelfContained(stb_branch, dev_branch)
 
             if previous_dev_branch:
                 if not dev_branch.includes_commit(previous_dev_branch):
-                    raise DevBranchesNotSelfContained(previous_dev_branch, dev_branch)
-
-
+                    raise DevBranchesNotSelfContained(previous_dev_branch,
+                                                      dev_branch)
 
             previous_dev_branch = dev_branch
         self._is_valid = True
@@ -550,22 +556,19 @@ class BranchCascade(object):
                 destination_branches.append(branch_set[DevelopmentBranch])
         return destination_branches
 
-    def _create_integration_branches(self, repo, source_branch, destination_branch):
+    def _create_integration_branches(self, repo, source_branch,
+                                     destination_branch):
         integration_branches = []
-        for destination_branch in self.destination_branches(destination_branch):
-            name = 'w/%s/%s' % (destination_branch.version, source_branch)
+        for dst_branch in self.destination_branches(destination_branch):
+            name = 'w/%s/%s' % (dst_branch.version, source_branch)
             integration_branch = IntegrationBranch(repo, name)
-            integration_branch.destination_branch = destination_branch
+            integration_branch.destination_branch = dst_branch
             integration_branch.source_branch = source_branch
             integration_branches.append(integration_branch)
             if not integration_branch.exists():
                 integration_branch.create(
                     integration_branch.destination_branch)
         return integration_branches
-
-
-
-
 
 
 class WallE:
@@ -593,7 +596,7 @@ class WallE:
         self.settings = settings
         self.source_branch = None
         self.destination_branches = []
-        #self.target_versions = {}
+        # self.target_versions = {}
         self._cascade = BranchCascade()
 
     def option_is_set(self, name):
@@ -659,7 +662,6 @@ class WallE:
                     username=WALL_E_USERNAME,
                     startswith=msg,
                     max_history=dont_repeat_if_in_history):
-
                 raise CommentAlreadyExists('The same comment has '
                                            'already been posted by '
                                            'Wall-E in the past. '
@@ -736,7 +738,7 @@ class WallE:
                 continue
 
             logging.debug('Found a keyword comment: %s', raw)
-            raw_cleaned = raw.strip()[len(WALL_E_USERNAME)+1:]
+            raw_cleaned = raw.strip()[len(WALL_E_USERNAME) + 1:]
 
             author = comment['user']['username']
             if isinstance(author, list):
@@ -830,25 +832,24 @@ class WallE:
 
     def _setup_source_branch(self, repo, src_branch_name, dst_branch_name):
         try:
-            self.source_branch = branch_factory(repo, self.main_pr['source']['branch']['name'])
+            self.source_branch = branch_factory(repo, self.main_pr['source'][
+                'branch']['name'])
         except UnrecognizedBranchPattern:
             raise IncorrectSourceBranchName(
                 source=self.main_pr['source']['branch']['name'],
                 destination=self.main_pr['destination']['branch']['name'],
                 valid_prefixes=self.settings['feature_branch']['prefix'])
 
-
-    def _setup_destination_branch(self, repo, src_branch_name, dst_branch_name):
-        self.destination_branch = branch_factory(repo, self.main_pr['destination']['branch']['name'])
+    def _setup_destination_branch(self, repo, dst_branch_name):
+        self.destination_branch = branch_factory(repo, dst_branch_name)
 
     def _check_compatibility_src_dest(self):
         if self.source_branch.prefix == 'feature' and \
-            self.destination_branch != self._cascade.destination_branches(self.destination_branch)[-1]:
+            self.destination_branch != self._cascade.destination_branches(
+                self.destination_branch)[-1]:
             raise IncompatibleSourceBranchPrefix(
-                    source=self.source_branch,
-                    destination=self.destination_branch)
-
-
+                source=self.source_branch,
+                destination=self.destination_branch)
 
     def _jira_check_reference(self):
         if self.source_branch.jira_issue_key:
@@ -947,9 +948,9 @@ class WallE:
             self.settings['development_branch']['prefix'],
             list(self.settings['development_branch']['versions'])[0]
         )
-        #try:
+        # try:
         #    Branch(git_repo, previous_dev_branch_name).checkout()
-        #except CheckoutFailedException:
+        # except CheckoutFailedException:
         #    raise DevBranchDoesNotExist(previous_dev_branch_name)
 
         for version in list(
@@ -970,7 +971,7 @@ class WallE:
 
     def _build_branch_cascade(self, git_repo):
 
-        #for tag in git_repo.cmd('git tag').split('\n')[:-1]:
+        # for tag in git_repo.cmd('git tag').split('\n')[:-1]:
         #    self._cascade.add_tag(tag)
         for branch in git_repo.cmd('git branch').split('\n')[:-1]:
             try:
@@ -979,11 +980,10 @@ class WallE:
                 continue
             self._cascade.add_branch(branch)
 
-
-
     def _check_history_did_not_change(self, integration_branch):
         development_branch = integration_branch.destination_branch
-        for commit in integration_branch.get_all_commits(integration_branch.source_branch):
+        for commit in integration_branch.get_all_commits(
+                integration_branch.source_branch):
             if not development_branch.includes_commit(commit):
                 raise BranchHistoryMismatch(
                     commit=commit,
@@ -1009,12 +1009,11 @@ class WallE:
     def _create_pull_requests(self, integration_branches):
         # read open PRs and store them for multiple usage
         open_prs = list(self.bbrepo.get_pull_requests())
-        return [integration_branch.
-                get_or_create_pull_request(
-                    self.main_pr,
-                    open_prs,
-                    self.bbrepo) for
-                integration_branch in integration_branches]
+        return [
+            integration_branch.get_or_create_pull_request(self.main_pr,
+                                                          open_prs,
+                                                          self.bbrepo)
+            for integration_branch in integration_branches]
 
     def _check_approvals(self, child_prs):
         """Check approval of a PR by author, tester and peer.
@@ -1037,7 +1036,7 @@ class WallE:
             # just assume a pseudo-tester has approved the PR
             approved_by_tester = True
 
-        #  If a tester is the author of the PR we will bypass
+        # If a tester is the author of the PR we will bypass
         #  the tester approval
         if self.author in self.settings['testers']:
             approved_by_tester = True
@@ -1128,28 +1127,22 @@ class WallE:
 
         self._check_pr_state()
 
-
-
         repo = self._clone_git_repo(reference_git_repo)
         src_branch_name = self.main_pr['source']['branch']['name']
         dst_branch_name = self.main_pr['destination']['branch']['name']
         self._setup_source_branch(repo, src_branch_name, dst_branch_name)
-        self._setup_destination_branch(repo, src_branch_name, dst_branch_name)
-
-
-
+        self._setup_destination_branch(repo, dst_branch_name)
 
         self._check_if_ignored(self.source_branch, self.destination_branch)
         self._build_branch_cascade(repo)
         self._cascade.validate()
-        self._cascade.adapt_cascade_to_destination_branch(self.destination_branch)
-
-
+        self._cascade.adapt_cascade_to_destination_branch(
+            self.destination_branch)
 
         # read comments and store them for multiple usage
         comments = list(self.main_pr.get_comments())
 
-        #self._send_greetings(comments)
+        # self._send_greetings(comments)
         self._get_options(comments, self.author)
         self._handle_commands(comments)
 
@@ -1159,10 +1152,10 @@ class WallE:
         self._check_compatibility_src_dest()
         self._jira_checks()
 
-
         # self._check_git_repo_health(repo)
         self._check_source_branch_still_exists(repo)
-        integration_branches = self._cascade._create_integration_branches(repo, self.source_branch, self.destination_branch)
+        integration_branches = self._cascade._create_integration_branches(
+            repo, self.source_branch, self.destination_branch)
         self._update_integration_from_dev(integration_branches)
         self._update_integration_from_feature(integration_branches)
         child_prs = self._create_pull_requests(integration_branches)
@@ -1176,7 +1169,7 @@ class WallE:
             integration_branch.update_to_development_branch()
 
         self._check_git_repo_health(repo)
-        #repo.delete()
+        # repo.delete()
 
         raise SuccessMessage(branches=self.destination_branches,
                              issue=self.source_branch.jira_issue_key,
