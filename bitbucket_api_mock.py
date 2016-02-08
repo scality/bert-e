@@ -116,7 +116,7 @@ class Repository(BitBucketObject):
 
     def get_git_url(self):
         self.gitrepo = Repository.repos[(self.repo_owner, self.repo_slug)]
-        return self.gitrepo.directory
+        return self.gitrepo.tmp_directory
 
     def create_pull_request(self, title, name, source, destination,
                             close_source_branch, description, reviewers=[]):
