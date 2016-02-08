@@ -354,9 +354,6 @@ class BranchName(Branch):
     def __unicode__(self):
         return self.name
 
-    def remote(self):
-        return 'remotes/origin/%s' % self.name
-
 class HotfixBranch(BranchName):
     pattern = 'hotfix/(?P<label>.*)'
 
@@ -374,8 +371,6 @@ class DevelopmentBranch(BranchName):
                self.major == other.major and \
                self.minor == other.minor
 
-    def version(self):
-        return '%d.%d' % (self.major, self.minor)
 
 class StabilizationBranch(DevelopmentBranch):
     pattern = 'stabilization/(?P<version>(?P<major>\d+)\.(?P<minor>\d+)\.(?P<micro>\d+))'
@@ -386,10 +381,6 @@ class StabilizationBranch(DevelopmentBranch):
         return DevelopmentBranch.__eq__(self, other) and \
             self.micro == other.micro
 
-    #def version(self):
-    #    return '%d.%d.%d' % (self.major, self.minor, self.micro)
-
-
 
 class ReleaseBranch(BranchName):
     pattern = 'release/(?P<version>(?P<major>\d+)\.(?P<minor>\d+))'
@@ -399,27 +390,6 @@ class FeatureBranch(BranchName):
     prefixes = '(?P<prefix>(feature|improvement|bugfix|project))'
     pattern = "%s/(%s(?P<label>.*)|.+)" % (prefixes, jira_issue_pattern)
     cascade_producer = True
-
-    def __init__a(self, name, valid_prefixes):
-        super(FeatureBranch, self).__init__(name)
-        self.prefix, self.subname = name.split('/', 1)
-
-        if not self.prefix or not self.subname:
-            raise BranchNameInvalid(name)
-
-        if self.prefix not in valid_prefixes:
-            raise BranchNameInvalid(name)
-
-        match = re.match('(?P<issue_id>(?P<key>[A-Z]+)-\d+).*',
-                         self.subname)
-        if match:
-            self.jira_issue_key = match.group('issue_id')
-            self.jira_project = match.group('key')
-        else:
-            logging.warning('%s does not contain a correct '
-                            'issue id number', self.name)
-            self.jira_issue_key = None
-            self.jira_project = None
 
 class IntegrationBranch(BranchName):
     pattern = 'w/(?P<version>(?P<major>\d+)\.(?P<minor>\d+)(\.(?P<micro>\d+))?)/' + FeatureBranch.pattern
@@ -858,30 +828,18 @@ class WallE:
             handler = getattr(self, self.commands[command].handler)
             handler(match_.group('args'))
 
-    def _setup_source_branch(self, src_branch_name, dst_branch_name):
+    def _setup_source_branch(self, repo, src_branch_name, dst_branch_name):
         try:
-            self.source_branch = FeatureBranch(
-                src_branch_name,
-                self.settings['feature_branch']['prefix']
-            )
-        except BranchNameInvalid:
+            self.source_branch = branch_factory(repo, self.main_pr['source']['branch']['name'])
+        except UnrecognizedBranchPattern:
             raise IncorrectSourceBranchName(
-                source=src_branch_name,
-                destination=dst_branch_name,
-                valid_prefixes=self.settings['feature_branch']['prefix']
-            )
+                source=self.main_pr['source']['branch']['name'],
+                destination=self.main_pr['destination']['branch']['name'],
+                valid_prefixes=self.settings['feature_branch']['prefix'])
 
-    def _setup_destination_branches(self, src_branch_name, dst_branch_name):
-        for version in self.target_versions:
-            branch_name = "%s/%s" % (
-                self.settings['development_branch']['prefix'],
-                version
-            )
-            destination_branch = DestinationBranch(
-                branch_name,
-                self.settings['development_branch']['versions'][version]
-            )
-            self.destination_branches.append(destination_branch)
+
+    def _setup_destination_branch(self, repo, src_branch_name, dst_branch_name):
+        self.destination_branch = branch_factory(repo, self.main_pr['destination']['branch']['name'])
 
     def _check_compatibility_src_dest(self):
         if self.source_branch.prefix == 'feature' and \
@@ -1173,15 +1131,13 @@ class WallE:
 
 
         repo = self._clone_git_repo(reference_git_repo)
-        try:
-            self.source_branch = branch_factory(repo, self.main_pr['source']['branch']['name'])
-        except UnrecognizedBranchPattern:
-            raise IncorrectSourceBranchName(
-                source=self.main_pr['source']['branch']['name'],
-                destination=self.main_pr['destination']['branch']['name'],
-                valid_prefixes=self.settings['feature_branch']['prefix'])
+        src_branch_name = self.main_pr['source']['branch']['name']
+        dst_branch_name = self.main_pr['destination']['branch']['name']
+        self._setup_source_branch(repo, src_branch_name, dst_branch_name)
+        self._setup_destination_branch(repo, src_branch_name, dst_branch_name)
 
-        self.destination_branch = branch_factory(repo, self.main_pr['destination']['branch']['name'])
+
+
 
         self._check_if_ignored(self.source_branch, self.destination_branch)
         self._build_branch_cascade(repo)
@@ -1200,11 +1156,6 @@ class WallE:
         if self.option_is_set('wait'):
             raise NothingToDo('wait option is set')
 
-
-
-        #self._build_target_versions(dst_branch_name)
-        #self._setup_source_branch(src_branch_name, dst_branch_name)
-        #self._setup_destination_branches(src_branch_name, dst_branch_name)
         self._check_compatibility_src_dest()
         self._jira_checks()
 
