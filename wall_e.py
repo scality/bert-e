@@ -70,38 +70,9 @@ SETTINGS = {
         },
         'stabilization_branch': {
             'prefix': 'stabilization',
-            'versions': OrderedDict([('4.3.18', None)])
         },
         'development_branch': {
             'prefix': 'development',
-            'versions': OrderedDict([
-                ('4.3', {
-                    'upcoming_release': '4.3.18',
-                    'allow_ticketless': False,
-                    'allow_prefix': [
-                        'bugfix',
-                        'improvement'
-                    ]
-                }),
-                ('5.1', {
-                    'upcoming_release': '5.1.5',
-                    'allow_ticketless': False,
-                    'allow_prefix': [
-                        'bugfix',
-                        'improvement'
-                    ]
-                }),
-                ('6.0', {
-                    'upcoming_release': '6.0.0',
-                    'allow_ticketless': True,
-                    'allow_prefix': [
-                        'bugfix',
-                        'improvement',
-                        'feature',
-                        'project'
-                    ]
-                })
-            ]),
         },
         'integration_branch': {
             'prefix': 'w',
@@ -152,18 +123,6 @@ SETTINGS = {
         },
         'development_branch': {
             'prefix': 'development',
-            'versions': OrderedDict([
-                ('1.0', {
-                    'upcoming_release': '1.0.0',
-                    'allow_ticketless': False,
-                    'allow_prefix': [
-                        'bugfix',
-                        'improvement',
-                        'feature',
-                        'project'
-                    ]
-                })
-            ]),
         },
         'integration_branch': {
             'prefix': 'w',
@@ -200,18 +159,6 @@ SETTINGS = {
         },
         'development_branch': {
             'prefix': 'development',
-            'versions': OrderedDict([
-                ('1.0', {
-                    'upcoming_release': '1.0.0',
-                    'allow_ticketless': False,
-                    'allow_prefix': [
-                        'bugfix',
-                        'improvement',
-                        'feature',
-                        'project'
-                    ]
-                })
-            ]),
         },
         'integration_branch': {
             'prefix': 'w',
@@ -336,7 +283,7 @@ class BranchName(Branch):
     cascade_consumer = False
     can_be_destination = False
 
-    def __init__(self, repo, name, settings=None):
+    def __init__(self, repo, name):
         Branch.__init__(self, repo, name)
         # self.name = name
         match = re.match(self.pattern, name)
@@ -512,12 +459,11 @@ class BranchCascade(object):
             if dev_branch.micro is None:
                 if stb_branch is None:
                     raise NoMicroVersionForDevelopmentBranch(dev_branch)
-                dev_branch.micro = int(stb_branch.micro) + 1
-
-            elif dev_branch.micro - int(stb_branch.micro) != 1:
-                raise VersionMismatch(stb_branch, dev_branch)
+                dev_branch.micro = stb_branch.micro + 1
 
             if stb_branch:
+                if dev_branch.micro - stb_branch.micro != 1:
+                    raise VersionMismatch(stb_branch, dev_branch)
                 if not dev_branch.includes_commit(stb_branch):
                     raise DevBranchesNotSelfContained(stb_branch, dev_branch)
 
@@ -555,6 +501,10 @@ class BranchCascade(object):
             if include_next_development_branches:
                 destination_branches.append(branch_set[DevelopmentBranch])
         return destination_branches
+
+    def target_versions(self, destination_branch):
+        return ['%d.%d.%d' % (b.major, b.minor, b.micro) for b in
+                self.destination_branches(destination_branch)]
 
     def _create_integration_branches(self, repo, source_branch,
                                      destination_branch):
@@ -596,7 +546,6 @@ class WallE:
         self.settings = settings
         self.source_branch = None
         self.destination_branches = []
-        # self.target_versions = {}
         self._cascade = BranchCascade()
 
     def option_is_set(self, name):
@@ -902,7 +851,7 @@ class WallE:
         issue_versions = set([version.name for version in
                               issue.fields.fixVersions])
         expect_versions = set(
-            self.target_versions.values())
+            self._cascade.target_versions(self.destination_branch))
 
         if issue_versions != expect_versions:
             raise IncorrectFixVersion(issue=issue,
@@ -941,33 +890,6 @@ class WallE:
             Branch(git_repo, self.source_branch.name).checkout()
         except CheckoutFailedException:
             raise NothingToDo(self.source_branch.name)
-
-    def _check_git_repo_health(self, git_repo):
-        # check target branches
-        previous_dev_branch_name = '%s/%s' % (
-            self.settings['development_branch']['prefix'],
-            list(self.settings['development_branch']['versions'])[0]
-        )
-        # try:
-        #    Branch(git_repo, previous_dev_branch_name).checkout()
-        # except CheckoutFailedException:
-        #    raise DevBranchDoesNotExist(previous_dev_branch_name)
-
-        for version in list(
-                self.settings['development_branch']['versions'])[1:]:
-            dev_branch_name = '%s/%s' % (
-                self.settings['development_branch']['prefix'],
-                version
-            )
-            dev_branch = Branch(git_repo, dev_branch_name)
-            try:
-                dev_branch.checkout()
-            except CheckoutFailedException:
-                raise DevBranchDoesNotExist(dev_branch_name)
-            if not dev_branch.includes_commit(previous_dev_branch_name):
-                raise DevBranchesNotSelfContained(previous_dev_branch_name,
-                                                  dev_branch_name)
-            previous_dev_branch_name = dev_branch_name
 
     def _build_branch_cascade(self, git_repo):
 
@@ -1142,7 +1064,7 @@ class WallE:
         # read comments and store them for multiple usage
         comments = list(self.main_pr.get_comments())
 
-        # self._send_greetings(comments)
+        self._send_greetings(comments)
         self._get_options(comments, self.author)
         self._handle_commands(comments)
 
@@ -1152,7 +1074,6 @@ class WallE:
         self._check_compatibility_src_dest()
         self._jira_checks()
 
-        # self._check_git_repo_health(repo)
         self._check_source_branch_still_exists(repo)
         integration_branches = self._cascade._create_integration_branches(
             repo, self.source_branch, self.destination_branch)
@@ -1168,7 +1089,7 @@ class WallE:
         for integration_branch in integration_branches:
             integration_branch.update_to_development_branch()
 
-        self._check_git_repo_health(repo)
+        self._cascade.validate()
         # repo.delete()
 
         raise SuccessMessage(branches=self.destination_branches,

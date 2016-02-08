@@ -24,7 +24,7 @@ from wall_e_exceptions import (AuthorApprovalRequired,
                                HelpMessage,
                                IncompatibleSourceBranchPrefix,
                                IncorrectSourceBranchName,
-                               # InitMessage,
+                               InitMessage,
                                NothingToDo,
                                NotMyJob,
                                ParentPullRequestNotFound,
@@ -92,11 +92,7 @@ class QuickTest(unittest.TestCase):
     """Tests which don't need to interact with an external web services"""
 
     def feature_branch(self, name):
-        return wall_e.FeatureBranch(
-            None,
-            name,
-            wall_e.SETTINGS['ring']['feature_branch']['prefix']
-        )
+        return wall_e.FeatureBranch(None, name)
 
     def test_feature_branch_names(self):
         with self.assertRaises(BranchNameInvalid):
@@ -148,26 +144,18 @@ class QuickTest(unittest.TestCase):
         with self.assertRaises(BranchNameInvalid):
             wall_e.DevelopmentBranch(
                 repo=None,
-                name='feature-RING-0005',
-                settings=wall_e.SETTINGS['ring']['development_branch'][
-                    'versions']['4.3'])
+                name='feature-RING-0005')
 
         # valid names
         wall_e.DevelopmentBranch(
             repo=None,
-            name='development/4.3',
-            settings=wall_e.SETTINGS['ring']['development_branch'][
-                'versions']['4.3'])
+            name='development/4.3')
         wall_e.DevelopmentBranch(
             repo=None,
-            name='development/5.1',
-            settings=wall_e.SETTINGS['ring']['development_branch'][
-                'versions']['5.1'])
+            name='development/5.1')
         wall_e.DevelopmentBranch(
             repo=None,
-            name='development/6.0',
-            settings=wall_e.SETTINGS['ring']['development_branch'][
-                'versions']['6.0'])
+            name='development/6.0')
 
 
 class TestWallE(unittest.TestCase):
@@ -255,6 +243,7 @@ class TestWallE(unittest.TestCase):
             from_branch,
             reviewers=None,
             file_=True,
+            expected_retcode = InitMessage.code,
             backtrace=False):
         if reviewers is None:
             reviewers = [self.creator]
@@ -269,8 +258,8 @@ class TestWallE(unittest.TestCase):
             reviewers=[{'username': rev} for rev in reviewers],
             description=''
         )
-        # retcode = self.handle(pr['id'], backtrace=backtrace)
-        # self.assertEqual(retcode, InitMessage.code)
+        retcode = self.handle(pr['id'], backtrace=backtrace)
+        self.assertEqual(retcode, expected_retcode)
         return pr
 
     def handle(self,
@@ -350,9 +339,9 @@ class TestWallE(unittest.TestCase):
             self.handle(pr['id'], backtrace=True)
 
         # test invalid branch name
-        pr = self.create_pr('featur/RING-00003', 'development/4.3')
-        retcode = self.handle(pr['id'])
-        self.assertEqual(retcode, IncorrectSourceBranchName.code)
+        with self.assertRaises(IncorrectSourceBranchName):
+            pr = self.create_pr('featur/RING-00003', 'development/4.3',
+                                backtrace=True)
 
     def test_conflict(self):
         pr1 = self.create_pr('bugfix/RING-0006', 'development/4.3',
