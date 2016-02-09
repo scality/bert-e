@@ -283,7 +283,9 @@ class TestWallE(unittest.TestCase):
         if interactive:
             sys.argv.append('--interactive')
         if unanimity:
-            sys.argv.append('--option unanimity')
+            sys.argv.append('-o')
+            sys.argv.append('unanimity')
+
         if backtrace:
             sys.argv.append('--backtrace')
         sys.argv.append('--quiet')
