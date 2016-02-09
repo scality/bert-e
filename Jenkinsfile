@@ -116,6 +116,7 @@ stage concurrency: 1, name: 'build'
                              ]]) {
 
                 sh '''python test_wall_e.py \\
+                          -v \\
                           --repo-prefix _test_wall_e_jenkins \\
                           ${WALL_E_PASSWORD} \\
                           ${EVA_PASSWORD} \\
