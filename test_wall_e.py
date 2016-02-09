@@ -285,7 +285,6 @@ class TestWallE(unittest.TestCase):
         if unanimity:
             sys.argv.append('-o')
             sys.argv.append('unanimity')
-
         if backtrace:
             sys.argv.append('--backtrace')
         sys.argv.append('--quiet')
@@ -952,48 +951,29 @@ class TestWallE(unittest.TestCase):
         """Test unanimity throught CLI"""
         feature_branch = 'bugfix/RING-0076'
         dst_branch = 'development/4.3'
-        reviewers = ['scality_wall-e']
+        reviewers = [WALL_E_USERNAME, EVA_USERNAME]
 
-        pr = self.create_pr(feature_branch, dst_branch, reviewers=reviewers)
+        pr = self.create_pr(feature_branch, dst_branch,
+                            reviewers=reviewers)
+        retcode = self.handle(pr['id'],
+                              options=self.bypass_jira_check,
+                              unanimity=True)
 
-        # Author
-        pr.approve()
-
-        # Reviewer
-        self.bbrepo_wall_e.get_pull_request(pull_request_id=pr['id'])
-
-        with self.assertRaises(UnanimApprovalRequired):
-            self.handle(pr['id'],
-                        bypass_author_approval=True,
-                        bypass_peer_approval=True,
-                        bypass_jira_version_check=True,
-                        bypass_jira_type_check=True,
-                        bypass_build_status=True,
-                        unanimity=True)
+        self.assertEqual(retcode, UnanimApprovalRequired.code)
 
     def test_unanimity__through_a_bitbucket_comment(self):
         """Test unanimity throught CLI"""
         feature_branch = 'bugfix/RING-0077'
         dst_branch = 'development/4.3'
-        reviewers = ['scality_wall-e']
+        reviewers = [WALL_E_USERNAME, EVA_USERNAME]
 
         pr = self.create_pr(feature_branch, dst_branch, reviewers=reviewers)
         pr.add_comment('@%s unanimity' % WALL_E_USERNAME)
 
-        # Author
-        pr.approve()
-
-        # Reviewer
-        self.bbrepo_wall_e.get_pull_request(pull_request_id=pr['id'])
-
-        with self.assertRaises(UnanimApprovalRequired):
-            self.handle(pr['id'],
-                        bypass_author_approval=True,
-                        bypass_peer_approval=True,
-                        bypass_jira_version_check=True,
-                        bypass_jira_type_check=True,
-                        bypass_build_status=True,
-                        unanimity=True)
+        retcode = self.handle(pr['id'],
+                              options=self.bypass_jira_check,
+                              unanimity=True)
+        self.assertEqual(retcode, UnanimApprovalRequired.code)
 
 
 def main():
