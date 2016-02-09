@@ -10,10 +10,27 @@ def notifyBitbucket(state, key, commit, url) {
                                      name  : "build and validation pipeline",
                                      url   : url])
 
-    withCredentials([[$class: 'UsernamePasswordBinding', credentialsId: 'wall-e', variable: 'CREDS']])
+    withCredentials([[$class: 'UsernamePasswordBinding',
+                      credentialsId: 'jenkins',
+                      variable: 'CREDS']])
     {
         sh 'curl --silent --user $CREDS' + " --header 'Content-Type: application/json' --request POST --data '${payload}' ${bitbucketURL}"
     }
+}
+
+def build_status = 'SUCCESSFUL'
+def git_commit = ''
+def short_commit = ''
+
+stage name: 'initialisation'
+node('master') {
+    checkout scm
+
+    sh('git rev-parse HEAD > GIT_COMMIT')
+    git_commit=readFile('GIT_COMMIT')
+    short_commit=git_commit.take(6)
+
+    notifyBitbucket('INPROGRESS', 'pipeline', short_commit, "${env.BUILD_URL}console")
 }
 
 stage concurrency: 1, name: 'build'
@@ -23,8 +40,6 @@ node('small') {
     sh('git rev-parse HEAD > GIT_COMMIT')
     git_commit=readFile('GIT_COMMIT')
     short_commit=git_commit.take(6)
-
-    notifyBitbucket('INPROGRESS', 'pipeline', short_commit, "${env.BUILD_URL}console")
 
     try {
         withCredentials([[$class: 'UsernamePasswordMultiBinding',
@@ -49,11 +64,18 @@ node('small') {
                       ${TESTER_USERNAME} \\
                       ${TESTER_PASSWORD} \\
                       sylvain.killian@scality.com'''
-
-            notifyBitbucket('SUCCESSFUL', 'pipeline', short_commit, "${env.BUILD_URL}console")
         }
     } catch (e) {
-        notifyBitbucket('FAILED', 'pipeline', short_commit, "${env.BUILD_URL}console")
+        build_status = 'FAILED'
+    }
+}
+
+stage name: 'finalisation'
+node('master') {
+    notifyBitbucket(build_status, 'pipeline', short_commit, "${env.BUILD_URL}console")
+
+    if (build_status == 'FAILED') {
         currentBuild.result = 'FAILURE'
     }
 }
+
