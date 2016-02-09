@@ -917,9 +917,9 @@ class WallE:
         unanimity = self.option_is_set('unanimity')
 
         if unanimity:
-            all_aproval = all([x['approved']
-                               for x in self.main_pr['participants']])
-            if all_aproval:
+            all_aproval = [x['approved']
+                           for x in self.main_pr['participants']]
+            if all_aproval and all(all_aproval):
                 return
 
             raise UnanimApprovalRequired(pr=self.main_pr,
