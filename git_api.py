@@ -139,6 +139,9 @@ class Branch(object):
             raise BranchCreationFailedException(msg)
         self.push()
 
+    def remove(self):
+        self.repo.push(':' + self.name)
+
 
 class GitException(Exception):
     pass
