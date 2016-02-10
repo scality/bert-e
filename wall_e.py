@@ -74,7 +74,7 @@ SETTINGS = {
             'prefix': 'development',
             'versions': OrderedDict([
                 ('4.3', {
-                    'upcoming_release': '4.3.18',
+                    'upcoming_release': '4.3.19',
                     'allow_ticketless': False,
                     'allow_prefix': [
                         'bugfix',
