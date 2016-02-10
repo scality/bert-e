@@ -115,6 +115,8 @@ stage concurrency: 1, name: 'build'
                               usernameVariable: 'EVA_USERNAME'
                              ]]) {
 
+                sh '''flake8 *.py'''
+
                 sh '''python test_wall_e.py \\
                           -v \\
                           --repo-prefix _test_wall_e_jenkins \\
