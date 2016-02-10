@@ -140,7 +140,7 @@ class Branch(object):
     def remove(self):
         # hardcode a security since wall-e is all-powerful
         if (self.name.startswith('development') or
-            self.name.startswith('release')):
+                self.name.startswith('release')):
             raise ForbiddenOperation('cannot delete branch %s' %
                                      self.name)
 
@@ -148,7 +148,6 @@ class Branch(object):
             self.repo.push(':' + self.name)
         except PushFailedException:
             raise RemoveFailedException()
-
 
 
 class GitException(Exception):
