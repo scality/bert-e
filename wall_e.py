@@ -141,7 +141,7 @@ SETTINGS = {
     },
     'wall-e': {
         'jira_key': 'RELENG',
-        'build_key': 'autotest',
+        'build_key': 'pipeline',
         'release_branch': {
             'prefix': 'release'
         },
@@ -186,7 +186,7 @@ SETTINGS = {
     },
     'gollum': {
         'jira_key': 'RELENG',
-        'build_key': 'autotest',
+        'build_key': 'pipeline',
         'release_branch': {
             'prefix': 'release'
         },
