@@ -312,6 +312,13 @@ class TestWallE(unittest.TestCase):
         # check success mode
         retcode = self.handle(pr['id'], options=self.bypass_all)
         self.assertEqual(retcode, SuccessMessage.code)
+
+        # check integration branches have been removed
+        for version in ['4.3', '5.1', '6.0']:
+            remote = 'w/%s/%s' % (version, 'bugfix/RING-0001')
+            ret = self.gitrepo.remote_branch_exists(remote)
+            self.assertFalse(ret)
+
         # check what happens when trying to do it again
         with self.assertRaises(NothingToDo):
             self.handle(pr['id'],
@@ -962,7 +969,7 @@ def main():
                         help='Verbose mode')
     parser.add_argument('--failfast', action='store_true', default=False,
                         help='Return on first failure')
-    parser.add_argument('--disable_mock', action='store_true', default=False,
+    parser.add_argument('--disable-mock', action='store_true', default=False,
                         help='Return on first failure')
     TestWallE.args = parser.parse_args()
 

@@ -58,7 +58,6 @@ class Repository(object):
             raise CheckoutFailedException(name)
 
     def push(self, name):
-        self.checkout(name)
         try:
             self.cmd('git push --set-upstream origin ' + name)
         except subprocess.CalledProcessError:
@@ -97,7 +96,7 @@ class Branch(object):
             self.repo.cmd('git merge --abort')
             raise MergeFailedException(self.name, source_branch.name)
         if do_push:
-            self.push()  # FIXME push will do an unnecessary checkout
+            self.push()
 
     def get_all_commits(self, source_branch):
         self.repo.checkout(source_branch.name)
@@ -140,7 +139,17 @@ class Branch(object):
         self.push()
 
     def remove(self):
-        self.repo.push(':' + self.name)
+        # hardcode a security since wall-e is all-powerful
+        if (self.name.startswith('development') or
+            self.name.startswith('release')):
+            raise ForbiddenOperation('cannot delete branch %s' %
+                                     self.name)
+
+        try:
+            self.repo.push(':' + self.name)
+        except PushFailedException:
+            raise RemoveFailedException()
+
 
 
 class GitException(Exception):
@@ -159,5 +168,13 @@ class PushFailedException(GitException):
     pass
 
 
+class RemoveFailedException(GitException):
+    pass
+
+
 class BranchCreationFailedException(GitException):
+    pass
+
+
+class ForbiddenOperation(GitException):
     pass

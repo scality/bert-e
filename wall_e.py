@@ -19,7 +19,8 @@ import bitbucket_api
 from git_api import (Repository as GitRepository,
                      Branch,
                      MergeFailedException,
-                     CheckoutFailedException)
+                     CheckoutFailedException,
+                     RemoveFailedException)
 from jira_api import JiraIssue
 from wall_e_exceptions import (AuthorApprovalRequired,
                                BranchHistoryMismatch,
@@ -1046,6 +1047,13 @@ class WallE:
 
             for integration_branch in integration_branches:
                 integration_branch.update_to_development_branch()
+
+            for integration_branch in integration_branches:
+                try:
+                    integration_branch.remove()
+                except RemoveFailedException:
+                    # ignore failures as this is non critical
+                    pass
 
             self._check_git_repo_health(repo)
 
