@@ -970,7 +970,7 @@ def main():
     parser.add_argument('--failfast', action='store_true', default=False,
                         help='Return on first failure')
     parser.add_argument('--disable-mock', action='store_true', default=False,
-                        help='Return on first failure')
+                        help='Disables the bitbucket mock (slower tests)')
     TestWallE.args = parser.parse_args()
 
     if TestWallE.args.your_login == WALL_E_USERNAME:
