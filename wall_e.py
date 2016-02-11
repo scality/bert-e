@@ -927,7 +927,8 @@ class WallE:
         if self.author in self.settings['testers']:
             approved_by_tester = True
 
-        if approved_by_author and approved_by_peer and approved_by_tester:
+        if (approved_by_author and approved_by_peer and
+                approved_by_tester and not requires_unanimity):
             return
 
         # NB: when author hasn't approved the PR, author isn't listed in
@@ -941,15 +942,6 @@ class WallE:
                 approved_by_tester = True
             else:
                 approved_by_peer = True
-
-        if requires_unanimity:
-            all_approval = [x['approved']
-                            for x in self.main_pr['participants']]
-            if all_approval and all(all_approval):
-                return
-
-            raise UnanimityApprovalRequired(pr=self.main_pr,
-                                            child_prs=child_prs)
 
         if not approved_by_author:
             raise AuthorApprovalRequired(
@@ -977,6 +969,15 @@ class WallE:
                 peer_approval=approved_by_peer,
                 tester_approval=approved_by_tester,
             )
+
+        if requires_unanimity:
+            all_approval = [x['approved']
+                            for x in self.main_pr['participants']]
+            if all_approval and all(all_approval):
+                return
+
+            raise UnanimityApprovalRequired(pr=self.main_pr,
+                                            child_prs=child_prs)
 
     def _get_pr_build_status(self, key, pr):
         try:
