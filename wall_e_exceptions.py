@@ -127,7 +127,7 @@ class BuildFailed(WallE_TemplateException):
 
 
 class UnanimityApprovalRequired(WallE_TemplateException):
-    code = 120
+    code = 119
     template = 'need_approval.md'
 
 
