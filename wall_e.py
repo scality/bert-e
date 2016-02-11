@@ -943,9 +943,9 @@ class WallE:
                 approved_by_peer = True
 
         if requires_unanimity:
-            all_aproval = [x['approved']
-                           for x in self.main_pr['participants']]
-            if all_aproval and all(all_aproval):
+            all_approval = [x['approved']
+                            for x in self.main_pr['participants']]
+            if all_approval and all(all_approval):
                 return
 
             raise UnanimityApprovalRequired(pr=self.main_pr,
