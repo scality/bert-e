@@ -186,6 +186,9 @@ class TestWallE(unittest.TestCase):
     bypass_jira_check = [
         'bypass_jira_check'
     ]
+    unanimity = [
+        'unanimity'
+    ]
 
     def setUp(self):
         # repo creator and reviewer
@@ -271,8 +274,7 @@ class TestWallE(unittest.TestCase):
                reference_git_repo='',
                no_comment=False,
                interactive=False,
-               backtrace=False,
-               unanimity=False):
+               backtrace=False):
 
         sys.argv = ["wall-e.py"]
         for option in options:
@@ -282,9 +284,6 @@ class TestWallE(unittest.TestCase):
             sys.argv.append('--no-comment')
         if interactive:
             sys.argv.append('--interactive')
-        if unanimity:
-            sys.argv.append('-o')
-            sys.argv.append('unanimity')
         if backtrace:
             sys.argv.append('--backtrace')
         sys.argv.append('--quiet')
@@ -947,8 +946,8 @@ class TestWallE(unittest.TestCase):
                               options=self.bypass_all)
         self.assertEqual(retcode, BranchHistoryMismatch.code)
 
-    def test_unanimity_cli(self):
-        """Test unanimity throught CLI"""
+    def test_unanimity_option(self):
+        """Test unanimity by passing option to wall_e"""
         feature_branch = 'bugfix/RING-0076'
         dst_branch = 'development/4.3'
         reviewers = [WALL_E_USERNAME, EVA_USERNAME]
@@ -956,23 +955,8 @@ class TestWallE(unittest.TestCase):
         pr = self.create_pr(feature_branch, dst_branch,
                             reviewers=reviewers)
         retcode = self.handle(pr['id'],
-                              options=self.bypass_jira_check,
-                              unanimity=True)
+                              options=self.bypass_jira_check + self.unanimity)
 
-        self.assertEqual(retcode, UnanimApprovalRequired.code)
-
-    def test_unanimity__through_a_bitbucket_comment(self):
-        """Test unanimity throught CLI"""
-        feature_branch = 'bugfix/RING-0077'
-        dst_branch = 'development/4.3'
-        reviewers = [WALL_E_USERNAME, EVA_USERNAME]
-
-        pr = self.create_pr(feature_branch, dst_branch, reviewers=reviewers)
-        pr.add_comment('@%s unanimity' % WALL_E_USERNAME)
-
-        retcode = self.handle(pr['id'],
-                              options=self.bypass_jira_check,
-                              unanimity=True)
         self.assertEqual(retcode, UnanimApprovalRequired.code)
 
 
