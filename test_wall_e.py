@@ -950,7 +950,7 @@ class TestWallE(unittest.TestCase):
         """Test unanimity by passing option to wall_e"""
         feature_branch = 'bugfix/RING-0076'
         dst_branch = 'development/4.3'
-        reviewers = [WALL_E_USERNAME, EVA_USERNAME]
+        reviewers = [WALL_E_USERNAME]
 
         pr = self.create_pr(feature_branch, dst_branch,
                             reviewers=reviewers)
