@@ -10,5 +10,5 @@ into targetted development branches:
 
 Please check the status of the associated issue {{ issue }}.
 
-Goodbye {{author}}.
+Goodbye {{ author }}.
 {% endblock %}
