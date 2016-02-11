@@ -58,6 +58,7 @@ from wall_e_exceptions import (AuthorApprovalRequired,
 
 if six.PY3:
     raw_input = input
+    unicode = six.text_type
 
 
 WALL_E_USERNAME = 'scality_wall-e'
