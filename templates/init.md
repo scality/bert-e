@@ -1,7 +1,7 @@
 {% extends "message.md" %}
 
 {% block title -%}
-Hello @{{ author }},
+Hello {{ author }},
 {% endblock %}
 
 {% block message %}

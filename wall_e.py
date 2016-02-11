@@ -431,6 +431,7 @@ class WallE:
         self.main_pr = self.bbrepo.get_pull_request(
             pull_request_id=pull_request_id)
         self.author = self.main_pr['author']['username']
+        self.author_display_name = self.main_pr['author']['display_name']
         if WALL_E_USERNAME == self.author:
             res = re.search('(?P<pr_id>\d+)',
                             self.main_pr['description'])
@@ -441,6 +442,7 @@ class WallE:
                 pull_request_id=self.pull_request_id
             )
             self.author = self.main_pr['author']['username']
+            self.author_display_name = self.main_pr['author']['display_name']
         self.options = options
         self.commands = commands
         self.settings = settings
@@ -548,7 +550,7 @@ class WallE:
                 raise NotMyJob(src_branch_name, dst_branch_name)
 
     def _send_greetings(self, comments):
-        """Displays a welcome message if conditions are met."""
+        """Display a welcome message if conditions are met."""
         for comment in comments:
             author = comment['user']['username']
             if isinstance(author, list):
@@ -560,7 +562,7 @@ class WallE:
             if author == WALL_E_USERNAME:
                 return
 
-        raise InitMessage(author=self.author,
+        raise InitMessage(author=self.author_display_name,
                           status=self.get_status_report(),
                           active_options=self._get_active_options())
 
@@ -1059,7 +1061,7 @@ class WallE:
 
         raise SuccessMessage(branches=self.destination_branches,
                              issue=self.source_branch.jira_issue_key,
-                             author=self.author)
+                             author=self.author_display_name)
 
 
 def setup_parser():
@@ -1232,7 +1234,7 @@ def main():
 
     except WallE_TemplateException as excp:
         try:
-            wall_e.send_bitbucket_msg(str(excp),
+            wall_e.send_bitbucket_msg(unicode(excp),
                                       dont_repeat_if_in_history=excp.
                                       dont_repeat_if_in_history,
                                       no_comment=args.no_comment,
