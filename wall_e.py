@@ -914,17 +914,8 @@ class WallE:
         """
         approved_by_author = self.option_is_set('bypass_author_approval')
         approved_by_peer = self.option_is_set('bypass_peer_approval')
-        unanimity = self.option_is_set('unanimity')
-
-        if unanimity:
-            all_aproval = [x['approved']
-                           for x in self.main_pr['participants']]
-            if all_aproval and all(all_aproval):
-                return
-
-            raise UnanimApprovalRequired(pr=self.main_pr,
-                                         child_prs=child_prs)
         approved_by_tester = self.option_is_set('bypass_tester_approval')
+        requires_unanimity = self.option_is_set('unanimity')
 
         if not self.settings['testers']:
             # if the project does not declare any testers,
@@ -950,6 +941,15 @@ class WallE:
                 approved_by_tester = True
             else:
                 approved_by_peer = True
+
+        if requires_unanimity:
+            all_aproval = [x['approved']
+                           for x in self.main_pr['participants']]
+            if all_aproval and all(all_aproval):
+                return
+
+            raise UnanimApprovalRequired(pr=self.main_pr,
+                                         child_prs=child_prs)
 
         if not approved_by_author:
             raise AuthorApprovalRequired(
