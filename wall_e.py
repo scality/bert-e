@@ -52,7 +52,7 @@ from wall_e_exceptions import (AuthorApprovalRequired,
                                SuccessMessage,
                                TesterApprovalRequired,
                                UnableToSendEmail,
-                               UnanimApprovalRequired,
+                               UnanimityApprovalRequired,
                                WallE_SilentException,
                                WallE_TemplateException)
 
@@ -948,8 +948,8 @@ class WallE:
             if all_aproval and all(all_aproval):
                 return
 
-            raise UnanimApprovalRequired(pr=self.main_pr,
-                                         child_prs=child_prs)
+            raise UnanimityApprovalRequired(pr=self.main_pr,
+                                            child_prs=child_prs)
 
         if not approved_by_author:
             raise AuthorApprovalRequired(

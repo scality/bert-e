@@ -126,7 +126,7 @@ class BuildFailed(WallE_TemplateException):
     template = 'build_failed.md'
 
 
-class UnanimApprovalRequired(WallE_TemplateException):
+class UnanimityApprovalRequired(WallE_TemplateException):
     code = 120
     template = 'need_approval.md'
 
