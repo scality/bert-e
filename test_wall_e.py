@@ -509,12 +509,12 @@ class TestWallE(unittest.TestCase):
             pull_request_id=pr['id'])
         pr_wall_e.add_comment('this is my help already')
         retcode = self.handle(pr['id'], options=self.bypass_jira_check)
-        self.assertEqual(retcode, UnanimityApprovalRequired.code)
+        self.assertEqual(retcode, AuthorApprovalRequired.code)
 
         # test unknown command
         pr.add_comment('@%s helpp' % WALL_E_USERNAME)
         retcode = self.handle(pr['id'], options=self.bypass_jira_check)
-        self.assertEqual(retcode, UnanimityApprovalRequired.code)
+        self.assertEqual(retcode, AuthorApprovalRequired.code)
 
         # test command args
         pr.add_comment('@%s help some arguments --hehe' % WALL_E_USERNAME)
@@ -529,7 +529,7 @@ class TestWallE(unittest.TestCase):
                        ' bypass_build_status'
                        ' bypass_jira_check')
         retcode = self.handle(pr['id'], options=self.bypass_jira_check)
-        self.assertEqual(retcode, UnanimityApprovalRequired.code)
+        self.assertEqual(retcode, AuthorApprovalRequired.code)
 
         # test options set through deleted comment(self):
         comment = pr.add_comment(
@@ -542,7 +542,7 @@ class TestWallE(unittest.TestCase):
         )
         comment.delete()
         retcode = self.handle(pr['id'], options=self.bypass_jira_check)
-        self.assertEqual(retcode, UnanimityApprovalRequired.code)
+        self.assertEqual(retcode, AuthorApprovalRequired.code)
 
         # test no effect sub pr options
         sub_pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id']+1)
@@ -552,7 +552,7 @@ class TestWallE(unittest.TestCase):
                                  ' bypass_build_status'
                                  ' bypass_jira_check' % WALL_E_USERNAME)
         retcode = self.handle(pr['id'], options=self.bypass_jira_check)
-        self.assertEqual(retcode, UnanimityApprovalRequired.code)
+        self.assertEqual(retcode, AuthorApprovalRequired.code)
 
     def test_bypass_options(self):
         # test bypass all approvals through an incorrect bitbucket comment
@@ -955,7 +955,7 @@ class TestWallE(unittest.TestCase):
         pr = self.create_pr(feature_branch, dst_branch,
                             reviewers=reviewers)
         retcode = self.handle(pr['id'],
-                              options=self.bypass_jira_check + self.unanimity)
+                              options=self.bypass_all + self.unanimity)
 
         self.assertEqual(retcode, UnanimityApprovalRequired.code)
 
