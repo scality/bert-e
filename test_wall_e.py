@@ -958,21 +958,23 @@ class TestWallE(unittest.TestCase):
                      .replace(" ", "").split('\n')[:-1])
         self.assertEqual(expected_result, result)
 
-
     def test_successful_merge_into_stabilization_branch(self):
-        self.successful_merge_into_stabilization_branch('stabilization/4.3.18',
-                                                   ["origin/bugfix/RING-00001",
-                                                    "origin/development/4.3",
-                                                    "origin/development/5.1",
-                                                    "origin/development/6.0",
-                                                    "origin/stabilization/4.3.18"])
+        self.successful_merge_into_stabilization_branch(
+                'stabilization/4.3.18',
+                ["origin/bugfix/RING-00001",
+                 "origin/development/4.3",
+                 "origin/development/5.1",
+                 "origin/development/6.0",
+                 "origin/stabilization/4.3.18"])
 
     def test_successful_merge_into_stabilization_branch_middle_cascade(self):
-        self.successful_merge_into_stabilization_branch('stabilization/5.1.4',
-                                                   ["origin/bugfix/RING-00001",
-                                                    "origin/development/5.1",
-                                                    "origin/development/6.0",
-                                                    "origin/stabilization/5.1.4"])
+        self.successful_merge_into_stabilization_branch(
+                'stabilization/5.1.4',
+                ["origin/bugfix/RING-00001",
+                 "origin/development/5.1",
+                 "origin/development/6.0",
+                 "origin/stabilization/5.1.4"])
+
 
 def main():
     parser = argparse.ArgumentParser(description='Launches Wall-E tests.')

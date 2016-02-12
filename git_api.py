@@ -35,7 +35,8 @@ class Repository(object):
     def get_all_branches_locally(self):
         for remote in self.cmd("git branch -r").split('\n')[:-1]:
             local = remote.replace('origin/', '').split()[-1]
-            self.cmd("git branch --track {0} {1} || exit 0".format(local, remote))
+            self.cmd("git branch --track {0} {1} || exit 0"
+                     .format(local, remote))
         self.cmd('git fetch --all')
         self.cmd('git pull --all || exit 0')
 
