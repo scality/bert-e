@@ -460,8 +460,9 @@ class BranchCascade(object):
 
             if dev_branch.micro is None:
                 if stb_branch is None:
-                    raise NoMicroVersionForDevelopmentBranch(dev_branch)
-                dev_branch.micro = stb_branch.micro + 1
+                    dev_branch.micro = 0
+                else:
+                    dev_branch.micro = stb_branch.micro + 1
 
             if stb_branch:
                 if dev_branch.micro - stb_branch.micro != 1:
