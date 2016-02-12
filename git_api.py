@@ -10,7 +10,8 @@ import logging
 class Repository(object):
     def __init__(self, url):
         self._url = url
-        self.directory = mkdtemp()
+        self.tmp_directory = mkdtemp()
+        self.cmd_directory = self.tmp_directory
 
     def __enter__(self):
         return self
@@ -19,15 +20,17 @@ class Repository(object):
         self.delete()
 
     def delete(self):
-        rmtree(self.directory)
-        self.directory = None
+        rmtree(self.tmp_directory)
+        self.tmp_directory = None
+        self.cmd_directory = None
 
     def clone(self, reference=''):
         if reference:
             reference = '--reference ' + reference
         self.cmd('git clone %s %s' % (reference, self._url))
         repo_slug = self._url.split('/')[-1].replace('.git', '')
-        self.directory = os.path.join(self.directory, repo_slug)
+        # all commands will now execute from repo directory
+        self.cmd_directory = os.path.join(self.tmp_directory, repo_slug)
 
     def get_all_branches_locally(self):
         for remote in self.cmd("git branch -r").split('\n')[:-1]:
@@ -60,14 +63,13 @@ class Repository(object):
             raise CheckoutFailedException(name)
 
     def push(self, name):
-        self.checkout(name)
         try:
             self.cmd('git push --set-upstream origin ' + name)
         except subprocess.CalledProcessError:
             raise PushFailedException(name)
 
     def cmd(self, command, retry=0, **kwargs):
-        cwd = kwargs.get('cwd', self.directory)
+        cwd = kwargs.get('cwd', self.cmd_directory)
         try:
             ret = cmd(command, cwd=cwd, **kwargs)
         except subprocess.CalledProcessError:
@@ -99,7 +101,7 @@ class Branch(object):
             self.repo.cmd('git merge --abort')
             raise MergeFailedException(self.name, source_branch.name)
         if do_push:
-            self.push()  # FIXME push will do an unnecessary checkout
+            self.push()
 
     def get_all_commits(self, source_branch):
         self.repo.checkout(source_branch.name)
@@ -116,8 +118,7 @@ class Branch(object):
         return True
 
     def get_latest_commit(self):
-        return self.repo.cmd(('git log -1 --format="%%H" %s ' %
-                              self.name))[0:12]
+        return self.repo.cmd(('git rev-parse %s' % self.name))[0:12]
 
     def exists(self):
         try:
@@ -141,6 +142,18 @@ class Branch(object):
             raise BranchCreationFailedException(msg)
         self.push()
 
+    def remove(self):
+        # hardcode a security since wall-e is all-powerful
+        if (self.name.startswith('development') or
+                self.name.startswith('release')):
+            raise ForbiddenOperation('cannot delete branch %s' %
+                                     self.name)
+
+        try:
+            self.repo.push(':' + self.name)
+        except PushFailedException:
+            raise RemoveFailedException()
+
 
 class GitException(Exception):
     pass
@@ -158,5 +171,13 @@ class PushFailedException(GitException):
     pass
 
 
+class RemoveFailedException(GitException):
+    pass
+
+
 class BranchCreationFailedException(GitException):
+    pass
+
+
+class ForbiddenOperation(GitException):
     pass

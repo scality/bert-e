@@ -15,6 +15,8 @@ or a commit was added directly on the first integration branch
 `{{integration_branch.name}}`.
 
 In either cases, the merge is not possible until all related `w/*`
-branches are manually deleted or updated. Once fixed, please comment
-this pull request to resume the merge process.
+branches are manually deleted or updated (If you choose to delete,
+please note that I will create new integration pull requests on my
+next run). Once fixed, please comment this pull request to resume
+the merge process.
 {% endblock %}

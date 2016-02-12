@@ -19,7 +19,8 @@ import bitbucket_api
 from git_api import (Repository as GitRepository,
                      Branch,
                      MergeFailedException,
-                     CheckoutFailedException)
+                     CheckoutFailedException,
+                     RemoveFailedException)
 from jira_api import JiraIssue
 from wall_e_exceptions import (AuthorApprovalRequired,
                                BranchHistoryMismatch,
@@ -57,6 +58,7 @@ from wall_e_exceptions import (AuthorApprovalRequired,
 
 if six.PY3:
     raw_input = input
+    unicode = six.text_type
 
 WALL_E_USERNAME = 'scality_wall-e'
 WALL_E_EMAIL = 'wall_e@scality.com'
@@ -114,7 +116,7 @@ SETTINGS = {
     },
     'wall-e': {
         'jira_key': 'RELENG',
-        'build_key': 'autotest',
+        'build_key': 'pipeline',
         'release_branch': {
             'prefix': 'release'
         },
@@ -150,7 +152,7 @@ SETTINGS = {
     },
     'gollum': {
         'jira_key': 'RELENG',
-        'build_key': 'autotest',
+        'build_key': 'pipeline',
         'release_branch': {
             'prefix': 'release'
         },
@@ -531,16 +533,18 @@ class WallE:
         self.main_pr = self.bbrepo.get_pull_request(
             pull_request_id=pull_request_id)
         self.author = self.main_pr['author']['username']
+        self.author_display_name = self.main_pr['author']['display_name']
         if WALL_E_USERNAME == self.author:
             res = re.search('(?P<pr_id>\d+)',
                             self.main_pr['description'])
             if not res:
                 raise ParentPullRequestNotFound('Not found')
-            self.pull_request_id = res.group('pr_id')
+            self.pull_request_id = int(res.group('pr_id'))
             self.main_pr = self.bbrepo.get_pull_request(
-                pull_request_id=int(res.group())
+                pull_request_id=self.pull_request_id
             )
             self.author = self.main_pr['author']['username']
+            self.author_display_name = self.main_pr['author']['display_name']
         self.options = options
         self.commands = commands
         self.settings = settings
@@ -640,7 +644,7 @@ class WallE:
             raise NotMyJob(src_branch_name, dst_branch_name)
 
     def _send_greetings(self, comments):
-        """Displays a welcome message if conditions are met."""
+        """Display a welcome message if conditions are met."""
         for comment in comments:
             author = comment['user']['username']
             if isinstance(author, list):
@@ -652,7 +656,7 @@ class WallE:
             if author == WALL_E_USERNAME:
                 return
 
-        raise InitMessage(author=self.author,
+        raise InitMessage(author=self.author_display_name,
                           status=self.get_status_report(),
                           active_options=self._get_active_options())
 
@@ -1089,12 +1093,18 @@ class WallE:
         for integration_branch in integration_branches:
             integration_branch.update_to_development_branch()
 
+            for integration_branch in integration_branches:
+                try:
+                    integration_branch.remove()
+                except RemoveFailedException:
+                    # ignore failures as this is non critical
+                    pass
         self._cascade.validate()
         # repo.delete()
 
         raise SuccessMessage(branches=self.destination_branches,
                              issue=self.source_branch.jira_issue_key,
-                             author=self.author)
+                             author=self.author_display_name)
 
 
 def setup_parser():
@@ -1267,7 +1277,7 @@ def main():
 
     except WallE_TemplateException as excp:
         try:
-            wall_e.send_bitbucket_msg(str(excp),
+            wall_e.send_bitbucket_msg(unicode(excp),
                                       dont_repeat_if_in_history=excp.
                                       dont_repeat_if_in_history,
                                       no_comment=args.no_comment,
