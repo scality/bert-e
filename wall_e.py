@@ -903,7 +903,7 @@ class WallE:
         for branch in git_repo.cmd('git branch').split('\n')[:-1]:
             try:
                 branch = branch_factory(git_repo, branch[2:])
-            except UnrecognizedBranchPattern(branch[2:]):
+            except UnrecognizedBranchPattern:
                 continue
             self._cascade.add_branch(branch)
 
