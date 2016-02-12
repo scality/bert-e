@@ -186,9 +186,6 @@ class TestWallE(unittest.TestCase):
     bypass_jira_check = [
         'bypass_jira_check'
     ]
-    unanimity = [
-        'unanimity'
-    ]
 
     def setUp(self):
         # repo creator and reviewer
@@ -955,7 +952,7 @@ class TestWallE(unittest.TestCase):
         pr = self.create_pr(feature_branch, dst_branch,
                             reviewers=reviewers)
         retcode = self.handle(pr['id'],
-                              options=self.bypass_all + self.unanimity)
+                              options=self.bypass_all + ['unanimity'])
 
         self.assertEqual(retcode, UnanimityApprovalRequired.code)
 
