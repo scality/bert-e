@@ -977,8 +977,6 @@ class WallE:
             if self.main_pr['participants'] and all_approval:
                 return
 
-            # author / tester / peer to True to avoid the display
-            # of the required approval of these elements in the message
             raise UnanimityApprovalRequired(
                 pr=self.main_pr,
                 author_approval=approved_by_author,
