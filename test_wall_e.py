@@ -946,6 +946,22 @@ class TestWallE(unittest.TestCase):
                               options=self.bypass_all)
         self.assertEqual(retcode, BranchHistoryMismatch.code)
 
+    def test_successful_merge_into_stabilization_branch(self):
+        pr = self.create_pr('bugfix/RING-00001', 'stabilization/4.3.18')
+        self.handle(pr['id'],
+                    options=self.bypass_all)
+        self.gitrepo.cmd('git pull -a')
+        expected_result = set(["origin/bugfix/RING-00001",
+                               "origin/development/4.3",
+                               "origin/development/5.1",
+                               "origin/development/6.0",
+                               "origin/stabilization/4.3.18"])
+        result = set(self.gitrepo
+                     .cmd('git branch -r --contains origin/bugfix/RING-00001')
+                     .replace(" ", "").split('\n')[:-1])
+        self.assertEqual(expected_result, result)
+
+
 
 def main():
     parser = argparse.ArgumentParser(description='Launches Wall-E tests.')
