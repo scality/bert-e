@@ -16,6 +16,9 @@ The following approvals are missing before I can proceed with the merge:
 {% if not tester_approval %}
 * at least one tester
 {% endif %}
+{% if requires_unanimity %}
+* all participants in this pull request (unanimity option is on)
+{% endif %}
 
 *Please note*
 
