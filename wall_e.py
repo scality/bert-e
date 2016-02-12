@@ -916,7 +916,7 @@ class WallE:
         approved_by_peer = self.option_is_set('bypass_peer_approval')
         approved_by_tester = self.option_is_set('bypass_tester_approval')
         requires_unanimity = self.option_is_set('unanimity')
-        all_approval = True
+        is_unanimous = True
 
         if not self.settings['testers']:
             # if the project does not declare any testers,
@@ -936,7 +936,8 @@ class WallE:
         # 'participants'
         for participant in self.main_pr['participants']:
             if not participant['approved']:
-                all_approval = False
+                if participant['user']['username'] != WALL_E_USERNAME:
+                    is_unanimous = False
                 continue
             if participant['user']['username'] == self.author:
                 approved_by_author = True
@@ -980,9 +981,9 @@ class WallE:
             # of the required approval of these elements in the message
             raise UnanimityApprovalRequired(
                 pr=self.main_pr,
-                author_approval=True,
-                peer_approval=True,
-                tester_approval=True,
+                author_approval=approved_by_author,
+                peer_approval=approved_by_peer,
+                tester_approval=approved_by_tester,
                 requires_unanimity=requires_unanimity,
                 child_prs=child_prs)
 
