@@ -33,9 +33,11 @@ class Repository(object):
         self.cmd_directory = os.path.join(self.tmp_directory, repo_slug)
 
     def get_all_branches_locally(self):
-        for remote in self.cmd("git branch -r").split('\n')[:-1]:
-            local = remote.replace('origin/', '')
-            self.cmd('git checkout ' + local)
+        for remote in self.cmd("git branch -r | grep -v HEAD | grep -v development/5.1").split('\n')[:-1]:
+            local = remote.replace('origin/', '').split()[-1]
+            self.cmd("git branch --track {0} {1}".format(local, remote))
+        self.cmd('git fetch --all')
+        self.cmd('git pull --all || exit 0')
 
     def config(self, key, value):
         self.cmd('git config %s %s' % (key, value))
