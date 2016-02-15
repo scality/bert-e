@@ -53,6 +53,7 @@ from wall_e_exceptions import (AuthorApprovalRequired,
                                SuccessMessage,
                                TesterApprovalRequired,
                                UnableToSendEmail,
+                               WaitingPullRequest,
                                WallE_SilentException,
                                WallE_TemplateException)
 
@@ -447,6 +448,7 @@ class WallE:
         self.source_branch = None
         self.destination_branches = []
         self.target_versions = {}
+        self.pr_id_to_wait = []
 
     def option_is_set(self, name):
         if name not in self.options.keys():
@@ -568,6 +570,24 @@ class WallE:
         logging.debug('checking keywords %s', keyword_list)
 
         for keyword in keyword_list:
+            if keyword == 'wait':
+                # Get the of the wait option
+                wait_index = keyword_list.index(keyword)
+                try:
+                    # Get the index where to stop looking for a pr_id
+                    next_index = next(keyword_list.index(next_kw)
+                                      for next_kw in keyword_list[wait_index+1:]
+                                      if next_kw in self.options.keys()
+                                      or next_kw == keyword_list[-1])
+
+                    self.pr_id_to_wait = [x for x in
+                                          keyword_list[wait_index:next_index+1]
+                                          if x.isdigit()]
+                    # Update the keyword list by removing pr ids
+                    map(keyword_list.remove, self.pr_id_to_wait)
+                except StopIteration:
+                    logging.debug('Could not get the next index: Nothng to do')
+
             if keyword not in self.options.keys():
                 logging.debug('ignoring keywords in this comment due to '
                               'an unknown keyword `%s`', keyword_list)
@@ -1025,7 +1045,22 @@ class WallE:
         self._handle_commands(comments)
 
         if self.option_is_set('wait'):
-            raise NothingToDo('wait option is set')
+            if not self.pr_id_to_wait:
+                raise NothingToDo('wait option is set')
+
+            waiting_prs = [self.bbrepo.get_pull_request(pull_request_id=int(x))
+                           for x in self.pr_id_to_wait]
+
+            openned_prs = filter(lambda x: x['state'] == 'OPEN',
+                                 waiting_prs)
+            merged_prs = filter(lambda x: x['state'] == 'MERGED',
+                                waiting_prs)
+            declined_prs = filter(lambda x: x['state'] == 'DECLINED',
+                                  waiting_prs)
+
+            if len(self.pr_id_to_wait) != len(merged_prs):
+                raise WaitingPullRequest(openned_prs=openned_prs,
+                                         declined_prs=declined_prs)
 
         self._build_target_versions(dst_branch_name)
         self._setup_source_branch(src_branch_name, dst_branch_name)
@@ -1146,7 +1181,10 @@ def setup_options(args):
         'wait':
             Option(privileged=False,
                    value='wait' in args.cmd_line_options,
-                   help="Instruct Wall-E not to run until further notice")
+                   help="Instruct Wall-E not to run until further notice. "
+                   "Howerver if a list PR ids is provided after this option, "
+                   "Wall-E  will wait for the merge of the provided PRs "
+                   "before merging the current one")
     }
     return options
 

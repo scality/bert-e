@@ -126,6 +126,11 @@ class BuildFailed(WallE_TemplateException):
     template = 'build_failed.md'
 
 
+class WaitingPullRequest(WallE_TemplateException):
+    code = 119
+    template = 'waiting_pull_request.md'
+
+
 # internal exceptions
 class UnableToSendEmail(WallE_InternalException):
     pass
