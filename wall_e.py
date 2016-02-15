@@ -63,6 +63,7 @@ if six.PY3:
 WALL_E_USERNAME = 'scality_wall-e'
 WALL_E_EMAIL = 'wall_e@scality.com'
 
+JENKINS_USERNAME = 'scality_jenkins'
 
 SETTINGS = {
     'ring': {
@@ -936,7 +937,11 @@ class WallE:
         # 'participants'
         for participant in self.main_pr['participants']:
             if not participant['approved']:
-                if participant['user']['username'] != WALL_E_USERNAME:
+                # if we bypass all, wall_e and jenkins are the only reviewers
+                # if the author did not approved unanimous must be False
+                if (not participant['user']['username'] in [WALL_E_USERNAME,
+                                                            JENKINS_USERNAME]
+                   or len(self.main_pr['participants']) <= 2):
                     is_unanimous = False
                 continue
             if participant['user']['username'] == self.author:
@@ -974,7 +979,7 @@ class WallE:
             )
 
         if requires_unanimity:
-            if self.main_pr['participants'] and all_approval:
+            if self.main_pr['participants'] and is_unanimous:
                 return
 
             raise UnanimityApprovalRequired(
