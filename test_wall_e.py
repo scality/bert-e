@@ -31,7 +31,8 @@ from wall_e_exceptions import (AuthorApprovalRequired,
                                PeerApprovalRequired,
                                StatusReport,
                                SuccessMessage,
-                               TesterApprovalRequired)
+                               TesterApprovalRequired,
+                               WaitingPullRequest)
 
 WALL_E_USERNAME = wall_e.WALL_E_USERNAME
 WALL_E_EMAIL = wall_e.WALL_E_EMAIL
@@ -948,6 +949,35 @@ class TestWallE(unittest.TestCase):
         retcode = self.handle(pr['id'],
                               options=self.bypass_all)
         self.assertEqual(retcode, BranchHistoryMismatch.code)
+
+    def test_wait_prs_before_merge(self):
+        pr_merged = self.create_pr('bugfix/RING-00001', 'development/4.3')
+        pr_opened = self.create_pr('bugfix/RING-00002', 'development/4.3')
+        pr_declined = self.create_pr('bugfix/RING-00003', 'development/4.3')
+        current_pr = self.create_pr('bugfix/RING-00004', 'development/4.3')
+
+        wait_prs = " ".join([str(pr_merged['id']),
+                             str(pr_opened['id']),
+                             str(pr_declined['id'])])
+
+        # merge the first pr
+        self.handle(pr_merged['id'], options=self.bypass_all)
+
+        # Decline a PR. I should appear under declined in the Message
+        pr_declined.decline()
+
+        # option: wait X
+        comment = current_pr.add_comment('@%s wait %s' % (WALL_E_USERNAME,
+                                                          wait_prs))
+        with self.assertRaises(WaitingPullRequest):
+            self.handle(current_pr['id'], backtrace=True)
+        comment.delete()
+
+        comment = current_pr.add_comment('@%s wait %s' % (WALL_E_USERNAME,
+                                                          pr_merged['id']))
+
+        retcode = self.handle(current_pr['id'], options=self.bypass_all)
+        self.assertEqual(retcode, SuccessMessage.code)
 
 
 def main():
