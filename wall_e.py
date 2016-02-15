@@ -575,10 +575,11 @@ class WallE:
                 wait_index = keyword_list.index(keyword)
                 try:
                     # Get the index where to stop looking for a pr_id
-                    next_index = next(keyword_list.index(next_kw)
-                                      for next_kw in keyword_list[wait_index+1:]
-                                      if next_kw in self.options.keys()
-                                      or next_kw == keyword_list[-1])
+                    next_index = next(
+                        keyword_list.index(next_kw)
+                        for next_kw in keyword_list[wait_index+1:]
+                        if next_kw in self.options.keys() or
+                        next_kw == keyword_list[-1])
 
                     self.pr_id_to_wait = [x for x in
                                           keyword_list[wait_index:next_index+1]

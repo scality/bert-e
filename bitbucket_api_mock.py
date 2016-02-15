@@ -170,7 +170,7 @@ class PullRequestController(Controller):
 
     def decline(self):
         pass
-    
+
 
 class Branch(object):
     def __init__(self, gitrepo, branch_name):
