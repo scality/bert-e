@@ -1052,15 +1052,15 @@ class WallE:
             waiting_prs = [self.bbrepo.get_pull_request(pull_request_id=int(x))
                            for x in self.pr_id_to_wait]
 
-            openned_prs = filter(lambda x: x['state'] == 'OPEN',
-                                 waiting_prs)
+            opened_prs = filter(lambda x: x['state'] == 'OPEN',
+                                waiting_prs)
             merged_prs = filter(lambda x: x['state'] == 'MERGED',
                                 waiting_prs)
             declined_prs = filter(lambda x: x['state'] == 'DECLINED',
                                   waiting_prs)
 
             if len(self.pr_id_to_wait) != len(merged_prs):
-                raise WaitingPullRequest(openned_prs=openned_prs,
+                raise WaitingPullRequest(opened_prs=opened_prs,
                                          declined_prs=declined_prs)
 
         self._build_target_versions(dst_branch_name)

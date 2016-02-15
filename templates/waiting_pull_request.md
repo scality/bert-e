@@ -7,9 +7,9 @@ Waiting for Pull Request
 {% block message %}
 The following pullrequests are missing an appropriate action before I can proceed with the merge:
 
-{% if declined_prs %}
+{% if opened_prs %}
 Opened pullrequests:
-{% for pr in declined_prs %}
+{% for pr in opened_prs %}
 *  pull request #{{ pr['id'] }}
 {% endfor %}
 {% endif %}
