@@ -169,6 +169,7 @@ class PullRequest(BitBucketObject):
         response = self.client.post(Template(self.get_url + '/decline')
                                     .substitute(self._json_data),
                                     json_str)
+        response.raise_for_status()
 
 
 class Comment(BitBucketObject):

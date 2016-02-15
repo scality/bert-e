@@ -576,7 +576,8 @@ class WallE:
                 try:
                     # Get the index where to stop looking for a pr_id
                     next_index = next(keyword_list.index(next_kw)
-                                      for next_kw in keyword_list[wait_index+1:]
+                                      for next_kw in
+                                      keyword_list[wait_index+1:]
                                       if next_kw in self.options.keys()
                                       or next_kw == keyword_list[-1])
 
