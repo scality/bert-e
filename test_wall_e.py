@@ -959,12 +959,12 @@ class TestWallE(unittest.TestCase):
         pr_declined.decline()
 
         comment_open = current_pr.add_comment(
-            '@%s after_pr %s' % (WALL_E_USERNAME,
-                                 pr_opened['id']))
+            '@%s after_pull_request=%s' % (WALL_E_USERNAME,
+                                           pr_opened['id']))
 
         comment_declined = current_pr.add_comment(
-            '@%s after_pr %s' % (WALL_E_USERNAME,
-                                 pr_declined['id']))
+            '@%s after_pull_request=%s' % (WALL_E_USERNAME,
+                                           pr_declined['id']))
 
         with self.assertRaises(AfterPullRequest):
             self.handle(current_pr['id'],
