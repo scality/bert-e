@@ -221,14 +221,15 @@ class PullRequest(BitBucketObject):
         self.title = "Changes"
         self.type = "pullrequest"
         self.updated_on = "2016-01-12T19:31:23.673329+00:00"
+        self.state = "OPEN"
 
-    @property
     def state(self):
         dst_branch = GitBranch(self.repo.gitrepo,
                                self.destination['branch']['name'])
-        if dst_branch.includes_commit(self.source['branch']['name']):
-            return "MERGED"
-        return "OPEN"
+        if (dst_branch.includes_commit(self.source['branch']['name'])
+           and self.state == "OPEN"):
+
+            self.state = "MERGED"
 
     def full_name(self):
         return self['destination']['repository']['full_name']
