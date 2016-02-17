@@ -5,17 +5,19 @@ Waiting for Pull Request
 {% endblock %}
 
 {% block message %}
-The following pullrequests are missing an appropriate action before I can proceed with the merge:
+The current pull request is locked.
+
+To unlock the pull request and proceed with the merge, the following actions are needed:
 
 {% if opened_prs %}
-Opened pullrequests:
+Merge the opened pullrequests:
 {% for pr in opened_prs %}
 *  pull request #{{ pr['id'] }}
 {% endfor %}
 {% endif %}
 
 {% if declined_prs %}
-Declined pullrequests:
+Remove the declined pullrequests:
 {% for pr in declined_prs %}
 *  pull request #{{ pr['id'] }}
 {% endfor %}
