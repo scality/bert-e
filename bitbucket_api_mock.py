@@ -208,7 +208,7 @@ class PullRequest(BitBucketObject):
         self.merge_commit = None
         self.participants = []
         self.reason = ""
-        self.reviewers = reviewers
+        self.reviewers = self._real_bitbucket(reviewers)
         self.source = {
             "branch": source['branch'],
             "commit": Branch(self.repo.gitrepo, source['branch']['name']),
@@ -219,6 +219,9 @@ class PullRequest(BitBucketObject):
         self.type = "pullrequest"
         self.updated_on = "2016-01-12T19:31:23.673329+00:00"
 
+        if self.reviewers:
+            self.participants.extend(self.reviewers)
+
     @property
     def state(self):
         dst_branch = GitBranch(self.repo.gitrepo,
@@ -226,6 +229,17 @@ class PullRequest(BitBucketObject):
         if dst_branch.includes_commit(self.source['branch']['name']):
             return "FULFILLED"
         return "OPEN"
+
+    def _real_bitbucket(self, elements):
+        """Adapt mock reviewers and participant to bitbucket api output"""
+
+        for element in elements:
+            nice_element = {'user': element,
+                            'approved': False,
+                            'role': 'PARTICIPANT'}
+            elements.pop(elements.index(element))
+            elements.append(nice_element)
+        return elements
 
     def full_name(self):
         return self['destination']['repository']['full_name']
