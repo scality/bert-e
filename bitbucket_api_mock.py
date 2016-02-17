@@ -169,7 +169,7 @@ class PullRequestController(Controller):
         })
 
     def decline(self):
-        pass
+        self['state'] = "DECLINED"
 
 
 class Branch(object):
