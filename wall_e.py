@@ -979,16 +979,14 @@ class WallE:
                 requires_unanimity=requires_unanimity,
             )
 
-        if (requires_unanimity and not is_unanimous and
-           self.main_pr['participants']):
-
+        if (requires_unanimity and not is_unanimous):
             raise UnanimityApprovalRequired(
                 pr=self.main_pr,
+                child_prs=child_prs,
                 author_approval=approved_by_author,
                 peer_approval=approved_by_peer,
                 tester_approval=approved_by_tester,
-                requires_unanimity=requires_unanimity,
-                child_prs=child_prs)
+                requires_unanimity=requires_unanimity)
 
     def _get_pr_build_status(self, key, pr):
         try:
