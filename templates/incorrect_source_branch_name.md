@@ -5,8 +5,8 @@ Incorrect source branch name
 {% endblock %}
 
 {% block message %}
-I cannot merge the branch `{{ source.name }}` into
-`{{ destination.name }}`.
+I cannot merge the branch `{{ source }}` into
+`{{ destination }}`.
 
 Make sure the source branch contains one of these prefixes:
 
