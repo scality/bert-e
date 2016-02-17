@@ -168,6 +168,9 @@ class PullRequestController(Controller):
             "user": fake_user_dict(self.client.username)
         })
 
+    def decline(self):
+        pass
+
 
 class Branch(object):
     def __init__(self, gitrepo, branch_name):
@@ -224,7 +227,7 @@ class PullRequest(BitBucketObject):
         dst_branch = GitBranch(self.repo.gitrepo,
                                self.destination['branch']['name'])
         if dst_branch.includes_commit(self.source['branch']['name']):
-            return "FULFILLED"
+            return "MERGED"
         return "OPEN"
 
     def full_name(self):

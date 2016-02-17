@@ -22,7 +22,8 @@ from git_api import (Repository as GitRepository,
                      CheckoutFailedException,
                      RemoveFailedException)
 from jira_api import JiraIssue
-from wall_e_exceptions import (AuthorApprovalRequired,
+from wall_e_exceptions import (AfterPullRequest,
+                               AuthorApprovalRequired,
                                BranchHistoryMismatch,
                                BranchNameInvalid,
                                BuildFailed,
@@ -450,6 +451,7 @@ class WallE:
         self.source_branch = None
         self.destination_branches = []
         self.target_versions = {}
+        self.pr_id_to_wait = []
 
     def option_is_set(self, name):
         if name not in self.options.keys():
@@ -571,6 +573,13 @@ class WallE:
         logging.debug('checking keywords %s', keyword_list)
 
         for keyword in keyword_list:
+            if keyword == 'after_pr':
+                # Get the of the wait option
+                after_pr_index = keyword_list.index(keyword)
+                pr_index = after_pr_index + 1
+                if len(keyword_list) > pr_index:
+                    self.pr_id_to_wait.append(keyword_list.pop(pr_index))
+
             if keyword not in self.options.keys():
                 logging.debug('ignoring keywords in this comment due to '
                               'an unknown keyword `%s`', keyword_list)
@@ -1028,7 +1037,25 @@ class WallE:
         self._handle_commands(comments)
 
         if self.option_is_set('wait'):
-            raise NothingToDo('wait option is set')
+                raise NothingToDo('wait option is set')
+
+        if self.option_is_set('after_pr'):
+
+            waiting_prs = [self.bbrepo.get_pull_request(pull_request_id=int(x))
+                           for x in self.pr_id_to_wait]
+
+            opened_prs = filter(lambda x: x['state'] == 'OPEN',
+                                waiting_prs)
+            merged_prs = filter(lambda x: x['state'] == 'MERGED',
+                                waiting_prs)
+            declined_prs = filter(lambda x: x['state'] == 'DECLINED',
+                                  waiting_prs)
+
+            if len(self.pr_id_to_wait) != len(merged_prs):
+                raise AfterPullRequest(
+                    opened_prs=opened_prs,
+                    declined_prs=declined_prs,
+                    active_options=self._get_active_options())
 
         self._build_target_versions(dst_branch_name)
         self._setup_source_branch(src_branch_name, dst_branch_name)
@@ -1149,7 +1176,13 @@ def setup_options(args):
         'wait':
             Option(privileged=False,
                    value='wait' in args.cmd_line_options,
-                   help="Instruct Wall-E not to run until further notice")
+                   help="Instruct Wall-E not to run until further notice"),
+
+        'after_pr':
+            Option(privileged=False,
+                   value=None,
+                   help="Wait for the given pr ids to be merged before"
+                   "continuing with the current one.")
     }
     return options
 
