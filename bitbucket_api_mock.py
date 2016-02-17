@@ -162,6 +162,17 @@ class PullRequestController(Controller):
         raise NotImplemented('Merge')
 
     def approve(self):
+        # By default when a reviewer is added to the PR approval is False
+        # The user is considered as a peer and when approve is called
+        # he's approval must be switch to True
+        # as the first approval is the author's do not switch the peer
+        # approval add just the author in the participant as he approved
+        if len(self['participants']) > 1:
+            for participant in self['participants']:
+                if not participant['approved']:
+                    participant['approved'] = True
+                    return
+
         self['participants'].append({
             "approved": True,
             "role": "REVIEWER",
