@@ -123,7 +123,10 @@ class Repository(BitBucketObject):
         self.get_git_url()
         pr = PullRequest(self, title, name, source, destination,
                          close_source_branch, reviewers, description).create()
-        return PullRequestController(self.client, pr)
+        prc = PullRequestController(self.client, pr)
+        for reviewer in reviewers:
+            prc.add_participant(reviewer)
+        return prc
 
     def get_pull_requests(self):
         return [PullRequestController(self.client, item)
@@ -149,9 +152,21 @@ class Repository(BitBucketObject):
 
 class PullRequestController(Controller):
     def add_comment(self, msg):
-        return Comment(self.client, content=msg,
-                       full_name=self.controlled.full_name(),
-                       pull_request_id=self.controlled.id).create()
+        comment = Comment(self.client, content=msg,
+                          full_name=self.controlled.full_name(),
+                          pull_request_id=self.controlled.id).create()
+
+        for participant in self['participants']:
+            if participant['user']['username'] == self.client.username:
+                return comment
+
+        # new participant
+        self['participants'].append({
+            "approved": False,
+            "role": "PARTICIPANT",
+            "user": fake_user_dict(self.client.username)
+        })
+        return comment
 
     def get_comments(self):
         return [Controller(self.client, c) for c in Comment.get_list(
@@ -162,22 +177,24 @@ class PullRequestController(Controller):
         raise NotImplemented('Merge')
 
     def approve(self):
-        # By default when a reviewer is added to the PR approval is False
-        # The user is considered as a peer and when approve is called
-        # he's approval must be switch to True
-        # as the first approval is the author's do not switch the peer
-        # approval add just the author in the participant as he approved
-        if len(self['participants']) > 1:
-            for participant in self['participants']:
-                if not participant['approved']:
-                    participant['approved'] = True
-                    return
+        for participant in self['participants']:
+            if participant['user']['username'] == self.client.username:
+                participant['approved'] = True
+                participant['role'] = "REVIEWER"
+                return
 
+        # new participant
         self['participants'].append({
             "approved": True,
             "role": "REVIEWER",
             "user": fake_user_dict(self.client.username)
         })
+
+    def add_participant(self, user_struct):
+        self['participants'].append({
+            'user': user_struct,
+            'approved': False,
+            'role': 'PARTICIPANT'})
 
 
 class Branch(object):
@@ -217,6 +234,7 @@ class PullRequest(BitBucketObject):
             ['activity', 'approve', 'comments', 'commits',
              'decline', 'diff', 'html', 'merge', 'self'])
         self.merge_commit = None
+        self.participants = []
         self.reason = ""
         self.source = {
             "branch": source['branch'],
@@ -228,10 +246,6 @@ class PullRequest(BitBucketObject):
         self.type = "pullrequest"
         self.updated_on = "2016-01-12T19:31:23.673329+00:00"
 
-        # for index, data in enumerate(elements):
-        self.participants = [PullRequest._real_bitbucket(x)
-                             for x in reviewers]
-
     @property
     def state(self):
         dst_branch = GitBranch(self.repo.gitrepo,
@@ -239,14 +253,6 @@ class PullRequest(BitBucketObject):
         if dst_branch.includes_commit(self.source['branch']['name']):
             return "FULFILLED"
         return "OPEN"
-
-    @staticmethod
-    def _real_bitbucket(element):
-        """Adapt mock reviewers and participant to bitbucket api output"""
-
-        return {'user': element,
-                'approved': False,
-                'role': 'PARTICIPANT'}
 
     def full_name(self):
         return self['destination']['repository']['full_name']
