@@ -12,6 +12,7 @@ class WallE_TemplateException(Exception):
     dont_repeat_if_in_history = 10
 
     def __init__(self, **kwargs):
+        assert 'active_options' in kwargs
         assert self.code != 0
         assert self.template
         assert self.dont_repeat_if_in_history >= 0
