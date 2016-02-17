@@ -964,7 +964,7 @@ class TestWallE(unittest.TestCase):
 
         pr = self.create_pr(feature_branch, dst_branch)
 
-        comment = pr.add_comment('@%s unanimity' % WALL_E_USERNAME)
+        pr.add_comment('@%s unanimity' % WALL_E_USERNAME)
 
         retcode = self.handle(pr['id'], options=self.bypass_jira_check)
         self.assertEqual(retcode, AuthorApprovalRequired.code)
