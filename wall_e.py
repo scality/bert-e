@@ -573,12 +573,14 @@ class WallE:
         logging.debug('checking keywords %s', keyword_list)
 
         for keyword in keyword_list:
-            if keyword == 'after_pr':
-                # Get the of the wait option
-                after_pr_index = keyword_list.index(keyword)
-                pr_index = after_pr_index + 1
-                if len(keyword_list) > pr_index:
-                    self.pr_id_to_wait.append(keyword_list.pop(pr_index))
+            if keyword == 'after_pull_request':
+                # Try to get the pull request id
+                after_pull_request_index = keyword_list.index(keyword)
+                pullrequest_index = after_pull_request_index + 1
+                if len(keyword_list) > pullrequest_index:
+                    pull_request_id = keyword_list.pop(pullrequest_index)
+                    if pull_request_id.isdigit():
+                        self.pr_id_to_wait.append(pull_request_id)
 
             if keyword not in self.options.keys():
                 logging.debug('ignoring keywords in this comment due to '
@@ -620,7 +622,7 @@ class WallE:
             # @scality_wall-e option1 option2...
             # @scality_wall-e option1, option2, ...
             # @scality_wall-e: option1 - option2 - ...
-            raw_cleaned = re.sub(r'[,.\-/:;|+]', ' ', raw_cleaned)
+            raw_cleaned = re.sub(r'[,.\-/:;|+=]', ' ', raw_cleaned)
             regexp = r"\s*(?P<keywords>(\s+\w+)+)\s*$"
             match_ = re.match(regexp, raw_cleaned)
             if not match_:
@@ -1037,9 +1039,9 @@ class WallE:
         self._handle_commands(comments)
 
         if self.option_is_set('wait'):
-                raise NothingToDo('wait option is set')
+            raise NothingToDo('wait option is set')
 
-        if self.option_is_set('after_pr'):
+        if self.option_is_set('after_pull_request'):
 
             waiting_prs = [self.bbrepo.get_pull_request(pull_request_id=int(x))
                            for x in self.pr_id_to_wait]
@@ -1178,10 +1180,10 @@ def setup_options(args):
                    value='wait' in args.cmd_line_options,
                    help="Instruct Wall-E not to run until further notice"),
 
-        'after_pr':
+        'after_pull_request':
             Option(privileged=False,
                    value=None,
-                   help="Wait for the given pr ids to be merged before"
+                   help="Wait for the given pull request id to be merged before"
                    "continuing with the current one.")
     }
     return options
