@@ -126,9 +126,9 @@ class BuildFailed(WallE_TemplateException):
     template = 'build_failed.md'
 
 
-class WaitingPullRequest(WallE_TemplateException):
+class AfterPullRequest(WallE_TemplateException):
     code = 119
-    template = 'waiting_pull_request.md'
+    template = 'after_pull_request.md'
 
 
 # internal exceptions

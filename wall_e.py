@@ -22,7 +22,8 @@ from git_api import (Repository as GitRepository,
                      CheckoutFailedException,
                      RemoveFailedException)
 from jira_api import JiraIssue
-from wall_e_exceptions import (AuthorApprovalRequired,
+from wall_e_exceptions import (AfterPullRequest,
+                               AuthorApprovalRequired,
                                BranchHistoryMismatch,
                                BranchNameInvalid,
                                BuildFailed,
@@ -53,7 +54,6 @@ from wall_e_exceptions import (AuthorApprovalRequired,
                                SuccessMessage,
                                TesterApprovalRequired,
                                UnableToSendEmail,
-                               WaitingPullRequest,
                                WallE_SilentException,
                                WallE_TemplateException)
 
@@ -570,24 +570,12 @@ class WallE:
         logging.debug('checking keywords %s', keyword_list)
 
         for keyword in keyword_list:
-            if keyword == 'wait':
+            if keyword == 'after_pr':
                 # Get the of the wait option
-                wait_index = keyword_list.index(keyword)
-                try:
-                    # Get the index where to stop looking for a pr_id
-                    next_index = next(
-                        keyword_list.index(next_kw)
-                        for next_kw in keyword_list[wait_index+1:]
-                        if next_kw in self.options.keys() or
-                        next_kw == keyword_list[-1])
-
-                    self.pr_id_to_wait = [x for x in
-                                          keyword_list[wait_index:next_index+1]
-                                          if x.isdigit()]
-                    # Update the keyword list by removing pr ids
-                    map(keyword_list.remove, self.pr_id_to_wait)
-                except StopIteration:
-                    logging.debug('Could not get the next index: Nothng to do')
+                after_pr_index = keyword_list.index(keyword)
+                pr_index = after_pr_index + 1
+                if len(keyword_list) > pr_index:
+                    self.pr_id_to_wait.append(keyword_list.pop(pr_index))
 
             if keyword not in self.options.keys():
                 logging.debug('ignoring keywords in this comment due to '
@@ -1046,8 +1034,9 @@ class WallE:
         self._handle_commands(comments)
 
         if self.option_is_set('wait'):
-            if not self.pr_id_to_wait:
                 raise NothingToDo('wait option is set')
+
+        if self.option_is_set('after_pr'):
 
             waiting_prs = [self.bbrepo.get_pull_request(pull_request_id=int(x))
                            for x in self.pr_id_to_wait]
@@ -1060,8 +1049,10 @@ class WallE:
                                   waiting_prs)
 
             if len(self.pr_id_to_wait) != len(merged_prs):
-                raise WaitingPullRequest(opened_prs=opened_prs,
-                                         declined_prs=declined_prs)
+                raise AfterPullRequest(
+                    opened_prs=opened_prs,
+                    declined_prs=declined_prs,
+                    active_options=self._get_active_options())
 
         self._build_target_versions(dst_branch_name)
         self._setup_source_branch(src_branch_name, dst_branch_name)
@@ -1182,10 +1173,13 @@ def setup_options(args):
         'wait':
             Option(privileged=False,
                    value='wait' in args.cmd_line_options,
-                   help="Instruct Wall-E not to run until further notice. "
-                   "Howerver if a list PR ids is provided after this option, "
-                   "Wall-E  will wait for the merge of the provided PRs "
-                   "before merging the current one")
+                   help="Instruct Wall-E not to run until further notice"),
+
+        'after_pr':
+            Option(privileged=False,
+                   value=None,
+                   help="Wait for the given pr ids to be merged before"
+                   "continuing with the current one.")
     }
     return options
 

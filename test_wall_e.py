@@ -11,7 +11,8 @@ import bitbucket_api
 import bitbucket_api_mock
 import wall_e
 from git_api import Repository as GitRepository
-from wall_e_exceptions import (AuthorApprovalRequired,
+from wall_e_exceptions import (AfterPullRequest,
+                               AuthorApprovalRequired,
                                BranchHistoryMismatch,
                                BranchNameInvalid,
                                BuildInProgress,
@@ -31,8 +32,7 @@ from wall_e_exceptions import (AuthorApprovalRequired,
                                PeerApprovalRequired,
                                StatusReport,
                                SuccessMessage,
-                               TesterApprovalRequired,
-                               WaitingPullRequest)
+                               TesterApprovalRequired)
 
 WALL_E_USERNAME = wall_e.WALL_E_USERNAME
 WALL_E_EMAIL = wall_e.WALL_E_EMAIL
@@ -951,31 +951,31 @@ class TestWallE(unittest.TestCase):
         self.assertEqual(retcode, BranchHistoryMismatch.code)
 
     def test_wait_prs_before_merge(self):
-        pr_merged = self.create_pr('bugfix/RING-00001', 'development/4.3')
         pr_opened = self.create_pr('bugfix/RING-00002', 'development/4.3')
         pr_declined = self.create_pr('bugfix/RING-00003', 'development/4.3')
         current_pr = self.create_pr('bugfix/RING-00004', 'development/4.3')
 
-        wait_prs = " ".join([str(pr_merged['id']),
-                             str(pr_opened['id']),
-                             str(pr_declined['id'])])
-
-        # merge the first pr
-        self.handle(pr_merged['id'], options=self.bypass_all)
-
         # Decline a PR. I should appear under declined in the Message
         pr_declined.decline()
 
-        # option: wait X
-        comment = current_pr.add_comment('@%s wait %s' % (WALL_E_USERNAME,
-                                                          wait_prs))
-        with self.assertRaises(WaitingPullRequest):
-            self.handle(current_pr['id'], backtrace=True)
-        comment.delete()
+        comment_open = current_pr.add_comment(
+            '@%s after_pr %s' % (WALL_E_USERNAME,
+                                 pr_opened['id']))
 
-        comment = current_pr.add_comment('@%s wait %s' % (WALL_E_USERNAME,
-                                                          pr_merged['id']))
+        comment_declined = current_pr.add_comment(
+            '@%s after_pr %s' % (WALL_E_USERNAME,
+                                 pr_declined['id']))
 
+        with self.assertRaises(AfterPullRequest):
+            self.handle(current_pr['id'],
+                        options=self.bypass_all,
+                        backtrace=True)
+
+        comment_declined.delete()
+        retcode = self.handle(current_pr['id'], options=self.bypass_all)
+        self.assertEqual(retcode, AfterPullRequest.code)
+
+        comment_open.delete()
         retcode = self.handle(current_pr['id'], options=self.bypass_all)
         self.assertEqual(retcode, SuccessMessage.code)
 
