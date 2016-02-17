@@ -956,6 +956,7 @@ class WallE:
                 author_approval=approved_by_author,
                 peer_approval=approved_by_peer,
                 tester_approval=approved_by_tester,
+                requires_unanimity=requires_unanimity,
             )
 
         if not approved_by_peer:
@@ -965,6 +966,7 @@ class WallE:
                 author_approval=approved_by_author,
                 peer_approval=approved_by_peer,
                 tester_approval=approved_by_tester,
+                requires_unanimity=requires_unanimity,
             )
 
         if not approved_by_tester:
@@ -974,11 +976,11 @@ class WallE:
                 author_approval=approved_by_author,
                 peer_approval=approved_by_peer,
                 tester_approval=approved_by_tester,
+                requires_unanimity=requires_unanimity,
             )
 
-        if requires_unanimity:
-            if self.main_pr['participants'] and is_unanimous:
-                return
+        if (requires_unanimity and not is_unanimous and
+           self.main_pr['participants']):
 
             raise UnanimityApprovalRequired(
                 pr=self.main_pr,
