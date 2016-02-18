@@ -227,8 +227,8 @@ class PullRequest(BitBucketObject):
     def state(self):
         dst_branch = GitBranch(self.repo.gitrepo,
                                self.destination['branch']['name'])
-        if (dst_branch.includes_commit(self.source['branch']['name'])
-           and self._state == "OPEN"):
+        if (dst_branch.includes_commit(self.source['branch']['name']) and
+           self._state == "OPEN"):
             self._state = "MERGED"
 
         return self._state

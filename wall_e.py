@@ -1179,8 +1179,8 @@ def setup_options(args):
         'after_pull_request':
             Option(privileged=False,
                    value=None,
-                   help="Wait for the given pull request id to be merged before"
-                   "continuing with the current one.")
+                   help="Wait for the given pull request id to be merged "
+                   "before continuing with the current one.")
     }
     return options
 
