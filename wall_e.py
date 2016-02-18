@@ -235,12 +235,11 @@ class BranchName(Branch):
 
 
 class HotfixBranch(BranchName):
-    pattern = 'hotfix/(?P<label>.*)'
+    pattern = '^hotfix/(?P<label>.*)$'
 
 
 class DevelopmentBranch(BranchName):
-    pattern = 'development/' \
-              '(?P<version>(?P<major>\d+)\.(?P<minor>\d+))'
+    pattern = '^development/(?P<version>(?P<major>\d+)\.(?P<minor>\d+))$'
     micro = None
     cascade_producer = True
     cascade_consumer = True
@@ -253,8 +252,8 @@ class DevelopmentBranch(BranchName):
 
 
 class StabilizationBranch(DevelopmentBranch):
-    pattern = 'stabilization/' \
-              '(?P<version>(?P<major>\d+)\.(?P<minor>\d+)\.(?P<micro>\d+))'
+    pattern = '^stabilization/' \
+              '(?P<version>(?P<major>\d+)\.(?P<minor>\d+)\.(?P<micro>\d+))$'
     cascade_producer = True
     can_be_destination = True
 
@@ -264,21 +263,22 @@ class StabilizationBranch(DevelopmentBranch):
 
 
 class ReleaseBranch(BranchName):
-    pattern = 'release/' \
-              '(?P<version>(?P<major>\d+)\.(?P<minor>\d+))'
+    pattern = '^release/' \
+              '(?P<version>(?P<major>\d+)\.(?P<minor>\d+))$'
 
 
 class FeatureBranch(BranchName):
+    valid_prefixes = ('feature', 'improvement', 'bugfix', 'project')
     jira_issue_pattern = '(?P<jira_issue_key>' \
                          '(?P<jira_project>[A-Z0-9_]+)-[0-9]+)'
-    prefixes = '(?P<prefix>(feature|improvement|bugfix|project))'
-    pattern = "%s/(%s(?P<label>.*)|.+)" % (prefixes, jira_issue_pattern)
+    prefixes = '(?P<prefix>(%s))' % '|'.join(valid_prefixes)
+    pattern = "^%s/(%s(?P<label>.*)|.+)$" % (prefixes, jira_issue_pattern)
     cascade_producer = True
 
 
 class IntegrationBranch(BranchName):
-    pattern = 'w/(?P<version>(?P<major>\d+)' \
-              '\.(?P<minor>\d+)(\.(?P<micro>\d+))?)/' + FeatureBranch.pattern
+    pattern = '^w/(?P<version>(?P<major>\d+)\.(?P<minor>\d+)' \
+              '(\.(?P<micro>\d+))?)/' + FeatureBranch.pattern[1:]
 
     def merge_from_branch(self, source_branch):
         try:
@@ -364,7 +364,7 @@ class BranchCascade(object):
                                                               branch)
 
     def add_tag(self, tag):
-        pattern = "(?P<major>\d+)\.(?P<minor>\d+)(\.(?P<micro>\d+))"
+        pattern = "^(?P<major>\d+)\.(?P<minor>\d+)(\.(?P<micro>\d+))$"
         match = re.match(pattern, tag)
         if not match:
             return
@@ -399,7 +399,8 @@ class BranchCascade(object):
                     dev_branch.micro = stb_branch.micro + 1
 
             if stb_branch:
-                if dev_branch.micro >= stb_branch.micro:
+                dev_branch.micro = max(dev_branch.micro, stb_branch.micro + 1)
+                if dev_branch.micro != stb_branch.micro + 1:
                     raise VersionMismatch(dev_branch, stb_branch)
                 dev_branch.micro = stb_branch.micro + 1
                 if not dev_branch.includes_commit(stb_branch):
@@ -729,7 +730,7 @@ class WallE:
             raise IncorrectSourceBranchName(
                 source=self.main_pr['source']['branch']['name'],
                 destination=self.main_pr['destination']['branch']['name'],
-                valid_prefixes=self.settings['feature_branch']['prefix'])
+                valid_prefixes=FeatureBranch.valid_prefixes)
 
     def _setup_destination_branch(self, repo, dst_branch_name):
         self.destination_branch = branch_factory(repo, dst_branch_name)
