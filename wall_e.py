@@ -449,7 +449,7 @@ class WallE:
         self.source_branch = None
         self.destination_branches = []
         self.target_versions = {}
-        self.pr_id_to_wait = []
+        self.after_prs = []
 
     def option_is_set(self, name):
         if name not in self.options.keys():
@@ -571,13 +571,13 @@ class WallE:
         logging.debug('checking keywords %s', keyword_list)
 
         for keyword in keyword_list:
-            if keyword == 'after_pull_request':
-                # Try to get the pull request id
-                pullrequest_index = keyword_list.index(keyword) + 1
-                if len(keyword_list) > pullrequest_index:
-                    pull_request_id = keyword_list.pop(pullrequest_index)
-                    if pull_request_id.isdigit():
-                        self.pr_id_to_wait.append(pull_request_id)
+            if keyword.startswith('after_pull_request='):
+                match_ = re.match('after_pull_request=(?P<pr_id>\d+)',
+                                  keyword)
+                if not match_:
+                    return False
+                self.after_prs.append(match_.group('pr_id'))
+                keyword = 'after_pull_request'
 
             if keyword not in self.options.keys():
                 logging.debug('ignoring keywords in this comment due to '
@@ -619,8 +619,8 @@ class WallE:
             # @scality_wall-e option1 option2...
             # @scality_wall-e option1, option2, ...
             # @scality_wall-e: option1 - option2 - ...
-            raw_cleaned = re.sub(r'[,.\-/:;|+=]', ' ', raw_cleaned)
-            regexp = r"\s*(?P<keywords>(\s+\w+)+)\s*$"
+            raw_cleaned = re.sub(r'[,.\-/:;|+]', ' ', raw_cleaned)
+            regexp = r"\s*(?P<keywords>(\s+[\w=]+)+)\s*$"
             match_ = re.match(regexp, raw_cleaned)
             if not match_:
                 logging.debug('Keyword comment ignored. '
@@ -635,7 +635,9 @@ class WallE:
                 continue
 
             for keyword in keywords:
-                self.options[keyword].set(True)
+                # strip args
+                option = keyword.split('=')[0]
+                self.options[option].set(True)
 
     def _check_command(self, author, command):
         logging.debug('checking command %s', command)
@@ -697,6 +699,23 @@ class WallE:
             assert hasattr(self, self.commands[command].handler)
             handler = getattr(self, self.commands[command].handler)
             handler(match_.group('args'))
+
+    def _check_depending_pull_requests(self):
+        if not self.after_prs:
+            return
+
+        prs = [self.bbrepo.get_pull_request(pull_request_id=int(x))
+               for x in self.after_prs]
+
+        opened_prs = filter(lambda x: x['state'] == 'OPEN', prs)
+        merged_prs = filter(lambda x: x['state'] == 'MERGED', prs)
+        declined_prs = filter(lambda x: x['state'] == 'DECLINED', prs)
+
+        if len(self.after_prs) != len(merged_prs):
+            raise AfterPullRequest(
+                opened_prs=opened_prs,
+                declined_prs=declined_prs,
+                active_options=self._get_active_options())
 
     def _build_target_versions(self, dst_branch_name):
         match_ = re.match("[^/]*/(?P<minver>.*)", dst_branch_name)
@@ -1085,24 +1104,7 @@ class WallE:
         if self.option_is_set('wait'):
             raise NothingToDo('wait option is set')
 
-        if self.option_is_set('after_pull_request'):
-
-            waiting_prs = [self.bbrepo.get_pull_request(pull_request_id=int(x))
-                           for x in self.pr_id_to_wait]
-
-            opened_prs = filter(lambda x: x['state'] == 'OPEN',
-                                waiting_prs)
-            merged_prs = filter(lambda x: x['state'] == 'MERGED',
-                                waiting_prs)
-            declined_prs = filter(lambda x: x['state'] == 'DECLINED',
-                                  waiting_prs)
-
-            if len(self.pr_id_to_wait) != len(merged_prs):
-                raise AfterPullRequest(
-                    opened_prs=opened_prs,
-                    declined_prs=declined_prs,
-                    active_options=self._get_active_options())
-
+        self._check_depending_pull_requests()
         self._build_target_versions(dst_branch_name)
         self._setup_source_branch(src_branch_name, dst_branch_name)
         self._setup_destination_branches(src_branch_name, dst_branch_name)
@@ -1189,6 +1191,11 @@ def setup_parser():
 
 def setup_options(args):
     options = {
+        'after_pull_request':
+            Option(privileged=False,
+                   value=False,  # not supported from command line
+                   help="Wait for the given pull request id to be merged "
+                        "before continuing with the current one."),
         'bypass_peer_approval':
             Option(privileged=True,
                    value='bypass_peer_approval' in args.cmd_line_options,
@@ -1222,13 +1229,7 @@ def setup_options(args):
         'wait':
             Option(privileged=False,
                    value='wait' in args.cmd_line_options,
-                   help="Instruct Wall-E not to run until further notice"),
-
-        'after_pull_request':
-            Option(privileged=False,
-                   value=None,
-                   help="Wait for the given pull request id to be merged "
-                   "before continuing with the current one.")
+                   help="Instruct Wall-E not to run until further notice")
     }
     return options
 

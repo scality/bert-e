@@ -997,35 +997,35 @@ class TestWallE(unittest.TestCase):
                               'bypass_jira_check',
                               'bypass_build_status'])
 
-    def test_wait_prs_before_merge(self):
-        pr_opened = self.create_pr('bugfix/RING-00002', 'development/4.3')
-        pr_declined = self.create_pr('bugfix/RING-00003', 'development/4.3')
-        current_pr = self.create_pr('bugfix/RING-00004', 'development/4.3')
-
-        # Decline a PR. I should appear under declined in the Message
+    def test_after_pull_request(self):
+        pr_opened = self.create_pr('bugfix/RING-00001', 'development/4.3')
+        pr_declined = self.create_pr('bugfix/RING-00002', 'development/4.3')
         pr_declined.decline()
+        blocked_pr = self.create_pr('bugfix/RING-00003', 'development/4.3')
 
-        comment_open = current_pr.add_comment(
-            '@%s after_pull_request=%s' % (WALL_E_USERNAME,
-                                           pr_opened['id']))
+        comment_declined = blocked_pr.add_comment(
+            '@%s after_pull_request=%s' % (
+                WALL_E_USERNAME, pr_declined['id']))
 
-        comment_declined = current_pr.add_comment(
-            '@%s after_pull_request=%s' % (WALL_E_USERNAME,
-                                           pr_declined['id']))
-
-        with self.assertRaises(AfterPullRequest):
-            self.handle(current_pr['id'],
-                        options=self.bypass_all,
-                        backtrace=True)
-
-        comment_declined.delete()
-        retcode = self.handle(current_pr['id'], options=self.bypass_all)
+        retcode = self.handle(blocked_pr['id'], options=self.bypass_all)
         self.assertEqual(retcode, AfterPullRequest.code)
 
-        comment_open.delete()
-        retcode = self.handle(current_pr['id'], options=self.bypass_all)
+        comment_open = blocked_pr.add_comment(
+            '@%s unanimity after_pull_request=%s' % (
+                WALL_E_USERNAME, pr_opened['id']))
 
+        retcode = self.handle(blocked_pr['id'], options=self.bypass_all)
+        self.assertEqual(retcode, AfterPullRequest.code)
+
+        comment_declined.delete()
+        retcode = self.handle(blocked_pr['id'], options=self.bypass_all)
+        self.assertEqual(retcode, AfterPullRequest.code)
+
+        retcode = self.handle(pr_opened['id'], options=self.bypass_all)
         self.assertEqual(retcode, SuccessMessage.code)
+
+        retcode = self.handle(blocked_pr['id'], options=self.bypass_all)
+        self.assertEqual(retcode, UnanimityApprovalRequired.code)
 
 
 def main():
