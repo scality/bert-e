@@ -572,7 +572,7 @@ class WallE:
 
         for keyword in keyword_list:
             if keyword.startswith('after_pull_request='):
-                match_ = re.match('after_pull_request=(?P<pr_id>\d+)',
+                match_ = re.match('after_pull_request=(?P<pr_id>\d+)$',
                                   keyword)
                 if not match_:
                     return False
