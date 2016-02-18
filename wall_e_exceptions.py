@@ -133,7 +133,7 @@ class UnanimityApprovalRequired(WallE_TemplateException):
 
 
 class AfterPullRequest(WallE_TemplateException):
-    code = 119
+    code = 120
     template = 'after_pull_request.md'
 
 
