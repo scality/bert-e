@@ -572,8 +572,7 @@ class WallE:
         for keyword in keyword_list:
             if keyword == 'after_pull_request':
                 # Try to get the pull request id
-                after_pull_request_index = keyword_list.index(keyword)
-                pullrequest_index = after_pull_request_index + 1
+                pullrequest_index = keyword_list.index(keyword) + 1
                 if len(keyword_list) > pullrequest_index:
                     pull_request_id = keyword_list.pop(pullrequest_index)
                     if pull_request_id.isdigit():
