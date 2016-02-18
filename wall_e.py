@@ -56,6 +56,7 @@ from wall_e_exceptions import (AuthorApprovalRequired,
                                UnableToSendEmail,
                                UnrecognizedBranchPattern,
                                VersionMismatch,
+                               UnanimityApprovalRequired,
                                WallE_SilentException,
                                WallE_TemplateException)
 
@@ -65,6 +66,8 @@ if six.PY3:
 
 WALL_E_USERNAME = 'scality_wall-e'
 WALL_E_EMAIL = 'wall_e@scality.com'
+
+JENKINS_USERNAME = 'scality_jenkins'
 
 SETTINGS = {
     'ring': {
@@ -236,12 +239,27 @@ class HotfixBranch(WalleBranch):
     pattern = '^hotfix/(?P<label>.*)$'
 
 
+class ReleaseBranch(WalleBranch):
+    pattern = '^release/' \
+              '(?P<version>(?P<major>\d+)\.(?P<minor>\d+))$'
+
+
+class FeatureBranch(WalleBranch):
+    valid_prefixes = ('feature', 'improvement', 'bugfix', 'project')
+    jira_issue_pattern = '(?P<jira_issue_key>' \
+                         '(?P<jira_project>[A-Z0-9_]+)-[0-9]+)'
+    prefixes = '(?P<prefix>(%s))' % '|'.join(valid_prefixes)
+    pattern = "^%s/(%s(?P<label>.*)|.+)$" % (prefixes, jira_issue_pattern)
+    cascade_producer = True
+
+
 class DevelopmentBranch(WalleBranch):
     pattern = '^development/(?P<version>(?P<major>\d+)\.(?P<minor>\d+))$'
     micro = None
     cascade_producer = True
     cascade_consumer = True
     can_be_destination = True
+    allow_prefix = FeatureBranch.valid_prefixes
 
     def __eq__(self, other):
         return self.__class__ == other.__class__ and \
@@ -260,30 +278,12 @@ class StabilizationBranch(DevelopmentBranch):
             self.micro == other.micro
 
 
-class ReleaseBranch(WalleBranch):
-    pattern = '^release/' \
-              '(?P<version>(?P<major>\d+)\.(?P<minor>\d+))$'
-
-
-class FeatureBranch(WalleBranch):
-    valid_prefixes = ('feature', 'improvement', 'bugfix', 'project')
-    jira_issue_pattern = '(?P<jira_issue_key>' \
-                         '(?P<jira_project>[A-Z0-9_]+)-[0-9]+)'
-    prefixes = '(?P<prefix>(%s))' % '|'.join(valid_prefixes)
-    pattern = "^%s/(%s(?P<label>.*)|.+)$" % (prefixes, jira_issue_pattern)
-    cascade_producer = True
-
-
 class IntegrationBranch(WalleBranch):
     pattern = '^w/(?P<version>(?P<major>\d+)\.(?P<minor>\d+)' \
               '(\.(?P<micro>\d+))?)/' + FeatureBranch.pattern[1:]
 
     def merge_from_branch(self, source_branch):
-        try:
-            self.merge(source_branch, do_push=True)
-        except MergeFailedException:
-            raise Conflict(source=source_branch,
-                           destination=self)
+        self.merge(source_branch, do_push=True)
 
     def update_to_development_branch(self):
         self.destination_branch.merge(self, force_commit=False)
@@ -736,7 +736,8 @@ class WallE:
             raise IncorrectSourceBranchName(
                 source=self.main_pr['source']['branch']['name'],
                 destination=self.main_pr['destination']['branch']['name'],
-                valid_prefixes=FeatureBranch.valid_prefixes)
+                valid_prefixes=FeatureBranch.valid_prefixes,
+                active_options=self._get_active_options())
 
     def _setup_destination_branch(self, repo, dst_branch_name):
         self.destination_branch = branch_factory(repo, dst_branch_name)
@@ -747,7 +748,8 @@ class WallE:
                 self.destination_branch)[-1]:
             raise IncompatibleSourceBranchPrefix(
                 source=self.source_branch,
-                destination=self.destination_branch)
+                destination=self.destination_branch,
+                active_options=self._get_active_options())
 
     def _jira_check_reference(self):
         if self.source_branch.jira_issue_key:
@@ -756,7 +758,8 @@ class WallE:
         for destination_branch in self.destination_branches:
             if not destination_branch.allow_ticketless:
                 raise MissingJiraId(source_branch=self.source_branch.name,
-                                    dest_branch=destination_branch.name)
+                                    dest_branch=destination_branch.name,
+                                    active_options=self._get_active_options())
 
     def _jira_get_issue(self, issue_id):
         try:
@@ -764,7 +767,10 @@ class WallE:
                               passwd=self._bbconn.auth.password)
         except JIRAError as e:
             if e.status_code == 404:
-                raise JiraIssueNotFound(issue=issue_id)
+                raise JiraIssueNotFound(
+                    issue=issue_id,
+                    active_options=self._get_active_options())
+
             else:
                 raise
 
@@ -776,25 +782,30 @@ class WallE:
                 self.settings['jira_key']):
             raise IncorrectJiraProject(
                 expected_project=self.settings['jira_key'],
-                issue=issue
+                issue=issue,
+                active_options=self._get_active_options()
             )
 
     def _jira_check_issue_type(self, issue):
         issuetype = issue.fields.issuetype.name
 
         if issuetype == 'Sub-task':
-            raise SubtaskIssueNotSupported(issue=issue,
-                                           pairs=JIRA_ISSUE_BRANCH_PREFIX)
+            raise SubtaskIssueNotSupported(
+                issue=issue,
+                pairs=JIRA_ISSUE_BRANCH_PREFIX,
+                active_options=self._get_active_options())
 
         expected_prefix = JIRA_ISSUE_BRANCH_PREFIX.get(issuetype)
         if expected_prefix is None:
             raise JiraUnknownIssueType(issuetype)
 
         if expected_prefix != self.source_branch.prefix:
-            raise MismatchPrefixIssueType(prefix=self.source_branch.prefix,
-                                          expected=expected_prefix,
-                                          pairs=JIRA_ISSUE_BRANCH_PREFIX,
-                                          issue=issue)
+            raise MismatchPrefixIssueType(
+                prefix=self.source_branch.prefix,
+                expected=expected_prefix,
+                pairs=JIRA_ISSUE_BRANCH_PREFIX,
+                issue=issue,
+                active_options=self._get_active_options())
 
     def _jira_check_version(self, issue):
         issue_versions = set([version.name for version in
@@ -803,9 +814,11 @@ class WallE:
             self._cascade.target_versions(self.destination_branch))
 
         if issue_versions != expect_versions:
-            raise IncorrectFixVersion(issue=issue,
-                                      issue_versions=issue_versions,
-                                      expect_versions=expect_versions)
+            raise IncorrectFixVersion(
+                issue=issue,
+                issue_versions=issue_versions,
+                expect_versions=expect_versions,
+                active_options=self._get_active_options())
 
     def _jira_checks(self):
         """Check the Jira issue id specified in the source branch."""
@@ -860,8 +873,16 @@ class WallE:
                     commit=commit,
                     integration_branch=integration_branch,
                     feature_branch=integration_branch.source_branch,
-                    development_branch=development_branch
-                )
+                    development_branch=development_branch,
+                    active_options=self._get_active_options())
+
+    def _merge(self, source, destination):
+        try:
+            destination.merge_from_branch(source)
+        except MergeFailedException:
+            raise Conflict(source=source,
+                           destination=destination,
+                           active_options=self._get_active_options())
 
     def _update_integration_from_dev(self, integration_branches):
         # The first integration branch should not contain commits
@@ -874,7 +895,7 @@ class WallE:
     def _update_integration_from_feature(self, integration_branches):
         branch_to_merge_from = self.source_branch
         for integration_branch in integration_branches:
-            integration_branch.merge_from_branch(branch_to_merge_from)
+            self._merge(branch_to_merge_from, integration_branch)
             branch_to_merge_from = integration_branch
 
     def _create_pull_requests(self, integration_branches):
@@ -901,6 +922,8 @@ class WallE:
         approved_by_author = self.option_is_set('bypass_author_approval')
         approved_by_peer = self.option_is_set('bypass_peer_approval')
         approved_by_tester = self.option_is_set('bypass_tester_approval')
+        requires_unanimity = self.option_is_set('unanimity')
+        is_unanimous = True
 
         if not self.settings['testers']:
             # if the project does not declare any testers,
@@ -912,13 +935,18 @@ class WallE:
         if self.author in self.settings['testers']:
             approved_by_tester = True
 
-        if approved_by_author and approved_by_peer and approved_by_tester:
+        if (approved_by_author and approved_by_peer and
+                approved_by_tester and not requires_unanimity):
             return
 
         # NB: when author hasn't approved the PR, author isn't listed in
         # 'participants'
         for participant in self.main_pr['participants']:
             if not participant['approved']:
+                # Exclude WALL_E and SCALITY_JENKINS
+                if (not participant['user']['username'] in [WALL_E_USERNAME,
+                                                            JENKINS_USERNAME]):
+                    is_unanimous = False
                 continue
             if participant['user']['username'] == self.author:
                 approved_by_author = True
@@ -934,6 +962,8 @@ class WallE:
                 author_approval=approved_by_author,
                 peer_approval=approved_by_peer,
                 tester_approval=approved_by_tester,
+                requires_unanimity=requires_unanimity,
+                active_options=self._get_active_options()
             )
 
         if not approved_by_peer:
@@ -943,6 +973,8 @@ class WallE:
                 author_approval=approved_by_author,
                 peer_approval=approved_by_peer,
                 tester_approval=approved_by_tester,
+                requires_unanimity=requires_unanimity,
+                active_options=self._get_active_options()
             )
 
         if not approved_by_tester:
@@ -952,6 +984,19 @@ class WallE:
                 author_approval=approved_by_author,
                 peer_approval=approved_by_peer,
                 tester_approval=approved_by_tester,
+                requires_unanimity=requires_unanimity,
+                active_options=self._get_active_options()
+            )
+
+        if (requires_unanimity and not is_unanimous):
+            raise UnanimityApprovalRequired(
+                pr=self.main_pr,
+                child_prs=child_prs,
+                author_approval=approved_by_author,
+                peer_approval=approved_by_peer,
+                tester_approval=approved_by_tester,
+                requires_unanimity=requires_unanimity,
+                active_options=self._get_active_options()
             )
 
     def _get_pr_build_status(self, key, pr):
@@ -986,7 +1031,8 @@ class WallE:
                 worst_pr = pr
 
         if g_state == 'FAILED':
-            raise BuildFailed(pr_id=worst_pr['id'])
+            raise BuildFailed(pr_id=worst_pr['id'],
+                              active_options=self._get_active_options())
         elif g_state == 'NOTSTARTED':
             raise BuildNotStarted()
         elif g_state == 'INPROGRESS':
@@ -1049,7 +1095,8 @@ class WallE:
 
         raise SuccessMessage(branches=self.destination_branches,
                              issue=self.source_branch.jira_issue_key,
-                             author=self.author_display_name)
+                             author=self.author_display_name,
+                             active_options=self._get_active_options())
 
 
 def setup_parser():
@@ -1131,8 +1178,7 @@ def setup_options(args):
             Option(privileged=False,
                    value='unanimity' in args.cmd_line_options,
                    help="Change review acceptance criteria from "
-                        "`one reviewer at least` to `all reviewers` "
-                        "```TBA```"),
+                        "`one reviewer at least` to `all reviewers` "),
         'wait':
             Option(privileged=False,
                    value='wait' in args.cmd_line_options,

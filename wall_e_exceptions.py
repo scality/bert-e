@@ -12,6 +12,7 @@ class WallE_TemplateException(Exception):
     dont_repeat_if_in_history = 10
 
     def __init__(self, **kwargs):
+        assert 'active_options' in kwargs
         assert self.code != 0
         assert self.template
         assert self.dont_repeat_if_in_history >= 0
@@ -124,6 +125,11 @@ class TesterApprovalRequired(WallE_TemplateException):
 class BuildFailed(WallE_TemplateException):
     code = 118
     template = 'build_failed.md'
+
+
+class UnanimityApprovalRequired(WallE_TemplateException):
+    code = 119
+    template = 'need_approval.md'
 
 
 # internal exceptions
