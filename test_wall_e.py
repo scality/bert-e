@@ -21,6 +21,7 @@ from wall_e_exceptions import (AuthorApprovalRequired,
                                Conflict,
                                DevBranchDoesNotExist,
                                DevBranchesNotSelfContained,
+                               DeprecatedStabilizationBranch,
                                HelpMessage,
                                IncompatibleSourceBranchPrefix,
                                IncorrectSourceBranchName,
@@ -156,6 +157,71 @@ class QuickTest(unittest.TestCase):
         wall_e.DevelopmentBranch(
             repo=None,
             name='development/6.0')
+
+    def add_branches_to_cascade(self, cascade, branches):
+        for branch_name in branches:
+            branch = wall_e.branch_factory(FakeGitRepo(), branch_name)
+            cascade.add_branch(branch)
+
+    def test_tag_deprecates_stabilization_branch(self):
+        c = wall_e.BranchCascade()
+        self.add_branches_to_cascade(c, ['development/4.3',
+                                         'stabilization/4.3.18'])
+
+        with self.assertRaises(DeprecatedStabilizationBranch):
+            c.add_tag('4.3.18')
+
+    def test_branch_cascade(self):
+        c = wall_e.BranchCascade()
+        self.add_branches_to_cascade(c, ['development/4.3',
+                                         'stabilization/4.3.18',
+                                         'development/5.1',
+                                         'stabilization/5.1.4',
+                                         'development/6.0'])
+        c.add_tag('4.3.16')
+        c.add_tag('4.3.17')
+        c.add_tag('5.1.3')
+        dest_branches = c.destination_branches(
+            wall_e.StabilizationBranch(FakeGitRepo(), 'stabilization/4.3.18'))
+
+        dst0 = wall_e.StabilizationBranch(FakeGitRepo(),
+                                          'stabilization/4.3.18')
+        dst1 = wall_e.DevelopmentBranch(FakeGitRepo(), 'development/4.3')
+        dst2 = wall_e.DevelopmentBranch(FakeGitRepo(), 'development/5.1')
+        dst3 = wall_e.DevelopmentBranch(FakeGitRepo(), 'development/6.0')
+
+        self.assertEqual(dest_branches, [dst0, dst1, dst2, dst3])
+
+    def test_tags_without_stabilization(self):
+        c = wall_e.BranchCascade()
+        self.add_branches_to_cascade(c, ['development/6.0'])
+
+        dest = wall_e.DevelopmentBranch(FakeGitRepo(), 'development/6.0')
+        self.assertEqual(
+            c.destination_branches(dest)[0].micro, 0)
+        c.add_tag('6.0.15_rc1')
+        self.assertEqual(
+            c.destination_branches(dest)[0].micro, 0)
+        c.add_tag('6.0.0')
+        self.assertEqual(
+            c.destination_branches(dest)[0].micro, 0)
+        c.add_tag('6.0.1')
+        self.assertEqual(
+            c.destination_branches(dest)[0].micro, 1)
+        c.add_tag('6.0.4000')
+        self.assertEqual(
+            c.destination_branches(dest)[0].micro, 4000)
+        c.add_tag('6.0.3999')
+        self.assertEqual(
+            c.destination_branches(dest)[0].micro, 4000)
+
+
+class FakeGitRepo:
+    def includes_commit(self, commit):
+        return True
+
+    def cmd(self, command):
+        return True
 
 
 class TestWallE(unittest.TestCase):
@@ -960,20 +1026,20 @@ class TestWallE(unittest.TestCase):
 
     def test_successful_merge_into_stabilization_branch(self):
         self.successful_merge_into_stabilization_branch(
-                'stabilization/4.3.18',
-                ["origin/bugfix/RING-00001",
-                 "origin/development/4.3",
-                 "origin/development/5.1",
-                 "origin/development/6.0",
-                 "origin/stabilization/4.3.18"])
+            'stabilization/4.3.18',
+            ["origin/bugfix/RING-00001",
+             "origin/development/4.3",
+             "origin/development/5.1",
+             "origin/development/6.0",
+             "origin/stabilization/4.3.18"])
 
     def test_successful_merge_into_stabilization_branch_middle_cascade(self):
         self.successful_merge_into_stabilization_branch(
-                'stabilization/5.1.4',
-                ["origin/bugfix/RING-00001",
-                 "origin/development/5.1",
-                 "origin/development/6.0",
-                 "origin/stabilization/5.1.4"])
+            'stabilization/5.1.4',
+            ["origin/bugfix/RING-00001",
+             "origin/development/5.1",
+             "origin/development/6.0",
+             "origin/stabilization/5.1.4"])
 
 
 def main():

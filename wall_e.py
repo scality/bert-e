@@ -33,6 +33,7 @@ from wall_e_exceptions import (AuthorApprovalRequired,
                                Conflict,
                                DevBranchDoesNotExist,
                                DevBranchesNotSelfContained,
+                               DeprecatedStabilizationBranch,
                                HelpMessage,
                                ImproperEmailFormat,
                                IncompatibleSourceBranchPrefix,
@@ -53,6 +54,8 @@ from wall_e_exceptions import (AuthorApprovalRequired,
                                SuccessMessage,
                                TesterApprovalRequired,
                                UnableToSendEmail,
+                               UnrecognizedBranchPattern,
+                               VersionMismatch,
                                WallE_SilentException,
                                WallE_TemplateException)
 
@@ -67,30 +70,6 @@ SETTINGS = {
     'ring': {
         'jira_key': 'RING',
         'build_key': 'pipeline',
-        'release_branch': {
-            'prefix': 'release'
-        },
-        'stabilization_branch': {
-            'prefix': 'stabilization',
-        },
-        'development_branch': {
-            'prefix': 'development',
-        },
-        'integration_branch': {
-            'prefix': 'w',
-        },
-        'feature_branch': {
-            'prefix': [
-                'feature',
-                'bugfix',
-                'improvement',
-                'project'
-            ],
-            'ignore_prefix': [
-                'hotfix',
-                'user'
-            ]
-        },
         'testers': [
             WALL_E_USERNAME,  # we need this for test purposes
             'anneharper',
@@ -117,30 +96,6 @@ SETTINGS = {
     'wall-e': {
         'jira_key': 'RELENG',
         'build_key': 'pipeline',
-        'release_branch': {
-            'prefix': 'release'
-        },
-        'stabilization_branch': {
-            'prefix': 'stabilization'
-        },
-        'development_branch': {
-            'prefix': 'development',
-        },
-        'integration_branch': {
-            'prefix': 'w',
-        },
-        'feature_branch': {
-            'prefix': [
-                'feature',
-                'bugfix',
-                'improvement',
-                'project'
-            ],
-            'ignore_prefix': [
-                'hotfix',
-                'user'
-            ]
-        },
         'testers': [
         ],
         'admins': [
@@ -153,30 +108,6 @@ SETTINGS = {
     'gollum': {
         'jira_key': 'RELENG',
         'build_key': 'pipeline',
-        'release_branch': {
-            'prefix': 'release'
-        },
-        'stabilization_branch': {
-            'prefix': 'stabilization'
-        },
-        'development_branch': {
-            'prefix': 'development',
-        },
-        'integration_branch': {
-            'prefix': 'w',
-        },
-        'feature_branch': {
-            'prefix': [
-                'feature',
-                'bugfix',
-                'improvement',
-                'project'
-            ],
-            'ignore_prefix': [
-                'hotfix',
-                'user'
-            ]
-        },
         'testers': [
         ],
         'admins': [
@@ -400,22 +331,6 @@ class IntegrationBranch(BranchName):
         return pr
 
 
-class UnrecognizedBranchPattern(Exception):
-    pass
-
-
-class StabilizationBranchWithoutDevBranch(Exception):
-    pass
-
-
-class VersionMismatch(Exception):
-    pass
-
-
-class NoMicroVersionForDevelopmentBranch(Exception):
-    pass
-
-
 def branch_factory(repo, branch_name):
     for cls in [StabilizationBranch, DevelopmentBranch, ReleaseBranch,
                 FeatureBranch, HotfixBranch, IntegrationBranch]:
@@ -448,6 +363,25 @@ class BranchCascade(object):
         self._cascade[(major, minor)][branch.__class__] = max(cur_branch,
                                                               branch)
 
+    def add_tag(self, tag):
+        pattern = "(?P<major>\d+)\.(?P<minor>\d+)(\.(?P<micro>\d+))"
+        match = re.match(pattern, tag)
+        if not match:
+            return
+        major = int(match.groupdict()['major'])
+        minor = int(match.groupdict()['minor'])
+        micro = int(match.groupdict()['micro'])
+        branches = self._cascade[(major, minor)]
+        dev_branch = branches[DevelopmentBranch]
+        stb_branch = branches[StabilizationBranch]
+
+        if stb_branch is not None and stb_branch.micro <= micro:
+            # We have a tag but we did not remove the stabilization branch.
+            raise DeprecatedStabilizationBranch(stb_branch.name, tag)
+
+        old_micro = branches[DevelopmentBranch].micro
+        dev_branch.micro = max(micro, old_micro)
+
     def validate(self):
         previous_dev_branch = None
         for (major, minor), branch_set in self._cascade.items():
@@ -465,8 +399,9 @@ class BranchCascade(object):
                     dev_branch.micro = stb_branch.micro + 1
 
             if stb_branch:
-                if dev_branch.micro - stb_branch.micro != 1:
-                    raise VersionMismatch(stb_branch, dev_branch)
+                if dev_branch.micro >= stb_branch.micro:
+                    raise VersionMismatch(dev_branch, stb_branch)
+                dev_branch.micro = stb_branch.micro + 1
                 if not dev_branch.includes_commit(stb_branch):
                     raise DevBranchesNotSelfContained(stb_branch, dev_branch)
 
@@ -479,7 +414,8 @@ class BranchCascade(object):
         self._is_valid = True
 
     def adapt_cascade_to_destination_branch(self, destination_branch):
-        assert self._is_valid
+        if not self._is_valid:
+            self.validate()
         for (major, minor), branch_set in self._cascade.items():
             if destination_branch == branch_set[StabilizationBranch]:
                 return
@@ -492,7 +428,8 @@ class BranchCascade(object):
         raise Exception("The destination branch was not found in cascade")
 
     def destination_branches(self, destination_branch):
-        assert self._is_valid
+        if not self._is_valid:
+            self.validate()
         destination_branches = []
         include_next_development_branches = False
         for (major, minor), branch_set in self._cascade.items():
@@ -897,15 +834,15 @@ class WallE:
             raise NothingToDo(self.source_branch.name)
 
     def _build_branch_cascade(self, git_repo):
-
-        # for tag in git_repo.cmd('git tag').split('\n')[:-1]:
-        #    self._cascade.add_tag(tag)
         for branch in git_repo.cmd('git branch').split('\n')[:-1]:
             try:
                 branch = branch_factory(git_repo, branch[2:])
             except UnrecognizedBranchPattern:
                 continue
             self._cascade.add_branch(branch)
+
+        for tag in git_repo.cmd('git tag').split('\n')[:-1]:
+            self._cascade.add_tag(tag)
 
     def _check_history_did_not_change(self, integration_branch):
         development_branch = integration_branch.destination_branch

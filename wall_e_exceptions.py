@@ -137,9 +137,28 @@ class ImproperEmailFormat(WallE_InternalException):
 
 class BranchNameInvalid(WallE_InternalException):
     def __init__(self, name):
-        self.branch = name
         msg = 'Invalid name: %r' % name
         super(BranchNameInvalid, self).__init__(msg)
+
+
+class DeprecatedStabilizationBranch(WallE_InternalException):
+    def __init__(self, branch, tag):
+        msg = 'Branch %r must be deleted as the tag %r has been created' % (
+            branch, tag)
+        super(WallE_InternalException, self).__init__(msg)
+
+
+class VersionMismatch(WallE_InternalException):
+    def __init__(self, dev_branch, stabilization_branch):
+        msg = 'Branch %r (micro==%d) and %r do not match' % (
+            dev_branch.name,
+            dev_branch.micro,
+            stabilization_branch.name)
+        super(WallE_InternalException, self).__init__(msg)
+
+
+class UnrecognizedBranchPattern(WallE_InternalException):
+    pass
 
 
 class ParentPullRequestNotFound(WallE_InternalException):
