@@ -952,17 +952,17 @@ class TestWallE(unittest.TestCase):
         self.assertEqual(retcode, BranchHistoryMismatch.code)
 
     def test_unanimity_option(self):
-            """Test unanimity by passing option to wall_e"""
-            feature_branch = 'bugfix/RING-0076'
-            dst_branch = 'development/4.3'
-            reviewers = [self.creator]
+        """Test unanimity by passing option to wall_e"""
+        feature_branch = 'bugfix/RING-0076'
+        dst_branch = 'development/4.3'
+        reviewers = [self.creator]
 
-            pr = self.create_pr(feature_branch, dst_branch,
-                                reviewers=reviewers)
-            retcode = self.handle(pr['id'],
-                                  options=self.bypass_all + ['unanimity'])
+        pr = self.create_pr(feature_branch, dst_branch,
+                            reviewers=reviewers)
+        retcode = self.handle(pr['id'],
+                              options=self.bypass_all + ['unanimity'])
 
-            self.assertEqual(retcode, UnanimityApprovalRequired.code)
+        self.assertEqual(retcode, UnanimityApprovalRequired.code)
 
     def test_unanimity_required_all_approval(self, ):
         """Test unanimity with all approval required"""
