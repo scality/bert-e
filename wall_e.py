@@ -904,7 +904,8 @@ class WallE:
         # that are not in development/* or in the feature branch.
         self._check_history_did_not_change(integration_branches[0])
         for integration_branch in integration_branches:
-            self._merge(integration_branch.development_branch, integration_branch)
+            self._merge(integration_branch.development_branch,
+                        integration_branch)
 
     def _update_integration_from_feature(self, integration_branches):
         branch_to_merge_from = self.source_branch
