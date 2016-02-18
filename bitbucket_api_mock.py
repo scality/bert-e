@@ -199,7 +199,7 @@ class PullRequestController(Controller):
             'role': 'PARTICIPANT'})
 
     def decline(self):
-        self['state'] = "DECLINED"
+        self['_state'] = "DECLINED"
 
 
 class Branch(object):
@@ -254,17 +254,15 @@ class PullRequest(BitBucketObject):
 
     @property
     def state(self):
+        if self._state != 'OPEN':
+            return self._state
+
         dst_branch = GitBranch(self.repo.gitrepo,
                                self.destination['branch']['name'])
-        if (dst_branch.includes_commit(self.source['branch']['name']) and
-           self._state == "OPEN"):
+        if dst_branch.includes_commit(self.source['branch']['name']):
             self._state = "MERGED"
 
         return self._state
-
-    @state.setter
-    def state(self, value):
-        self._state = value
 
     def full_name(self):
         return self['destination']['repository']['full_name']
