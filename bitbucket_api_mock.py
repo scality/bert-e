@@ -123,7 +123,10 @@ class Repository(BitBucketObject):
         self.get_git_url()
         pr = PullRequest(self, title, name, source, destination,
                          close_source_branch, reviewers, description).create()
-        return PullRequestController(self.client, pr)
+        prc = PullRequestController(self.client, pr)
+        for reviewer in reviewers:
+            prc.add_participant(reviewer)
+        return prc
 
     def get_pull_requests(self):
         return [PullRequestController(self.client, item)
@@ -149,9 +152,12 @@ class Repository(BitBucketObject):
 
 class PullRequestController(Controller):
     def add_comment(self, msg):
-        return Comment(self.client, content=msg,
-                       full_name=self.controlled.full_name(),
-                       pull_request_id=self.controlled.id).create()
+        comment = Comment(self.client, content=msg,
+                          full_name=self.controlled.full_name(),
+                          pull_request_id=self.controlled.id).create()
+
+        self.update_participant(role='PARTICIPANT')
+        return comment
 
     def get_comments(self):
         return [Controller(self.client, c) for c in Comment.get_list(
@@ -162,11 +168,35 @@ class PullRequestController(Controller):
         raise NotImplemented('Merge')
 
     def approve(self):
+        self.update_participant(approved=True, role='REVIEWER')
+
+    def update_participant(self, approved=None, role=None):
+        # locate participant
+        exists = False
+        for participant in self['participants']:
+            if participant['user']['username'] == self.client.username:
+                exists = True
+                break
+
+        if not exists:
+            # new participant
+            self.add_participant(fake_user_dict(self.client.username))
+            participant = self['participants'][-1]
+
+        # update it
+        if approved is not None:
+            participant['approved'] = approved
+        if role is not None:
+            # role cannot downgrade from REVIEWER to PARTICIPANT
+            if participant['role'] == 'REVIEWER' and role == 'PARTICIPANT':
+                role = 'REVIEWER'
+            participant['role'] = role
+
+    def add_participant(self, user_struct):
         self['participants'].append({
-            "approved": True,
-            "role": "REVIEWER",
-            "user": fake_user_dict(self.client.username)
-        })
+            'user': user_struct,
+            'approved': False,
+            'role': 'PARTICIPANT'})
 
     def decline(self):
         self['state'] = "DECLINED"
@@ -211,7 +241,6 @@ class PullRequest(BitBucketObject):
         self.merge_commit = None
         self.participants = []
         self.reason = ""
-        self.reviewers = reviewers
         self.source = {
             "branch": source['branch'],
             "commit": Branch(self.repo.gitrepo, source['branch']['name']),

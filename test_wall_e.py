@@ -32,7 +32,8 @@ from wall_e_exceptions import (AfterPullRequest,
                                PeerApprovalRequired,
                                StatusReport,
                                SuccessMessage,
-                               TesterApprovalRequired)
+                               TesterApprovalRequired,
+                               UnanimityApprovalRequired)
 
 WALL_E_USERNAME = wall_e.WALL_E_USERNAME
 WALL_E_EMAIL = wall_e.WALL_E_EMAIL
@@ -950,6 +951,52 @@ class TestWallE(unittest.TestCase):
                               options=self.bypass_all)
         self.assertEqual(retcode, BranchHistoryMismatch.code)
 
+    def test_unanimity_option(self):
+        """Test unanimity by passing option to wall_e"""
+        feature_branch = 'bugfix/RING-0076'
+        dst_branch = 'development/4.3'
+        reviewers = [self.creator]
+
+        pr = self.create_pr(feature_branch, dst_branch,
+                            reviewers=reviewers)
+        retcode = self.handle(pr['id'],
+                              options=self.bypass_all + ['unanimity'])
+
+        self.assertEqual(retcode, UnanimityApprovalRequired.code)
+
+    def test_unanimity_required_all_approval(self, ):
+        """Test unanimity with all approval required"""
+
+        feature_branch = 'bugfix/RING-007'
+        dst_branch = 'development/4.3'
+
+        pr = self.create_pr(feature_branch, dst_branch)
+
+        pr.add_comment('@%s unanimity' % WALL_E_USERNAME)
+
+        retcode = self.handle(pr['id'], options=self.bypass_jira_check)
+        self.assertEqual(retcode, AuthorApprovalRequired.code)
+
+        # Author adds approval
+        pr.approve()
+        retcode = self.handle(pr['id'], options=self.bypass_jira_check)
+        self.assertEqual(retcode, PeerApprovalRequired.code)
+
+        # Reviewer adds approval
+        pr_peer = self.bbrepo.get_pull_request(
+            pull_request_id=pr['id'])
+        pr_peer.approve()
+        retcode = self.handle(pr['id'], options=self.bypass_jira_check)
+        self.assertEqual(retcode, TesterApprovalRequired.code)
+
+        # Tester adds approval
+        pr_tester = self.bbrepo_wall_e.get_pull_request(
+            pull_request_id=pr['id'])
+        pr_tester.approve()
+        retcode = self.handle(pr['id'], options=[
+                              'bypass_jira_check',
+                              'bypass_build_status'])
+
     def test_wait_prs_before_merge(self):
         pr_opened = self.create_pr('bugfix/RING-00002', 'development/4.3')
         pr_declined = self.create_pr('bugfix/RING-00003', 'development/4.3')
@@ -977,6 +1024,7 @@ class TestWallE(unittest.TestCase):
 
         comment_open.delete()
         retcode = self.handle(current_pr['id'], options=self.bypass_all)
+
         self.assertEqual(retcode, SuccessMessage.code)
 
 
