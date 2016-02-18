@@ -32,7 +32,7 @@ class Repository(object):
         # all commands will now execute from repo directory
         self.cmd_directory = os.path.join(self.tmp_directory, repo_slug)
 
-    def get_all_branches_locally(self):
+    def fetch_all_branches(self):
         for remote in self.cmd("git branch -r").split('\n')[:-1]:
             local = remote.replace('origin/', '').split()[-1]
             self.cmd("git branch --track {0} {1} || exit 0"

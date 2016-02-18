@@ -144,7 +144,6 @@ class Option(object):
     it.
 
     """
-
     def __init__(self, privileged, help, value=False):
         self.value = value
         self.help = help
@@ -170,7 +169,6 @@ class Command(object):
     it.
 
     """
-
     def __init__(self, privileged, help, handler):
         self.handler = handler
         self.help = help
@@ -210,8 +208,8 @@ def confirm(question):
     return input_ == "yes" or input_ == "y"
 
 
-class BranchName(Branch):
-    pattern = '(?P<prefix>[a-b]+)/(?P<label>.*)'
+class WalleBranch(Branch):
+    pattern = '(?P<prefix>[a-z]+)/(?P<label>.*)'
     cascade_producer = False
     cascade_consumer = False
     can_be_destination = False
@@ -234,11 +232,11 @@ class BranchName(Branch):
         return self.name
 
 
-class HotfixBranch(BranchName):
+class HotfixBranch(WalleBranch):
     pattern = '^hotfix/(?P<label>.*)$'
 
 
-class DevelopmentBranch(BranchName):
+class DevelopmentBranch(WalleBranch):
     pattern = '^development/(?P<version>(?P<major>\d+)\.(?P<minor>\d+))$'
     micro = None
     cascade_producer = True
@@ -262,12 +260,12 @@ class StabilizationBranch(DevelopmentBranch):
             self.micro == other.micro
 
 
-class ReleaseBranch(BranchName):
+class ReleaseBranch(WalleBranch):
     pattern = '^release/' \
               '(?P<version>(?P<major>\d+)\.(?P<minor>\d+))$'
 
 
-class FeatureBranch(BranchName):
+class FeatureBranch(WalleBranch):
     valid_prefixes = ('feature', 'improvement', 'bugfix', 'project')
     jira_issue_pattern = '(?P<jira_issue_key>' \
                          '(?P<jira_project>[A-Z0-9_]+)-[0-9]+)'
@@ -276,7 +274,7 @@ class FeatureBranch(BranchName):
     cascade_producer = True
 
 
-class IntegrationBranch(BranchName):
+class IntegrationBranch(WalleBranch):
     pattern = '^w/(?P<version>(?P<major>\d+)\.(?P<minor>\d+)' \
               '(\.(?P<micro>\d+))?)/' + FeatureBranch.pattern[1:]
 
@@ -821,7 +819,7 @@ class WallE:
     def _clone_git_repo(self, reference_git_repo):
         git_repo = GitRepository(self.bbrepo.get_git_url())
         git_repo.clone(reference_git_repo)
-        git_repo.get_all_branches_locally()
+        git_repo.fetch_all_branches()
         git_repo.config('user.email', WALL_E_EMAIL)
         git_repo.config('user.name', WALL_E_USERNAME)
         return git_repo
