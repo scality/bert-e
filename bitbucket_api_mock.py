@@ -156,16 +156,7 @@ class PullRequestController(Controller):
                           full_name=self.controlled.full_name(),
                           pull_request_id=self.controlled.id).create()
 
-        for participant in self['participants']:
-            if participant['user']['username'] == self.client.username:
-                return comment
-
-        # new participant
-        self['participants'].append({
-            "approved": False,
-            "role": "PARTICIPANT",
-            "user": fake_user_dict(self.client.username)
-        })
+        self.update_participant(role='PARTICIPANT')
         return comment
 
     def get_comments(self):
@@ -177,18 +168,29 @@ class PullRequestController(Controller):
         raise NotImplemented('Merge')
 
     def approve(self):
+        self.update_participant(approved=True, role='REVIEWER')
+
+    def update_participant(self, approved=None, role=None):
+        # locate participant
+        exists = False
         for participant in self['participants']:
             if participant['user']['username'] == self.client.username:
-                participant['approved'] = True
-                participant['role'] = "REVIEWER"
-                return
+                exists = True
+                break
 
-        # new participant
-        self['participants'].append({
-            "approved": True,
-            "role": "REVIEWER",
-            "user": fake_user_dict(self.client.username)
-        })
+        if not exists:
+            # new participant
+            self.add_participant(fake_user_dict(self.client.username))
+            participant = self['participants'][-1]
+
+        # update it
+        if approved is not None:
+            participant['approved'] = approved
+        if role is not None:
+            # role cannot downgrade from REVIEWER to PARTICIPANT
+            if participant['role'] == 'REVIEWER' and role == 'PARTICIPANT':
+                role = 'REVIEWER'
+            participant['role'] = role
 
     def add_participant(self, user_struct):
         self['participants'].append({
