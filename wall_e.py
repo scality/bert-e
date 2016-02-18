@@ -891,29 +891,25 @@ class WallE:
                     active_options=self._get_active_options()
                 )
 
+    def _merge(self, source, destination):
+        try:
+            destination.merge_from_branch(source)
+        except MergeFailedException:
+            raise Conflict(source=source,
+                           destination=destination,
+                           active_options=self._get_active_options())
+
     def _update_integration_from_dev(self, integration_branches):
         # The first integration branch should not contain commits
         # that are not in development/* or in the feature branch.
         self._check_history_did_not_change(integration_branches[0])
         for integration_branch in integration_branches:
-            try:
-                integration_branch.merge_from_branch(
-                    integration_branch.development_branch)
-            except MergeFailedException:
-                raise Conflict(source=integration_branch.development_branch,
-                               destination=integration_branch,
-                               active_options=self._get_active_options())
+            self._merge(integration_branch.development_branch, integration_branch)
 
     def _update_integration_from_feature(self, integration_branches):
         branch_to_merge_from = self.source_branch
         for integration_branch in integration_branches:
-            try:
-                integration_branch.merge_from_branch(branch_to_merge_from)
-            except MergeFailedException:
-                raise Conflict(source=branch_to_merge_from,
-                               destination=integration_branch,
-                               active_options=self._get_active_options())
-
+            self._merge(branch_to_merge_from, integration_branch)
             branch_to_merge_from = integration_branch
 
     def _create_pull_requests(self, integration_branches):
