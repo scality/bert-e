@@ -442,8 +442,16 @@ class BranchCascade(object):
         return destination_branches
 
     def target_versions(self, destination_branch):
-        return ['%d.%d.%d' % (b.major, b.minor, b.micro) for b in
-                self.destination_branches(destination_branch)]
+        target_major_minor_micro = []
+        target_major_minor = []
+        for b in self.destination_branches(destination_branch):
+            major_minor = '%d.%d' % (b.major, b.minor)
+            if major_minor not in target_major_minor:
+                target_major_minor.append(major_minor)
+                target_major_minor_micro.append(
+                    '%s.%d' % (major_minor, b.micro))
+
+        return target_major_minor_micro
 
     def _create_integration_branches(self, repo, source_branch,
                                      destination_branch):
