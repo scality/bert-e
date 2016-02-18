@@ -1010,9 +1010,8 @@ class TestWallE(unittest.TestCase):
         retcode = self.handle(blocked_pr['id'], options=self.bypass_all)
         self.assertEqual(retcode, AfterPullRequest.code)
 
-        comment_open = blocked_pr.add_comment(
-            '@%s unanimity after_pull_request=%s' % (
-                WALL_E_USERNAME, pr_opened['id']))
+        blocked_pr.add_comment('@%s unanimity after_pull_request=%s' % (
+            WALL_E_USERNAME, pr_opened['id']))
 
         retcode = self.handle(blocked_pr['id'], options=self.bypass_all)
         self.assertEqual(retcode, AfterPullRequest.code)
