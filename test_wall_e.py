@@ -1041,6 +1041,18 @@ class TestWallE(unittest.TestCase):
              "origin/development/6.0",
              "origin/stabilization/5.1.4"])
 
+    def test_fixVersions_check_with_stabilization_branch(self):
+        pr = self.create_pr('bugfix/RING-16212', 'stabilization/5.1.4')
+        try:
+            self.handle(pr['id'], options=['bypass_build_status',
+                                           'bypass_tester_approval',
+                                           'bypass_peer_approval',
+                                           'bypass_author_approval'],
+                        backtrace=True)
+        except SuccessMessage as e:
+            msg = "* `5.1.4`\n\n* `6.0.0`"
+            self.assertIn(msg, e.msg)
+
 
 def main():
     parser = argparse.ArgumentParser(description='Launches Wall-E tests.')
