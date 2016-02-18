@@ -267,8 +267,6 @@ class DevelopmentBranch(WalleBranch):
             self.minor == other.minor
 
 
-
-
 class StabilizationBranch(DevelopmentBranch):
     pattern = '^stabilization/' \
               '(?P<version>(?P<major>\d+)\.(?P<minor>\d+)\.(?P<micro>\d+))$'
