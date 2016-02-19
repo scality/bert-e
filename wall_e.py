@@ -757,15 +757,6 @@ class WallE:
                 declined_prs=declined_prs,
                 active_options=self._get_active_options())
 
-    def _build_target_versions(self, dst_branch_name):
-        match_ = re.match("[^/]*/(?P<minver>.*)", dst_branch_name)
-        assert match_  # should work, already tested
-        # target versions are all versions above `minver`
-        self.target_versions = OrderedDict(
-            [(version, data['upcoming_release']) for (version, data) in
-                self.settings['development_branch']['versions'].items()
-                if version >= match_.group('minver')])
-
     def _setup_source_branch(self, repo, src_branch_name, dst_branch_name):
         try:
             self.source_branch = branch_factory(repo, self.main_pr['source'][
