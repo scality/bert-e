@@ -152,6 +152,14 @@ class BranchNameInvalid(WallE_InternalException):
         super(BranchNameInvalid, self).__init__(msg)
 
 
+class UnsupportedMultipleStabBranches(WallE_InternalException):
+    def __init__(self, branch, other_branch):
+        msg = 'Unsupported multiple stabilization branches ' \
+              'have been detected: %r, %r ' % (
+               branch, other_branch)
+        super(WallE_InternalException, self).__init__(msg)
+
+
 class DeprecatedStabilizationBranch(WallE_InternalException):
     def __init__(self, branch, tag):
         msg = 'Branch %r must be deleted as the tag %r has been created' % (

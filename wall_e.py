@@ -57,6 +57,7 @@ from wall_e_exceptions import (AfterPullRequest,
                                UnableToSendEmail,
                                UnrecognizedBranchPattern,
                                UnanimityApprovalRequired,
+                               UnsupportedMultipleStabBranches,
                                VersionMismatch,
                                WallE_SilentException,
                                WallE_TemplateException)
@@ -214,6 +215,9 @@ def confirm(question):
 
 class WallEBranch(Branch):
     pattern = '(?P<prefix>[a-z]+)/(?P<label>.*)'
+    major = 0
+    minor = 0
+    micro = -1  # is incremented always, first version is 1
     cascade_producer = False
     cascade_consumer = False
     can_be_destination = False
@@ -255,7 +259,6 @@ class FeatureBranch(WallEBranch):
 
 class DevelopmentBranch(WallEBranch):
     pattern = '^development/(?P<version>(?P<major>\d+)\.(?P<minor>\d+))$'
-    micro = None
     cascade_producer = True
     cascade_consumer = True
     can_be_destination = True
@@ -270,8 +273,6 @@ class DevelopmentBranch(WallEBranch):
 class StabilizationBranch(DevelopmentBranch):
     pattern = '^stabilization/' \
               '(?P<version>(?P<major>\d+)\.(?P<minor>\d+)\.(?P<micro>\d+))$'
-    cascade_producer = True
-    can_be_destination = True
 
     def __eq__(self, other):
         return DevelopmentBranch.__eq__(self, other) and \
@@ -344,10 +345,13 @@ def branch_factory(repo, branch_name):
 class BranchCascade(object):
     def __init__(self):
         self._cascade = OrderedDict()
-        self._is_valid = False
+        self.destination_branches = []
+        self.ignored_branches = []
+        self.target_versions = []
 
     def add_branch(self, branch):
         if not branch.can_be_destination:
+            logging.debug("Discard non destination branch:", branch)
             return
         (major, minor) = branch.major, branch.minor
         if (major, minor) not in self._cascade.keys():
@@ -358,105 +362,140 @@ class BranchCascade(object):
             # Sort the cascade again
             self._cascade = OrderedDict(sorted(self._cascade.items()))
         cur_branch = self._cascade[(major, minor)][branch.__class__]
-        self._cascade[(major, minor)][branch.__class__] = max(cur_branch,
-                                                              branch)
 
-    def add_tag(self, tag):
+        if cur_branch:
+            raise UnsupportedMultipleStabBranches(cur_branch, branch)
+
+        self._cascade[(major, minor)][branch.__class__] = branch
+        self.destination_branches.append(branch)
+
+    def update_micro(self, tag):
+        """Update development branch latest micro based on tag."""
         pattern = "^(?P<major>\d+)\.(?P<minor>\d+)(\.(?P<micro>\d+))$"
         match = re.match(pattern, tag)
         if not match:
+            logging.debug("Ignore tag:", tag)
             return
+        logging.debug("Consider tag:", tag)
         major = int(match.groupdict()['major'])
         minor = int(match.groupdict()['minor'])
         micro = int(match.groupdict()['micro'])
-        branches = self._cascade[(major, minor)]
-        dev_branch = branches[DevelopmentBranch]
+        try:
+            branches = self._cascade[(major, minor)]
+        except KeyError:
+            logging.debug("Ignore tag:", tag)
+            return
         stb_branch = branches[StabilizationBranch]
 
         if stb_branch is not None and stb_branch.micro <= micro:
             # We have a tag but we did not remove the stabilization branch.
             raise DeprecatedStabilizationBranch(stb_branch.name, tag)
 
-        old_micro = branches[DevelopmentBranch].micro
-        dev_branch.micro = max(micro, old_micro)
+        dev_branch = branches[DevelopmentBranch]
+        dev_branch.micro = max(micro, dev_branch.micro)
 
-    def validate(self):
-        previous_dev_branch = None
+    def _check_version_branches(self, major, minor, dev_branch,
+                                stb_branch, previous_dev_branch):
+        if dev_branch is None:
+            raise DevBranchDoesNotExist(
+                'development/%d.%d' % (major, minor))
+
+        if stb_branch:
+            if dev_branch.micro + 1 != stb_branch.micro:
+                raise VersionMismatch(dev_branch, stb_branch)
+
+            if not dev_branch.includes_commit(stb_branch):
+                raise DevBranchesNotSelfContained(stb_branch, dev_branch)
+
+        if previous_dev_branch:
+            if not dev_branch.includes_commit(previous_dev_branch):
+                raise DevBranchesNotSelfContained(previous_dev_branch,
+                                                  dev_branch)
+
+    def _set_target_versions(self, destination_branch):
+        """Compute list of expected Jira FixVersion/s.
+
+        Must be called after the cascade has been finalised.
+
+        """
         for (major, minor), branch_set in self._cascade.items():
             dev_branch = branch_set[DevelopmentBranch]
-            if dev_branch is None:
-                raise DevBranchDoesNotExist(
-                    'development/%d.%d' % (major, minor))
-
             stb_branch = branch_set[StabilizationBranch]
 
-            if dev_branch.micro is None:
-                if stb_branch is None:
-                    dev_branch.micro = 0
-                else:
-                    dev_branch.micro = stb_branch.micro + 1
-
             if stb_branch:
-                dev_branch.micro = max(dev_branch.micro, stb_branch.micro + 1)
-                if dev_branch.micro != stb_branch.micro + 1:
-                    raise VersionMismatch(dev_branch, stb_branch)
-                dev_branch.micro = stb_branch.micro + 1
-                if not dev_branch.includes_commit(stb_branch):
-                    raise DevBranchesNotSelfContained(stb_branch, dev_branch)
+                self.target_versions.append('%d.%d.%d' % (
+                    major, minor, stb_branch.micro))
+            else:
+                self.target_versions.append('%d.%d.%d' % (
+                    major, minor, dev_branch.micro))
 
-            if previous_dev_branch:
-                if not dev_branch.includes_commit(previous_dev_branch):
-                    raise DevBranchesNotSelfContained(previous_dev_branch,
-                                                      dev_branch)
+    def finalize(self, destination_branch):
+        """Validate and finalize cascade considering given destination.
 
+        Assumes the cascade has been populated by calls to add_branch
+        and update_micro. The local lists keeping track
+
+        Args:
+            destination_branch: where the pull request wants to merge
+
+        Raises:
+
+        Returns:
+            list: list of destination branches
+            list: list of ignored destination branches
+
+        """
+        previous_dev_branch = None
+        ignore_stb_branches = False
+        include_dev_branches = False
+
+        for (major, minor), branch_set in self._cascade.items():
+            dev_branch = branch_set[DevelopmentBranch]
+            stb_branch = branch_set[StabilizationBranch]
+
+            # run sanity checks
+            self._check_version_branches(major, minor, dev_branch,
+                                         stb_branch, previous_dev_branch)
             previous_dev_branch = dev_branch
-        self._is_valid = True
 
-    def adapt_cascade_to_destination_branch(self, destination_branch):
-        if not self._is_valid:
-            self.validate()
-        for (major, minor), branch_set in self._cascade.items():
-            if destination_branch == branch_set[StabilizationBranch]:
-                return
-            branch_set[StabilizationBranch] = None
-            if destination_branch == branch_set[DevelopmentBranch]:
-                return
-            branch_set[DevelopmentBranch] = None
-            del self._cascade[(major, minor)]
-        # We should never reach this point
-        raise Exception("The destination branch was not found in cascade")
+            # update _expected_ micro versions
+            if stb_branch:
+                dev_branch.micro += 2
+            else:
+                dev_branch.micro += 1
 
-    def destination_branches(self, destination_branch):
-        if not self._is_valid:
-            self.validate()
-        destination_branches = []
-        include_next_development_branches = False
-        for (major, minor), branch_set in self._cascade.items():
-            if branch_set[StabilizationBranch] == destination_branch:
-                destination_branches.append(branch_set[StabilizationBranch])
-                include_next_development_branches = True
-            if branch_set[DevelopmentBranch] == destination_branch:
-                include_next_development_branches = True
-            if include_next_development_branches:
-                destination_branches.append(branch_set[DevelopmentBranch])
-        return destination_branches
+            # remove untargetted branches from cascade
+            if destination_branch == dev_branch:
+                include_dev_branches = True
+                ignore_stb_branches = True
 
-    def target_versions(self, destination_branch):
-        target_major_minor_micro = []
-        target_major_minor = []
-        for b in self.destination_branches(destination_branch):
-            major_minor = '%d.%d' % (b.major, b.minor)
-            if major_minor not in target_major_minor:
-                target_major_minor.append(major_minor)
-                target_major_minor_micro.append(
-                    '%s.%d' % (major_minor, b.micro))
+            if stb_branch and ignore_stb_branches:
+                branch_set[StabilizationBranch] = None
+                self.destination_branches.remove(stb_branch)
+                self.ignored_branches.append(stb_branch)
 
-        return target_major_minor_micro
+            if destination_branch == stb_branch:
+                include_dev_branches = True
+                ignore_stb_branches = True
+
+            if not include_dev_branches:
+                branch_set[DevelopmentBranch] = None
+                self.destination_branches.remove(dev_branch)
+                self.ignored_branches.append(dev_branch)
+
+                if branch_set[StabilizationBranch]:
+                    branch_set[StabilizationBranch] = None
+                    self.destination_branches.remove(stb_branch)
+                    self.ignored_branches.append(stb_branch)
+
+                del self._cascade[(major, minor)]
+
+        self._set_target_versions(destination_branch)
 
     def _create_integration_branches(self, repo, source_branch,
                                      destination_branch):
         integration_branches = []
-        for dst_branch in self.destination_branches(destination_branch):
+        for dst_branch in self.destination_branches:
             name = 'w/%s/%s' % (dst_branch.version, source_branch)
             integration_branch = IntegrationBranch(repo, name)
             integration_branch.destination_branch = dst_branch
@@ -770,9 +809,9 @@ class WallE:
         self.destination_branch = branch_factory(repo, dst_branch_name)
 
     def _check_compatibility_src_dest(self):
-        if self.source_branch.prefix == 'feature' and \
-            self.destination_branch != self._cascade.destination_branches(
-                self.destination_branch)[-1]:
+        if (self.source_branch.prefix == 'feature' and
+            self.destination_branch !=
+                self._cascade.destination_branches[-1]):
             raise IncompatibleSourceBranchPrefix(
                 source=self.source_branch,
                 destination=self.destination_branch,
@@ -782,8 +821,7 @@ class WallE:
         if self.source_branch.jira_issue_key:
             return
 
-        for destination_branch in self._cascade.destination_branches(
-                self.destination_branch):
+        for destination_branch in self._cascade.destination_branches:
             if not destination_branch.allow_ticketless:
                 raise MissingJiraId(source_branch=self.source_branch.name,
                                     dest_branch=destination_branch.name,
@@ -792,7 +830,7 @@ class WallE:
     def _jira_get_issue(self, issue_id):
         try:
             issue = jira_api.JiraIssue(issue_id=issue_id, login='wall_e',
-                              passwd=self._bbconn.auth.password)
+                                       passwd=self._bbconn.auth.password)
         except JIRAError as e:
             if e.status_code == 404:
                 raise JiraIssueNotFound(
@@ -838,8 +876,7 @@ class WallE:
     def _jira_check_version(self, issue):
         issue_versions = set([version.name for version in
                               issue.fields.fixVersions])
-        expect_versions = set(
-            self._cascade.target_versions(self.destination_branch))
+        expect_versions = set(self._cascade.target_versions)
 
         if issue_versions != expect_versions:
             raise IncorrectFixVersion(
@@ -881,16 +918,23 @@ class WallE:
         except CheckoutFailedException:
             raise NothingToDo(self.source_branch.name)
 
-    def _build_branch_cascade(self, git_repo):
-        for branch in git_repo.cmd('git branch').split('\n')[:-1]:
-            try:
-                branch = branch_factory(git_repo, branch[2:])
-            except UnrecognizedBranchPattern:
-                continue
-            self._cascade.add_branch(branch)
+    def _build_branch_cascade(self, git_repo, destination_branch):
+        for prefix in ['development', 'stabilization']:
+            cmd = 'git branch -r --list origin/%s/*' % prefix
+            for branch in git_repo.cmd(cmd).split('\n')[:-1]:
+                match_ = re.match('\s*origin/(?P<name>.*)', branch)
+                if not match_:
+                    continue
+                try:
+                    branch = branch_factory(git_repo, match_.group('name'))
+                except UnrecognizedBranchPattern:
+                    continue
+                self._cascade.add_branch(branch)
 
         for tag in git_repo.cmd('git tag').split('\n')[:-1]:
-            self._cascade.add_tag(tag)
+            self._cascade.update_micro(tag)
+
+        self._cascade.finalize(self.destination_branch)
 
     def _check_history_did_not_change(self, integration_branch):
         development_branch = integration_branch.destination_branch
@@ -1079,10 +1123,7 @@ class WallE:
         self._setup_destination_branch(repo, dst_branch_name)
 
         self._check_if_ignored(self.source_branch, self.destination_branch)
-        self._build_branch_cascade(repo)
-        self._cascade.validate()
-        self._cascade.adapt_cascade_to_destination_branch(
-            self.destination_branch)
+        self._build_branch_cascade(repo, self.destination_branch)
 
         # read comments and store them for multiple usage
         comments = list(self.main_pr.get_comments())
@@ -1119,14 +1160,14 @@ class WallE:
                 except RemoveFailedException:
                     # ignore failures as this is non critical
                     pass
-        self._cascade.validate()
+        #self._cascade.validate()
         # repo.delete()
 
-        raise SuccessMessage(branches=self._cascade.destination_branches(
-                                self.destination_branch),
-                             issue=self.source_branch.jira_issue_key,
-                             author=self.author_display_name,
-                             active_options=self._get_active_options())
+        raise SuccessMessage(
+            branches=self._cascade.destination_branches,
+            issue=self.source_branch.jira_issue_key,
+            author=self.author_display_name,
+            active_options=self._get_active_options())
 
 
 def setup_parser():

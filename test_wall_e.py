@@ -36,7 +36,10 @@ from wall_e_exceptions import (AfterPullRequest,
                                StatusReport,
                                SuccessMessage,
                                TesterApprovalRequired,
-                               UnanimityApprovalRequired)
+                               UnanimityApprovalRequired,
+                               UnrecognizedBranchPattern,
+                               UnsupportedMultipleStabBranches,
+                               VersionMismatch)
 
 WALL_E_USERNAME = wall_e.WALL_E_USERNAME
 WALL_E_EMAIL = wall_e.WALL_E_EMAIL
@@ -54,17 +57,24 @@ def initialize_git_repo(repo, username, usermail):
     repo.cmd('git add a')
     repo.cmd('git commit -m "Initial commit"')
     repo.cmd('git remote add origin ' + repo._url)
-    for version in ['4.3.18', '5.1.4', '6.0.0']:
-        major_minor = version[0:3]
+    for version in [(4,3,18), (5,1,4), (6,0,0)]:
+        major = version[0]
+        minor = version[1]
+        micro = version[2]
+        major_minor = "%s.%s" % (major, minor)
+        full_version = "%s.%s.%s" % version
         create_branch(repo, 'release/'+major_minor, do_push=False)
-        create_branch(repo, 'stabilization/'+version,
+        create_branch(repo, 'stabilization/'+full_version,
                       'release/'+major_minor, file_=True, do_push=False)
         create_branch(repo, 'development/'+major_minor,
-                      'stabilization/'+version, file_=True, do_push=False)
+                      'stabilization/'+full_version, file_=True, do_push=False)
+        if major != 6:
+            repo.cmd('git tag %s.%s.%s' % (major, minor, micro-1))
 
     repo.cmd('git branch -d master')
     # the following command fail randomly on bitbucket, so retry
     repo.cmd("git push --all origin", retry=3)
+    repo.cmd("git push --tags", retry=3)
 
 
 def create_branch(repo, name, from_branch=None, file_=False, do_push=True):
@@ -167,57 +177,182 @@ class QuickTest(unittest.TestCase):
             branch = wall_e.branch_factory(FakeGitRepo(), branch_name)
             cascade.add_branch(branch)
 
-    def test_tag_deprecates_stabilization_branch(self):
+    def validate_cascade(self, branches, tags, destination, fixver):
         c = wall_e.BranchCascade()
-        self.add_branches_to_cascade(c, ['development/4.3',
-                                         'stabilization/4.3.18'])
 
-        with self.assertRaises(DeprecatedStabilizationBranch):
-            c.add_tag('4.3.18')
+        self.add_branches_to_cascade(c, branches.keys())
 
-    def test_branch_cascade(self):
-        c = wall_e.BranchCascade()
-        self.add_branches_to_cascade(c, ['development/4.3',
-                                         'stabilization/4.3.18',
-                                         'development/5.1',
-                                         'stabilization/5.1.4',
-                                         'development/6.0'])
-        c.add_tag('4.3.16')
-        c.add_tag('4.3.17')
-        c.add_tag('5.1.3')
-        dest_branches = c.destination_branches(
-            wall_e.StabilizationBranch(FakeGitRepo(), 'stabilization/4.3.18'))
+        for tag in tags:
+            c.update_micro(tag)
 
-        dst0 = wall_e.StabilizationBranch(FakeGitRepo(),
-                                          'stabilization/4.3.18')
-        dst1 = wall_e.DevelopmentBranch(FakeGitRepo(), 'development/4.3')
-        dst2 = wall_e.DevelopmentBranch(FakeGitRepo(), 'development/5.1')
-        dst3 = wall_e.DevelopmentBranch(FakeGitRepo(), 'development/6.0')
+        c.finalize(wall_e.branch_factory(FakeGitRepo(), destination))
 
-        self.assertEqual(dest_branches, [dst0, dst1, dst2, dst3])
+        expected_dest = [wall_e.branch_factory(FakeGitRepo(), branch)
+                         for branch in
+                         filter(lambda x: branches[x], branches)]
+        expected_ignored = [wall_e.branch_factory(FakeGitRepo(), branch)
+                            for branch in
+                            filter(lambda x: not branches[x], branches)]
+
+        self.assertEqual(c.destination_branches.sort(), expected_dest.sort())
+        self.assertEqual(c.ignored_branches.sort(), expected_ignored.sort())
+        self.assertEqual(c.target_versions.sort(), fixver.sort())
+        return c
+
+    def test_branch_cascade_from_master(self):
+        branches = {'master': False}
+        tags = []
+        destination = 'master'
+        fixver = []
+        with self.assertRaises(UnrecognizedBranchPattern):
+            self.validate_cascade(branches, tags, destination, fixver)
+
+    def test_branch_cascade_from_master(self):
+        branches = {'master': False,
+                    'development/1.0': False}
+        tags = []
+        destination = 'development/1.0'
+        fixver = []
+        with self.assertRaises(UnrecognizedBranchPattern):
+            self.validate_cascade(branches, tags, destination, fixver)
+
+    def test_branch_cascade_target_first_stab(self):
+        branches = {'stabilization/4.3.18': True,
+                    'development/4.3': True,
+                    'development/5.1': True,
+                    'stabilization/5.1.4': False,
+                    'development/6.0': True}
+        tags = ['4.3.16', '4.3.17', '4.3.18_rc1', '5.1.3', '5.1.4_rc1']
+        destination = 'stabilization/4.3.18'
+        fixver = ['4.3.18', '5.1.4', '6.0.0']
+        self.validate_cascade(branches, tags, destination, fixver)
+
+    def test_branch_cascade_target_last_stab(self):
+        branches = {'stabilization/4.3.18': False,
+                    'development/4.3': False,
+                    'stabilization/5.1.4': True,
+                    'development/5.1': True,
+                    'development/6.0': True}
+        tags = ['4.3.16', '4.3.17', '4.3.18_t', '5.1.3', '5.1.4_rc1', '6.0.0']
+        destination = 'stabilization/5.1.4'
+        fixver = ['5.1.4', '6.0.1']
+        self.validate_cascade(branches, tags, destination, fixver)
+
+    def test_branch_cascade_target_first_dev(self):
+        branches = {'stabilization/4.3.18': False,
+                    'development/4.3': True,
+                    'stabilization/5.1.4': False,
+                    'development/5.1': True,
+                    'development/6.0': True}
+        tags = ['4.3.16', '4.3.17', '4.3.18_rc1', '5.1.3', '5.1.4_rc1']
+        destination = 'development/4.3'
+        fixver = ['4.3.19', '5.1.4', '6.0.0']
+        self.validate_cascade(branches, tags, destination, fixver)
+
+    def test_branch_cascade_target_middle_dev(self):
+        branches = {'stabilization/4.3.18': False,
+                    'development/4.3': False,
+                    'stabilization/5.1.4': False,
+                    'development/5.1': True,
+                    'development/6.0': True}
+        tags = ['4.3.16', '4.3.17', '4.3.18_rc1', '5.1.3', '5.1.4_rc1']
+        destination = 'development/5.1'
+        fixver = ['5.1.4', '6.0.1']
+        self.validate_cascade(branches, tags, destination, fixver)
+
+    def test_branch_cascade_target_last_dev(self):
+        branches = {'stabilization/4.3.18': False,
+                    'development/4.3': False,
+                    'stabilization/5.1.4': False,
+                    'development/5.1': False,
+                    'development/6.0': True}
+        tags = ['4.3.16', '4.3.17', '4.3.18_rc1', '5.1.3', '5.1.4_rc1']
+        destination = 'development/6.0'
+        fixver = ['6.0.0']
+        self.validate_cascade(branches, tags, destination, fixver)
+
+    def test_branch_cascade_multi_stab_branches(self):
+        branches = {'development/4.3': True,
+                    'stabilization/4.3.17': True,
+                    'stabilization/4.3.18': False}
+        tags = []
+        destination = 'stabilization/4.3.18'
+        fixver = []
+        with self.assertRaises(UnsupportedMultipleStabBranches):
+            self.validate_cascade(branches, tags, destination, fixver)
+
+    def test_branch_cascade_invalid_dev_branch(self):
+        branches = {'development/4.3.17': True}
+        tags = []
+        destination = 'development/4.3.17'
+        fixver = []
+        with self.assertRaises(UnrecognizedBranchPattern):
+            self.validate_cascade(branches, tags, destination, fixver)
 
     def test_tags_without_stabilization(self):
-        c = wall_e.BranchCascade()
-        self.add_branches_to_cascade(c, ['development/6.0'])
+        branches = {'development/5.1': False,
+                    'development/6.0': True}
+        destination = 'development/6.0'
 
-        dest = wall_e.DevelopmentBranch(FakeGitRepo(), 'development/6.0')
+        tags = []
+        fixver = ['6.0.0']
+        self.validate_cascade(branches, tags, destination, fixver)
+
+        tags = ['toto']
+        fixver = ['6.0.0']
+        self.validate_cascade(branches, tags, destination, fixver)
+
+        tags = ['toto', '6.0.2']
+        fixver = ['6.0.3']
+        self.validate_cascade(branches, tags, destination, fixver)
+
+        tags = ['6.0.15_rc1']
+        fixver = ['6.0.0']
+        self.validate_cascade(branches, tags, destination, fixver)
+
+        tags = ['6.0.15_rc1', '4.2.1', '6.0.0']
+        fixver = ['6.0.1']
+        self.validate_cascade(branches, tags, destination, fixver)
+
+        tags = ['6.0.15_rc1', '6.0.0', '5.1.4', '6.0.1']
+        fixver = ['6.0.2']
+        self.validate_cascade(branches, tags, destination, fixver)
+
+        tags = ['6.0.4000']
+        fixver = ['6.0.4001']
+        self.validate_cascade(branches, tags, destination, fixver)
+
+        tags = ['6.0.4000', '6.0.3999']
+        fixver = ['6.0.4001']
+        self.validate_cascade(branches, tags, destination, fixver)
+
+    def test_tags_with_stabilization(self):
+        branches = {'stabilization/6.1.5': True,
+                    'development/6.1': True}
+        destination = 'stabilization/6.1.5'
+
+        tags = []
+        fixver = ['6.1.5']
+        with self.assertRaises(VersionMismatch):
+            self.validate_cascade(branches, tags, destination, fixver)
+
+        tags = ['6.1.4']
+        fixver = ['6.1.5']
+        c = self.validate_cascade(branches, tags, destination, fixver)
         self.assertEqual(
-            c.destination_branches(dest)[0].micro, 0)
-        c.add_tag('6.0.15_rc1')
+            c._cascade[(6,1)][wall_e.DevelopmentBranch].micro, 6)
         self.assertEqual(
-            c.destination_branches(dest)[0].micro, 0)
-        c.add_tag('6.0.0')
-        self.assertEqual(
-            c.destination_branches(dest)[0].micro, 0)
-        c.add_tag('6.0.1')
-        self.assertEqual(
-            c.destination_branches(dest)[0].micro, 1)
-        c.add_tag('6.0.4000')
-        self.assertEqual(
-            c.destination_branches(dest)[0].micro, 4000)
-        c.add_tag('6.0.3999')
-        self.assertEqual(
-            c.destination_branches(dest)[0].micro, 4000)
+            c._cascade[(6,1)][wall_e.StabilizationBranch].micro, 5)
+
+        tags = ['6.1.5']
+        fixver = []
+        with self.assertRaises(DeprecatedStabilizationBranch):
+            self.validate_cascade(branches, tags, destination, fixver)
+
+        tags = ['6.1.6']
+        fixver = []
+        with self.assertRaises(DeprecatedStabilizationBranch):
+            self.validate_cascade(branches, tags, destination, fixver)
 
 
 class FakeGitRepo:
@@ -1055,9 +1190,9 @@ class TestWallE(unittest.TestCase):
                 'bypass_author_approval'],
                 backtrace=True)
         except SuccessMessage as e:
-            self.assertIn('stabilization/5.1.4', e.msg)
-            self.assertIn('development/5.1', e.msg)
-            self.assertIn('development/6.0', e.msg)
+            self.assertIn('* stabilization/5.1.4', e.msg)
+            self.assertIn('* development/5.1', e.msg)
+            self.assertIn('* development/6.0', e.msg)
 
     def test_unanimity_option(self):
         """Test unanimity by passing option to wall_e"""
@@ -1174,7 +1309,7 @@ def main():
     if not TestWallE.args.disable_mock:
         bitbucket_api.Client = bitbucket_api_mock.Client
         bitbucket_api.Repository = bitbucket_api_mock.Repository
-        jira_api.JiraIssue = jira_api_mock.JiraIssue
+    jira_api.JiraIssue = jira_api_mock.JiraIssue
 
     if TestWallE.args.verbose:
         logging.basicConfig(level=logging.DEBUG)

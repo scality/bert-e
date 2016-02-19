@@ -157,6 +157,9 @@ class Branch(object):
         except PushFailedException:
             raise RemoveFailedException()
 
+    def __repr__(self):
+        return self.name
+
 
 class GitException(Exception):
     pass
