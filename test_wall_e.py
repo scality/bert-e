@@ -9,6 +9,8 @@ import requests
 
 import bitbucket_api
 import bitbucket_api_mock
+import jira_api
+import jira_api_mock
 import wall_e
 from git_api import Repository as GitRepository
 from wall_e_exceptions import (AuthorApprovalRequired,
@@ -1042,9 +1044,8 @@ class TestWallE(unittest.TestCase):
              "origin/development/6.0",
              "origin/stabilization/5.1.4"])
 
-    @unittest.skip('We should mock JIRA and re-enable this test')
     def test_fixVersions_check_with_stabilization_branch(self):
-        pr = self.create_pr('bugfix/RING-16212', 'stabilization/5.1.4')
+        pr = self.create_pr('bugfix/RING-00001', 'stabilization/5.1.4')
         try:
             self.handle(pr['id'], options=['bypass_build_status',
                                            'bypass_tester_approval',
@@ -1142,6 +1143,7 @@ def main():
     if not TestWallE.args.disable_mock:
         bitbucket_api.Client = bitbucket_api_mock.Client
         bitbucket_api.Repository = bitbucket_api_mock.Repository
+        jira_api.JiraIssue = jira_api_mock.JiraIssue
 
     if TestWallE.args.verbose:
         logging.basicConfig(level=logging.DEBUG)
