@@ -56,8 +56,8 @@ from wall_e_exceptions import (AfterPullRequest,
                                TesterApprovalRequired,
                                UnableToSendEmail,
                                UnrecognizedBranchPattern,
-                               VersionMismatch,
                                UnanimityApprovalRequired,
+                               VersionMismatch,
                                WallE_SilentException,
                                WallE_TemplateException)
 
@@ -212,7 +212,7 @@ def confirm(question):
     return input_ == "yes" or input_ == "y"
 
 
-class WalleBranch(Branch):
+class WallEBranch(Branch):
     pattern = '(?P<prefix>[a-z]+)/(?P<label>.*)'
     cascade_producer = False
     cascade_consumer = False
@@ -220,7 +220,6 @@ class WalleBranch(Branch):
 
     def __init__(self, repo, name):
         Branch.__init__(self, repo, name)
-        # self.name = name
         match = re.match(self.pattern, name)
         if not match:
             raise BranchNameInvalid(name)
@@ -236,16 +235,16 @@ class WalleBranch(Branch):
         return self.name
 
 
-class HotfixBranch(WalleBranch):
+class HotfixBranch(WallEBranch):
     pattern = '^hotfix/(?P<label>.*)$'
 
 
-class ReleaseBranch(WalleBranch):
+class ReleaseBranch(WallEBranch):
     pattern = '^release/' \
               '(?P<version>(?P<major>\d+)\.(?P<minor>\d+))$'
 
 
-class FeatureBranch(WalleBranch):
+class FeatureBranch(WallEBranch):
     valid_prefixes = ('feature', 'improvement', 'bugfix', 'project')
     jira_issue_pattern = '(?P<jira_issue_key>' \
                          '(?P<jira_project>[A-Z0-9_]+)-[0-9]+)'
@@ -254,7 +253,7 @@ class FeatureBranch(WalleBranch):
     cascade_producer = True
 
 
-class DevelopmentBranch(WalleBranch):
+class DevelopmentBranch(WallEBranch):
     pattern = '^development/(?P<version>(?P<major>\d+)\.(?P<minor>\d+))$'
     micro = None
     cascade_producer = True
@@ -279,7 +278,7 @@ class StabilizationBranch(DevelopmentBranch):
             self.micro == other.micro
 
 
-class IntegrationBranch(WalleBranch):
+class IntegrationBranch(WallEBranch):
     pattern = '^w/(?P<version>(?P<major>\d+)\.(?P<minor>\d+)' \
               '(\.(?P<micro>\d+))?)/' + FeatureBranch.pattern[1:]
 
@@ -495,7 +494,6 @@ class WallE:
         self.commands = commands
         self.settings = settings
         self.source_branch = None
-        self.destination_branches = []
         self._cascade = BranchCascade()
         self.after_prs = []
 
@@ -784,7 +782,8 @@ class WallE:
         if self.source_branch.jira_issue_key:
             return
 
-        for destination_branch in self.destination_branches:
+        for destination_branch in self._cascade.destination_branches(
+                self.destination_branch):
             if not destination_branch.allow_ticketless:
                 raise MissingJiraId(source_branch=self.source_branch.name,
                                     dest_branch=destination_branch.name,
@@ -1123,7 +1122,8 @@ class WallE:
         self._cascade.validate()
         # repo.delete()
 
-        raise SuccessMessage(branches=self.destination_branches,
+        raise SuccessMessage(branches=self._cascade.destination_branches(
+                                self.destination_branch),
                              issue=self.source_branch.jira_issue_key,
                              author=self.author_display_name,
                              active_options=self._get_active_options())

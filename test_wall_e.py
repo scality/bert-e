@@ -1048,14 +1048,16 @@ class TestWallE(unittest.TestCase):
     def test_fixVersions_check_with_stabilization_branch(self):
         pr = self.create_pr('bugfix/RING-00001', 'stabilization/5.1.4')
         try:
-            self.handle(pr['id'], options=['bypass_build_status',
-                                           'bypass_tester_approval',
-                                           'bypass_peer_approval',
-                                           'bypass_author_approval'],
-                        backtrace=True)
+            self.handle(pr['id'], options=[
+                'bypass_build_status',
+                'bypass_tester_approval',
+                'bypass_peer_approval',
+                'bypass_author_approval'],
+                backtrace=True)
         except SuccessMessage as e:
-            msg = "* `5.1.4`\n\n* `6.0.1`"
-            self.assertIn(msg, e.msg)
+            self.assertIn('stabilization/5.1.4', e.msg)
+            self.assertIn('development/5.1', e.msg)
+            self.assertIn('development/6.0', e.msg)
 
     def test_unanimity_option(self):
         """Test unanimity by passing option to wall_e"""
