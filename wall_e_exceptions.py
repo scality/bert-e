@@ -132,6 +132,11 @@ class UnanimityApprovalRequired(WallE_TemplateException):
     template = 'need_approval.md'
 
 
+class AfterPullRequest(WallE_TemplateException):
+    code = 120
+    template = 'after_pull_request.md'
+
+
 # internal exceptions
 class UnableToSendEmail(WallE_InternalException):
     pass

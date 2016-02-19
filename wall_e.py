@@ -22,7 +22,8 @@ from git_api import (Repository as GitRepository,
                      CheckoutFailedException,
                      RemoveFailedException)
 import jira_api
-from wall_e_exceptions import (AuthorApprovalRequired,
+from wall_e_exceptions import (AfterPullRequest,
+                               AuthorApprovalRequired,
                                BranchHistoryMismatch,
                                BranchNameInvalid,
                                BuildFailed,
@@ -496,6 +497,7 @@ class WallE:
         self.source_branch = None
         self.destination_branches = []
         self._cascade = BranchCascade()
+        self.after_prs = []
 
     def option_is_set(self, name):
         if name not in self.options.keys():
@@ -609,6 +611,14 @@ class WallE:
         logging.debug('checking keywords %s', keyword_list)
 
         for keyword in keyword_list:
+            if keyword.startswith('after_pull_request='):
+                match_ = re.match('after_pull_request=(?P<pr_id>\d+)$',
+                                  keyword)
+                if not match_:
+                    return False
+                self.after_prs.append(match_.group('pr_id'))
+                keyword = 'after_pull_request'
+
             if keyword not in self.options.keys():
                 logging.debug('ignoring keywords in this comment due to '
                               'an unknown keyword `%s`', keyword_list)
@@ -650,7 +660,7 @@ class WallE:
             # @scality_wall-e option1, option2, ...
             # @scality_wall-e: option1 - option2 - ...
             raw_cleaned = re.sub(r'[,.\-/:;|+]', ' ', raw_cleaned)
-            regexp = r"\s*(?P<keywords>(\s+\w+)+)\s*$"
+            regexp = r"\s*(?P<keywords>(\s+[\w=]+)+)\s*$"
             match_ = re.match(regexp, raw_cleaned)
             if not match_:
                 logging.debug('Keyword comment ignored. '
@@ -665,7 +675,9 @@ class WallE:
                 continue
 
             for keyword in keywords:
-                self.options[keyword].set(True)
+                # strip args
+                option = keyword.split('=')[0]
+                self.options[option].set(True)
 
     def _check_command(self, author, command):
         logging.debug('checking command %s', command)
@@ -727,6 +739,32 @@ class WallE:
             assert hasattr(self, self.commands[command].handler)
             handler = getattr(self, self.commands[command].handler)
             handler(match_.group('args'))
+
+    def _check_depending_pull_requests(self):
+        if not self.after_prs:
+            return
+
+        prs = [self.bbrepo.get_pull_request(pull_request_id=int(x))
+               for x in self.after_prs]
+
+        opened_prs = filter(lambda x: x['state'] == 'OPEN', prs)
+        merged_prs = filter(lambda x: x['state'] == 'MERGED', prs)
+        declined_prs = filter(lambda x: x['state'] == 'DECLINED', prs)
+
+        if len(self.after_prs) != len(merged_prs):
+            raise AfterPullRequest(
+                opened_prs=opened_prs,
+                declined_prs=declined_prs,
+                active_options=self._get_active_options())
+
+    def _build_target_versions(self, dst_branch_name):
+        match_ = re.match("[^/]*/(?P<minver>.*)", dst_branch_name)
+        assert match_  # should work, already tested
+        # target versions are all versions above `minver`
+        self.target_versions = OrderedDict(
+            [(version, data['upcoming_release']) for (version, data) in
+                self.settings['development_branch']['versions'].items()
+                if version >= match_.group('minver')])
 
     def _setup_source_branch(self, repo, src_branch_name, dst_branch_name):
         try:
@@ -1066,6 +1104,7 @@ class WallE:
         if self.option_is_set('wait'):
             raise NothingToDo('wait option is set')
 
+        self._check_depending_pull_requests()
         self._check_compatibility_src_dest()
         self._jira_checks()
 
@@ -1149,6 +1188,11 @@ def setup_parser():
 
 def setup_options(args):
     options = {
+        'after_pull_request':
+            Option(privileged=False,
+                   value=False,  # not supported from command line
+                   help="Wait for the given pull request id to be merged "
+                        "before continuing with the current one."),
         'bypass_peer_approval':
             Option(privileged=True,
                    value='bypass_peer_approval' in args.cmd_line_options,

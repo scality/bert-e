@@ -162,6 +162,15 @@ class PullRequest(BitBucketObject):
 
         response.raise_for_status()
 
+    def decline(self):
+        self._json_data['full_name'] = self.full_name()
+        self._json_data['pull_request_id'] = self['id']
+        json_str = json.dumps(self._json_data)
+        response = self.client.post(Template(self.get_url + '/decline')
+                                    .substitute(self._json_data),
+                                    json_str)
+        response.raise_for_status()
+
 
 class Comment(BitBucketObject):
     add_url = ('https://api.bitbucket.org/2.0/repositories/'

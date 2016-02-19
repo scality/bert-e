@@ -13,7 +13,8 @@ import jira_api
 import jira_api_mock
 import wall_e
 from git_api import Repository as GitRepository
-from wall_e_exceptions import (AuthorApprovalRequired,
+from wall_e_exceptions import (AfterPullRequest,
+                               AuthorApprovalRequired,
                                BranchHistoryMismatch,
                                BranchNameInvalid,
                                BuildInProgress,
@@ -1101,7 +1102,35 @@ class TestWallE(unittest.TestCase):
         retcode = self.handle(pr['id'], options=[
                               'bypass_jira_check',
                               'bypass_build_status'])
+
+    def test_after_pull_request(self):
+        pr_opened = self.create_pr('bugfix/RING-00001', 'development/4.3')
+        pr_declined = self.create_pr('bugfix/RING-00002', 'development/4.3')
+        pr_declined.decline()
+        blocked_pr = self.create_pr('bugfix/RING-00003', 'development/4.3')
+
+        comment_declined = blocked_pr.add_comment(
+            '@%s after_pull_request=%s' % (
+                WALL_E_USERNAME, pr_declined['id']))
+
+        retcode = self.handle(blocked_pr['id'], options=self.bypass_all)
+        self.assertEqual(retcode, AfterPullRequest.code)
+
+        blocked_pr.add_comment('@%s unanimity after_pull_request=%s' % (
+            WALL_E_USERNAME, pr_opened['id']))
+
+        retcode = self.handle(blocked_pr['id'], options=self.bypass_all)
+        self.assertEqual(retcode, AfterPullRequest.code)
+
+        comment_declined.delete()
+        retcode = self.handle(blocked_pr['id'], options=self.bypass_all)
+        self.assertEqual(retcode, AfterPullRequest.code)
+
+        retcode = self.handle(pr_opened['id'], options=self.bypass_all)
         self.assertEqual(retcode, SuccessMessage.code)
+
+        retcode = self.handle(blocked_pr['id'], options=self.bypass_all)
+        self.assertEqual(retcode, UnanimityApprovalRequired.code)
 
 
 def main():
