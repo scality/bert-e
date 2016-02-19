@@ -21,7 +21,7 @@ from git_api import (Repository as GitRepository,
                      MergeFailedException,
                      CheckoutFailedException,
                      RemoveFailedException)
-from jira_api import JiraIssue
+import jira_api
 from wall_e_exceptions import (AuthorApprovalRequired,
                                BranchHistoryMismatch,
                                BranchNameInvalid,
@@ -763,7 +763,7 @@ class WallE:
 
     def _jira_get_issue(self, issue_id):
         try:
-            issue = JiraIssue(issue_id=issue_id, login='wall_e',
+            issue = jira_api.JiraIssue(issue_id=issue_id, login='wall_e',
                               passwd=self._bbconn.auth.password)
         except JIRAError as e:
             if e.status_code == 404:
