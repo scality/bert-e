@@ -690,20 +690,23 @@ class TestWallE(unittest.TestCase):
         3. Check existence of integration branches
 
         """
-        feature_branch = 'bugfix/RING-0008'
-        dst_branch = 'development/4.3'
-        pr = self.create_pr(feature_branch, dst_branch)
-        retcode = self.handle(pr['id'], options=self.bypass_jira_check)
-        self.assertEqual(retcode, AuthorApprovalRequired.code)
+        for feature_branch in ['bugfix/RING-0008', 'bugfix/RING-0008-label']:
+            dst_branch = 'stabilization/4.3.18'
+            pr = self.create_pr(feature_branch, dst_branch)
+            retcode = self.handle(pr['id'], options=self.bypass_jira_check)
+            self.assertEqual(retcode, AuthorApprovalRequired.code)
 
-        # check existence of integration branches
-        for version in ['4.3', '5.1', '6.0']:
-            remote = 'w/%s/%s' % (version, feature_branch)
+            # check existence of integration branches
+            for version in ['4.3', '5.1', '6.0']:
+                remote = 'w/%s/%s' % (version, feature_branch)
+                ret = self.gitrepo.remote_branch_exists(remote)
+                self.assertTrue(ret)
+            remote = 'w/4.3.18/%s' % feature_branch
             ret = self.gitrepo.remote_branch_exists(remote)
             self.assertTrue(ret)
 
-        # check absence of a missing branch
-        self.assertFalse(self.gitrepo.remote_branch_exists('missing_branch'))
+            # check absence of a missing branch
+            self.assertFalse(self.gitrepo.remote_branch_exists('missing_branch'))
 
     def test_from_unrecognized_source_branch(self):
         for source in ['master2',
