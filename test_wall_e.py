@@ -1284,7 +1284,7 @@ class TestWallE(unittest.TestCase):
              "origin/development/6.0",
              "origin/stabilization/5.1.4"])
 
-    def test_fixVersions_check_with_stabilization_branch(self):
+    def test_success_message_content(self):
         pr = self.create_pr('bugfix/RING-00001', 'stabilization/5.1.4')
         try:
             self.handle(pr['id'], options=[
@@ -1294,9 +1294,12 @@ class TestWallE(unittest.TestCase):
                 'bypass_author_approval'],
                 backtrace=True)
         except SuccessMessage as e:
-            self.assertIn('* stabilization/5.1.4', e.msg)
-            self.assertIn('* development/5.1', e.msg)
-            self.assertIn('* development/6.0', e.msg)
+            self.assertIn('* :heavy_check_mark: `stabilization/5.1.4`', e.msg)
+            self.assertIn('* :heavy_check_mark: `development/5.1`', e.msg)
+            self.assertIn('* :heavy_check_mark: `development/6.0`', e.msg)
+            self.assertIn('* `stabilization/4.3.18`', e.msg)
+            self.assertIn('* `stabilization/6.0.0`', e.msg)
+            self.assertIn('* `development/4.3`', e.msg)
 
     def test_unanimity_option(self):
         """Test unanimity by passing option to wall_e"""

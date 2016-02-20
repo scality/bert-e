@@ -1067,6 +1067,7 @@ class WallE:
                 peer_approval=approved_by_peer,
                 tester_approval=approved_by_tester,
                 requires_unanimity=requires_unanimity,
+                ignored=self._cascade.ignored_branches,
                 active_options=self._get_active_options()
             )
 
@@ -1078,6 +1079,7 @@ class WallE:
                 peer_approval=approved_by_peer,
                 tester_approval=approved_by_tester,
                 requires_unanimity=requires_unanimity,
+                ignored=self._cascade.ignored_branches,
                 active_options=self._get_active_options()
             )
 
@@ -1089,6 +1091,7 @@ class WallE:
                 peer_approval=approved_by_peer,
                 tester_approval=approved_by_tester,
                 requires_unanimity=requires_unanimity,
+                ignored=self._cascade.ignored_branches,
                 active_options=self._get_active_options()
             )
 
@@ -1100,6 +1103,7 @@ class WallE:
                 peer_approval=approved_by_peer,
                 tester_approval=approved_by_tester,
                 requires_unanimity=requires_unanimity,
+                ignored=self._cascade.ignored_branches,
                 active_options=self._get_active_options()
             )
 
@@ -1191,6 +1195,7 @@ class WallE:
 
         raise SuccessMessage(
             branches=self._cascade.destination_branches,
+            ignored=self._cascade.ignored_branches,
             issue=self.source_branch.jira_issue_key,
             author=self.author_display_name,
             active_options=self._get_active_options())

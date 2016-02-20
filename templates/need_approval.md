@@ -31,6 +31,13 @@ You may also cancel a changeset on a specific target version if required.
  into `{{ pr['destination']['branch']['name'] }}`
 {% endfor %}
 
+{% if ignored %}
+The following branches will **NOT** be impacted:
+{% for branch in ignored -%}
+* `{{ branch.name }}`
+{% endfor %}
+{% endif %}
+
 The method to update the changeset is described in each child pull request. I will
 re-analyse this pull request automatically after changes are pushed to the central
 repository.
