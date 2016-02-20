@@ -640,6 +640,20 @@ class WallE:
             raise NothingToDo('The pull-request\'s state is "%s"'
                               % self.main_pr['state'])
 
+    def _clone_git_repo(self, reference_git_repo):
+        git_repo = GitRepository(self.bbrepo.get_git_url())
+        git_repo.clone(reference_git_repo)
+        git_repo.fetch_all_branches()
+        git_repo.config('user.email', WALL_E_EMAIL)
+        git_repo.config('user.name', WALL_E_USERNAME)
+        return git_repo
+
+    def _setup_source_branch(self, repo, src_branch_name, dst_branch_name):
+        self.source_branch = branch_factory(repo, src_branch_name)
+
+    def _setup_destination_branch(self, repo, dst_branch_name):
+        self.destination_branch = branch_factory(repo, dst_branch_name)
+
     def _check_if_ignored(self):
         # check feature branch
         if not self.source_branch.cascade_producer:
@@ -650,24 +664,6 @@ class WallE:
         if not self.destination_branch.cascade_consumer:
             raise NotMyJob(self.source_branch.name,
                            self.destination_branch.name)
-
-    def _build_branch_cascade(self, git_repo):
-        for prefix in ['development', 'stabilization']:
-            cmd = 'git branch -r --list origin/%s/*' % prefix
-            for branch in git_repo.cmd(cmd).split('\n')[:-1]:
-                match_ = re.match('\s*origin/(?P<name>.*)', branch)
-                if not match_:
-                    continue
-                try:
-                    branch = branch_factory(git_repo, match_.group('name'))
-                except UnrecognizedBranchPattern:
-                    continue
-                self._cascade.add_branch(branch)
-
-        for tag in git_repo.cmd('git tag').split('\n')[:-1]:
-            self._cascade.update_micro(tag)
-
-        self._cascade.finalize(self.destination_branch)
 
     def _send_greetings(self, comments):
         """Display a welcome message if conditions are met."""
@@ -845,11 +841,23 @@ class WallE:
                 declined_prs=declined_prs,
                 active_options=self._get_active_options())
 
-    def _setup_source_branch(self, repo, src_branch_name, dst_branch_name):
-        self.source_branch = branch_factory(repo, src_branch_name)
+    def _build_branch_cascade(self, git_repo):
+        for prefix in ['development', 'stabilization']:
+            cmd = 'git branch -r --list origin/%s/*' % prefix
+            for branch in git_repo.cmd(cmd).split('\n')[:-1]:
+                match_ = re.match('\s*origin/(?P<name>.*)', branch)
+                if not match_:
+                    continue
+                try:
+                    branch = branch_factory(git_repo, match_.group('name'))
+                except UnrecognizedBranchPattern:
+                    continue
+                self._cascade.add_branch(branch)
 
-    def _setup_destination_branch(self, repo, dst_branch_name):
-        self.destination_branch = branch_factory(repo, dst_branch_name)
+        for tag in git_repo.cmd('git tag').split('\n')[:-1]:
+            self._cascade.update_micro(tag)
+
+        self._cascade.finalize(self.destination_branch)
 
     def _check_compatibility_src_dest(self):
         for dest_branch in self._cascade.destination_branches:
@@ -952,14 +960,6 @@ class WallE:
             self._jira_check_project(issue)
             self._jira_check_issue_type(issue)
             self._jira_check_version(issue)
-
-    def _clone_git_repo(self, reference_git_repo):
-        git_repo = GitRepository(self.bbrepo.get_git_url())
-        git_repo.clone(reference_git_repo)
-        git_repo.fetch_all_branches()
-        git_repo.config('user.email', WALL_E_EMAIL)
-        git_repo.config('user.name', WALL_E_USERNAME)
-        return git_repo
 
     def _check_source_branch_still_exists(self, git_repo):
         # check source branch still exists
