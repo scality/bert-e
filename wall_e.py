@@ -1114,52 +1114,51 @@ class WallE:
 
         self._check_pr_state()
 
-        repo = self._clone_git_repo(reference_git_repo)
-        src_branch_name = self.main_pr['source']['branch']['name']
-        dst_branch_name = self.main_pr['destination']['branch']['name']
-        self._setup_source_branch(repo, src_branch_name, dst_branch_name)
-        self._setup_destination_branch(repo, dst_branch_name)
+        with self._clone_git_repo(reference_git_repo) as repo:
+            src_branch_name = self.main_pr['source']['branch']['name']
+            dst_branch_name = self.main_pr['destination']['branch']['name']
+            self._setup_source_branch(repo, src_branch_name, dst_branch_name)
+            self._setup_destination_branch(repo, dst_branch_name)
 
-        self._check_if_ignored(self.source_branch, self.destination_branch)
-        self._build_branch_cascade(repo, self.destination_branch)
+            self._check_if_ignored(self.source_branch, self.destination_branch)
+            self._build_branch_cascade(repo, self.destination_branch)
 
-        # read comments and store them for multiple usage
-        comments = list(self.main_pr.get_comments())
+            # read comments and store them for multiple usage
+            comments = list(self.main_pr.get_comments())
 
-        self._send_greetings(comments)
-        self._get_options(comments, self.author)
-        self._handle_commands(comments)
+            self._send_greetings(comments)
+            self._get_options(comments, self.author)
+            self._handle_commands(comments)
 
-        if self.option_is_set('wait'):
-            raise NothingToDo('wait option is set')
+            if self.option_is_set('wait'):
+                raise NothingToDo('wait option is set')
 
-        self._check_depending_pull_requests()
-        self._check_compatibility_src_dest()
-        self._jira_checks()
+            self._check_depending_pull_requests()
+            self._check_compatibility_src_dest()
+            self._jira_checks()
 
-        self._check_source_branch_still_exists(repo)
-        integration_branches = self._cascade._create_integration_branches(
-            repo, self.source_branch, self.destination_branch)
-        self._update_integration_from_dev(integration_branches)
-        self._update_integration_from_feature(integration_branches)
-        child_prs = self._create_pull_requests(integration_branches)
-        self._check_approvals(child_prs)
-        self._check_build_status(child_prs)
+            self._check_source_branch_still_exists(repo)
+            integration_branches = self._cascade._create_integration_branches(
+                repo, self.source_branch, self.destination_branch)
+            self._update_integration_from_dev(integration_branches)
+            self._update_integration_from_feature(integration_branches)
+            child_prs = self._create_pull_requests(integration_branches)
+            self._check_approvals(child_prs)
+            self._check_build_status(child_prs)
 
-        if interactive and not confirm('Do you want to merge ?'):
-            return
-
-        for integration_branch in integration_branches:
-            integration_branch.update_to_development_branch()
+            if interactive and not confirm('Do you want to merge ?'):
+                return
 
             for integration_branch in integration_branches:
-                try:
-                    integration_branch.remove()
-                except RemoveFailedException:
-                    # ignore failures as this is non critical
-                    pass
-        #self._cascade.validate()
-        # repo.delete()
+                integration_branch.update_to_development_branch()
+
+                for integration_branch in integration_branches:
+                    try:
+                        integration_branch.remove()
+                    except RemoveFailedException:
+                        # ignore failures as this is non critical
+                        pass
+            #self._cascade.validate()
 
         raise SuccessMessage(
             branches=self._cascade.destination_branches,
