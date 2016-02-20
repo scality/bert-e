@@ -40,12 +40,12 @@ from wall_e_exceptions import (AfterPullRequest,
                                IncompatibleSourceBranchPrefix,
                                IncorrectFixVersion,
                                IncorrectJiraProject,
-                               IncorrectSourceBranchName,
                                InitMessage,
                                JiraIssueNotFound,
                                JiraUnknownIssueType,
                                MismatchPrefixIssueType,
                                MissingJiraId,
+                               NotASingleDevBranch,
                                NothingToDo,
                                NotMyJob,
                                ParentPullRequestNotFound,
@@ -214,13 +214,14 @@ def confirm(question):
 
 
 class WallEBranch(Branch):
-    pattern = '(?P<prefix>[a-z]+)/(?P<label>.*)'
+    pattern = '(?P<prefix>[a-z]+)/(?P<label>.+)'
     major = 0
     minor = 0
     micro = -1  # is incremented always, first version is 1
     cascade_producer = False
     cascade_consumer = False
     can_be_destination = False
+    allow_ticketless_pr = False
 
     def __init__(self, repo, name):
         Branch.__init__(self, repo, name)
@@ -240,7 +241,12 @@ class WallEBranch(Branch):
 
 
 class HotfixBranch(WallEBranch):
-    pattern = '^hotfix/(?P<label>.*)$'
+    pattern = '^hotfix/(?P<label>.+)$'
+
+
+class UserBranch(WallEBranch):
+    pattern = '^user/(?P<label>.+)$'
+    allow_ticketless_pr = True
 
 
 class ReleaseBranch(WallEBranch):
@@ -249,12 +255,13 @@ class ReleaseBranch(WallEBranch):
 
 
 class FeatureBranch(WallEBranch):
-    valid_prefixes = ('feature', 'improvement', 'bugfix', 'project')
-    jira_issue_pattern = '(?P<jira_issue_key>' \
-                         '(?P<jira_project>[A-Z0-9_]+)-[0-9]+)'
-    prefixes = '(?P<prefix>(%s))' % '|'.join(valid_prefixes)
-    pattern = "^%s/(%s(?P<label>.*)|.+)$" % (prefixes, jira_issue_pattern)
+    correction_prefixes = ('improvement', 'bugfix')
+    all_prefixes = ('improvement', 'bugfix', 'feature', 'project')
+    jira_issue_pattern = '(?P<jira_project>[A-Z0-9_]+)-[0-9]+'
+    prefixes = '(?P<prefix>(%s))' % '|'.join(all_prefixes)
+    pattern = "^%s/(?P<label>(?P<jira_issue_key>%s)?(?(jira_issue_key).*|.+))$" % (prefixes, jira_issue_pattern)
     cascade_producer = True
+    allow_ticketless_pr = True
 
 
 class DevelopmentBranch(WallEBranch):
@@ -262,7 +269,7 @@ class DevelopmentBranch(WallEBranch):
     cascade_producer = True
     cascade_consumer = True
     can_be_destination = True
-    allow_prefix = FeatureBranch.valid_prefixes
+    allow_prefixes = FeatureBranch.correction_prefixes  # may change in finalize
 
     def __eq__(self, other):
         return self.__class__ == other.__class__ and \
@@ -273,6 +280,7 @@ class DevelopmentBranch(WallEBranch):
 class StabilizationBranch(DevelopmentBranch):
     pattern = '^stabilization/' \
               '(?P<version>(?P<major>\d+)\.(?P<minor>\d+)\.(?P<micro>\d+))$'
+    allow_prefixes = FeatureBranch.correction_prefixes
 
     def __eq__(self, other):
         return DevelopmentBranch.__eq__(self, other) and \
@@ -332,7 +340,7 @@ class IntegrationBranch(WallEBranch):
 
 def branch_factory(repo, branch_name):
     for cls in [StabilizationBranch, DevelopmentBranch, ReleaseBranch,
-                FeatureBranch, HotfixBranch, IntegrationBranch]:
+                FeatureBranch, HotfixBranch, IntegrationBranch, UserBranch]:
         try:
             branch = cls(repo, branch_name)
             return branch
@@ -367,7 +375,6 @@ class BranchCascade(object):
             raise UnsupportedMultipleStabBranches(cur_branch, branch)
 
         self._cascade[(major, minor)][branch.__class__] = branch
-        self.destination_branches.append(branch)
 
     def update_micro(self, tag):
         """Update development branch latest micro based on tag."""
@@ -448,6 +455,7 @@ class BranchCascade(object):
         previous_dev_branch = None
         ignore_stb_branches = False
         include_dev_branches = False
+        dev_branch = None
 
         for (major, minor), branch_set in self._cascade.items():
             dev_branch = branch_set[DevelopmentBranch]
@@ -471,7 +479,6 @@ class BranchCascade(object):
 
             if stb_branch and ignore_stb_branches:
                 branch_set[StabilizationBranch] = None
-                self.destination_branches.remove(stb_branch)
                 self.ignored_branches.append(stb_branch)
 
             if destination_branch == stb_branch:
@@ -480,17 +487,31 @@ class BranchCascade(object):
 
             if not include_dev_branches:
                 branch_set[DevelopmentBranch] = None
-                self.destination_branches.remove(dev_branch)
                 self.ignored_branches.append(dev_branch)
 
                 if branch_set[StabilizationBranch]:
                     branch_set[StabilizationBranch] = None
-                    self.destination_branches.remove(stb_branch)
                     self.ignored_branches.append(stb_branch)
 
                 del self._cascade[(major, minor)]
+                continue
+
+            # add to destination_branches in the correct order
+            if branch_set[StabilizationBranch]:
+                self.destination_branches.append(stb_branch)
+            if branch_set[DevelopmentBranch]:
+                self.destination_branches.append(dev_branch)
+
+        if not dev_branch:
+            raise NotASingleDevBranch()
 
         self._set_target_versions(destination_branch)
+        self.ignored_branches.sort()
+
+        # the last dev branch accepts ticketless pull requests,
+        # and any type of ticket type
+        dev_branch.allow_ticketless_pr = True
+        dev_branch.allow_prefixes = FeatureBranch.all_prefixes
 
     def _create_integration_branches(self, repo, source_branch,
                                      destination_branch):
@@ -533,6 +554,7 @@ class WallE:
         self.commands = commands
         self.settings = settings
         self.source_branch = None
+        self.destination_branch = None
         self._cascade = BranchCascade()
         self.after_prs = []
 
@@ -618,16 +640,18 @@ class WallE:
             raise NothingToDo('The pull-request\'s state is "%s"'
                               % self.main_pr['state'])
 
-    def _check_if_ignored(self, src_branch_name, dst_branch_name):
+    def _check_if_ignored(self):
         # check feature branch
-        if not src_branch_name.cascade_producer:
-            raise NotMyJob(src_branch_name, dst_branch_name)
+        if not self.source_branch.cascade_producer:
+            raise NotMyJob(self.source_branch.name,
+                           self.destination_branch.name)
 
         # check selected destination branch
-        if not dst_branch_name.cascade_consumer:
-            raise NotMyJob(src_branch_name, dst_branch_name)
+        if not self.destination_branch.cascade_consumer:
+            raise NotMyJob(self.source_branch.name,
+                           self.destination_branch.name)
 
-    def _build_branch_cascade(self, git_repo, destination_branch):
+    def _build_branch_cascade(self, git_repo):
         for prefix in ['development', 'stabilization']:
             cmd = 'git branch -r --list origin/%s/*' % prefix
             for branch in git_repo.cmd(cmd).split('\n')[:-1]:
@@ -795,6 +819,15 @@ class WallE:
             handler = getattr(self, self.commands[command].handler)
             handler(match_.group('args'))
 
+    def _init_phase(self):
+        """Send greetings if required, read options and commands."""
+        # read comments and store them for multiple usage
+        comments = list(self.main_pr.get_comments())
+
+        self._send_greetings(comments)
+        self._get_options(comments, self.author)
+        self._handle_commands(comments)
+
     def _check_depending_pull_requests(self):
         if not self.after_prs:
             return
@@ -813,36 +846,38 @@ class WallE:
                 active_options=self._get_active_options())
 
     def _setup_source_branch(self, repo, src_branch_name, dst_branch_name):
-        try:
-            self.source_branch = branch_factory(repo, src_branch_name)
-        except UnrecognizedBranchPattern:
-            raise IncorrectSourceBranchName(
-                source=src_branch_name,
-                destination=dst_branch_name,
-                valid_prefixes=FeatureBranch.valid_prefixes,
-                active_options=self._get_active_options())
+        self.source_branch = branch_factory(repo, src_branch_name)
 
     def _setup_destination_branch(self, repo, dst_branch_name):
         self.destination_branch = branch_factory(repo, dst_branch_name)
 
     def _check_compatibility_src_dest(self):
-        if (self.source_branch.prefix == 'feature' and
-            self.destination_branch !=
-                self._cascade.destination_branches[-1]):
-            raise IncompatibleSourceBranchPrefix(
-                source=self.source_branch,
-                destination=self.destination_branch,
-                active_options=self._get_active_options())
+        for dest_branch in self._cascade.destination_branches:
+            if self.source_branch.prefix not in dest_branch.allow_prefixes:
+                raise IncompatibleSourceBranchPrefix(
+                    source=self.source_branch,
+                    destination=self.destination_branch,
+                    active_options=self._get_active_options())
 
     def _jira_check_reference(self):
-        if self.source_branch.jira_issue_key:
-            return
+        """Check the reference to a Jira issue in the source branch.
 
-        for destination_branch in self._cascade.destination_branches:
-            if not destination_branch.allow_ticketless:
-                raise MissingJiraId(source_branch=self.source_branch.name,
-                                    dest_branch=destination_branch.name,
-                                    active_options=self._get_active_options())
+        Returns:
+            bool: True if the reference is valid and must be checked
+                  False if the Jira issue should be ignored
+
+        Raises:
+            MissingJiraId: if a Jira issue is required but missing
+
+        """
+        if not self.source_branch.jira_issue_key:
+            for dest_branch in self._cascade.destination_branches:
+                if not dest_branch.allow_ticketless_pr:
+                    raise MissingJiraId(source_branch=self.source_branch.name,
+                                        dest_branch=dest_branch.name,
+                                        active_options=self._get_active_options())
+            return False
+        return True
 
     def _jira_get_issue(self, issue_id):
         try:
@@ -910,14 +945,13 @@ class WallE:
         if not self.settings['jira_key']:
             return
 
-        self._jira_check_reference()
+        if self._jira_check_reference():
+            issue_id = self.source_branch.jira_issue_key
+            issue = self._jira_get_issue(issue_id)
 
-        issue_id = self.source_branch.jira_issue_key
-        issue = self._jira_get_issue(issue_id)
-
-        self._jira_check_project(issue)
-        self._jira_check_issue_type(issue)
-        self._jira_check_version(issue)
+            self._jira_check_project(issue)
+            self._jira_check_issue_type(issue)
+            self._jira_check_version(issue)
 
     def _clone_git_repo(self, reference_git_repo):
         git_repo = GitRepository(self.bbrepo.get_git_url())
@@ -1115,31 +1149,26 @@ class WallE:
         self._check_pr_state()
 
         with self._clone_git_repo(reference_git_repo) as repo:
-            src_branch_name = self.main_pr['source']['branch']['name']
             dst_branch_name = self.main_pr['destination']['branch']['name']
+            src_branch_name = self.main_pr['source']['branch']['name']
             self._setup_source_branch(repo, src_branch_name, dst_branch_name)
             self._setup_destination_branch(repo, dst_branch_name)
 
-            self._check_if_ignored(self.source_branch, self.destination_branch)
-            self._build_branch_cascade(repo, self.destination_branch)
-
-            # read comments and store them for multiple usage
-            comments = list(self.main_pr.get_comments())
-
-            self._send_greetings(comments)
-            self._get_options(comments, self.author)
-            self._handle_commands(comments)
+            self._check_if_ignored()
+            self._init_phase()
 
             if self.option_is_set('wait'):
                 raise NothingToDo('wait option is set')
 
             self._check_depending_pull_requests()
+            self._build_branch_cascade(repo)
             self._check_compatibility_src_dest()
             self._jira_checks()
-
             self._check_source_branch_still_exists(repo)
+
             integration_branches = self._cascade._create_integration_branches(
                 repo, self.source_branch, self.destination_branch)
+
             self._update_integration_from_dev(integration_branches)
             self._update_integration_from_feature(integration_branches)
             child_prs = self._create_pull_requests(integration_branches)

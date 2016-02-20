@@ -6,6 +6,7 @@ import logging
 import sys
 import unittest
 import requests
+from collections import OrderedDict
 
 import bitbucket_api
 import bitbucket_api_mock
@@ -27,8 +28,8 @@ from wall_e_exceptions import (AfterPullRequest,
                                DeprecatedStabilizationBranch,
                                HelpMessage,
                                IncompatibleSourceBranchPrefix,
-                               IncorrectSourceBranchName,
                                InitMessage,
+                               MissingJiraId,
                                NothingToDo,
                                NotMyJob,
                                ParentPullRequestNotFound,
@@ -172,35 +173,30 @@ class QuickTest(unittest.TestCase):
             repo=None,
             name='development/6.0')
 
-    def add_branches_to_cascade(self, cascade, branches):
-        for branch_name in branches:
-            branch = wall_e.branch_factory(FakeGitRepo(), branch_name)
-            cascade.add_branch(branch)
-
     def validate_cascade(self, branches, tags, destination, fixver):
         c = wall_e.BranchCascade()
 
-        self.add_branches_to_cascade(c, branches.keys())
+        expected_dest = [wall_e.branch_factory(FakeGitRepo(), branch[0])
+                         for branch in branches.values() if branch[1]]
+        expected_ignored = [wall_e.branch_factory(FakeGitRepo(), branch[0])
+                            for branch in branches.values() if not branch[1]]
+        expected_ignored.sort()
+
+        for branch in expected_dest + expected_ignored:
+            c.add_branch(branch)
 
         for tag in tags:
             c.update_micro(tag)
 
         c.finalize(wall_e.branch_factory(FakeGitRepo(), destination))
 
-        expected_dest = [wall_e.branch_factory(FakeGitRepo(), branch)
-                         for branch in
-                         filter(lambda x: branches[x], branches)]
-        expected_ignored = [wall_e.branch_factory(FakeGitRepo(), branch)
-                            for branch in
-                            filter(lambda x: not branches[x], branches)]
-
-        self.assertEqual(c.destination_branches.sort(), expected_dest.sort())
-        self.assertEqual(c.ignored_branches.sort(), expected_ignored.sort())
-        self.assertEqual(c.target_versions.sort(), fixver.sort())
+        self.assertEqual(c.destination_branches, expected_dest)
+        self.assertEqual(c.ignored_branches, expected_ignored)
+        self.assertEqual(c.target_versions, fixver)
         return c
 
     def test_branch_cascade_from_master(self):
-        branches = {'master': False}
+        branches = OrderedDict({1: ('master', False)})
         tags = []
         destination = 'master'
         fixver = []
@@ -208,8 +204,10 @@ class QuickTest(unittest.TestCase):
             self.validate_cascade(branches, tags, destination, fixver)
 
     def test_branch_cascade_from_master(self):
-        branches = {'master': False,
-                    'development/1.0': False}
+        branches = OrderedDict({
+            1: ('master', False),
+            2: ('development/1.0', False)
+        })
         tags = []
         destination = 'development/1.0'
         fixver = []
@@ -217,64 +215,76 @@ class QuickTest(unittest.TestCase):
             self.validate_cascade(branches, tags, destination, fixver)
 
     def test_branch_cascade_target_first_stab(self):
-        branches = {'stabilization/4.3.18': True,
-                    'development/4.3': True,
-                    'development/5.1': True,
-                    'stabilization/5.1.4': False,
-                    'development/6.0': True}
+        branches = OrderedDict({
+            1: ('stabilization/4.3.18', True),
+            2: ('development/4.3', True),
+            3: ('development/5.1', True),
+            4: ('stabilization/5.1.4', False),
+            5: ('development/6.0', True)
+        })
         tags = ['4.3.16', '4.3.17', '4.3.18_rc1', '5.1.3', '5.1.4_rc1']
         destination = 'stabilization/4.3.18'
-        fixver = ['4.3.18', '5.1.4', '6.0.0']
+        fixver = ['4.3.18', '5.1.5', '6.0.0']
         self.validate_cascade(branches, tags, destination, fixver)
 
     def test_branch_cascade_target_last_stab(self):
-        branches = {'stabilization/4.3.18': False,
-                    'development/4.3': False,
-                    'stabilization/5.1.4': True,
-                    'development/5.1': True,
-                    'development/6.0': True}
+        branches = OrderedDict({
+            1: ('stabilization/4.3.18', False),
+            2: ('development/4.3', False),
+            3: ('stabilization/5.1.4', True),
+            4: ('development/5.1', True),
+            5: ('development/6.0', True)
+        })
         tags = ['4.3.16', '4.3.17', '4.3.18_t', '5.1.3', '5.1.4_rc1', '6.0.0']
         destination = 'stabilization/5.1.4'
         fixver = ['5.1.4', '6.0.1']
         self.validate_cascade(branches, tags, destination, fixver)
 
     def test_branch_cascade_target_first_dev(self):
-        branches = {'stabilization/4.3.18': False,
-                    'development/4.3': True,
-                    'stabilization/5.1.4': False,
-                    'development/5.1': True,
-                    'development/6.0': True}
+        branches = OrderedDict({
+            1: ('stabilization/4.3.18', False),
+            2: ('development/4.3', True),
+            3: ('stabilization/5.1.4', False),
+            4: ('development/5.1', True),
+            5: ('development/6.0', True)
+        })
         tags = ['4.3.16', '4.3.17', '4.3.18_rc1', '5.1.3', '5.1.4_rc1']
         destination = 'development/4.3'
-        fixver = ['4.3.19', '5.1.4', '6.0.0']
+        fixver = ['4.3.19', '5.1.5', '6.0.0']
         self.validate_cascade(branches, tags, destination, fixver)
 
     def test_branch_cascade_target_middle_dev(self):
-        branches = {'stabilization/4.3.18': False,
-                    'development/4.3': False,
-                    'stabilization/5.1.4': False,
-                    'development/5.1': True,
-                    'development/6.0': True}
+        branches = OrderedDict({
+            1: ('stabilization/4.3.18', False),
+            2: ('development/4.3', False),
+            3: ('stabilization/5.1.4', False),
+            4: ('development/5.1', True),
+            5: ('development/6.0', True)
+        })
         tags = ['4.3.16', '4.3.17', '4.3.18_rc1', '5.1.3', '5.1.4_rc1']
         destination = 'development/5.1'
-        fixver = ['5.1.4', '6.0.1']
+        fixver = ['5.1.5', '6.0.0']
         self.validate_cascade(branches, tags, destination, fixver)
 
     def test_branch_cascade_target_last_dev(self):
-        branches = {'stabilization/4.3.18': False,
-                    'development/4.3': False,
-                    'stabilization/5.1.4': False,
-                    'development/5.1': False,
-                    'development/6.0': True}
+        branches = OrderedDict({
+            1: ('stabilization/4.3.18', False),
+            2: ('development/4.3', False),
+            3: ('stabilization/5.1.4', False),
+            4: ('development/5.1', False),
+            5: ('development/6.0', True)
+        })
         tags = ['4.3.16', '4.3.17', '4.3.18_rc1', '5.1.3', '5.1.4_rc1']
         destination = 'development/6.0'
         fixver = ['6.0.0']
         self.validate_cascade(branches, tags, destination, fixver)
 
     def test_branch_cascade_multi_stab_branches(self):
-        branches = {'development/4.3': True,
-                    'stabilization/4.3.17': True,
-                    'stabilization/4.3.18': False}
+        branches = OrderedDict({
+            1: ('stabilization/4.3.17', True),
+            2: ('stabilization/4.3.18', False),
+            3: ('development/4.3', True)
+        })
         tags = []
         destination = 'stabilization/4.3.18'
         fixver = []
@@ -282,7 +292,9 @@ class QuickTest(unittest.TestCase):
             self.validate_cascade(branches, tags, destination, fixver)
 
     def test_branch_cascade_invalid_dev_branch(self):
-        branches = {'development/4.3.17': True}
+        branches = OrderedDict({
+            1: ('development/4.3.17', True)
+        })
         tags = []
         destination = 'development/4.3.17'
         fixver = []
@@ -290,8 +302,10 @@ class QuickTest(unittest.TestCase):
             self.validate_cascade(branches, tags, destination, fixver)
 
     def test_tags_without_stabilization(self):
-        branches = {'development/5.1': False,
-                    'development/6.0': True}
+        branches = OrderedDict({
+            1: ('development/5.1', False),
+            2: ('development/6.0', True)
+        })
         destination = 'development/6.0'
 
         tags = []
@@ -327,8 +341,10 @@ class QuickTest(unittest.TestCase):
         self.validate_cascade(branches, tags, destination, fixver)
 
     def test_tags_with_stabilization(self):
-        branches = {'stabilization/6.1.5': True,
-                    'development/6.1': True}
+        branches = OrderedDict({
+            1: ('stabilization/6.1.5', True),
+            2: ('development/6.1', True)
+        })
         destination = 'stabilization/6.1.5'
 
         tags = []
@@ -529,30 +545,79 @@ class TestWallE(unittest.TestCase):
         retcode = self.handle(pr['id'])
         self.assertEqual(retcode, 0)
 
-    def test_not_my_job_cases(self):
-        # refuse feature on maintenance branch
+    def test_incompatible_prefixes(self):
         pr = self.create_pr('feature/RING-00001', 'development/4.3')
         retcode = self.handle(pr['id'], options=self.bypass_all)
         self.assertEqual(retcode, IncompatibleSourceBranchPrefix.code)
 
-        # check an attempt at merging into a feature branch
-        create_branch(self.gitrepo, 'feature/RING-00002',
-                      from_branch='development/4.3', file_=True)
+        pr = self.create_pr('project/RING-00002', 'development/4.3')
+        retcode = self.handle(pr['id'], options=self.bypass_all)
+        self.assertEqual(retcode, IncompatibleSourceBranchPrefix.code)
+
+        pr = self.create_pr('bugfix/RING-00003', 'development/4.3')
+        retcode = self.handle(pr['id'], options=self.bypass_all)
+        self.assertEqual(retcode, SuccessMessage.code)
+
+        pr = self.create_pr('improvement/RING-00004', 'development/4.3')
+        retcode = self.handle(pr['id'], options=self.bypass_all)
+        self.assertEqual(retcode, SuccessMessage.code)
+
+        pr = self.create_pr('project/RING-00005', 'development/6.0')
+        retcode = self.handle(pr['id'], options=self.bypass_all)
+        self.assertEqual(retcode, SuccessMessage.code)
+
+        pr = self.create_pr('feature/RING-00006', 'development/6.0')
+        retcode = self.handle(pr['id'], options=self.bypass_all)
+        self.assertEqual(retcode, SuccessMessage.code)
+
+        pr = self.create_pr('feature/RING-00007', 'stabilization/4.3.18')
+        retcode = self.handle(pr['id'], options=self.bypass_all)
+        self.assertEqual(retcode, IncompatibleSourceBranchPrefix.code)
+
+        pr = self.create_pr('bugfix/RING-00008', 'stabilization/4.3.18')
+        retcode = self.handle(pr['id'], options=self.bypass_all)
+        self.assertEqual(retcode, SuccessMessage.code)
+
+        pr = self.create_pr('feature/RING-00009', 'stabilization/6.0.0')
+        retcode = self.handle(pr['id'], options=self.bypass_all)
+        self.assertEqual(retcode, IncompatibleSourceBranchPrefix.code)
+
+        pr = self.create_pr('bugfix/RING-00010', 'stabilization/6.0.0')
+        retcode = self.handle(pr['id'], options=self.bypass_all)
+        self.assertEqual(retcode, SuccessMessage.code)
+
+    def test_not_my_job_cases(self):
         pr = self.bbrepo_eva.create_pull_request(
             title='title',
             name='name',
             source={'branch': {'name': 'feature/RING-00002'}},
-            destination={'branch': {'name': 'feature/RING-00001'}},
+            destination={'branch': {'name': 'release/6.0'}},
             close_source_branch=True,
             description=''
         )
         with self.assertRaises(NotMyJob):
             self.handle(pr['id'], backtrace=True)
 
-        # test invalid branch name
-        with self.assertRaises(IncorrectSourceBranchName):
-            pr = self.create_pr('featur/RING-00003', 'development/4.3',
-                                backtrace=True)
+        for destination in ['feature/RING-12345',
+                            'improvement/RING-12345',
+                            'project/RING-12345',
+                            'bugfix/RING-12345',
+                            'user/my_own_branch',
+                            'project/invalid',
+                            'feature/invalid',
+                            'hotfix/customer']:
+            create_branch(self.gitrepo, destination,
+                          from_branch='development/4.3', file_=True)
+            pr = self.bbrepo_eva.create_pull_request(
+                title='title',
+                name='name',
+                source={'branch': {'name': 'feature/RING-00001'}},
+                destination={'branch': {'name': destination}},
+                close_source_branch=True,
+                description=''
+            )
+            with self.assertRaises(NotMyJob):
+                self.handle(pr['id'], backtrace=True)
 
     def test_conflict(self):
         pr1 = self.create_pr('bugfix/RING-0006', 'development/4.3',
@@ -639,6 +704,56 @@ class TestWallE(unittest.TestCase):
 
         # check absence of a missing branch
         self.assertFalse(self.gitrepo.remote_branch_exists('missing_branch'))
+
+    def test_from_unrecognized_source_branch(self):
+        for source in ['master2',
+                       'feaure/RING-12345']:
+            create_branch(self.gitrepo, source,
+                          from_branch='development/4.3', file_=True)
+            pr = self.bbrepo_eva.create_pull_request(
+                title='title',
+                name='name',
+                source={'branch': {'name': source}},
+                destination={'branch': {'name': 'development/4.3'}},
+                close_source_branch=True,
+                description=''
+            )
+            with self.assertRaises(UnrecognizedBranchPattern):
+                self.handle(pr['id'], backtrace=True)
+
+    def test_inclusion_of_jira_issue(self):
+        pr = self.create_pr('bugfix/00066', 'development/4.3')
+        retcode = self.handle(pr['id'])
+        self.assertEqual(retcode, MissingJiraId.code)
+
+        pr = self.create_pr('improvement/i', 'development/4.3')
+        retcode = self.handle(pr['id'])
+        self.assertEqual(retcode, MissingJiraId.code)
+
+        # merge to latest dev branch does not require a ticket
+        pr = self.create_pr('bugfix/free_text', 'development/6.0')
+        retcode = self.handle(pr['id'])
+        self.assertEqual(retcode, AuthorApprovalRequired.code)
+
+        pr = self.create_pr('bugfix/free_text2', 'stabilization/6.0.0')
+        retcode = self.handle(pr['id'])
+        self.assertEqual(retcode, MissingJiraId.code)
+
+    def test_to_unrecognized_destination_branch(self):
+        create_branch(self.gitrepo, 'master2',
+                      from_branch='development/4.3', file_=True)
+        create_branch(self.gitrepo, 'bugfix/RING-00001',
+                      from_branch='development/4.3', file_=True)
+        pr = self.bbrepo_eva.create_pull_request(
+            title='title',
+            name='name',
+            source={'branch': {'name': 'bugfix/RING-00001'}},
+            destination={'branch': {'name': 'master2'}},
+            close_source_branch=True,
+            description=''
+        )
+        with self.assertRaises(UnrecognizedBranchPattern):
+            self.handle(pr['id'], backtrace=True)
 
     def test_main_pr_retrieval(self):
         pr = self.create_pr('bugfix/RING-00066', 'development/4.3')
@@ -1053,20 +1168,6 @@ class TestWallE(unittest.TestCase):
                               'bypass_jira_check',
                               'bypass_build_status'])
         self.assertEqual(retcode, SuccessMessage.code)
-
-    def test_hotfix_branch(self):
-        create_branch(self.gitrepo, 'hotfix/RING-00001',
-                      from_branch='development/4.3', file_=True)
-        pr = self.bbrepo_eva.create_pull_request(
-            title='title',
-            name='name',
-            source={'branch': {'name': 'hotfix/RING-00001'}},
-            destination={'branch': {'name': 'development/4.3'}},
-            close_source_branch=True,
-            description=''
-        )
-        with self.assertRaises(NotMyJob):
-            self.handle(pr['id'], backtrace=True)
 
     def test_source_branch_history_changed(self):
         pr = self.create_pr('bugfix/RING-00001', 'development/4.3')

@@ -9,7 +9,7 @@ I cannot merge the branch `{{ source.name }}` into
 `{{ destination.name }}`.
 The only prefixes accepted in this branch are:
 
-{% for prefix in destination.allow_prefix %}
+{% for prefix in destination.allow_prefixes %}
 * `{{ prefix }}/`
 {% else %}
 * *None*

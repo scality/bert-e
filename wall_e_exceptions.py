@@ -57,11 +57,6 @@ class StatusReport(WallE_TemplateException):
     dont_repeat_if_in_history = 0  # allow repeating if requested by user
 
 
-class IncorrectSourceBranchName(WallE_TemplateException):
-    code = 105
-    template = 'incorrect_source_branch_name.md'
-
-
 class IncompatibleSourceBranchPrefix(WallE_TemplateException):
     code = 106
     template = 'incompatible_source_branch_prefix.md'
@@ -205,6 +200,13 @@ class DevBranchDoesNotExist(WallE_InternalException):
     def __init__(self, branch):
         msg = ("The git repository appears to be in a bad shape. "
                "Branch `%s` does not exist." % branch)
+        super(DevBranchDoesNotExist, self).__init__(msg)
+
+
+class NotASingleDevBranch(WallE_InternalException):
+    def __init__(self, branch):
+        msg = ("The git repository appears to be in a bad shape. "
+               "There is not a single development to merge to.")
         super(DevBranchDoesNotExist, self).__init__(msg)
 
 
