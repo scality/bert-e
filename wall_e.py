@@ -627,6 +627,24 @@ class WallE:
         if not dst_branch_name.cascade_consumer:
             raise NotMyJob(src_branch_name, dst_branch_name)
 
+    def _build_branch_cascade(self, git_repo, destination_branch):
+        for prefix in ['development', 'stabilization']:
+            cmd = 'git branch -r --list origin/%s/*' % prefix
+            for branch in git_repo.cmd(cmd).split('\n')[:-1]:
+                match_ = re.match('\s*origin/(?P<name>.*)', branch)
+                if not match_:
+                    continue
+                try:
+                    branch = branch_factory(git_repo, match_.group('name'))
+                except UnrecognizedBranchPattern:
+                    continue
+                self._cascade.add_branch(branch)
+
+        for tag in git_repo.cmd('git tag').split('\n')[:-1]:
+            self._cascade.update_micro(tag)
+
+        self._cascade.finalize(self.destination_branch)
+
     def _send_greetings(self, comments):
         """Display a welcome message if conditions are met."""
         for comment in comments:
@@ -917,24 +935,6 @@ class WallE:
             Branch(git_repo, self.source_branch.name).checkout()
         except CheckoutFailedException:
             raise NothingToDo(self.source_branch.name)
-
-    def _build_branch_cascade(self, git_repo, destination_branch):
-        for prefix in ['development', 'stabilization']:
-            cmd = 'git branch -r --list origin/%s/*' % prefix
-            for branch in git_repo.cmd(cmd).split('\n')[:-1]:
-                match_ = re.match('\s*origin/(?P<name>.*)', branch)
-                if not match_:
-                    continue
-                try:
-                    branch = branch_factory(git_repo, match_.group('name'))
-                except UnrecognizedBranchPattern:
-                    continue
-                self._cascade.add_branch(branch)
-
-        for tag in git_repo.cmd('git tag').split('\n')[:-1]:
-            self._cascade.update_micro(tag)
-
-        self._cascade.finalize(self.destination_branch)
 
     def _check_history_did_not_change(self, integration_branch):
         development_branch = integration_branch.destination_branch
