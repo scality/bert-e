@@ -58,7 +58,7 @@ def initialize_git_repo(repo, username, usermail):
     repo.cmd('git add a')
     repo.cmd('git commit -m "Initial commit"')
     repo.cmd('git remote add origin ' + repo._url)
-    for version in [(4,3,18), (5,1,4), (6,0,0)]:
+    for version in [(4, 3, 18), (5, 1, 4), (6, 0, 0)]:
         major = version[0]
         minor = version[1]
         micro = version[2]
@@ -203,7 +203,7 @@ class QuickTest(unittest.TestCase):
         with self.assertRaises(UnrecognizedBranchPattern):
             self.finalize_cascade(branches, tags, destination, fixver)
 
-    def test_branch_cascade_from_master(self):
+    def test_branch_cascade_from_dev_with_master(self):
         branches = OrderedDict({
             1: ('master', False),
             2: ('development/1.0', False)
@@ -357,9 +357,9 @@ class QuickTest(unittest.TestCase):
         fixver = ['6.1.5']
         c = self.finalize_cascade(branches, tags, destination, fixver)
         self.assertEqual(
-            c._cascade[(6,1)][wall_e.DevelopmentBranch].micro, 6)
+            c._cascade[(6, 1)][wall_e.DevelopmentBranch].micro, 6)
         self.assertEqual(
-            c._cascade[(6,1)][wall_e.StabilizationBranch].micro, 5)
+            c._cascade[(6, 1)][wall_e.StabilizationBranch].micro, 5)
 
         tags = ['6.1.5']
         fixver = []
@@ -707,7 +707,8 @@ class TestWallE(unittest.TestCase):
             self.assertTrue(ret)
 
             # check absence of a missing branch
-            self.assertFalse(self.gitrepo.remote_branch_exists('missing_branch'))
+            self.assertFalse(self.gitrepo.remote_branch_exists(
+                'missing_branch'))
 
     def test_from_unrecognized_source_branch(self):
         for source in ['master2',

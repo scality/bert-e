@@ -259,7 +259,8 @@ class FeatureBranch(WallEBranch):
     all_prefixes = ('improvement', 'bugfix', 'feature', 'project')
     jira_issue_pattern = '(?P<jira_project>[A-Z0-9_]+)-[0-9]+'
     prefixes = '(?P<prefix>(%s))' % '|'.join(all_prefixes)
-    pattern = "^%s/(?P<label>(?P<jira_issue_key>%s)?(?(jira_issue_key).*|.+))$" % (prefixes, jira_issue_pattern)
+    pattern = "^%s/(?P<label>(?P<jira_issue_key>%s)?" \
+              "(?(jira_issue_key).*|.+))$" % (prefixes, jira_issue_pattern)
     cascade_producer = True
     allow_ticketless_pr = True
 
@@ -269,7 +270,7 @@ class DevelopmentBranch(WallEBranch):
     cascade_producer = True
     cascade_consumer = True
     can_be_destination = True
-    allow_prefixes = FeatureBranch.correction_prefixes  # may change in finalize
+    allow_prefixes = FeatureBranch.correction_prefixes
 
     def __eq__(self, other):
         return self.__class__ == other.__class__ and \
@@ -885,9 +886,10 @@ class WallE:
         if not self.source_branch.jira_issue_key:
             for dest_branch in self._cascade.destination_branches:
                 if not dest_branch.allow_ticketless_pr:
-                    raise MissingJiraId(source_branch=self.source_branch.name,
-                                        dest_branch=dest_branch.name,
-                                        active_options=self._get_active_options())
+                    raise MissingJiraId(
+                        source_branch=self.source_branch.name,
+                        dest_branch=dest_branch.name,
+                        active_options=self._get_active_options())
             return False
         return True
 
@@ -998,7 +1000,9 @@ class WallE:
         # that are not in development/* or in the feature branch.
         self._check_history_did_not_change(integration_branches[0])
         for integration_branch in integration_branches:
-            self._merge(integration_branch.destination_branch, integration_branch)
+            self._merge(
+                integration_branch.destination_branch,
+                integration_branch)
 
     def _update_integration_from_feature(self, integration_branches):
         branch_to_merge_from = self.source_branch
