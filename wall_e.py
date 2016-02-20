@@ -217,7 +217,7 @@ class WallEBranch(Branch):
     pattern = '(?P<prefix>[a-z]+)/(?P<label>.+)'
     major = 0
     minor = 0
-    micro = -1  # is incremented always, first version is 1
+    micro = -1  # is incremented always, first version is 0
     cascade_producer = False
     cascade_consumer = False
     can_be_destination = False
