@@ -173,7 +173,7 @@ class QuickTest(unittest.TestCase):
             repo=None,
             name='development/6.0')
 
-    def validate_cascade(self, branches, tags, destination, fixver):
+    def finalize_cascade(self, branches, tags, destination, fixver):
         c = wall_e.BranchCascade()
 
         expected_dest = [wall_e.branch_factory(FakeGitRepo(), branch[0])
@@ -201,7 +201,7 @@ class QuickTest(unittest.TestCase):
         destination = 'master'
         fixver = []
         with self.assertRaises(UnrecognizedBranchPattern):
-            self.validate_cascade(branches, tags, destination, fixver)
+            self.finalize_cascade(branches, tags, destination, fixver)
 
     def test_branch_cascade_from_master(self):
         branches = OrderedDict({
@@ -212,7 +212,7 @@ class QuickTest(unittest.TestCase):
         destination = 'development/1.0'
         fixver = []
         with self.assertRaises(UnrecognizedBranchPattern):
-            self.validate_cascade(branches, tags, destination, fixver)
+            self.finalize_cascade(branches, tags, destination, fixver)
 
     def test_branch_cascade_target_first_stab(self):
         branches = OrderedDict({
@@ -225,7 +225,7 @@ class QuickTest(unittest.TestCase):
         tags = ['4.3.16', '4.3.17', '4.3.18_rc1', '5.1.3', '5.1.4_rc1']
         destination = 'stabilization/4.3.18'
         fixver = ['4.3.18', '5.1.5', '6.0.0']
-        self.validate_cascade(branches, tags, destination, fixver)
+        self.finalize_cascade(branches, tags, destination, fixver)
 
     def test_branch_cascade_target_last_stab(self):
         branches = OrderedDict({
@@ -238,7 +238,7 @@ class QuickTest(unittest.TestCase):
         tags = ['4.3.16', '4.3.17', '4.3.18_t', '5.1.3', '5.1.4_rc1', '6.0.0']
         destination = 'stabilization/5.1.4'
         fixver = ['5.1.4', '6.0.1']
-        self.validate_cascade(branches, tags, destination, fixver)
+        self.finalize_cascade(branches, tags, destination, fixver)
 
     def test_branch_cascade_target_first_dev(self):
         branches = OrderedDict({
@@ -251,7 +251,7 @@ class QuickTest(unittest.TestCase):
         tags = ['4.3.16', '4.3.17', '4.3.18_rc1', '5.1.3', '5.1.4_rc1']
         destination = 'development/4.3'
         fixver = ['4.3.19', '5.1.5', '6.0.0']
-        self.validate_cascade(branches, tags, destination, fixver)
+        self.finalize_cascade(branches, tags, destination, fixver)
 
     def test_branch_cascade_target_middle_dev(self):
         branches = OrderedDict({
@@ -264,7 +264,7 @@ class QuickTest(unittest.TestCase):
         tags = ['4.3.16', '4.3.17', '4.3.18_rc1', '5.1.3', '5.1.4_rc1']
         destination = 'development/5.1'
         fixver = ['5.1.5', '6.0.0']
-        self.validate_cascade(branches, tags, destination, fixver)
+        self.finalize_cascade(branches, tags, destination, fixver)
 
     def test_branch_cascade_target_last_dev(self):
         branches = OrderedDict({
@@ -277,7 +277,7 @@ class QuickTest(unittest.TestCase):
         tags = ['4.3.16', '4.3.17', '4.3.18_rc1', '5.1.3', '5.1.4_rc1']
         destination = 'development/6.0'
         fixver = ['6.0.0']
-        self.validate_cascade(branches, tags, destination, fixver)
+        self.finalize_cascade(branches, tags, destination, fixver)
 
     def test_branch_cascade_multi_stab_branches(self):
         branches = OrderedDict({
@@ -289,7 +289,7 @@ class QuickTest(unittest.TestCase):
         destination = 'stabilization/4.3.18'
         fixver = []
         with self.assertRaises(UnsupportedMultipleStabBranches):
-            self.validate_cascade(branches, tags, destination, fixver)
+            self.finalize_cascade(branches, tags, destination, fixver)
 
     def test_branch_cascade_invalid_dev_branch(self):
         branches = OrderedDict({
@@ -299,7 +299,7 @@ class QuickTest(unittest.TestCase):
         destination = 'development/4.3.17'
         fixver = []
         with self.assertRaises(UnrecognizedBranchPattern):
-            self.validate_cascade(branches, tags, destination, fixver)
+            self.finalize_cascade(branches, tags, destination, fixver)
 
     def test_tags_without_stabilization(self):
         branches = OrderedDict({
@@ -310,35 +310,35 @@ class QuickTest(unittest.TestCase):
 
         tags = []
         fixver = ['6.0.0']
-        self.validate_cascade(branches, tags, destination, fixver)
+        self.finalize_cascade(branches, tags, destination, fixver)
 
         tags = ['toto']
         fixver = ['6.0.0']
-        self.validate_cascade(branches, tags, destination, fixver)
+        self.finalize_cascade(branches, tags, destination, fixver)
 
         tags = ['toto', '6.0.2']
         fixver = ['6.0.3']
-        self.validate_cascade(branches, tags, destination, fixver)
+        self.finalize_cascade(branches, tags, destination, fixver)
 
         tags = ['6.0.15_rc1']
         fixver = ['6.0.0']
-        self.validate_cascade(branches, tags, destination, fixver)
+        self.finalize_cascade(branches, tags, destination, fixver)
 
         tags = ['6.0.15_rc1', '4.2.1', '6.0.0']
         fixver = ['6.0.1']
-        self.validate_cascade(branches, tags, destination, fixver)
+        self.finalize_cascade(branches, tags, destination, fixver)
 
         tags = ['6.0.15_rc1', '6.0.0', '5.1.4', '6.0.1']
         fixver = ['6.0.2']
-        self.validate_cascade(branches, tags, destination, fixver)
+        self.finalize_cascade(branches, tags, destination, fixver)
 
         tags = ['6.0.4000']
         fixver = ['6.0.4001']
-        self.validate_cascade(branches, tags, destination, fixver)
+        self.finalize_cascade(branches, tags, destination, fixver)
 
         tags = ['6.0.4000', '6.0.3999']
         fixver = ['6.0.4001']
-        self.validate_cascade(branches, tags, destination, fixver)
+        self.finalize_cascade(branches, tags, destination, fixver)
 
     def test_tags_with_stabilization(self):
         branches = OrderedDict({
@@ -349,12 +349,13 @@ class QuickTest(unittest.TestCase):
 
         tags = []
         fixver = ['6.1.5']
+        c = self.finalize_cascade(branches, tags, destination, fixver)
         with self.assertRaises(VersionMismatch):
-            self.validate_cascade(branches, tags, destination, fixver)
+            c.validate()
 
         tags = ['6.1.4']
         fixver = ['6.1.5']
-        c = self.validate_cascade(branches, tags, destination, fixver)
+        c = self.finalize_cascade(branches, tags, destination, fixver)
         self.assertEqual(
             c._cascade[(6,1)][wall_e.DevelopmentBranch].micro, 6)
         self.assertEqual(
@@ -363,12 +364,12 @@ class QuickTest(unittest.TestCase):
         tags = ['6.1.5']
         fixver = []
         with self.assertRaises(DeprecatedStabilizationBranch):
-            self.validate_cascade(branches, tags, destination, fixver)
+            self.finalize_cascade(branches, tags, destination, fixver)
 
         tags = ['6.1.6']
         fixver = []
         with self.assertRaises(DeprecatedStabilizationBranch):
-            self.validate_cascade(branches, tags, destination, fixver)
+            self.finalize_cascade(branches, tags, destination, fixver)
 
 
 class FakeGitRepo:

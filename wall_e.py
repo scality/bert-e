@@ -401,23 +401,29 @@ class BranchCascade(object):
         dev_branch = branches[DevelopmentBranch]
         dev_branch.micro = max(micro, dev_branch.micro)
 
-    def _check_version_branches(self, major, minor, dev_branch,
-                                stb_branch, previous_dev_branch):
-        if dev_branch is None:
-            raise DevBranchDoesNotExist(
-                'development/%d.%d' % (major, minor))
+    def validate(self):
+        previous_dev_branch = None
+        for (major, minor), branch_set in self._cascade.items():
+            dev_branch = branch_set[DevelopmentBranch]
+            stb_branch = branch_set[StabilizationBranch]
 
-        if stb_branch:
-            if dev_branch.micro + 1 != stb_branch.micro:
-                raise VersionMismatch(dev_branch, stb_branch)
+            if dev_branch is None:
+                raise DevBranchDoesNotExist(
+                    'development/%d.%d' % (major, minor))
 
-            if not dev_branch.includes_commit(stb_branch):
-                raise DevBranchesNotSelfContained(stb_branch, dev_branch)
+            if stb_branch:
+                if dev_branch.micro != stb_branch.micro + 1:
+                    raise VersionMismatch(dev_branch, stb_branch)
 
-        if previous_dev_branch:
-            if not dev_branch.includes_commit(previous_dev_branch):
-                raise DevBranchesNotSelfContained(previous_dev_branch,
-                                                  dev_branch)
+                if not dev_branch.includes_commit(stb_branch):
+                    raise DevBranchesNotSelfContained(stb_branch, dev_branch)
+
+            if previous_dev_branch:
+                if not dev_branch.includes_commit(previous_dev_branch):
+                    raise DevBranchesNotSelfContained(previous_dev_branch,
+                                                      dev_branch)
+
+            previous_dev_branch = dev_branch
 
     def _set_target_versions(self, destination_branch):
         """Compute list of expected Jira FixVersion/s.
@@ -437,7 +443,7 @@ class BranchCascade(object):
                     major, minor, dev_branch.micro))
 
     def finalize(self, destination_branch):
-        """Validate and finalize cascade considering given destination.
+        """Finalize cascade considering given destination.
 
         Assumes the cascade has been populated by calls to add_branch
         and update_micro. The local lists keeping track
@@ -452,7 +458,6 @@ class BranchCascade(object):
             list: list of ignored destination branches
 
         """
-        previous_dev_branch = None
         ignore_stb_branches = False
         include_dev_branches = False
         dev_branch = None
@@ -461,10 +466,9 @@ class BranchCascade(object):
             dev_branch = branch_set[DevelopmentBranch]
             stb_branch = branch_set[StabilizationBranch]
 
-            # run sanity checks
-            self._check_version_branches(major, minor, dev_branch,
-                                         stb_branch, previous_dev_branch)
-            previous_dev_branch = dev_branch
+            if dev_branch is None:
+                raise DevBranchDoesNotExist(
+                    'development/%d.%d' % (major, minor))
 
             # update _expected_ micro versions
             if stb_branch:
@@ -1166,6 +1170,7 @@ class WallE:
 
             self._check_depending_pull_requests()
             self._build_branch_cascade(repo)
+            self._cascade.validate()
             self._check_compatibility_src_dest()
             self._jira_checks()
             self._check_source_branch_still_exists(repo)
@@ -1191,7 +1196,8 @@ class WallE:
                     except RemoveFailedException:
                         # ignore failures as this is non critical
                         pass
-            #self._cascade.validate()
+
+            self._cascade.validate()
 
         raise SuccessMessage(
             branches=self._cascade.destination_branches,
