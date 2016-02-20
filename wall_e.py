@@ -814,12 +814,11 @@ class WallE:
 
     def _setup_source_branch(self, repo, src_branch_name, dst_branch_name):
         try:
-            self.source_branch = branch_factory(repo, self.main_pr['source'][
-                'branch']['name'])
+            self.source_branch = branch_factory(repo, src_branch_name)
         except UnrecognizedBranchPattern:
             raise IncorrectSourceBranchName(
-                source=self.main_pr['source']['branch']['name'],
-                destination=self.main_pr['destination']['branch']['name'],
+                source=src_branch_name,
+                destination=dst_branch_name,
                 valid_prefixes=FeatureBranch.valid_prefixes,
                 active_options=self._get_active_options())
 
@@ -961,8 +960,7 @@ class WallE:
         # that are not in development/* or in the feature branch.
         self._check_history_did_not_change(integration_branches[0])
         for integration_branch in integration_branches:
-            integration_branch.merge_from_branch(
-                integration_branch.destination_branch)
+            self._merge(integration_branch.destination_branch, integration_branch)
 
     def _update_integration_from_feature(self, integration_branches):
         branch_to_merge_from = self.source_branch
