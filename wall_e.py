@@ -291,6 +291,8 @@ class StabilizationBranch(DevelopmentBranch):
 class IntegrationBranch(WallEBranch):
     pattern = '^w/(?P<version>(?P<major>\d+)\.(?P<minor>\d+)' \
               '(\.(?P<micro>\d+))?)/' + FeatureBranch.pattern[1:]
+    destination_branch = ''
+    source_branch = ''
 
     def merge_from_branch(self, source_branch):
         self.merge(source_branch, do_push=True)
@@ -518,20 +520,6 @@ class BranchCascade(object):
         # and any type of ticket type
         dev_branch.allow_ticketless_pr = True
         dev_branch.allow_prefixes = FeatureBranch.all_prefixes
-
-    def _create_integration_branches(self, repo, source_branch,
-                                     destination_branch):
-        integration_branches = []
-        for dst_branch in self.destination_branches:
-            name = 'w/%s/%s' % (dst_branch.version, source_branch)
-            integration_branch = IntegrationBranch(repo, name)
-            integration_branch.destination_branch = dst_branch
-            integration_branch.source_branch = source_branch
-            integration_branches.append(integration_branch)
-            if not integration_branch.exists():
-                integration_branch.create(
-                    integration_branch.destination_branch)
-        return integration_branches
 
 
 class WallE:
@@ -830,7 +818,10 @@ class WallE:
         self._get_options(comments, self.author)
         self._handle_commands(comments)
 
-    def _check_depending_pull_requests(self):
+    def _check_dependencies(self):
+        if self.option_is_set('wait'):
+            raise NothingToDo('wait option is set')
+
         if not self.after_prs:
             return
 
@@ -976,6 +967,19 @@ class WallE:
         except CheckoutFailedException:
             raise NothingToDo(self.source_branch.name)
 
+    def _create_integration_branches(self, repo, source_branch):
+        integration_branches = []
+        for dst_branch in self._cascade.destination_branches:
+            name = 'w/%s/%s' % (dst_branch.version, source_branch)
+            integration_branch = branch_factory(repo, name)
+            integration_branch.source_branch = source_branch
+            integration_branch.destination_branch = dst_branch
+            integration_branches.append(integration_branch)
+            if not integration_branch.exists():
+                integration_branch.create(
+                    integration_branch.destination_branch)
+        return integration_branches
+
     def _check_history_did_not_change(self, integration_branch):
         development_branch = integration_branch.destination_branch
         for commit in integration_branch.get_all_commits(
@@ -988,7 +992,7 @@ class WallE:
                     development_branch=development_branch,
                     active_options=self._get_active_options())
 
-    def _merge(self, source, destination):
+    def _update(self, source, destination):
         try:
             destination.merge_from_branch(source)
         except MergeFailedException:
@@ -1001,14 +1005,14 @@ class WallE:
         # that are not in development/* or in the feature branch.
         self._check_history_did_not_change(integration_branches[0])
         for integration_branch in integration_branches:
-            self._merge(
+            self._update(
                 integration_branch.destination_branch,
                 integration_branch)
 
     def _update_integration_from_feature(self, integration_branches):
         branch_to_merge_from = self.source_branch
         for integration_branch in integration_branches:
-            self._merge(branch_to_merge_from, integration_branch)
+            self._update(branch_to_merge_from, integration_branch)
             branch_to_merge_from = integration_branch
 
     def _create_pull_requests(self, integration_branches):
@@ -1156,6 +1160,17 @@ class WallE:
             raise BuildInProgress()
         assert build_state == 'SUCCESSFUL'
 
+    def _merge(self, integration_branches):
+        for integration_branch in integration_branches:
+            integration_branch.update_to_development_branch()
+
+            for integration_branch in integration_branches:
+                try:
+                    integration_branch.remove()
+                except RemoveFailedException:
+                    # ignore failures as this is non critical
+                    pass
+
     def handle_pull_request(self, reference_git_repo='',
                             no_comment=False, interactive=False):
 
@@ -1169,19 +1184,15 @@ class WallE:
 
             self._check_if_ignored()
             self._init_phase()
-
-            if self.option_is_set('wait'):
-                raise NothingToDo('wait option is set')
-
-            self._check_depending_pull_requests()
+            self._check_dependencies()
             self._build_branch_cascade(repo)
             self._cascade.validate()
             self._check_compatibility_src_dest()
             self._jira_checks()
             self._check_source_branch_still_exists(repo)
 
-            integration_branches = self._cascade._create_integration_branches(
-                repo, self.source_branch, self.destination_branch)
+            integration_branches = self._create_integration_branches(
+                repo, self.source_branch)
 
             self._update_integration_from_dev(integration_branches)
             self._update_integration_from_feature(integration_branches)
@@ -1192,16 +1203,7 @@ class WallE:
             if interactive and not confirm('Do you want to merge ?'):
                 return
 
-            for integration_branch in integration_branches:
-                integration_branch.update_to_development_branch()
-
-                for integration_branch in integration_branches:
-                    try:
-                        integration_branch.remove()
-                    except RemoveFailedException:
-                        # ignore failures as this is non critical
-                        pass
-
+            self._merge(integration_branches)
             self._cascade.validate()
 
         raise SuccessMessage(
