@@ -152,14 +152,14 @@ class UnsupportedMultipleStabBranches(WallE_InternalException):
         msg = 'Unsupported multiple stabilization branches ' \
               'have been detected: %r, %r ' % (
                branch, other_branch)
-        super(WallE_InternalException, self).__init__(msg)
+        super(UnsupportedMultipleStabBranches, self).__init__(msg)
 
 
 class DeprecatedStabilizationBranch(WallE_InternalException):
     def __init__(self, branch, tag):
         msg = 'Branch %r must be deleted as the tag %r has been created' % (
             branch, tag)
-        super(WallE_InternalException, self).__init__(msg)
+        super(DeprecatedStabilizationBranch, self).__init__(msg)
 
 
 class VersionMismatch(WallE_InternalException):
@@ -168,7 +168,7 @@ class VersionMismatch(WallE_InternalException):
             dev_branch.name,
             dev_branch.micro,
             stabilization_branch.name)
-        super(WallE_InternalException, self).__init__(msg)
+        super(VersionMismatch, self).__init__(msg)
 
 
 class UnrecognizedBranchPattern(WallE_InternalException):
@@ -207,7 +207,7 @@ class NotASingleDevBranch(WallE_InternalException):
     def __init__(self, branch):
         msg = ("The git repository appears to be in a bad shape. "
                "There is not a single development to merge to.")
-        super(DevBranchDoesNotExist, self).__init__(msg)
+        super(NotASingleDevBranch, self).__init__(msg)
 
 
 # silent exceptions

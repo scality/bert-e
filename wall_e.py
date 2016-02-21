@@ -224,7 +224,7 @@ class WallEBranch(Branch):
     allow_ticketless_pr = False
 
     def __init__(self, repo, name):
-        Branch.__init__(self, repo, name)
+        super(WallEBranch, self).__init__(repo, name)
         match = re.match(self.pattern, name)
         if not match:
             raise BranchNameInvalid(name)
