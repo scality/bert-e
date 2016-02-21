@@ -173,10 +173,12 @@ class QuickTest(unittest.TestCase):
     def finalize_cascade(self, branches, tags, destination, fixver):
         c = wall_e.BranchCascade()
 
-        expected_dest = [wall_e.branch_factory(FakeGitRepo(), branch[0])
-                         for branch in branches.values() if branch[1]]
-        expected_ignored = [wall_e.branch_factory(FakeGitRepo(), branch[0])
-                            for branch in branches.values() if not branch[1]]
+        expected_dest = [
+            wall_e.branch_factory(FakeGitRepo(), branch['name'])
+            for branch in branches.values() if not branch['ignore']]
+        expected_ignored = [
+            wall_e.branch_factory(FakeGitRepo(), branch['name'])
+            for branch in branches.values() if branch['ignore']]
         expected_ignored.sort()
 
         for branch in expected_dest + expected_ignored:
@@ -193,117 +195,119 @@ class QuickTest(unittest.TestCase):
         return c
 
     def test_branch_cascade_from_master(self):
-        branches = OrderedDict({1: ('master', False)})
-        tags = []
         destination = 'master'
+        branches = OrderedDict({
+            1: {'name': 'master',               'ignore': True}
+        })
+        tags = []
         fixver = []
         with self.assertRaises(UnrecognizedBranchPattern):
             self.finalize_cascade(branches, tags, destination, fixver)
 
     def test_branch_cascade_from_dev_with_master(self):
+        destination = 'development/1.0'
         branches = OrderedDict({
-            1: ('master', False),
-            2: ('development/1.0', False)
+            1: {'name': 'master',               'ignore': True},
+            2: {'name': 'development/1.0',      'ignore': True}
         })
         tags = []
-        destination = 'development/1.0'
         fixver = []
         with self.assertRaises(UnrecognizedBranchPattern):
             self.finalize_cascade(branches, tags, destination, fixver)
 
     def test_branch_cascade_target_first_stab(self):
+        destination = 'stabilization/4.3.18'
         branches = OrderedDict({
-            1: ('stabilization/4.3.18', True),
-            2: ('development/4.3', True),
-            3: ('development/5.1', True),
-            4: ('stabilization/5.1.4', False),
-            5: ('development/6.0', True)
+            1: {'name': 'stabilization/4.3.18', 'ignore': False},
+            2: {'name': 'development/4.3',      'ignore': False},
+            3: {'name': 'development/5.1',      'ignore': False},
+            4: {'name': 'stabilization/5.1.4',  'ignore': True},
+            5: {'name': 'development/6.0',      'ignore': False}
         })
         tags = ['4.3.16', '4.3.17', '4.3.18_rc1', '5.1.3', '5.1.4_rc1']
-        destination = 'stabilization/4.3.18'
         fixver = ['4.3.18', '5.1.5', '6.0.0']
         self.finalize_cascade(branches, tags, destination, fixver)
 
     def test_branch_cascade_target_last_stab(self):
+        destination = 'stabilization/5.1.4'
         branches = OrderedDict({
-            1: ('stabilization/4.3.18', False),
-            2: ('development/4.3', False),
-            3: ('stabilization/5.1.4', True),
-            4: ('development/5.1', True),
-            5: ('development/6.0', True)
+            1: {'name': 'stabilization/4.3.18', 'ignore': True},
+            2: {'name': 'development/4.3',      'ignore': True},
+            3: {'name': 'stabilization/5.1.4',  'ignore': False},
+            4: {'name': 'development/5.1',      'ignore': False},
+            5: {'name': 'development/6.0',      'ignore': False}
         })
         tags = ['4.3.16', '4.3.17', '4.3.18_t', '5.1.3', '5.1.4_rc1', '6.0.0']
-        destination = 'stabilization/5.1.4'
         fixver = ['5.1.4', '6.0.1']
         self.finalize_cascade(branches, tags, destination, fixver)
 
     def test_branch_cascade_target_first_dev(self):
-        branches = OrderedDict({
-            1: ('stabilization/4.3.18', False),
-            2: ('development/4.3', True),
-            3: ('stabilization/5.1.4', False),
-            4: ('development/5.1', True),
-            5: ('development/6.0', True)
-        })
-        tags = ['4.3.16', '4.3.17', '4.3.18_rc1', '5.1.3', '5.1.4_rc1']
         destination = 'development/4.3'
+        branches = OrderedDict({
+            1: {'name': 'stabilization/4.3.18', 'ignore': True},
+            2: {'name': 'development/4.3',      'ignore': False},
+            3: {'name': 'stabilization/5.1.4',  'ignore': True},
+            4: {'name': 'development/5.1',      'ignore': False},
+            5: {'name': 'development/6.0',      'ignore': False}
+        })
+        tags = ['4.3.18_rc1', '5.1.3', '5.1.4_rc1', '4.3.16', '4.3.17']
         fixver = ['4.3.19', '5.1.5', '6.0.0']
         self.finalize_cascade(branches, tags, destination, fixver)
 
     def test_branch_cascade_target_middle_dev(self):
+        destination = 'development/5.1'
         branches = OrderedDict({
-            1: ('stabilization/4.3.18', False),
-            2: ('development/4.3', False),
-            3: ('stabilization/5.1.4', False),
-            4: ('development/5.1', True),
-            5: ('development/6.0', True)
+            1: {'name': 'stabilization/4.3.18', 'ignore': True},
+            2: {'name': 'development/4.3',      'ignore': True},
+            3: {'name': 'stabilization/5.1.4',  'ignore': True},
+            4: {'name': 'development/5.1',      'ignore': False},
+            5: {'name': 'development/6.0',      'ignore': False}
         })
         tags = ['4.3.16', '4.3.17', '4.3.18_rc1', '5.1.3', '5.1.4_rc1']
-        destination = 'development/5.1'
         fixver = ['5.1.5', '6.0.0']
         self.finalize_cascade(branches, tags, destination, fixver)
 
     def test_branch_cascade_target_last_dev(self):
+        destination = 'development/6.0'
         branches = OrderedDict({
-            1: ('stabilization/4.3.18', False),
-            2: ('development/4.3', False),
-            3: ('stabilization/5.1.4', False),
-            4: ('development/5.1', False),
-            5: ('development/6.0', True)
+            1: {'name': 'stabilization/4.3.18', 'ignore': True},
+            2: {'name': 'development/4.3',      'ignore': True},
+            3: {'name': 'stabilization/5.1.4',  'ignore': True},
+            4: {'name': 'development/5.1',      'ignore': True},
+            5: {'name': 'development/6.0',      'ignore': False}
         })
         tags = ['4.3.16', '4.3.17', '4.3.18_rc1', '5.1.3', '5.1.4_rc1']
-        destination = 'development/6.0'
         fixver = ['6.0.0']
         self.finalize_cascade(branches, tags, destination, fixver)
 
     def test_branch_cascade_multi_stab_branches(self):
+        destination = 'stabilization/4.3.18'
         branches = OrderedDict({
-            1: ('stabilization/4.3.17', True),
-            2: ('stabilization/4.3.18', False),
-            3: ('development/4.3', True)
+            1: {'name': 'stabilization/4.3.17', 'ignore': True},
+            2: {'name': 'stabilization/4.3.18', 'ignore': False},
+            3: {'name': 'development/4.3',      'ignore': False}
         })
         tags = []
-        destination = 'stabilization/4.3.18'
         fixver = []
         with self.assertRaises(UnsupportedMultipleStabBranches):
             self.finalize_cascade(branches, tags, destination, fixver)
 
     def test_branch_cascade_invalid_dev_branch(self):
+        destination = 'development/4.3.17'
         branches = OrderedDict({
-            1: ('development/4.3.17', True)
+            1: {'name': 'development/4.3.17',   'ignore': False}
         })
         tags = []
-        destination = 'development/4.3.17'
         fixver = []
         with self.assertRaises(UnrecognizedBranchPattern):
             self.finalize_cascade(branches, tags, destination, fixver)
 
     def test_tags_without_stabilization(self):
-        branches = OrderedDict({
-            1: ('development/5.1', False),
-            2: ('development/6.0', True)
-        })
         destination = 'development/6.0'
+        branches = OrderedDict({
+            1: {'name': 'development/5.1',      'ignore': True},
+            2: {'name': 'development/6.0',      'ignore': False}
+        })
 
         tags = []
         fixver = ['6.0.0']
@@ -338,11 +342,11 @@ class QuickTest(unittest.TestCase):
         self.finalize_cascade(branches, tags, destination, fixver)
 
     def test_tags_with_stabilization(self):
-        branches = OrderedDict({
-            1: ('stabilization/6.1.5', True),
-            2: ('development/6.1', True)
-        })
         destination = 'stabilization/6.1.5'
+        branches = OrderedDict({
+            1: {'name': 'stabilization/6.1.5',  'ignore': False},
+            2: {'name': 'development/6.1',      'ignore': False}
+        })
 
         tags = []
         fixver = ['6.1.5']
