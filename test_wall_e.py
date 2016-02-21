@@ -58,12 +58,9 @@ def initialize_git_repo(repo, username, usermail):
     repo.cmd('git add a')
     repo.cmd('git commit -m "Initial commit"')
     repo.cmd('git remote add origin ' + repo._url)
-    for version in [(4, 3, 18), (5, 1, 4), (6, 0, 0)]:
-        major = version[0]
-        minor = version[1]
-        micro = version[2]
+    for major, minor, micro in [(4, 3, 18), (5, 1, 4), (6, 0, 0)]:
         major_minor = "%s.%s" % (major, minor)
-        full_version = "%s.%s.%s" % version
+        full_version = "%s.%s.%s" % (major, minor, micro)
         create_branch(repo, 'release/'+major_minor, do_push=False)
         create_branch(repo, 'stabilization/'+full_version,
                       'release/'+major_minor, file_=True, do_push=False)
