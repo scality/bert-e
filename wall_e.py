@@ -400,7 +400,8 @@ class BranchCascade(object):
             raise DeprecatedStabilizationBranch(stb_branch.name, tag)
 
         dev_branch = branches[DevelopmentBranch]
-        dev_branch.micro = max(micro, dev_branch.micro)
+        if dev_branch:
+            dev_branch.micro = max(micro, dev_branch.micro)
 
     def validate(self):
         previous_dev_branch = None

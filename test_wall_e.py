@@ -280,6 +280,50 @@ class QuickTest(unittest.TestCase):
         fixver = ['6.0.0']
         self.finalize_cascade(branches, tags, destination, fixver)
 
+    def test_branch_incorrect_stab_name(self):
+        destination = 'development/6.0'
+        branches = OrderedDict({
+            1: {'name': 'stabilization/6.0',    'ignore': True},
+            2: {'name': 'development/6.0',      'ignore': False}
+        })
+        tags = ['6.0.0']
+        fixver = ['6.0.1']
+        with self.assertRaises(UnrecognizedBranchPattern):
+            self.finalize_cascade(branches, tags, destination, fixver)
+
+    def test_branch_targetting_incorrect_stab_name(self):
+        destination = 'stabilization/6.0'
+        branches = OrderedDict({
+            1: {'name': 'stabilization/6.0',    'ignore': False},
+            2: {'name': 'development/6.0',      'ignore': False}
+        })
+        tags = ['6.0.0']
+        fixver = ['6.0.1']
+        with self.assertRaises(UnrecognizedBranchPattern):
+            self.finalize_cascade(branches, tags, destination, fixver)
+
+    def test_branch_dangling_stab(self):
+        destination = 'development/5.1'
+        branches = OrderedDict({
+            1: {'name': 'stabilization/4.3.18', 'ignore': False},
+            2: {'name': 'development/5.1',      'ignore': False}
+        })
+        tags = ['4.3.17', '5.1.3']
+        fixver = ['5.1.4']
+        with self.assertRaises(DevBranchDoesNotExist):
+            self.finalize_cascade(branches, tags, destination, fixver)
+
+    def test_branch_targetting_dangling_stab(self):
+        destination = 'stabilization/4.3.18'
+        branches = OrderedDict({
+            1: {'name': 'stabilization/4.3.18', 'ignore': False},
+            2: {'name': 'development/5.1',      'ignore': False}
+        })
+        tags = ['4.3.17', '5.1.3']
+        fixver = ['4.3.18', '5.1.4']
+        with self.assertRaises(DevBranchDoesNotExist):
+            self.finalize_cascade(branches, tags, destination, fixver)
+
     def test_branch_cascade_multi_stab_branches(self):
         destination = 'stabilization/4.3.18'
         branches = OrderedDict({
