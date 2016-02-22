@@ -1220,7 +1220,7 @@ class WallE:
 
 
 def setup_parser():
-    parser = argparse.ArgumentParser(add_help=False,
+    parser = argparse.ArgumentParser(add_help=True,
                                      description='Merges bitbucket '
                                                  'pull requests.')
     parser.add_argument(
