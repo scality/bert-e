@@ -857,6 +857,8 @@ class WallE:
         self._cascade.finalize(self.destination_branch)
 
     def _check_compatibility_src_dest(self):
+        if self.option_is_set('bypass_incompatible_branch'):
+            return
         for dest_branch in self._cascade.destination_branches:
             if self.source_branch.prefix not in dest_branch.allow_prefixes:
                 raise IncompatibleSourceBranchPrefix(
@@ -1171,6 +1173,9 @@ class WallE:
                     # ignore failures as this is non critical
                     pass
 
+    def _validate_repo(self):
+        self._cascade.validate()
+
     def handle_pull_request(self, reference_git_repo='',
                             no_comment=False, interactive=False):
 
@@ -1186,7 +1191,7 @@ class WallE:
             self._init_phase()
             self._check_dependencies()
             self._build_branch_cascade(repo)
-            self._cascade.validate()
+            self._validate_repo()
             self._check_compatibility_src_dest()
             self._jira_checks()
             self._check_source_branch_still_exists(repo)
@@ -1204,7 +1209,7 @@ class WallE:
                 return
 
             self._merge(integration_branches)
-            self._cascade.validate()
+            self._validate_repo()
 
         raise SuccessMessage(
             branches=self._cascade.destination_branches,
@@ -1269,22 +1274,10 @@ def setup_options(args):
                    value=False,  # not supported from command line
                    help="Wait for the given pull request id to be merged "
                         "before continuing with the current one."),
-        'bypass_peer_approval':
-            Option(privileged=True,
-                   value='bypass_peer_approval' in args.cmd_line_options,
-                   help="Bypass the pull request author's approval"),
         'bypass_author_approval':
             Option(privileged=True,
                    value='bypass_author_approval' in args.cmd_line_options,
                    help="Bypass the pull request peer's approval"),
-        'bypass_tester_approval':
-            Option(privileged=True,
-                   value='bypass_tester_approval' in args.cmd_line_options,
-                   help="Bypass the pull request tester's approval"),
-        'bypass_jira_check':
-            Option(privileged=True,
-                   value='bypass_jira_check' in args.cmd_line_options,
-                   help="Bypass the Jira issue check"),
         'bypass_build_status':
             Option(privileged=True,
                    value='bypass_build_status' in args.cmd_line_options,
@@ -1294,6 +1287,22 @@ def setup_options(args):
                    value='bypass_commit_size' in args.cmd_line_options,
                    help='Bypass the check on the size of the changeset '
                         '```TBA```'),
+        'bypass_incompatible_branch':
+            Option(privileged=True,
+                   value='bypass_incompatible_branch' in args.cmd_line_options,
+                   help="Bypass the check on the source branch prefix"),
+        'bypass_jira_check':
+            Option(privileged=True,
+                   value='bypass_jira_check' in args.cmd_line_options,
+                   help="Bypass the Jira issue check"),
+        'bypass_peer_approval':
+            Option(privileged=True,
+                   value='bypass_peer_approval' in args.cmd_line_options,
+                   help="Bypass the pull request author's approval"),
+        'bypass_tester_approval':
+            Option(privileged=True,
+                   value='bypass_tester_approval' in args.cmd_line_options,
+                   help="Bypass the pull request tester's approval"),
         'unanimity':
             Option(privileged=False,
                    value='unanimity' in args.cmd_line_options,
