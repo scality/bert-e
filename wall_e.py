@@ -1273,7 +1273,7 @@ def setup_options(args):
             Option(privileged=False,
                    value=False,  # not supported from command line
                    help="Wait for the given pull request id to be merged "
-                        "before continuing with the current one."),
+                        "before continuing with the current one"),
         'bypass_author_approval':
             Option(privileged=True,
                    value='bypass_author_approval' in args.cmd_line_options,
