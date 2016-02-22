@@ -1277,7 +1277,7 @@ def setup_options(args):
         'bypass_author_approval':
             Option(privileged=True,
                    value='bypass_author_approval' in args.cmd_line_options,
-                   help="Bypass the pull request peer's approval"),
+                   help="Bypass the pull request author's approval"),
         'bypass_build_status':
             Option(privileged=True,
                    value='bypass_build_status' in args.cmd_line_options,
