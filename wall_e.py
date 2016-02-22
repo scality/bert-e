@@ -83,7 +83,8 @@ SETTINGS = {
             'lpantou',
             'mcolzi',
             'romain_thebaud',
-            'sleibo'
+            'sleibo',
+            'louis_pery_scality'
         ],
         'admins': [
             WALL_E_USERNAME,  # we need this for test purposes
