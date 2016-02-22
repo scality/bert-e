@@ -1,0 +1,11 @@
+# Change Log
+All notable changes to this project will be documented in this file.
+
+## [1.1.0] - 2016-02-22
+### Added
+- support stabilization branches
+- unanimity option
+- after_pull_request option
+
+## [1.0.0] - 2015-02-11
+Initial release
