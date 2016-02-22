@@ -257,8 +257,8 @@ class UserBranch(WallEBranch):
 
 
 class ReleaseBranch(WallEBranch):
-    pattern = '^release/' \
-              '(?P<version>(?P<major>\d+)\.(?P<minor>\d+))$'
+    pattern = ('^release/'
+               '(?P<version>(?P<major>\d+)\.(?P<minor>\d+))$')
 
 
 class FeatureBranch(WallEBranch):
@@ -302,11 +302,12 @@ class IntegrationBranch(WallEBranch):
     source_branch = ''
 
     def merge_from_branch(self, source_branch):
-        self.merge(source_branch, do_push=True)
+        #self.merge(source_branch, do_push=True)
+        pass
 
     def update_to_development_branch(self):
         self.destination_branch.merge(self, force_commit=False)
-        self.destination_branch.push()
+        #self.destination_branch.push()
 
     def _get_pull_request_from_list(self, open_prs):
         pr = None
@@ -646,7 +647,7 @@ class WallE:
                 return
 
         logging.debug('SENDING MSG %s', msg)
-
+        raise Exception('security')
         self.main_pr.add_comment(msg)
 
     def _check_pr_state(self):
@@ -860,7 +861,7 @@ class WallE:
         if self.comments and self.comments[0]['id'] > self.comments[-1]['id']:
             self.comments.reverse()
 
-        self._send_greetings()
+        #self._send_greetings()
         self._get_options(self.author)
         self._handle_commands()
 
