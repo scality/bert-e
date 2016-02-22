@@ -13,10 +13,43 @@ $ source venv/bin/activate
 $ pip install flake8 jira==1.0.3 requests==2.9.1 six-1.10.0 Jinja2==2.7.1
 ```
 
-### How to Launch Static Checker File?
+### How do I ask Wall-E to merge a pull request? ###
 
 ```
-$ flake8 *.py
+#!bash
+$ python python wall_e.py <pull_request_id> <wall_e_pasword>
+
+$ python wall_e.py --help
+usage: wall_e.py [-h] [--option CMD_LINE_OPTIONS]
+                 [--reference-git-repo REFERENCE_GIT_REPO] [--owner OWNER]
+                 [--slug SLUG] [--settings SETTINGS] [--interactive]
+                 [--no-comment] [-v] [--alert-email ALERT_EMAIL] [--backtrace]
+                 [--quiet]
+                 pull_request_id password
+
+Merges bitbucket pull requests.
+
+positional arguments:
+  pull_request_id       The ID of the pull request
+  password              Wall-E's password [for Jira and Bitbucket]
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --option CMD_LINE_OPTIONS, -o CMD_LINE_OPTIONS
+                        Activate additional options
+  --reference-git-repo REFERENCE_GIT_REPO
+                        Reference to a local git repo to improve cloning delay
+  --owner OWNER         The owner of the repo (default: scality)
+  --slug SLUG           The repo's slug (default: ring)
+  --settings SETTINGS   The settings to use (default to repository slug)
+  --interactive         Ask before merging or sending comments
+  --no-comment          Do not add any comment to the pull request page
+  -v                    Verbose mode
+  --alert-email ALERT_EMAIL
+                        Where to send notifications in case of incorrect
+                        behaviour
+  --backtrace           Show backtrace instead of return code on console
+  --quiet               Don't print return codes on the console
 ```
 
 ### How to launch tests? ###
@@ -27,7 +60,8 @@ If the text input `Old password` doesn't appear here:
 
 ```
 #!bash
-$ python test_wall_e.py <wall_e_password> <your_login> <your_password> <your.email@scality.com> 
+$ python test_wall_e.py <wall_e_password> <eva_password> \
+                        <your_login> <your_password> <your.email@scality.com>
 .......
 ----------------------------------------------------------------------
 Ran 7 tests in 254.984s
@@ -35,47 +69,31 @@ Ran 7 tests in 254.984s
 OK
 
 $ python test_wall_e.py --help
-usage: test_wall_e.py [-h] wall_e_password your_login your_password your_mail
+usage: test_wall_e.py [-h] [--repo-prefix REPO_PREFIX] [-v] [--failfast]
+                      [--disable-mock]
+                      wall_e_password eva_password your_login your_password
+                      your_mail [tests [tests ...]]
 
 Launches Wall-E tests.
 
 positional arguments:
-  wall_e_password  Wall-E\'s password [for Jira and Bitbucket]
-  your_login       Your Bitbucket login
-  your_password    Your Bitbucket password
-  your_mail        Your Bitbucket email address
-
-optional arguments:
-  -h, --help       show this help message and exit
-```
-
-### How do I ask Wall-E to merge a pull request? ###
-
-```
-#!bash
-$ python python wall_e.py <pull_request_id> <wall_e_pasword>
-
-$ python wall_e.py --help
-usage: wall_e.py [-h] [--owner OWNER] [--slug SLUG] [--bypass_author_approval]
-                 [--bypass_peer_approval]
-                 [--reference_git_repo REFERENCE_GIT_REPO]
-                 pullrequest password
-
-Merges bitbucket pull requests.
-
-positional arguments:
-  pullrequest           The ID of the pull request
-  password              Wall-E\'s password [for Jira and Bitbucket]
+  wall_e_password       Wall-E's password [for Jira and Bitbucket]
+  eva_password          Eva's password [for Jira and Bitbucket]
+  your_login            Your Bitbucket login
+  your_password         Your Bitbucket password
+  your_mail             Your Bitbucket email address
+  tests                 run only these tests
 
 optional arguments:
   -h, --help            show this help message and exit
-  --owner OWNER         The owner of the repo (default: scality)
-  --slug SLUG           The repo\'s slug (default: ring)
-  --bypass_author_approval
-                        Bypass the pull request author\'s approval
-  --bypass_peer_approval
-                        Bypass the pull request peer\'s approval
-  --reference_git_repo REFERENCE_GIT_REPO
-                        Reference to a local version of the git repo to
-                        improve cloning delay
+  --repo-prefix REPO_PREFIX
+                        Prefix of the test repository
+  -v                    Verbose mode
+  --failfast            Return on first failure
+  --disable-mock        Disables the bitbucket mock (slower tests)
+
+### How to Launch Static Checker File?
+
+```
+$ flake8 *.py
 ```
