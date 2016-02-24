@@ -1,6 +1,6 @@
 # README #
 
-Scality's automated branch merging tool
+Scality's automated branch merging tool.
 
 ### How to install? ###
 
@@ -91,9 +91,11 @@ optional arguments:
   -v                    Verbose mode
   --failfast            Return on first failure
   --disable-mock        Disables the bitbucket mock (slower tests)
+```
 
 ### How to Launch Static Checker File?
 
 ```
 $ flake8 *.py
 ```
+
