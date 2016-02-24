@@ -33,8 +33,9 @@ You may also cancel a changeset on a specific target version if required.
 
 {% if ignored %}
 The following branches will **NOT** be impacted:
-{% for branch in ignored -%}
-* `{{ branch.name }}`
+
+{% for branch_name in ignored -%}
+* `{{ branch_name }}`
 {% endfor %}
 {% endif %}
 

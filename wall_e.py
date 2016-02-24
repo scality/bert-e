@@ -357,8 +357,8 @@ def branch_factory(repo, branch_name):
 class BranchCascade(object):
     def __init__(self):
         self._cascade = OrderedDict()
-        self.destination_branches = []
-        self.ignored_branches = []
+        self.destination_branches = []  # store branches
+        self.ignored_branches = []  # store branch names (easier sort)
         self.target_versions = []
 
     def add_branch(self, branch):
@@ -488,7 +488,7 @@ class BranchCascade(object):
 
             if stb_branch and ignore_stb_branches:
                 branch_set[StabilizationBranch] = None
-                self.ignored_branches.append(stb_branch)
+                self.ignored_branches.append(stb_branch.name)
 
             if destination_branch == stb_branch:
                 include_dev_branches = True
@@ -496,11 +496,11 @@ class BranchCascade(object):
 
             if not include_dev_branches:
                 branch_set[DevelopmentBranch] = None
-                self.ignored_branches.append(dev_branch)
+                self.ignored_branches.append(dev_branch.name)
 
                 if branch_set[StabilizationBranch]:
                     branch_set[StabilizationBranch] = None
-                    self.ignored_branches.append(stb_branch)
+                    self.ignored_branches.append(stb_branch.name)
 
                 del self._cascade[(major, minor)]
                 continue

@@ -10,8 +10,9 @@ into targetted development branches:
 
 {% if ignored %}
 The following branches have **NOT** changed:
-{% for branch in ignored -%}
-* `{{ branch.name }}`
+
+{% for branch_name in ignored -%}
+* `{{ branch_name }}`
 {% endfor %}
 {% endif %}
 

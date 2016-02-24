@@ -173,15 +173,18 @@ class QuickTest(unittest.TestCase):
     def finalize_cascade(self, branches, tags, destination, fixver):
         c = wall_e.BranchCascade()
 
+        all_branches = [
+            wall_e.branch_factory(FakeGitRepo(), branch['name'])
+            for branch in branches.values()]
         expected_dest = [
             wall_e.branch_factory(FakeGitRepo(), branch['name'])
             for branch in branches.values() if not branch['ignore']]
         expected_ignored = [
-            wall_e.branch_factory(FakeGitRepo(), branch['name'])
+            branch['name']
             for branch in branches.values() if branch['ignore']]
         expected_ignored.sort()
 
-        for branch in expected_dest + expected_ignored:
+        for branch in all_branches:
             c.add_branch(branch)
 
         for tag in tags:
