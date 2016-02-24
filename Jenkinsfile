@@ -95,7 +95,7 @@ stage name: 'initialisation'
 
 
 stage concurrency: 1, name: 'build'
-    node('small') {
+    node('trusty-small') {
         unstash 'repository'
 
         try {
