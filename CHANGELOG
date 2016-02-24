@@ -1,11 +1,16 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
-## [1.1.0] - 2016-02-22
+## [1.0.2] - 2016-02-24
+### Fixed
+- RELENG-1005 display of the non-targetted branches is incorrect
+
+## [1.0.1] - 2016-02-22
 ### Added
 - support stabilization branches
 - unanimity option
 - after_pull_request option
+- bypass_incompatible_branch option
 
 ## [1.0.0] - 2015-02-11
 Initial release
