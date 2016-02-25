@@ -121,6 +121,18 @@ SETTINGS = {
             'rayene_benrayana',
             'sylvain_killian'
         ]
+    },
+    'demo': {
+        'jira_key': 'DEMOWALLE',
+        'build_key': 'pipeline',
+        'testers': [
+        ],
+        'admins': [
+            'pierre_louis_bonicoli',
+            'rayene_benrayana',
+            'sylvain_killian',
+            'mvaude',
+        ]
     }
 }
 
