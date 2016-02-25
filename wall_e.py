@@ -941,7 +941,7 @@ class WallE:
         if expected_prefix != self.source_branch.prefix:
             raise MismatchPrefixIssueType(
                 prefix=self.source_branch.prefix,
-                expected=expected_prefix,
+                expected=issuetype,
                 pairs=JIRA_ISSUE_BRANCH_PREFIX,
                 issue=issue,
                 active_options=self._get_active_options())
