@@ -122,7 +122,7 @@ SETTINGS = {
             'sylvain_killian'
         ]
     },
-    'demo': {
+    'wall-e-demo': {
         'jira_key': 'DEMOWALLE',
         'build_key': 'pipeline',
         'testers': [
