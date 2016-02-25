@@ -375,7 +375,7 @@ class BranchCascade(object):
 
     def add_branch(self, branch):
         if not branch.can_be_destination:
-            logging.debug("Discard non destination branch:", branch)
+            logging.debug("Discard non destination branch: %s", branch)
             return
         (major, minor) = branch.major, branch.minor
         if (major, minor) not in self._cascade.keys():
@@ -397,16 +397,16 @@ class BranchCascade(object):
         pattern = "^(?P<major>\d+)\.(?P<minor>\d+)(\.(?P<micro>\d+))$"
         match = re.match(pattern, tag)
         if not match:
-            logging.debug("Ignore tag:", tag)
+            logging.debug("Ignore tag: %s", tag)
             return
-        logging.debug("Consider tag:", tag)
+        logging.debug("Consider tag: %s", tag)
         major = int(match.groupdict()['major'])
         minor = int(match.groupdict()['minor'])
         micro = int(match.groupdict()['micro'])
         try:
             branches = self._cascade[(major, minor)]
         except KeyError:
-            logging.debug("Ignore tag:", tag)
+            logging.debug("Ignore tag: %s", tag)
             return
         stb_branch = branches[StabilizationBranch]
 
