@@ -947,9 +947,13 @@ class WallE:
                 active_options=self._get_active_options())
 
     def _jira_check_version(self, issue):
-        issue_versions = set([version.name for version in
-                              issue.fields.fixVersions])
-        expect_versions = set(self._cascade.target_versions)
+        issue_versions = [version.name for version in
+                          issue.fields.fixVersions]
+        issue_versions.sort()
+        issue_versions = set(issue_versions)
+        expect_versions = self._cascade.target_versions
+        expect_versions.sort()
+        expect_versions = set(expect_versions)
 
         if issue_versions != expect_versions:
             raise IncorrectFixVersion(
