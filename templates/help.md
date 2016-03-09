@@ -5,7 +5,7 @@ Help page
 {% endblock %}
 
 {% block message %}
-You will find some user & technical documentation [online](https://docs.scality.com/display/RE/Wall-E+documentation).
+You will find some user & technical documentation [online](https://docs.scality.com/display/RE/Wall-E's+user+documentation).
 
 The following options and commands are available at this time.
 
