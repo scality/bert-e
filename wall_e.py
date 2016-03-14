@@ -122,6 +122,18 @@ SETTINGS = {
             'sylvain_killian'
         ]
     },
+    'releng-jenkins': {
+        'jira_key': 'RELENG',
+        'build_key': 'pipeline',
+        'testers': [
+        ],
+        'admins': [
+            'bertrand_demiddelaer_scality',
+            'pierre_louis_bonicoli',
+            'rayene_benrayana',
+            'sylvain_killian'
+        ]
+    },
     'wall-e-demo': {
         'jira_key': 'DEMOWALLE',
         'build_key': 'pipeline',
