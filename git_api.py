@@ -97,8 +97,7 @@ class Branch(object):
         self.checkout()
 
         try:
-            # Set renamelimit high enough to make it work
-            # with the Confluence source
+            # Set renamelimit high enough
             self.repo.cmd('git config merge.renameLimit 999999')
             self.repo.cmd('git merge --no-edit %s %s'
                           % ('--no-ff' if force_commit else '',
