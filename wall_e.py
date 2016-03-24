@@ -665,6 +665,7 @@ class WallE:
         git_repo.fetch_all_branches()
         git_repo.config('user.email', WALL_E_EMAIL)
         git_repo.config('user.name', WALL_E_USERNAME)
+        git_repo.config('merge.renameLimit', '999999')
         return git_repo
 
     def _setup_source_branch(self, repo, src_branch_name, dst_branch_name):
