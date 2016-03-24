@@ -101,7 +101,6 @@ class Branch(object):
                           % ('--no-ff' if force_commit else '',
                              source_branch.name))  # <- May fail if conflict
         except subprocess.CalledProcessError:
-            self.repo.cmd('git merge --abort')
             raise MergeFailedException(self.name, source_branch.name)
         if do_push:
             self.push()
