@@ -97,8 +97,8 @@ class Branch(object):
         self.checkout()
 
         try:
-            # Set renamelimit high enough
-            self.repo.cmd('git config merge.renameLimit 999999')
+            # Unset renameLimit
+            self.repo.cmd('git config --unset merge.renameLimit')
             self.repo.cmd('git merge --no-edit %s %s'
                           % ('--no-ff' if force_commit else '',
                              source_branch.name))  # <- May fail if conflict
