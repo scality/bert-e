@@ -35,6 +35,7 @@ from wall_e_exceptions import (AfterPullRequest,
                                ParentPullRequestNotFound,
                                PeerApprovalRequired,
                                StatusReport,
+                               SkewDetected,
                                SuccessMessage,
                                TesterApprovalRequired,
                                UnanimityApprovalRequired,
@@ -1168,6 +1169,101 @@ class TestWallE(unittest.TestCase):
             name=name,
             url=url
         )
+
+    def test_pr_skew_with_lagging_pull_request_data(self):
+        if not TestWallE.args.disable_mock:
+            self.skipTest('Not supported with mock bitbucket.'
+                          ' Fix __getitem__("hash") if required')
+
+        # create hook
+        real = wall_e.WallE._create_pull_requests
+        global local_child_prs
+        local_child_prs = []
+
+        def _create_pull_requests(*args, **kwargs):
+            global local_child_prs
+            child_prs = real(*args, **kwargs)
+            local_child_prs = child_prs
+            return child_prs
+
+        wall_e.WallE._create_pull_requests = _create_pull_requests
+
+        pr = self.create_pr('bugfix/RING-00081', 'development/6.0')
+        # Create integration branch and child pr
+        with self.assertRaises(BuildNotStarted):
+            self.handle(pr['id'],
+                        options=self.bypass_all_but(['bypass_build_status']),
+                        backtrace=True)
+
+        # Set build status on child pr
+        self.set_build_status_on_pr_id(pr['id']+1, 'SUCCESSFUL')
+
+        # Add a new commit
+        self.gitrepo.cmd('git checkout bugfix/RING-00081')
+        self.gitrepo.cmd('touch abc')
+        self.gitrepo.cmd('git add abc')
+        self.gitrepo.cmd('git commit -m "add new file"')
+        self.gitrepo.cmd('git push origin')
+
+        # now simulate a late bitbucket
+        def _create_pull_requests2(*args, **kwargs):
+            global local_child_prs
+            return local_child_prs
+
+        wall_e.WallE._create_pull_requests = _create_pull_requests2
+
+        # Run Wall-E
+        with self.assertRaises(BuildNotStarted):
+            self.handle(pr['id'],
+                        options=self.bypass_all_but(['bypass_build_status']),
+                        backtrace=True)
+
+        wall_e.WallE._create_pull_requests = real
+
+    def test_pr_skew_with_new_external_commit(self):
+        if not TestWallE.args.disable_mock:
+            self.skipTest('Not supported with mock bitbucket.'
+                          ' Fix __getitem__("hash") if required')
+
+        pr = self.create_pr('bugfix/RING-00081', 'development/6.0')
+        # Create integration branch and child pr
+        with self.assertRaises(BuildNotStarted):
+            self.handle(pr['id'],
+                        options=self.bypass_all_but(['bypass_build_status']),
+                        backtrace=True)
+
+        # Set build status on child pr
+        self.set_build_status_on_pr_id(pr['id']+1, 'SUCCESSFUL')
+
+        # create hook
+        real = wall_e.WallE._create_pull_requests
+
+        def _create_pull_requests(*args, **kwargs):
+            # simulate the update of the integration PR (by addition
+            # of a commit) by another process, (typically a user),
+            # in between the start of Wall-E and his decision to merge
+            self.gitrepo.cmd('git fetch')
+            self.gitrepo.cmd('git checkout w/6.0/bugfix/RING-00081')
+            self.gitrepo.cmd('touch abc')
+            self.gitrepo.cmd('git add abc')
+            self.gitrepo.cmd('git commit -m "add new file"')
+            self.gitrepo.cmd('git push origin')
+            sha1 = self.gitrepo.cmd('git rev-parse w/6.0/bugfix/RING-00081')
+
+            child_prs = real(*args, **kwargs)
+            # make 100% sure the PR is up-to-date (since BB lags):
+            child_prs[0]['source']['commit']['hash'] = sha1
+            return child_prs
+
+        wall_e.WallE._create_pull_requests = _create_pull_requests
+
+        # Run Wall-E
+        with self.assertRaises(SkewDetected):
+            self.handle(pr['id'],
+                        options=self.bypass_all_but(['bypass_build_status']),
+                        backtrace=True)
+
+        wall_e.WallE._create_pull_requests = real
 
     def test_build_key_on_main_pr_has_no_effect(self):
         pr = self.create_pr('bugfix/RING-00078', 'development/4.3')

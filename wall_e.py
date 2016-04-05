@@ -49,6 +49,7 @@ from wall_e_exceptions import (AfterPullRequest,
                                NothingToDo,
                                NotMyJob,
                                ParentPullRequestNotFound,
+                               SkewDetected,
                                SubtaskIssueNotSupported,
                                PeerApprovalRequired,
                                StatusReport,
@@ -1056,6 +1057,43 @@ class WallE:
                                                           self.bbrepo)
             for integration_branch in integration_branches]
 
+    def _check_pull_request_skew(self, integration_branches, integration_prs):
+        """Check potential skew between local commit and commit in PR.
+
+        Three cases are possible:
+        - the local commit and the commit we obtained in the PR
+          object are identical; nothing to do
+
+        - the local commit, that has just been pushed by Wall-E,
+          does not reflect yet in the PR object we obtained from
+          bitbucket (the cache mechanism from BB mean the PR is still
+          pointing to a previous commit); the solution is to update
+          the PR object with the latest commit we know of
+
+        - the local commit is outdated, someone else has pushed new
+          commits on the integration branch, and it reflects in the PR
+          object; in this case we abort the process, Wall-E will be
+          called again on the new commits.
+
+        """
+        for branch, pr in zip(integration_branches, integration_prs):
+            branch_sha1 = branch.get_latest_commit()  # short sha1
+            pr_sha1 = pr['source']['commit']['hash']  # full sha1
+            if pr_sha1.startswith(branch_sha1):
+                continue
+
+            if branch.includes_commit(pr_sha1):
+                logging.warning('Skew detected (expected commit: %s, '
+                                'got PR commit: %s).', branch_sha1,
+                                pr_sha1[:12])
+                logging.warning('Updating the integration PR locally.')
+                pr['source']['commit']['hash'] = branch_sha1
+                continue
+
+            raise SkewDetected("A more recent commit has been detected"
+                               "on the remote branch (%s vs %s)" %
+                               (branch_sha1, pr_sha1))
+
     def _check_approvals(self, child_prs):
         """Check approval of a PR by author, tester and peer.
 
@@ -1232,6 +1270,7 @@ class WallE:
             self._update_integration_from_dev(integration_branches)
             self._update_integration_from_feature(integration_branches)
             child_prs = self._create_pull_requests(integration_branches)
+            self._check_pull_request_skew(integration_branches, child_prs)
             self._check_approvals(child_prs)
             self._check_build_status(child_prs)
 

@@ -229,3 +229,7 @@ class BuildInProgress(WallE_SilentException):
 
 class BuildNotStarted(WallE_SilentException):
     pass
+
+
+class SkewDetected(WallE_SilentException):
+    pass
