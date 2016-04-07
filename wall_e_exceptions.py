@@ -150,8 +150,8 @@ class BranchNameInvalid(WallE_InternalException):
 class UnsupportedMultipleStabBranches(WallE_InternalException):
     def __init__(self, branch, other_branch):
         msg = 'Unsupported multiple stabilization branches ' \
-              'have been detected: %r, %r ' % (
-               branch, other_branch)
+              'have been detected: %r, %r ' \
+              % (branch, other_branch)
         super(UnsupportedMultipleStabBranches, self).__init__(msg)
 
 
@@ -212,9 +212,9 @@ class NotASingleDevBranch(WallE_InternalException):
 
 class PullRequestSkewDetected(WallE_InternalException):
     def __init__(self, pr_id, local_sha1, pr_sha1):
-        msg = ("The pull request %d contains a more recent commit "
-               "than I expected (expected %s, got %s)" % (pr_id,
-               local_sha1, pr_sha1))
+        msg = "The pull request %d contains a more recent commit " \
+              "than I expected (expected %s, got %s)" \
+              % (pr_id, local_sha1, pr_sha1)
         super(PullRequestSkewDetected, self).__init__(msg)
 
 
