@@ -204,7 +204,7 @@ class DevBranchDoesNotExist(WallE_InternalException):
 
 
 class NotASingleDevBranch(WallE_InternalException):
-    def __init__(self, branch):
+    def __init__(self):
         msg = ("The git repository appears to be in a bad shape. "
                "There is not a single development to merge to.")
         super(NotASingleDevBranch, self).__init__(msg)
