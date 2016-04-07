@@ -35,7 +35,7 @@ from wall_e_exceptions import (AfterPullRequest,
                                ParentPullRequestNotFound,
                                PeerApprovalRequired,
                                StatusReport,
-                               SkewDetected,
+                               PullRequestSkewDetected,
                                SuccessMessage,
                                TesterApprovalRequired,
                                UnanimityApprovalRequired,
@@ -1264,7 +1264,7 @@ class TestWallE(unittest.TestCase):
             wall_e.WallE._create_pull_requests = _create_pull_requests
 
             # Run Wall-E
-            with self.assertRaises(SkewDetected):
+            with self.assertRaises(PullRequestSkewDetected):
                 self.handle(pr['id'],
                             options=self.bypass_all_but(
                                 ['bypass_build_status']),

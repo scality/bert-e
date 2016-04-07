@@ -49,7 +49,7 @@ from wall_e_exceptions import (AfterPullRequest,
                                NothingToDo,
                                NotMyJob,
                                ParentPullRequestNotFound,
-                               SkewDetected,
+                               PullRequestSkewDetected,
                                SubtaskIssueNotSupported,
                                PeerApprovalRequired,
                                StatusReport,
@@ -1090,9 +1090,7 @@ class WallE:
                 pr['source']['commit']['hash'] = branch_sha1
                 continue
 
-            raise SkewDetected("A more recent commit has been detected"
-                               "on the remote branch (%s vs %s)" %
-                               (branch_sha1, pr_sha1))
+            raise PullRequestSkewDetected(pr['id'], branch_sha1, pr_sha1)
 
     def _check_approvals(self, child_prs):
         """Check approval of a PR by author, tester and peer.

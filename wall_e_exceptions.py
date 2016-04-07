@@ -210,6 +210,14 @@ class NotASingleDevBranch(WallE_InternalException):
         super(NotASingleDevBranch, self).__init__(msg)
 
 
+class PullRequestSkewDetected(WallE_InternalException):
+    def __init__(self, pr_id, local_sha1, pr_sha1):
+        msg = ("The pull request %d contains a more recent commit "
+               "than I expected (expected %s, got %s)" % (pr_id,
+               local_sha1, pr_sha1))
+        super(PullRequestSkewDetected, self).__init__(msg)
+
+
 # silent exceptions
 class CommentAlreadyExists(WallE_SilentException):
     pass
@@ -228,8 +236,4 @@ class BuildInProgress(WallE_SilentException):
 
 
 class BuildNotStarted(WallE_SilentException):
-    pass
-
-
-class SkewDetected(WallE_SilentException):
     pass
