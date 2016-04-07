@@ -563,7 +563,7 @@ class WallE:
             res = re.search('(?P<pr_id>\d+)',
                             self.main_pr['description'])
             if not res:
-                raise ParentPullRequestNotFound('Not found')
+                raise ParentPullRequestNotFound(self.main_pr['id'])
             self.pull_request_id = int(res.group('pr_id'))
             self.main_pr = self.bbrepo.get_pull_request(
                 pull_request_id=self.pull_request_id
