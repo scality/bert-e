@@ -13,6 +13,8 @@ has_pr_list = false
 
 stage name: 'initialisation'
     node('master') {
+        deleteDir() // remove all previous artifacts from workspace
+
         checkout scm
         sh('git rev-parse HEAD > GIT_COMMIT')
         git_commit=readFile('GIT_COMMIT')
