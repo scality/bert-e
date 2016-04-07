@@ -204,10 +204,18 @@ class DevBranchDoesNotExist(WallE_InternalException):
 
 
 class NotASingleDevBranch(WallE_InternalException):
-    def __init__(self, branch):
+    def __init__(self):
         msg = ("The git repository appears to be in a bad shape. "
                "There is not a single development to merge to.")
         super(NotASingleDevBranch, self).__init__(msg)
+
+
+class PullRequestSkewDetected(WallE_InternalException):
+    def __init__(self, pr_id, local_sha1, pr_sha1):
+        msg = ("The pull request %d contains a more recent commit "
+               "than I expected (expected %s, got %s)" % (pr_id,
+               local_sha1, pr_sha1))
+        super(PullRequestSkewDetected, self).__init__(msg)
 
 
 # silent exceptions
@@ -228,8 +236,4 @@ class BuildInProgress(WallE_SilentException):
 
 
 class BuildNotStarted(WallE_SilentException):
-    pass
-
-
-class SkewDetected(WallE_SilentException):
     pass
