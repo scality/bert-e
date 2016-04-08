@@ -575,6 +575,7 @@ class WallE:
         self.destination_branch = None
         self._cascade = BranchCascade()
         self.after_prs = []
+        self.comments = []
 
     def option_is_set(self, name):
         if name not in self.options.keys():
@@ -608,7 +609,7 @@ class WallE:
                                startswith=None,
                                max_history=None):
         # the last comment posted is the first in the list
-        for index, comment in enumerate(self.main_pr.get_comments()):
+        for index, comment in enumerate(self.comments):
             u = comment['user']['username']
             raw = comment['content']['raw']
             # python3
@@ -684,9 +685,9 @@ class WallE:
             raise NotMyJob(self.source_branch.name,
                            self.destination_branch.name)
 
-    def _send_greetings(self, comments):
+    def _send_greetings(self):
         """Display a welcome message if conditions are met."""
-        for comment in comments:
+        for comment in self.comments:
             author = comment['user']['username']
             if isinstance(author, list):
                 # python2 returns a list
@@ -732,9 +733,9 @@ class WallE:
 
         return True
 
-    def _get_options(self, comments, pr_author):
+    def _get_options(self, pr_author):
         """Load settings from pull-request comments."""
-        for comment in comments:
+        for comment in self.comments:
             raw = comment['content']['raw']
             if not raw.strip().startswith('@%s' % WALL_E_USERNAME):
                 continue
@@ -789,9 +790,9 @@ class WallE:
 
         return True
 
-    def _handle_commands(self, comments):
+    def _handle_commands(self):
         """Detect the last command in pull-request comments and act on it."""
-        for comment in comments:
+        for comment in self.comments:
             author = comment['user']['username']
             if isinstance(author, list):
                 # python2 returns a list
@@ -837,11 +838,11 @@ class WallE:
     def _init_phase(self):
         """Send greetings if required, read options and commands."""
         # read comments and store them for multiple usage
-        comments = list(self.main_pr.get_comments())
+        self.comments = list(self.main_pr.get_comments())
 
-        self._send_greetings(comments)
-        self._get_options(comments, self.author)
-        self._handle_commands(comments)
+        self._send_greetings()
+        self._get_options(self.author)
+        self._handle_commands()
 
     def _check_dependencies(self):
         if self.option_is_set('wait'):
