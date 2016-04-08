@@ -3,6 +3,7 @@
 
 import argparse
 from collections import OrderedDict
+import itertools
 import logging
 import re
 import smtplib
@@ -575,6 +576,7 @@ class WallE:
         self.destination_branch = None
         self._cascade = BranchCascade()
         self.after_prs = []
+        # first posted comments first in the list
         self.comments = []
 
     def option_is_set(self, name):
@@ -608,8 +610,11 @@ class WallE:
                                username=None,
                                startswith=None,
                                max_history=None):
-        # the last comment posted is the first in the list
-        for index, comment in enumerate(self.comments):
+        # check last commits
+        comments = reversed(self.comments)
+        if max_history is not None:
+            comments = itertools.islice(comments, 0, max_history)
+        for comment in comments:
             u = comment['user']['username']
             raw = comment['content']['raw']
             # python3
@@ -620,8 +625,6 @@ class WallE:
                 continue
             if startswith and not raw.startswith(startswith):
                 continue
-            if max_history and index > max_history:
-                return
             return comment
 
     def send_bitbucket_msg(self, msg, no_comment=False,
@@ -792,7 +795,7 @@ class WallE:
 
     def _handle_commands(self):
         """Detect the last command in pull-request comments and act on it."""
-        for comment in self.comments:
+        for comment in reversed(self.comments):
             author = comment['user']['username']
             if isinstance(author, list):
                 # python2 returns a list
@@ -839,6 +842,8 @@ class WallE:
         """Send greetings if required, read options and commands."""
         # read comments and store them for multiple usage
         self.comments = list(self.main_pr.get_comments())
+        if self.comments and self.comments[0]['id'] > self.comments[-1]['id']:
+            self.comments.reverse()
 
         self._send_greetings()
         self._get_options(self.author)
