@@ -284,6 +284,10 @@ class Comment(BitBucketObject):
         self.updated_on = "2013-11-19T21:19:24.141013+00:00"
         self.id = len(Comment.items)
 
+    def create(self):
+        self.__class__.items.append(self)
+        return self
+
     @staticmethod
     def get_list(client, full_name, pull_request_id):
         return [c for c in Comment.items if c.full_name == full_name and
