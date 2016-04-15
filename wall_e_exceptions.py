@@ -33,6 +33,10 @@ class WallE_InformationException(WallE_TemplateException):
     pass
 
 
+class WallE_DryRun(Exception):
+    pass
+
+
 # template exceptions
 class InitMessage(WallE_InformationException):
     code = 100
@@ -229,12 +233,6 @@ class PullRequestSkewDetected(WallE_InternalException):
         super(PullRequestSkewDetected, self).__init__(msg)
 
 
-class DryRunSecurity(WallE_InternalException):
-    def __init__(self, info):
-        msg = "dry-run security: should not be here! (%s)" % info
-        super(DryRunSecurity, self).__init__(msg)
-
-
 # silent exceptions
 class CommentAlreadyExists(WallE_SilentException):
     pass
@@ -258,3 +256,18 @@ class BuildInProgress(WallE_SilentException):
 
 class BuildNotStarted(WallE_SilentException):
     pass
+
+
+# dry run exceptions
+class ReadyForMerge(WallE_DryRun):
+    def __init__(self):
+        msg = "This pull request is ready for merge"
+        super(ReadyForMerge, self).__init__(msg)
+
+
+class IntegrationPRNotCreated(WallE_DryRun):
+    def __init__(self):
+        msg = "The integration pull requests have not been created"
+        super(IntegrationPRNotCreated, self).__init__(msg)
+
+

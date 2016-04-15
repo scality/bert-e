@@ -34,13 +34,13 @@ from wall_e_exceptions import (AfterPullRequest,
                                DevBranchDoesNotExist,
                                DevBranchesNotSelfContained,
                                DeprecatedStabilizationBranch,
-                               DryRunSecurity,
                                HelpMessage,
                                IncompatibleSourceBranchPrefix,
                                IncorrectFixVersion,
                                IncorrectJiraProject,
                                InitMessage,
                                IntegrationPullRequestsCreated,
+                               IntegrationPRNotCreated,
                                JiraIssueNotFound,
                                JiraUnknownIssueType,
                                MismatchPrefixIssueType,
@@ -53,6 +53,7 @@ from wall_e_exceptions import (AfterPullRequest,
                                PullRequestSkewDetected,
                                SubtaskIssueNotSupported,
                                PeerApprovalRequired,
+                               ReadyForMerge,
                                StatusReport,
                                SuccessMessage,
                                TesterApprovalRequired,
@@ -61,6 +62,7 @@ from wall_e_exceptions import (AfterPullRequest,
                                UnrecognizedBranchPattern,
                                UnsupportedMultipleStabBranches,
                                VersionMismatch,
+                               WallE_DryRun,
                                WallE_SilentException,
                                WallE_TemplateException,
                                WaitOptionIsSet)
@@ -340,7 +342,7 @@ class IntegrationBranch(WallEBranch):
         created = False
         if not pr:
             if dry_run:
-                raise DryRunSecurity("integratin pull request not found")
+                raise IntegrationPRNotCreated()
             description = render('pull_request_description.md',
                                  wall_e=WALL_E_USERNAME,
                                  pr=parent_pr,
@@ -1331,7 +1333,7 @@ class WallE:
             self._check_build_status(child_prs)
 
             if self.dry_run:
-                DryRunSecurity('ready to be merged')
+                raise ReadyForMerge()
 
             if interactive and not confirm('Do you want to merge ?'):
                 return
@@ -1533,7 +1535,7 @@ def main():
             print('%d - %s' % (excp.code, excp.__class__.__name__))
         return excp.code
 
-    except WallE_SilentException as excp:
+    except (WallE_SilentException, WallE_DryRun) as excp:
         if args.backtrace:
             raise excp
 
