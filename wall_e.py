@@ -1511,6 +1511,8 @@ def main():
                    options, commands, SETTINGS[args.settings],
                    args.dry_run)
 
+
+    is_repeat = "new"
     try:
         wall_e.handle_pull_request(
             reference_git_repo=args.reference_git_repo,
@@ -1526,13 +1528,15 @@ def main():
                                       no_comment=args.no_comment,
                                       interactive=args.interactive)
         except CommentAlreadyExists:
-            logging.info('Comment already posted.')
+            is_repeat = "repeat"
 
         if args.backtrace:
             raise excp
 
         if not args.quiet:
-            print('%d - %s' % (excp.code, excp.__class__.__name__))
+            print('%d - %s (%s)' % (excp.code,
+                                    excp.__class__.__name__,
+                                    is_repeat))
         return excp.code
 
     except (WallE_SilentException, WallE_DryRun) as excp:
@@ -1540,9 +1544,10 @@ def main():
             raise excp
 
         if not args.quiet:
-            print('%d - %s' % (0, excp.__class__.__name__))
+            print('%d - %s (%s)' % (0,
+                                    excp.__class__.__name__,
+                                    is_repeat))
         return 0
-
 
 if __name__ == '__main__':
     main()
