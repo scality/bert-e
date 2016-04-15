@@ -142,7 +142,6 @@ class Branch(object):
         except subprocess.CalledProcessError:
             msg = "branch:%s source:%s" % (self.name, source_branch.name)
             raise BranchCreationFailedException(msg)
-        self.push()
 
     def remove(self):
         # hardcode a security since wall-e is all-powerful

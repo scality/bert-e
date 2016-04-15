@@ -34,6 +34,7 @@ from wall_e_exceptions import (AfterPullRequest,
                                DevBranchDoesNotExist,
                                DevBranchesNotSelfContained,
                                DeprecatedStabilizationBranch,
+                               DryRunSecurity,
                                HelpMessage,
                                IncompatibleSourceBranchPrefix,
                                IncorrectFixVersion,
@@ -61,8 +62,8 @@ from wall_e_exceptions import (AfterPullRequest,
                                UnsupportedMultipleStabBranches,
                                VersionMismatch,
                                WallE_SilentException,
-                               WallE_TemplateException)
-from utils import RetryHandler
+                               WallE_TemplateException,
+                               WaitOptionIsSet)
 
 if six.PY3:
     raw_input = input
@@ -257,8 +258,8 @@ class UserBranch(WallEBranch):
 
 
 class ReleaseBranch(WallEBranch):
-    pattern = ('^release/'
-               '(?P<version>(?P<major>\d+)\.(?P<minor>\d+))$')
+    pattern = '^release/' \
+              '(?P<version>(?P<major>\d+)\.(?P<minor>\d+))$'
 
 
 class FeatureBranch(WallEBranch):
@@ -301,13 +302,12 @@ class IntegrationBranch(WallEBranch):
     destination_branch = ''
     source_branch = ''
 
-    def merge_from_branch(self, source_branch):
-        #self.merge(source_branch, do_push=True)
-        pass
+    def merge_from_branch(self, source_branch, dry_run):
+        self.merge(source_branch, do_push=(not dry_run))
 
     def update_to_development_branch(self):
         self.destination_branch.merge(self, force_commit=False)
-        #self.destination_branch.push()
+        self.destination_branch.push()
 
     def _get_pull_request_from_list(self, open_prs):
         pr = None
@@ -322,14 +322,13 @@ class IntegrationBranch(WallEBranch):
         return pr
 
     def get_or_create_pull_request(self, parent_pr, open_prs, bitbucket_repo,
-                                   first=False):
+                                   first=False, dry_run):
         title = bitbucket_api.fix_pull_request_title(
             'INTEGRATION [PR#%s > %s] %s' % (
                 parent_pr['id'],
                 self.destination_branch.name,
                 parent_pr['title']
             )
-        )
 
         # WARNING potential infinite loop:
         # creating a child pr will trigger a 'pr update' webhook
@@ -340,6 +339,8 @@ class IntegrationBranch(WallEBranch):
         # need a boolean to know if the PR is created or no
         created = False
         if not pr:
+            if dry_run:
+                raise DryRunSecurity("integratin pull request not found")
             description = render('pull_request_description.md',
                                  wall_e=WALL_E_USERNAME,
                                  pr=parent_pr,
@@ -540,7 +541,8 @@ class BranchCascade(object):
 
 class WallE:
     def __init__(self, bitbucket_login, bitbucket_password, bitbucket_mail,
-                 owner, slug, pull_request_id, options, commands, settings):
+                 owner, slug, pull_request_id, options, commands, settings,
+                 dry_run):
         self._bbconn = bitbucket_api.Client(
             bitbucket_login, bitbucket_password, bitbucket_mail)
         self.bbrepo = bitbucket_api.Repository(
@@ -569,6 +571,7 @@ class WallE:
         self.after_prs = []
         # first posted comments first in the list
         self.comments = []
+        self.dry_run = dry_run
 
     def option_is_set(self, name):
         if name not in self.options.keys():
@@ -647,7 +650,10 @@ class WallE:
                 return
 
         logging.debug('SENDING MSG %s', msg)
-        raise Exception('security')
+
+        if self.dry_run:
+            return
+
         self.main_pr.add_comment(msg)
 
     def _check_pr_state(self):
@@ -861,13 +867,13 @@ class WallE:
         if self.comments and self.comments[0]['id'] > self.comments[-1]['id']:
             self.comments.reverse()
 
-        #self._send_greetings()
+        self._send_greetings()
         self._get_options(self.author)
         self._handle_commands()
 
     def _check_dependencies(self):
         if self.option_is_set('wait'):
-            raise NothingToDo('wait option is set')
+            raise WaitOptionIsSet()
 
         if not self.after_prs:
             return
@@ -1031,6 +1037,8 @@ class WallE:
             if not integration_branch.exists():
                 integration_branch.create(
                     integration_branch.destination_branch)
+                if not self.dry_run:
+                    integration_branch.push()
         return integration_branches
 
     def _check_history_did_not_change(self, integration_branch):
@@ -1050,7 +1058,7 @@ class WallE:
             # Retry for up to 60 seconds when connectivity is lost
             with RetryHandler(60, logging) as retry:
                 retry.run(
-                    destination.merge_from_branch, source,
+                    destination.merge_from_branch, source, self.dry_run,
                     catch=PushFailedException,
                     fail_msg="Couldn't push merge (%s -> %s)" % (
                         source, destination
@@ -1088,7 +1096,7 @@ class WallE:
             integration_branch.get_or_create_pull_request(self.main_pr,
                                                           open_prs,
                                                           self.bbrepo,
-                                                          idx == 0)
+                                                          idx == 0, self.dry_run)
             for idx, integration_branch in enumerate(integration_branches)
         ))
         if any(created):
@@ -1096,7 +1104,7 @@ class WallE:
                         pr=self.main_pr,
                         child_prs=prs,
                         ignored=self._cascade.ignored_branches,
-                        active_options=self._get_active_options()
+                        active_options=self._get_active_options(),
                     )
         return prs
 
@@ -1322,6 +1330,9 @@ class WallE:
             self._check_approvals(child_prs)
             self._check_build_status(child_prs)
 
+            if self.dry_run:
+                DryRunSecurity('ready to be merged')
+
             if interactive and not confirm('Do you want to merge ?'):
                 return
 
@@ -1376,6 +1387,9 @@ def setup_parser():
     parser.add_argument(
         '--quiet', action='store_true', default=False,
         help="Don't print return codes on the console")
+    parser.add_argument(
+        '--dry-run', action='store_true', default=False,
+        help="Don't modify anything, just output current status")
 
     return parser
 
@@ -1492,7 +1506,8 @@ def main():
 
     wall_e = WallE(WALL_E_USERNAME, args.password, WALL_E_EMAIL,
                    args.owner, args.slug, int(args.pull_request_id),
-                   options, commands, SETTINGS[args.settings])
+                   options, commands, SETTINGS[args.settings],
+                   args.dry_run)
 
     try:
         wall_e.handle_pull_request(

@@ -229,12 +229,22 @@ class PullRequestSkewDetected(WallE_InternalException):
         super(PullRequestSkewDetected, self).__init__(msg)
 
 
+class DryRunSecurity(WallE_InternalException):
+    def __init__(self, info):
+        msg = "dry-run security: should not be here! (%s)" % info
+        super(DryRunSecurity, self).__init__(msg)
+
+
 # silent exceptions
 class CommentAlreadyExists(WallE_SilentException):
     pass
 
 
 class NotMyJob(WallE_SilentException):
+    pass
+
+
+class WaitOptionIsSet(WallE_SilentException):
     pass
 
 

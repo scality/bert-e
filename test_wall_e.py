@@ -46,8 +46,9 @@ from wall_e_exceptions import (AfterPullRequest,
                                UnknownCommand,
                                UnrecognizedBranchPattern,
                                UnsupportedMultipleStabBranches,
+                               VersionMismatch,
+                               WaitOptionIsSet,
                                VersionMismatch)
-from utils import RetryHandler
 
 WALL_E_USERNAME = wall_e.WALL_E_USERNAME
 WALL_E_EMAIL = wall_e.WALL_E_EMAIL
@@ -1036,7 +1037,7 @@ class TestWallE(unittest.TestCase):
 
         # option: wait
         comment = pr.add_comment('@%s wait' % WALL_E_USERNAME)
-        with self.assertRaises(NothingToDo):
+        with self.assertRaises(WaitOptionIsSet):
             self.handle(pr['id'], backtrace=True)
         comment.delete()
 
