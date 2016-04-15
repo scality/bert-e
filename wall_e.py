@@ -40,6 +40,7 @@ from wall_e_exceptions import (AfterPullRequest,
                                IncorrectJiraProject,
                                InitMessage,
                                IntegrationPullRequestsCreated,
+                               IntegrationBranchNotCreated,
                                IntegrationPRNotCreated,
                                JiraIssueNotFound,
                                JiraUnknownIssueType,
@@ -1037,10 +1038,11 @@ class WallE:
             integration_branch.destination_branch = dst_branch
             integration_branches.append(integration_branch)
             if not integration_branch.exists():
+                if self.dry_run:
+                    raise IntegrationBranchNotCreated()
                 integration_branch.create(
                     integration_branch.destination_branch)
-                if not self.dry_run:
-                    integration_branch.push()
+                integration_branch.push()
         return integration_branches
 
     def _check_history_did_not_change(self, integration_branch):
@@ -1487,6 +1489,12 @@ def main():
 
     if args.verbose:
         logging.basicConfig(level=logging.DEBUG)
+    elif args.quiet:
+        logging.basicConfig(level=logging.CRITICAL)
+        # request lib is noisy
+        requests_log = logging.getLogger("requests.packages.urllib3")
+        requests_log.setLevel(logging.CRITICAL)
+        requests_log.propagate = True
     else:
         logging.basicConfig(level=logging.INFO)
         # request lib is noisy
@@ -1537,7 +1545,7 @@ def main():
             print('%d - %s (%s)' % (excp.code,
                                     excp.__class__.__name__,
                                     is_repeat))
-        return excp.code
+        return excp.code, excp.__class__.__name__, is_repeat
 
     except (WallE_SilentException, WallE_DryRun) as excp:
         if args.backtrace:
@@ -1547,7 +1555,7 @@ def main():
             print('%d - %s (%s)' % (0,
                                     excp.__class__.__name__,
                                     is_repeat))
-        return 0
+        return 0, excp.__class__.__name__, is_repeat
 
 if __name__ == '__main__':
     main()

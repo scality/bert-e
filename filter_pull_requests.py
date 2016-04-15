@@ -62,7 +62,9 @@ def filter_pr(your_login, your_password, your_mail, owner, slug, **kwargs):
                     owner,
                     slug,
                     pr['id']))
-        pr_dict[pr['id']] = pr_log
+        pr_dict[pr['id']] = {'author': pr['author']['display_name'],
+                             'source': pr['source']['branch']['name'],
+                             'destination': pr['destination']['branch']['name']}
     return pr_dict
 
 def main():
