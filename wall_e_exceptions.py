@@ -274,6 +274,6 @@ class IntegrationPRNotCreated(WallE_DryRun):
 class IntegrationBranchNotCreated(WallE_DryRun):
     def __init__(self):
         msg = "The integration branches have not been created"
-        super(IntegrationPRNotCreated, self).__init__(msg)
+        super(IntegrationBranchNotCreated, self).__init__(msg)
 
 
