@@ -8,16 +8,22 @@ import logging
 
 
 class Repository(object):
-    def __init__(self, url):
+    def __init__(self, url, dir_=''):
         self._url = url
-        self.tmp_directory = mkdtemp()
-        self.cmd_directory = self.tmp_directory
+        if dir:
+            self.tmp_directory = dir_
+            self.cmd_directory = dir_
+        else:
+            self.tmp_directory = mkdtemp()
+            self.cmd_directory = self.tmp_directory
 
     def __enter__(self):
         return self
 
     def __exit__(self, type_, value, tb):
-        self.delete()
+        self.cmd('git reset --hard HEAD')
+        #self.delete()
+        pass
 
     def delete(self):
         rmtree(self.tmp_directory)

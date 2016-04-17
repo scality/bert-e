@@ -6,7 +6,7 @@ import requests
 
 # This restores the same behavior as before.
 JENKINS_URI = "buildmaster.devsca.com:8081"
-JENKINS_USER = ""
+JENKINS_USER = "developer"
 JENKINS_JOB = ""
 USERNAME = ""
 PASSWD = ""

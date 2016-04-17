@@ -661,13 +661,15 @@ class WallE:
 
     def _check_pr_state(self):
         if self.main_pr['state'] != 'OPEN':  # REJECTED or FULFILLED
+            import ipdb; ipdb.set_trace()
             raise NothingToDo('The pull-request\'s state is "%s"'
                               % self.main_pr['state'])
 
     def _clone_git_repo(self, reference_git_repo):
-        git_repo = GitRepository(self.bbrepo.get_git_url())
-        git_repo.clone(reference_git_repo)
-        git_repo.fetch_all_branches()
+        git_repo = GitRepository(self.bbrepo.get_git_url(), '/tmp/wall_e_stats')
+        git_repo.cmd_directory = '/tmp/wall_e_stats/ring'
+        #git_repo.clone(reference_git_repo)
+        #git_repo.fetch_all_branches()
         git_repo.config('user.email', WALL_E_EMAIL)
         git_repo.config('user.name', WALL_E_USERNAME)
         git_repo.config('merge.renameLimit', '999999')
