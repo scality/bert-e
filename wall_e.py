@@ -661,18 +661,17 @@ class WallE:
 
     def _check_pr_state(self):
         if self.main_pr['state'] != 'OPEN':  # REJECTED or FULFILLED
-            import ipdb; ipdb.set_trace()
             raise NothingToDo('The pull-request\'s state is "%s"'
                               % self.main_pr['state'])
 
     def _clone_git_repo(self, reference_git_repo):
         git_repo = GitRepository(self.bbrepo.get_git_url(), '/tmp/wall_e_stats')
-        git_repo.cmd_directory = '/tmp/wall_e_stats/ring'
+        git_repo.cmd_directory = '/tmp/ring'
         #git_repo.clone(reference_git_repo)
         #git_repo.fetch_all_branches()
-        git_repo.config('user.email', WALL_E_EMAIL)
-        git_repo.config('user.name', WALL_E_USERNAME)
-        git_repo.config('merge.renameLimit', '999999')
+        #git_repo.config('user.email', WALL_E_EMAIL)
+        #git_repo.config('user.name', WALL_E_USERNAME)
+        #git_repo.config('merge.renameLimit', '999999')
         return git_repo
 
     def _setup_source_branch(self, repo, src_branch_name, dst_branch_name):
@@ -1329,8 +1328,12 @@ class WallE:
             integration_branches = self._create_integration_branches(
                 repo, self.source_branch)
 
-            self._update_integration_from_dev(integration_branches)
-            self._update_integration_from_feature(integration_branches)
+            if not self.dry_run:
+                self._update_integration_from_dev(integration_branches)
+                self._update_integration_from_feature(integration_branches)
+            else:
+                # should detect conflicts somehow
+                pass
             child_prs = self._create_pull_requests(integration_branches)
             self._check_pull_request_skew(integration_branches, child_prs)
             self._check_approvals(child_prs)
