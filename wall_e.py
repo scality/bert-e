@@ -89,6 +89,15 @@ SETTINGS = {
         ],
         'admins': [
             WALL_E_USERNAME,  # we need this for test purposes
+            'alexander_garthwaite',
+            'benoit_a',
+            'flavienlebarbe',
+            'jienhua',
+            'jm_saffroy_scality',
+            'nicolast_scality',
+            'quentin_jacquemart',
+            'xavier_roche',
+            # RELENG below
             'anneharper',
             'bertrand_demiddelaer_scality',
             'ludovicmaillard',
