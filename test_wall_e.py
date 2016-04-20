@@ -841,6 +841,69 @@ class TestWallE(unittest.TestCase):
         with self.assertRaises(ParentPullRequestNotFound):
             self.handle(pr['id'], backtrace=True)
 
+    def test_norepeat_strategy(self):
+        old_diff = self.maxDiff
+        self.maxDiff = None
+        pr = self.create_pr('bugfix/RING-01334', 'development/4.3',
+                            file_='toto.txt')
+
+        pr_wall_e = self.bbrepo_wall_e.get_pull_request(
+            pull_request_id=pr['id'])
+
+        # Help message should be displayed every time the user requests it
+        pr.add_comment('@%s help' % WALL_E_USERNAME)
+        help_msg = ''
+        try:
+            self.handle(pr['id'], backtrace=True)
+        except HelpMessage as ret:
+            pr_wall_e.add_comment(ret.msg)
+            help_msg = ret.msg
+
+        last_comment = pr.get_comments()[-1]['content']['raw']
+        self.assertEqual(last_comment, help_msg)
+
+        pr.add_comment("Ok, ok")
+        last_comment = pr.get_comments()[-1]['content']['raw']
+        self.assertFalse(last_comment == help_msg)
+
+        pr.add_comment('@%s help' % WALL_E_USERNAME)
+        self.handle(pr['id'])
+        last_comment = pr.get_comments()[-1]['content']['raw']
+        self.assertEqual(last_comment, help_msg)
+
+        author_msg = ''
+        try:
+            self.handle(pr['id'], options=['bypass_jira_check'],
+                        backtrace=True)
+        except AuthorApprovalRequired as ret:
+            pr_wall_e.add_comment(ret.msg)
+            author_msg = ret.msg
+
+        last_comment = pr.get_comments()[-1]['content']['raw']
+        self.assertEqual(last_comment, author_msg)
+
+        pr.add_comment("OK, I Fixed it")
+        last_comment = pr.get_comments()[-1]['content']['raw']
+        self.assertFalse(last_comment == help_msg)
+
+        # Wall-E should not repeat itself if the error is not fixed
+        self.handle(pr['id'], options=['bypass_jira_check'])
+        last_comment = pr.get_comments()[-1]['content']['raw']
+        self.assertFalse(last_comment == help_msg)
+
+        # Confront Wall-E to a different error
+        self.handle(pr['id'],
+                    options=['bypass_jira_check', 'bypass_author_approval'])
+
+        # Re-produce the AuthorApproval error, Wall-E should re-send the
+        # corresponding comment
+        self.handle(pr['id'], options=['bypass_jira_check'])
+        last_comment = pr.get_comments()[-1]['content']['raw']
+        self.assertEqual(last_comment, author_msg)
+
+        self.maxDiff = old_diff
+
+
     def test_options_and_commands(self):
         pr = self.create_pr('bugfix/RING-00001', 'development/4.3')
 
