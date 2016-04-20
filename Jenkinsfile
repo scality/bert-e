@@ -19,7 +19,7 @@ stage name: 'initialisation'
             $class: 'GitSCM',
             branches: scm.branches,
             doGenerateSubmoduleConfigurations: scm.doGenerateSubmoduleConfigurations,
-            extensions: scm.extensions + [[$class: 'CloneOption', noTags: false, reference: '/srv/wall-e.reference', shallow: true]],
+            extensions: scm.extensions + [[$class: 'CloneOption', noTags: false, reference: '/srv/git/wall-e.reference', shallow: true]],
             submoduleCfg: [],
             userRemoteConfigs: scm.userRemoteConfigs
         ])
