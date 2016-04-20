@@ -103,6 +103,7 @@ SETTINGS = {
             'ludovicmaillard',
             'mcolzi',
             'mvaude',
+            'nohar',
             'pierre_louis_bonicoli',
             'rayene_benrayana',
             'sylvain_killian'
@@ -621,7 +622,7 @@ class WallE:
                                max_history=None):
         # check last commits
         comments = reversed(self.comments)
-        if max_history is not None:
+        if max_history not in (None, -1):
             comments = itertools.islice(comments, 0, max_history)
         for comment in comments:
             u = comment['user']['username']
@@ -633,6 +634,8 @@ class WallE:
             if isinstance(username, list) and u not in username:
                 continue
             if startswith and not raw.startswith(startswith):
+                if max_history == -1:
+                    return
                 continue
             return comment
 

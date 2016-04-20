@@ -9,13 +9,13 @@ class WallE_TemplateException(Exception):
     code = 0
     template = None
     # whether to re-publish if the message is already in the history
-    dont_repeat_if_in_history = 10
+    dont_repeat_if_in_history = -1
 
     def __init__(self, **kwargs):
         assert 'active_options' in kwargs
         assert self.code != 0
         assert self.template
-        assert self.dont_repeat_if_in_history >= 0
+        assert self.dont_repeat_if_in_history >= -1
         self.msg = render(self.template, code=self.code, **kwargs)
         super(WallE_TemplateException, self).__init__(self.msg)
 
