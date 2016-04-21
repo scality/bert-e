@@ -14,7 +14,7 @@ reload(sys)
 sys.setdefaultencoding('utf-8')
 
 p = filter_pr(USERNAME, PASSWD, EMAIL, TEAM,
-              'ring', destination='development/*', source='', author='^((?!Wall).)*$',
+              'ring', destination='', source='', author='^((?!Wall).)*$',
               close_source_branch='', state='OPEN', title='', created_on='',
               updated_on='')
 
