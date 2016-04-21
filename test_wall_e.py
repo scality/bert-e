@@ -866,16 +866,19 @@ class TestWallE(unittest.TestCase):
             help_msg = md5(ret.msg).digest()
 
         last_comment = get_last_cmt(pr)
-        self.assertEqual(last_comment, help_msg)
+        self.assertEqual(last_comment, help_msg,
+                         "Wall-e didn't post the first help message.")
 
         pr.add_comment("Ok, ok")
         last_comment = get_last_cmt(pr)
-        self.assertFalse(last_comment == help_msg)
+        self.assertNotEqual(last_comment, help_msg,
+                            "Eva's message wasn't recorded.")
 
         pr.add_comment('@%s help' % WALL_E_USERNAME)
         self.handle(pr['id'])
         last_comment = get_last_cmt(pr)
-        self.assertEqual(last_comment, help_msg)
+        self.assertEqual(last_comment, help_msg,
+                         "Wall-E didn't post a second help message.")
 
         # Let's have Wall-E yield an actual AuthorApproval error message
         author_msg = ''
@@ -886,16 +889,20 @@ class TestWallE(unittest.TestCase):
             author_msg = md5(ret.msg).digest()
 
         last_comment = get_last_cmt(pr)
-        self.assertEqual(last_comment, author_msg)
+        self.assertEqual(last_comment, author_msg,
+                         "Wall-E didn't post his first error message.")
 
         pr.add_comment("OK, I Fixed it")
         last_comment = get_last_cmt(pr)
-        self.assertFalse(last_comment == author_msg)
+        self.assertNotEqual(last_comment, author_msg,
+                            "Eva's message wasn't recorded.")
 
         # Wall-E should not repeat itself if the error is not fixed
         self.handle(pr['id'], options=['bypass_jira_check'])
         last_comment = get_last_cmt(pr)
-        self.assertFalse(last_comment == author_msg)
+        self.assertNotEqual(last_comment, author_msg,
+                            "Wall-E repeated an error message when he "
+                            "shouldn't have.")
 
         # Confront Wall-E to a different error (PeerApproval)
         self.handle(pr['id'],
@@ -905,7 +912,9 @@ class TestWallE(unittest.TestCase):
         # AuthorApproval message
         self.handle(pr['id'], options=['bypass_jira_check'])
         last_comment = get_last_cmt(pr)
-        self.assertEqual(last_comment, author_msg)
+        self.assertEqual(last_comment, author_msg,
+                         "Wall-E didn't respond to second occurrence of the "
+                         "error.")
 
     def test_options_and_commands(self):
         pr = self.create_pr('bugfix/RING-00001', 'development/4.3')
