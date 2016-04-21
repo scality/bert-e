@@ -17,7 +17,7 @@ Here are the steps to resolve this conflict:
  $ git checkout {{ destination.name }}
  $ git merge origin/{{ source.name }}
  $ # <intense conflict resolution>
- $ git push
+ $ git push origin HEAD:{{ destination.name }}
 ```
 
 After the push, please comment here to resume the procedure.

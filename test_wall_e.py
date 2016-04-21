@@ -697,6 +697,9 @@ class TestWallE(unittest.TestCase):
             self.assertIn(
                 "git merge origin/improvement/RING-0006",
                 e.msg)
+            self.assertIn(
+                "git push origin HEAD:w/4.3/improvement/RING-0006",
+                e.msg)
         else:
             self.fail("No conflict detected.")
 
