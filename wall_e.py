@@ -665,7 +665,7 @@ class WallE:
                               % self.main_pr['state'])
 
     def _clone_git_repo(self, reference_git_repo):
-        git_repo = GitRepository(self.bbrepo.get_git_url(), '/tmp/wall_e_stats')
+        git_repo = GitRepository(self.bbrepo.get_git_url(), '/tmp/ring')
         git_repo.cmd_directory = '/tmp/ring'
         #git_repo.clone(reference_git_repo)
         #git_repo.fetch_all_branches()
