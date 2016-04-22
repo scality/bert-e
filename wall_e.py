@@ -42,6 +42,7 @@ from wall_e_exceptions import (AfterPullRequest,
                                IncorrectFixVersion,
                                IncorrectJiraProject,
                                InitMessage,
+                               IntegrationPullRequestsCreated,
                                JiraIssueNotFound,
                                JiraUnknownIssueType,
                                MismatchPrefixIssueType,
@@ -70,7 +71,6 @@ if six.PY3:
 
 WALL_E_USERNAME = 'scality_wall-e'
 WALL_E_EMAIL = 'wall_e@scality.com'
-
 JENKINS_USERNAME = 'scality_jenkins'
 
 SETTINGS = {
@@ -361,6 +361,8 @@ class IntegrationBranch(WallEBranch):
         # re-enter here and recreate the children pr.
         # solution: do not create the pr if it already exists
         pr = self._get_pull_request_from_list(open_prs)
+        # need a boolean to know if the PR is created or no
+        created = False
         if not pr:
             description = render('pull_request_description.md',
                                  wall_e=WALL_E_USERNAME,
@@ -373,7 +375,8 @@ class IntegrationBranch(WallEBranch):
                 close_source_branch=True,
                 reviewers=[{'username': parent_pr['author']['username']}],
                 description=description)
-        return pr
+            created = True
+        return pr, created
 
 
 def branch_factory(repo, branch_name):
@@ -1067,11 +1070,19 @@ class WallE:
     def _create_pull_requests(self, integration_branches):
         # read open PRs and store them for multiple usage
         open_prs = list(self.bbrepo.get_pull_requests())
-        return [
+        prs, created = zip(*(
             integration_branch.get_or_create_pull_request(self.main_pr,
                                                           open_prs,
                                                           self.bbrepo)
-            for integration_branch in integration_branches]
+            for integration_branch in integration_branches))
+        if any(created):
+            raise IntegrationPullRequestsCreated(
+                        pr=self.main_pr,
+                        child_prs=prs,
+                        ignored=self._cascade.ignored_branches,
+                        active_options=self._get_active_options()
+                    )
+        return prs
 
     def _check_pull_request_skew(self, integration_branches, integration_prs):
         """Check potential skew between local commit and commit in PR.
@@ -1159,48 +1170,40 @@ class WallE:
         if not approved_by_author:
             raise AuthorApprovalRequired(
                 pr=self.main_pr,
-                child_prs=child_prs,
                 author_approval=approved_by_author,
                 peer_approval=approved_by_peer,
                 tester_approval=approved_by_tester,
                 requires_unanimity=requires_unanimity,
-                ignored=self._cascade.ignored_branches,
                 active_options=self._get_active_options()
             )
 
         if not approved_by_peer:
             raise PeerApprovalRequired(
                 pr=self.main_pr,
-                child_prs=child_prs,
                 author_approval=approved_by_author,
                 peer_approval=approved_by_peer,
                 tester_approval=approved_by_tester,
                 requires_unanimity=requires_unanimity,
-                ignored=self._cascade.ignored_branches,
                 active_options=self._get_active_options()
             )
 
         if not approved_by_tester:
             raise TesterApprovalRequired(
                 pr=self.main_pr,
-                child_prs=child_prs,
                 author_approval=approved_by_author,
                 peer_approval=approved_by_peer,
                 tester_approval=approved_by_tester,
                 requires_unanimity=requires_unanimity,
-                ignored=self._cascade.ignored_branches,
                 active_options=self._get_active_options()
             )
 
         if (requires_unanimity and not is_unanimous):
             raise UnanimityApprovalRequired(
                 pr=self.main_pr,
-                child_prs=child_prs,
                 author_approval=approved_by_author,
                 peer_approval=approved_by_peer,
                 tester_approval=approved_by_tester,
                 requires_unanimity=requires_unanimity,
-                ignored=self._cascade.ignored_branches,
                 active_options=self._get_active_options()
             )
 
