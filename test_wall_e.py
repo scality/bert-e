@@ -676,9 +676,11 @@ class TestWallE(unittest.TestCase):
                 self.handle(pr['id'], backtrace=True)
 
     def test_conflict(self):
-        pr1 = self.create_pr('bugfix/RING-0006', 'development/4.3',
+        pr1 = self.create_pr('bugfix/RING-0006', 'development/5.1',
                              file_='toto.txt')
-        pr2 = self.create_pr('improvement/RING-0006', 'development/4.3',
+        pr2 = self.create_pr('improvement/RING-0006', 'development/5.1',
+                             file_='toto.txt')
+        pr3 = self.create_pr('improvement/RING-0006-other', 'development/4.3',
                              file_='toto.txt')
         retcode = self.handle(pr1['id'], options=self.bypass_all)
         self.assertEqual(retcode, SuccessMessage.code)
@@ -689,16 +691,35 @@ class TestWallE(unittest.TestCase):
         except Conflict as e:
             self.assertIn(
                 "`improvement/RING-0006`\ninto integration branch "
-                "`w/4.3/improvement/RING-0006`",
+                "`w/5.1/improvement/RING-0006`",
+                e.msg)
+            # Wall-E shouldn't instruct the user to modify the integration
+            # branch with the same target as the original PR
+            self.assertNotIn(
+                "git checkout w/5.1/improvement/RING-0006",
+                e.msg)
+        else:
+            self.fail("No conflict detected.")
+
+        try:
+            self.handle(pr3['id'],
+                        options=self.bypass_all,
+                        backtrace=True)
+        except Conflict as e:
+            self.assertIn(
+                "`w/4.3/improvement/RING-0006-other`\ninto integration branch "
+                "`w/5.1/improvement/RING-0006-other`",
+                e.msg)
+            # Wall-E MUST instruct the user to modify the integration
+            # branch with the same target as the original PR
+            self.assertIn(
+                "git checkout w/5.1/improvement/RING-0006",
                 e.msg)
             self.assertIn(
-                "git checkout w/4.3/improvement/RING-0006",
+                "git merge origin/w/4.3/improvement/RING-0006",
                 e.msg)
             self.assertIn(
-                "git merge origin/improvement/RING-0006",
-                e.msg)
-            self.assertIn(
-                "git push origin HEAD:w/4.3/improvement/RING-0006",
+                "git push origin HEAD:w/5.1/improvement/RING-0006",
                 e.msg)
         else:
             self.fail("No conflict detected.")
@@ -847,8 +868,7 @@ class TestWallE(unittest.TestCase):
 
     def test_norepeat_strategy(self):
         def get_last_cmt(pr):
-            """
-            Helper function used to get the last comment of a pr.
+            """Helper function to get the last comment of a pr.
 
             returns the md5 digest of the last comment for easier comparison.
 

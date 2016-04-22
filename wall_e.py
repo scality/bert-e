@@ -1041,26 +1041,31 @@ class WallE:
                     development_branch=development_branch,
                     active_options=self._get_active_options())
 
-    def _update(self, source, destination):
+    def _update(self, source, destination, origin=False):
         try:
             destination.merge_from_branch(source)
         except MergeFailedException:
             raise Conflict(source=source,
                            destination=destination,
-                           active_options=self._get_active_options())
+                           active_options=self._get_active_options(),
+                           origin=origin)
 
     def _update_integration_from_dev(self, integration_branches):
         # The first integration branch should not contain commits
         # that are not in development/* or in the feature branch.
-        self._check_history_did_not_change(integration_branches[0])
-        for integration_branch in integration_branches:
+        first, children = integration_branches[0], integration_branches[1:]
+        self._check_history_did_not_change(first)
+        self._update(first.destination_branch, first, True)
+        for integration_branch in children:
             self._update(
                 integration_branch.destination_branch,
                 integration_branch)
 
     def _update_integration_from_feature(self, integration_branches):
-        branch_to_merge_from = self.source_branch
-        for integration_branch in integration_branches:
+        first, children = integration_branches[0], integration_branches[1:]
+        self._update(self.source_branch, first, True)
+        branch_to_merge_from = first
+        for integration_branch in children:
             self._update(branch_to_merge_from, integration_branch)
             branch_to_merge_from = integration_branch
 
