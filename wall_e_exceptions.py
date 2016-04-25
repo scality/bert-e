@@ -28,8 +28,13 @@ class WallE_SilentException(Exception):
     pass
 
 
+# template for informative exceptions
+class WallE_InformationException(WallE_TemplateException):
+    pass
+
+
 # template exceptions
-class InitMessage(WallE_TemplateException):
+class InitMessage(WallE_InformationException):
     code = 100
     template = 'init.md'
 
@@ -130,6 +135,11 @@ class UnanimityApprovalRequired(WallE_TemplateException):
 class AfterPullRequest(WallE_TemplateException):
     code = 120
     template = 'after_pull_request.md'
+
+
+class IntegrationPullRequestsCreated(WallE_InformationException):
+    code = 121
+    template = 'integration_pull_requests.md'
 
 
 # internal exceptions
