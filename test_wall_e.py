@@ -669,10 +669,14 @@ class TestWallE(unittest.TestCase):
         self.assertEqual(retcode, SuccessMessage.code)
 
     def test_not_my_job_cases(self):
+        feature_branch = 'feature/RING-00002'
+        from_branch = 'development/6.0'
+        create_branch(self.gitrepo, feature_branch, from_branch=from_branch,
+                      file_=True)
         pr = self.bbrepo_eva.create_pull_request(
             title='title',
             name='name',
-            source={'branch': {'name': 'feature/RING-00002'}},
+            source={'branch': {'name': feature_branch}},
             destination={'branch': {'name': 'release/6.0'}},
             close_source_branch=True,
             description=''
@@ -680,6 +684,8 @@ class TestWallE(unittest.TestCase):
         with self.assertRaises(NotMyJob):
             self.handle(pr['id'], backtrace=True)
 
+        create_branch(self.gitrepo, 'feature/RING-00001',
+                      from_branch='development/4.3', file_=True)
         for destination in ['feature/RING-12345',
                             'improvement/RING-12345',
                             'project/RING-12345',
