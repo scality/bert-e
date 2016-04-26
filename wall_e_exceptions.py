@@ -28,8 +28,13 @@ class WallE_SilentException(Exception):
     pass
 
 
+# template for informative exceptions
+class WallE_InformationException(WallE_TemplateException):
+    pass
+
+
 # template exceptions
-class InitMessage(WallE_TemplateException):
+class InitMessage(WallE_InformationException):
     code = 100
     template = 'init.md'
 
@@ -132,13 +137,18 @@ class AfterPullRequest(WallE_TemplateException):
     template = 'after_pull_request.md'
 
 
-class UnknownCommand(WallE_TemplateException):
+class IntegrationPullRequestsCreated(WallE_InformationException):
     code = 121
+    template = 'integration_pull_requests.md'
+
+
+class UnknownCommand(WallE_TemplateException):
+    code = 122
     template = 'unknown_command.md'
 
 
 class NotEnoughCredentials(WallE_TemplateException):
-    code = 122
+    code = 123
     template = "not_enough_credentials.md"
 
 
