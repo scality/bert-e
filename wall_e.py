@@ -884,6 +884,9 @@ class WallE:
                 declined_prs=declined_prs,
                 active_options=self._get_active_options())
 
+        # deactivate "after_pull_request" option to avoid confusing the user.
+        self.options['after_pull_request'].value = []
+
     def _build_branch_cascade(self, git_repo):
         for prefix in ['development', 'stabilization']:
             cmd = 'git branch -r --list origin/%s/*' % prefix
