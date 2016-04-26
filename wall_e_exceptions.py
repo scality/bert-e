@@ -132,6 +132,16 @@ class AfterPullRequest(WallE_TemplateException):
     template = 'after_pull_request.md'
 
 
+class UnknownCommand(WallE_TemplateException):
+    code = 121
+    template = 'unknown_command.md'
+
+
+class NotEnoughCredentials(WallE_TemplateException):
+    code = 122
+    template = "not_enough_credentials.md"
+
+
 # internal exceptions
 class UnableToSendEmail(WallE_InternalException):
     pass

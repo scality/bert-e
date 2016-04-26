@@ -48,6 +48,7 @@ from wall_e_exceptions import (AfterPullRequest,
                                MissingJiraId,
                                NotASingleDevBranch,
                                NothingToDo,
+                               NotEnoughCredentials,
                                NotMyJob,
                                ParentPullRequestNotFound,
                                PullRequestSkewDetected,
@@ -57,8 +58,9 @@ from wall_e_exceptions import (AfterPullRequest,
                                SuccessMessage,
                                TesterApprovalRequired,
                                UnableToSendEmail,
-                               UnrecognizedBranchPattern,
                                UnanimityApprovalRequired,
+                               UnknownCommand,
+                               UnrecognizedBranchPattern,
                                UnsupportedMultipleStabBranches,
                                VersionMismatch,
                                WallE_SilentException,
@@ -730,6 +732,12 @@ class WallE:
                 keyword = 'after_pull_request'
 
             if keyword not in self.options.keys():
+                if keyword not in self.commands:
+                    raise UnknownCommand(
+                        active_options=self._get_active_options(),
+                        command=keyword,
+                        author=comment_author
+                    )
                 logging.debug('ignoring keywords in this comment due to '
                               'an unknown keyword `%s`', keyword_list)
                 return False
@@ -737,14 +745,20 @@ class WallE:
             limited_access = self.options[keyword].privileged
             if limited_access:
                 if comment_author == pr_author:
-                    logging.debug('cannot use privileges on own PR')
-                    return False
+                    raise NotEnoughCredentials(
+                        active_options=self._get_active_options(),
+                        command=keyword,
+                        author=comment_author,
+                        self_pr=True
+                    )
 
                 if comment_author not in self.settings['admins']:
-                    logging.debug('ignoring keywords in this comment due to '
-                                  'unsufficient credentials `%s`',
-                                  keyword_list)
-                    return False
+                    raise NotEnoughCredentials(
+                        active_options=self._get_active_options(),
+                        command=keyword,
+                        author=comment_author,
+                        self_pr=False
+                    )
 
         return True
 
