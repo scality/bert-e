@@ -1790,6 +1790,27 @@ class TestWallE(unittest.TestCase):
         retcode = self.handle(blocked_pr['id'], options=self.bypass_all)
         self.assertEqual(retcode, UnanimityApprovalRequired.code)
 
+    def test_bitbucket_lag_on_pr_status(self):
+        if not TestWallE.args.disable_mock:
+            self.skipTest('Not supported with mock bitbucket.')
+
+        try:
+            real = wall_e.WallE._check_pr_state
+
+            pr = self.create_pr('bugfix/RING-00081', 'development/6.0')
+            # Skip IntegrationBranchesCreated
+            self.handle(pr['id'], self.bypass_all)
+            retcode = self.handle(pr['id'], self.bypass_all)
+            self.assertEqual(retcode, SuccessMessage.code)
+
+            wall_e.WallE._check_pr_state = lambda *args, **kwargs: None
+
+            with self.assertRaises(NothingToDo):
+                self.handle(pr['id'], self.bypass_all, backtrace=True)
+
+        finally:
+            self.bbrepo_wall_e.get_pull_request = real
+
 
 def main():
     parser = argparse.ArgumentParser(description='Launches Wall-E tests.')
