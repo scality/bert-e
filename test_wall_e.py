@@ -30,6 +30,7 @@ from wall_e_exceptions import (AfterPullRequest,
                                HelpMessage,
                                IncompatibleSourceBranchPrefix,
                                InitMessage,
+                               IntegrationPullRequestsCreated,
                                MissingJiraId,
                                NothingToDo,
                                NotMyJob,
@@ -1789,6 +1790,33 @@ class TestWallE(unittest.TestCase):
         self.handle(blocked_pr['id'], options=self.bypass_all)
         retcode = self.handle(blocked_pr['id'], options=self.bypass_all)
         self.assertEqual(retcode, UnanimityApprovalRequired.code)
+
+    def test_bitbucket_400_error(self):
+        if not TestWallE.args.disable_mock:
+            self.skipTest('Not supported with mock bitbucket.'
+                          ' Fix __getitem__("hash") if required')
+
+        create_branch(self.gitrepo, 'bugfix/RING-00001',
+                      from_branch='development/4.3', file_=True)
+        try:
+            pr = self.bbrepo_eva.create_pull_request(
+                title='A' * (bitbucket_api.MAX_PR_TITLE_LEN - 10),
+                name='name',
+                source={'branch': {'name': 'bugfix/RING-00001'}},
+                destination={'branch': {'name': 'development/4.3'}},
+                close_source_branch=True,
+                description=''
+            )
+        except requests.HTTPError:
+            self.fail("Error 400 while setting up the test")
+        retcode = self.handle(pr['id'], options=self.bypass_all)
+        self.assertEqual(retcode, InitMessage.code)
+
+        try:
+            retcode = self.handle(pr['id'], options=self.bypass_all)
+        except requests.HTTPError as err:
+            self.fail("Error from bitbucket: %s" % err.response.text)
+        self.assertEqual(retcode, IntegrationPullRequestsCreated.code)
 
 
 def main():
