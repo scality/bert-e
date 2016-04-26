@@ -142,6 +142,16 @@ class IntegrationPullRequestsCreated(WallE_InformationException):
     template = 'integration_pull_requests.md'
 
 
+class UnknownCommand(WallE_TemplateException):
+    code = 122
+    template = 'unknown_command.md'
+
+
+class NotEnoughCredentials(WallE_TemplateException):
+    code = 123
+    template = "not_enough_credentials.md"
+
+
 # internal exceptions
 class UnableToSendEmail(WallE_InternalException):
     pass

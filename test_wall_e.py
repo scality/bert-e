@@ -29,8 +29,10 @@ from wall_e_exceptions import (AfterPullRequest,
                                DeprecatedStabilizationBranch,
                                HelpMessage,
                                IncompatibleSourceBranchPrefix,
+                               IntegrationPullRequestsCreated,
                                InitMessage,
                                MissingJiraId,
+                               NotEnoughCredentials,
                                NothingToDo,
                                NotMyJob,
                                ParentPullRequestNotFound,
@@ -40,6 +42,7 @@ from wall_e_exceptions import (AfterPullRequest,
                                SuccessMessage,
                                TesterApprovalRequired,
                                UnanimityApprovalRequired,
+                               UnknownCommand,
                                UnrecognizedBranchPattern,
                                UnsupportedMultipleStabBranches,
                                VersionMismatch)
@@ -1037,9 +1040,10 @@ class TestWallE(unittest.TestCase):
         self.assertEqual(retcode, AuthorApprovalRequired.code)
 
         # test unknown command
-        pr.add_comment('@%s helpp' % WALL_E_USERNAME)
+        comment = pr.add_comment('@%s helpp' % WALL_E_USERNAME)
         retcode = self.handle(pr['id'], options=['bypass_jira_check'])
-        self.assertEqual(retcode, AuthorApprovalRequired.code)
+        self.assertEqual(retcode, UnknownCommand.code)
+        comment.delete()
 
         # test command args
         pr.add_comment('@%s help some arguments --hehe' % WALL_E_USERNAME)
@@ -1083,37 +1087,44 @@ class TestWallE(unittest.TestCase):
         # test bypass all approvals through an incorrect bitbucket comment
         pr = self.create_pr('bugfix/RING-00001', 'development/4.3')
         pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id'])
-        pr_admin.add_comment('@%s'
-                             ' bypass_author_aproval'  # a p is missing
-                             ' bypass_peer_approval'
-                             ' bypass_tester_approval'
-                             ' bypass_build_status'
-                             ' bypass_jira_check' % WALL_E_USERNAME)
-        # bypass IntegrationPullRequestsCreated Exception
-        self.handle(pr['id'], options=['bypass_jira_check'])
+        comment = pr_admin.add_comment(
+            '@%s'
+            ' bypass_author_aproval'  # a p is missing
+            ' bypass_peer_approval'
+            ' bypass_tester_approval'
+            ' bypass_build_status'
+            ' bypass_jira_check' % WALL_E_USERNAME
+        )
         retcode = self.handle(pr['id'], options=['bypass_jira_check'])
-        self.assertEqual(retcode, AuthorApprovalRequired.code)
+        self.assertEqual(retcode, UnknownCommand.code)
+        comment.delete()
 
         # test bypass all approvals through unauthorized bitbucket comment
-        pr.add_comment('@%s'  # comment is made by unpriviledged Eva
-                       ' bypass_author_approval'
-                       ' bypass_peer_approval'
-                       ' bypass_tester_approval'
-                       ' bypass_build_status'
-                       ' bypass_jira_check' % WALL_E_USERNAME)
+        comment = pr.add_comment(
+            '@%s'  # comment is made by unpriviledged Eva
+            ' bypass_author_approval'
+            ' bypass_peer_approval'
+            ' bypass_tester_approval'
+            ' bypass_build_status'
+            ' bypass_jira_check' % WALL_E_USERNAME
+        )
         retcode = self.handle(pr['id'], options=['bypass_jira_check'])
-        self.assertEqual(retcode, AuthorApprovalRequired.code)
+        self.assertEqual(retcode, NotEnoughCredentials.code)
+        comment.delete()
 
         # test bypass all approvals through an unknown bitbucket comment
-        pr_admin.add_comment('@%s'
-                             ' bypass_author_approval'
-                             ' bypass_peer_approval'
-                             ' bypass_tester_approval'
-                             ' bypass_build_status'
-                             ' mmm_never_seen_that_before'  # this is unknown
-                             ' bypass_jira_check' % WALL_E_USERNAME)
+        comment = pr_admin.add_comment(
+            '@%s'
+            ' bypass_author_approval'
+            ' bypass_peer_approval'
+            ' bypass_tester_approval'
+            ' bypass_build_status'
+            ' mmm_never_seen_that_before'  # this is unknown
+            ' bypass_jira_check' % WALL_E_USERNAME
+        )
         retcode = self.handle(pr['id'], options=['bypass_jira_check'])
-        self.assertEqual(retcode, AuthorApprovalRequired.code)
+        self.assertEqual(retcode, UnknownCommand.code)
+        comment.delete()
 
         # test approvals through a single bitbucket comment
         pr_admin.add_comment('@%s'
@@ -1122,6 +1133,8 @@ class TestWallE(unittest.TestCase):
                              ' bypass_tester_approval'
                              ' bypass_build_status'
                              ' bypass_jira_check' % WALL_E_USERNAME)
+        retcode = self.handle(pr['id'], options=['bypass_jira_check'])
+        self.assertEqual(retcode, IntegrationPullRequestsCreated.code)
         retcode = self.handle(pr['id'])
         self.assertEqual(retcode, SuccessMessage.code)
 
