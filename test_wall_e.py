@@ -1798,17 +1798,14 @@ class TestWallE(unittest.TestCase):
 
         create_branch(self.gitrepo, 'bugfix/RING-00001',
                       from_branch='development/4.3', file_=True)
-        try:
-            pr = self.bbrepo_eva.create_pull_request(
-                title='A' * (bitbucket_api.MAX_PR_TITLE_LEN - 10),
-                name='name',
-                source={'branch': {'name': 'bugfix/RING-00001'}},
-                destination={'branch': {'name': 'development/4.3'}},
-                close_source_branch=True,
-                description=''
-            )
-        except requests.HTTPError:
-            self.fail("Error 400 while setting up the test")
+        pr = self.bbrepo_eva.create_pull_request(
+            title='A' * (bitbucket_api.MAX_PR_TITLE_LEN - 10),
+            name='name',
+            source={'branch': {'name': 'bugfix/RING-00001'}},
+            destination={'branch': {'name': 'development/4.3'}},
+            close_source_branch=True,
+            description=''
+        )
         retcode = self.handle(pr['id'], options=self.bypass_all)
         self.assertEqual(retcode, InitMessage.code)
 
