@@ -1782,9 +1782,6 @@ class TestWallE(unittest.TestCase):
         # bypass IntegrationPullRequestsCreated Exception
         self.handle(pr_opened['id'], options=self.bypass_all)
 
-        self.assertNotIn("after_pull_request",
-                         list(pr_opened.get_comments())[-1]['content']['raw'])
-
         retcode = self.handle(pr_opened['id'], options=self.bypass_all)
         self.assertEqual(retcode, SuccessMessage.code)
 
