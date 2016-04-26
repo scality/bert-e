@@ -30,7 +30,6 @@ from wall_e_exceptions import (AfterPullRequest,
                                HelpMessage,
                                IncompatibleSourceBranchPrefix,
                                InitMessage,
-                               IntegrationPullRequestsCreated,
                                MissingJiraId,
                                NothingToDo,
                                NotMyJob,
@@ -1791,7 +1790,7 @@ class TestWallE(unittest.TestCase):
         retcode = self.handle(blocked_pr['id'], options=self.bypass_all)
         self.assertEqual(retcode, UnanimityApprovalRequired.code)
 
-    def test_bitbucket_400_error(self):
+    def test_pr_title_too_long(self):
         if not TestWallE.args.disable_mock:
             self.skipTest('Not supported with mock bitbucket.'
                           ' Fix __getitem__("hash") if required')
@@ -1813,7 +1812,6 @@ class TestWallE(unittest.TestCase):
             retcode = self.handle(pr['id'], options=self.bypass_all)
         except requests.HTTPError as err:
             self.fail("Error from bitbucket: %s" % err.response.text)
-        self.assertEqual(retcode, IntegrationPullRequestsCreated.code)
 
 
 def main():
