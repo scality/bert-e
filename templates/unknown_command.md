@@ -5,7 +5,7 @@ Unknown command
 {% endblock %}
 
 {% block message %}
-I didn't understand this comment by {{ author }}:
+I didn't understand this comment by @{{ author }}:
 
 > {{ comment|replace('\n', '\n> ') }}
 
