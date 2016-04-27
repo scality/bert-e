@@ -1444,6 +1444,10 @@ def setup_commands():
             Command(privileged=False,
                     handler='command_not_implemented',
                     help='re-start a fresh build ```TBA```'),
+        'retry':
+            Command(privileged=False,
+                    handler='command_not_implemented',
+                    help='re-start a fresh build ```TBA```'),
         'clear':
             Command(privileged=False,
                     handler='command_not_implemented',
