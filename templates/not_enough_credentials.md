@@ -1,18 +1,19 @@
 {% extends "message.md" %}
 
 {% block title -%}
-Insufficient credentials
+Not authorized.
 {% endblock %}
 
 {% block message %}
-I'm sorry **{{ author }}**. I'm afraid I can't do that.
+I'm afraid I cannot do that, {{ author }}:
+
+> {{ comment }}
 
 {% if self_pr %}
-You cannot use the privileged `{{ command }}` command in your own pull
-request.
+You cannot use `{{ command }}` in your own pull request.
 {% else %}
-You don't have enough credentials to use the `{{ command }}` command.
+You don't have enough credentials to use `{{ command }}`.
 {% endif %}
 
-Please **edit** or **delete** the corresponding comment(s) so I can move on.
+Please **edit** or **delete** the corresponding comment so I can move on.
 {% endblock %}
