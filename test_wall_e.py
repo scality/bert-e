@@ -669,10 +669,14 @@ class TestWallE(unittest.TestCase):
         self.assertEqual(retcode, SuccessMessage.code)
 
     def test_not_my_job_cases(self):
+        feature_branch = 'feature/RING-00002'
+        from_branch = 'development/6.0'
+        create_branch(self.gitrepo, feature_branch, from_branch=from_branch,
+                      file_=True)
         pr = self.bbrepo_eva.create_pull_request(
             title='title',
             name='name',
-            source={'branch': {'name': 'feature/RING-00002'}},
+            source={'branch': {'name': feature_branch}},
             destination={'branch': {'name': 'release/6.0'}},
             close_source_branch=True,
             description=''
@@ -680,6 +684,8 @@ class TestWallE(unittest.TestCase):
         with self.assertRaises(NotMyJob):
             self.handle(pr['id'], backtrace=True)
 
+        create_branch(self.gitrepo, 'feature/RING-00001',
+                      from_branch='development/4.3', file_=True)
         for destination in ['feature/RING-12345',
                             'improvement/RING-12345',
                             'project/RING-12345',
@@ -1783,6 +1789,32 @@ class TestWallE(unittest.TestCase):
         self.handle(blocked_pr['id'], options=self.bypass_all)
         retcode = self.handle(blocked_pr['id'], options=self.bypass_all)
         self.assertEqual(retcode, UnanimityApprovalRequired.code)
+
+    def test_pr_title_too_long(self):
+        if not TestWallE.args.disable_mock:
+            self.skipTest('Not supported with mock bitbucket.'
+                          ' Fix __getitem__("hash") if required')
+
+        create_branch(self.gitrepo, 'bugfix/RING-00001',
+                      from_branch='development/4.3', file_=True)
+        pr = self.bbrepo_eva.create_pull_request(
+            title='A' * (bitbucket_api.MAX_PR_TITLE_LEN - 10),
+            name='name',
+            source={'branch': {'name': 'bugfix/RING-00001'}},
+            destination={'branch': {'name': 'development/4.3'}},
+            close_source_branch=True,
+            description=''
+        )
+        retcode = self.handle(pr['id'], options=self.bypass_all)
+        self.assertEqual(retcode, InitMessage.code)
+
+        try:
+            # skip IntegrationBranchCreated
+            self.handle(pr['id'], options=self.bypass_all)
+            retcode = self.handle(pr['id'], options=self.bypass_all)
+        except requests.HTTPError as err:
+            self.fail("Error from bitbucket: %s" % err.response.text)
+        self.assertEqual(retcode, SuccessMessage.code)
 
 
 def main():
