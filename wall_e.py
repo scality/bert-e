@@ -1279,6 +1279,11 @@ class WallE:
             self._setup_source_branch(repo, src_branch_name, dst_branch_name)
             self._setup_destination_branch(repo, dst_branch_name)
 
+            # Handle the case when bitbucket is lagging and the PR was actually
+            # merged before.
+            if self.destination_branch.includes_commit(self.source_branch):
+                raise NothingToDo()
+
             self._check_if_ignored()
             self._init_phase()
             self._check_dependencies()
