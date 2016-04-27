@@ -1791,6 +1791,13 @@ class TestWallE(unittest.TestCase):
         self.assertEqual(retcode, UnanimityApprovalRequired.code)
 
     def test_bitbucket_lag_on_pr_status(self):
+        """Bitbucket can be a bit long to update PR saying that they are
+        already merged.
+
+        Check that Wall-E handles this case nicely and returns before creating
+        integration PRs.
+
+        """
         if not TestWallE.args.disable_mock:
             self.skipTest('Not supported with mock bitbucket.')
 
