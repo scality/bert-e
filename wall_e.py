@@ -724,7 +724,7 @@ class WallE:
                           status=self.get_status_report(),
                           active_options=self._get_active_options())
 
-    def _check_options(self, comment_author, pr_author, keyword_list):
+    def _check_options(self, comment_author, pr_author, keyword_list, comment):
         logging.debug('checking keywords %s', keyword_list)
 
         for idx, keyword in enumerate(keyword_list):
@@ -744,7 +744,8 @@ class WallE:
 
                 raise UnknownCommand(active_options=self._get_active_options(),
                                      command=keyword,
-                                     author=comment_author)
+                                     author=comment_author,
+                                     comment=comment)
 
             limited_access = self.options[keyword].privileged
             if limited_access:
@@ -753,7 +754,8 @@ class WallE:
                         active_options=self._get_active_options(),
                         command=keyword,
                         author=comment_author,
-                        self_pr=True
+                        self_pr=True,
+                        comment=comment
                     )
 
                 if comment_author not in self.settings['admins']:
@@ -761,7 +763,8 @@ class WallE:
                         active_options=self._get_active_options(),
                         command=keyword,
                         author=comment_author,
-                        self_pr=False
+                        self_pr=False,
+                        comment=comment
                     )
 
         return True
@@ -797,7 +800,7 @@ class WallE:
 
             keywords = match_.group('keywords').strip().split()
 
-            if not self._check_options(author, pr_author, keywords):
+            if not self._check_options(author, pr_author, keywords, raw):
                 logging.debug('Keyword comment ignored. '
                               'Not an option, checks failed: %s', raw)
                 continue
@@ -807,7 +810,7 @@ class WallE:
                 option = keyword.split('=')[0]
                 self.options[option].set(True)
 
-    def _check_command(self, author, command):
+    def _check_command(self, author, command, comment):
         logging.debug('checking command %s', command)
 
         if command not in self.commands:
@@ -818,7 +821,8 @@ class WallE:
             # better be safe than sorry though
             raise UnknownCommand(active_options=self._get_active_options(),
                                  command=command,
-                                 author=author)
+                                 author=author,
+                                 comment=comment)
 
         limited_access = self.commands[command].privileged
         if limited_access and author not in self.settings['admins']:
@@ -826,7 +830,8 @@ class WallE:
                 active_options=self._get_active_options(),
                 command=command,
                 author=author,
-                self_pr=False
+                self_pr=False,
+                comment=comment
             )
         return True
 
@@ -865,7 +870,7 @@ class WallE:
 
             command = match_.group('command')
 
-            if not self._check_command(author, command):
+            if not self._check_command(author, command, raw):
                 logging.debug('Command comment ignored. '
                               'Not a command, checks failed: %s' % raw)
                 continue
