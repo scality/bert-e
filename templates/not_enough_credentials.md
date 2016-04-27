@@ -7,7 +7,7 @@ Not authorized.
 {% block message %}
 I'm afraid I cannot do that, {{ author }}:
 
-> {{ comment }}
+> {{ comment|replace('\n', '\n> ') }}
 
 {% if self_pr %}
 You cannot use `{{ command }}` in your own pull request.

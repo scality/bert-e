@@ -7,7 +7,7 @@ Unknown command
 {% block message %}
 I didn't understand this comment by {{ author }}:
 
-> {{ comment }}
+> {{ comment|replace('\n', '\n> ') }}
 
 I don't know what `{{ command }}` means.
 
