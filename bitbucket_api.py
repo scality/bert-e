@@ -17,6 +17,15 @@ else:
     quote = urllib.quote
 
 
+MAX_PR_TITLE_LEN = 255
+
+
+def fix_pull_request_title(title):
+    if title < MAX_PR_TITLE_LEN:
+        return title
+    return title[:MAX_PR_TITLE_LEN-4] + '...'
+
+
 class Client(Session):
     def __init__(self, bitbucket_login, bitbucket_password, bitbucket_mail):
         Session.__init__(self)

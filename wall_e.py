@@ -351,10 +351,12 @@ class IntegrationBranch(WallEBranch):
         return pr
 
     def get_or_create_pull_request(self, parent_pr, open_prs, bitbucket_repo):
-        title = 'INTEGRATION [PR#%s > %s] %s' % (
-            parent_pr['id'],
-            self.destination_branch.name,
-            parent_pr['title']
+        title = bitbucket_api.fix_pull_request_title(
+            'INTEGRATION [PR#%s > %s] %s' % (
+                parent_pr['id'],
+                self.destination_branch.name,
+                parent_pr['title']
+            )
         )
 
         # WARNING potential infinite loop:

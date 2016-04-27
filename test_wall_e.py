@@ -1803,6 +1803,32 @@ class TestWallE(unittest.TestCase):
         retcode = self.handle(blocked_pr['id'], options=self.bypass_all)
         self.assertEqual(retcode, UnanimityApprovalRequired.code)
 
+    def test_pr_title_too_long(self):
+        if not TestWallE.args.disable_mock:
+            self.skipTest('Not supported with mock bitbucket.'
+                          ' Fix __getitem__("hash") if required')
+
+        create_branch(self.gitrepo, 'bugfix/RING-00001',
+                      from_branch='development/4.3', file_=True)
+        pr = self.bbrepo_eva.create_pull_request(
+            title='A' * (bitbucket_api.MAX_PR_TITLE_LEN - 10),
+            name='name',
+            source={'branch': {'name': 'bugfix/RING-00001'}},
+            destination={'branch': {'name': 'development/4.3'}},
+            close_source_branch=True,
+            description=''
+        )
+        retcode = self.handle(pr['id'], options=self.bypass_all)
+        self.assertEqual(retcode, InitMessage.code)
+
+        try:
+            # skip IntegrationBranchCreated
+            self.handle(pr['id'], options=self.bypass_all)
+            retcode = self.handle(pr['id'], options=self.bypass_all)
+        except requests.HTTPError as err:
+            self.fail("Error from bitbucket: %s" % err.response.text)
+        self.assertEqual(retcode, SuccessMessage.code)
+
 
 def main():
     parser = argparse.ArgumentParser(description='Launches Wall-E tests.')
