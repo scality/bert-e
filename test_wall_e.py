@@ -1809,9 +1809,12 @@ class TestWallE(unittest.TestCase):
         self.assertEqual(retcode, InitMessage.code)
 
         try:
+            # skip IntegrationBranchCreated
+            self.handle(pr['id'], options=self.bypass_all)
             retcode = self.handle(pr['id'], options=self.bypass_all)
         except requests.HTTPError as err:
             self.fail("Error from bitbucket: %s" % err.response.text)
+        self.assertEqual(retcode, SuccessMessage.code)
 
 
 def main():
