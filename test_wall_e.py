@@ -1791,8 +1791,7 @@ class TestWallE(unittest.TestCase):
         self.assertEqual(retcode, UnanimityApprovalRequired.code)
 
     def test_bitbucket_lag_on_pr_status(self):
-        """Bitbucket can be a bit long to update PR saying that they are
-        already merged.
+        """Bitbucket can be a bit long to update a merged PR's status.
 
         Check that Wall-E handles this case nicely and returns before creating
         integration PRs.
