@@ -725,7 +725,7 @@ class WallE:
     def _check_options(self, comment_author, pr_author, keyword_list):
         logging.debug('checking keywords %s', keyword_list)
 
-        for keyword in keyword_list:
+        for idx, keyword in enumerate(keyword_list):
             if keyword.startswith('after_pull_request='):
                 match_ = re.match('after_pull_request=(?P<pr_id>\d+)$',
                                   keyword)
@@ -735,15 +735,14 @@ class WallE:
                 keyword = 'after_pull_request'
 
             if keyword not in self.options.keys():
-                if keyword not in self.commands:
-                    raise UnknownCommand(
-                        active_options=self._get_active_options(),
-                        command=keyword,
-                        author=comment_author
-                    )
-                logging.debug('ignoring keywords in this comment due to '
-                              'an unknown keyword `%s`', keyword_list)
-                return False
+                # the first keyword may be a valid command
+                if idx == 0 and keyword in self.commands:
+                    logging.debug("ignoring options due to unknown keyword")
+                    return False
+
+                raise UnknownCommand(active_options=self._get_active_options(),
+                                     command=keyword,
+                                     author=comment_author)
 
             limited_access = self.options[keyword].privileged
             if limited_access:
@@ -809,17 +808,24 @@ class WallE:
     def _check_command(self, author, command):
         logging.debug('checking command %s', command)
 
-        if command not in self.commands.keys():
-            logging.debug('ignoring command in this comment due to '
-                          'an unknown command `%s`', command)
-            return False
+        if command not in self.commands:
+            if command in self.options:
+                logging.debug("Ignoring option")
+                return False
+            # Should not happen because of previous option check,
+            # better be safe than sorry though
+            raise UnknownCommand(active_options=self._get_active_options(),
+                                 command=command,
+                                 author=author)
 
         limited_access = self.commands[command].privileged
         if limited_access and author not in self.settings['admins']:
-            logging.debug('ignoring command in this comment due to '
-                          'unsufficient credentials `%s`', command)
-            return False
-
+            raise NotEnoughCredentials(
+                active_options=self._get_active_options(),
+                command=command,
+                author=author,
+                self_pr=False
+            )
         return True
 
     def _handle_commands(self):
