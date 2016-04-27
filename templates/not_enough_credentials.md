@@ -5,7 +5,7 @@ Not authorized.
 {% endblock %}
 
 {% block message %}
-I'm afraid I cannot do that, {{ author }}:
+I'm afraid I cannot do that, @{{ author }}:
 
 > {{ comment|replace('\n', '\n> ') }}
 
