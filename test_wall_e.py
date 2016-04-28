@@ -914,7 +914,7 @@ class TestWallE(unittest.TestCase):
             self.handle(pr['id'], backtrace=True)
 
     def test_norepeat_strategy(self):
-        def get_last_cmt(pr):
+        def get_last_comment(pr):
             """Helper function to get the last comment of a pr.
 
             returns the md5 digest of the last comment for easier comparison.
@@ -935,18 +935,18 @@ class TestWallE(unittest.TestCase):
         except HelpMessage as ret:
             help_msg = md5(ret.msg).digest()
 
-        last_comment = get_last_cmt(pr)
+        last_comment = get_last_comment(pr)
         self.assertEqual(last_comment, help_msg,
                          "Wall-e didn't post the first help message.")
 
         pr.add_comment("Ok, ok")
-        last_comment = get_last_cmt(pr)
+        last_comment = get_last_comment(pr)
         self.assertNotEqual(last_comment, help_msg,
                             "Eva's message wasn't recorded.")
 
         pr.add_comment('@%s help' % WALL_E_USERNAME)
         self.handle(pr['id'])
-        last_comment = get_last_cmt(pr)
+        last_comment = get_last_comment(pr)
         self.assertEqual(last_comment, help_msg,
                          "Wall-E didn't post a second help message.")
 
@@ -960,18 +960,18 @@ class TestWallE(unittest.TestCase):
         except AuthorApprovalRequired as ret:
             author_msg = md5(ret.msg).digest()
 
-        last_comment = get_last_cmt(pr)
+        last_comment = get_last_comment(pr)
         self.assertEqual(last_comment, author_msg,
                          "Wall-E didn't post his first error message.")
 
         pr.add_comment("OK, I Fixed it")
-        last_comment = get_last_cmt(pr)
+        last_comment = get_last_comment(pr)
         self.assertNotEqual(last_comment, author_msg,
                             "Eva's message wasn't recorded.")
 
         # Wall-E should not repeat itself if the error is not fixed
         self.handle(pr['id'], options=['bypass_jira_check'])
-        last_comment = get_last_cmt(pr)
+        last_comment = get_last_comment(pr)
         self.assertNotEqual(last_comment, author_msg,
                             "Wall-E repeated an error message when he "
                             "shouldn't have.")
@@ -983,7 +983,7 @@ class TestWallE(unittest.TestCase):
         # Re-produce the AuthorApproval error, Wall-E should re-send the
         # AuthorApproval message
         self.handle(pr['id'], options=['bypass_jira_check'])
-        last_comment = get_last_cmt(pr)
+        last_comment = get_last_comment(pr)
         self.assertEqual(last_comment, author_msg,
                          "Wall-E didn't respond to second occurrence of the "
                          "error.")

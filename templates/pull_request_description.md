@@ -16,7 +16,8 @@ procedure:
 ```
 
 However, if you need to add changes for versions *posterior* to the initial
-target version, you might need to modify the corresponding
-`w/<target version>/*` integration branch.
+target version, you will have to modify the corresponding
+`w/<target_version>/*` integration branch.
 
-In any case, always comment pull request #{{ pr['id'] }} instead of this one.
+In any case, please always comment pull request #{{ pr['id'] }} instead of this
+one.
