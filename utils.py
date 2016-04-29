@@ -6,7 +6,7 @@ class RetryTimeout(Exception):
 
 
 class RetryHandler(object):
-    """Class that implements an explonentially growing retry delay strategy.
+    """Class that implements an exponentially growing retry delay strategy.
 
     It should be used as a wrapper around a function call that might fail,
     such as network connection methods.

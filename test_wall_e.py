@@ -6,6 +6,7 @@ import logging
 import sys
 import unittest
 import requests
+from time import time
 from hashlib import md5
 from collections import OrderedDict
 
@@ -14,7 +15,6 @@ import bitbucket_api_mock
 import jira_api
 import jira_api_mock
 import wall_e
-from time import time
 from utils import RetryHandler
 from git_api import Repository as GitRepository
 from wall_e_exceptions import (AfterPullRequest,

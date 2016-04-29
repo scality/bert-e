@@ -10,7 +10,6 @@ import smtplib
 import sys
 import time
 import traceback
-from utils import RetryHandler
 
 from jira.exceptions import JIRAError
 import requests
@@ -25,6 +24,7 @@ from git_api import (Repository as GitRepository,
                      RemoveFailedException,
                      PushFailedException)
 import jira_api
+from utils import RetryHandler
 from wall_e_exceptions import (AfterPullRequest,
                                AuthorApprovalRequired,
                                BranchHistoryMismatch,
