@@ -49,6 +49,7 @@ from wall_e_exceptions import (AfterPullRequest,
                                MissingJiraId,
                                NotASingleDevBranch,
                                NothingToDo,
+                               NotEnoughCredentials,
                                NotMyJob,
                                ParentPullRequestNotFound,
                                PullRequestSkewDetected,
@@ -58,8 +59,9 @@ from wall_e_exceptions import (AfterPullRequest,
                                SuccessMessage,
                                TesterApprovalRequired,
                                UnableToSendEmail,
-                               UnrecognizedBranchPattern,
                                UnanimityApprovalRequired,
+                               UnknownCommand,
+                               UnrecognizedBranchPattern,
                                UnsupportedMultipleStabBranches,
                                VersionMismatch,
                                WallE_SilentException,
@@ -722,10 +724,10 @@ class WallE:
                           status=self.get_status_report(),
                           active_options=self._get_active_options())
 
-    def _check_options(self, comment_author, pr_author, keyword_list):
+    def _check_options(self, comment_author, pr_author, keyword_list, comment):
         logging.debug('checking keywords %s', keyword_list)
 
-        for keyword in keyword_list:
+        for idx, keyword in enumerate(keyword_list):
             if keyword.startswith('after_pull_request='):
                 match_ = re.match('after_pull_request=(?P<pr_id>\d+)$',
                                   keyword)
@@ -735,21 +737,35 @@ class WallE:
                 keyword = 'after_pull_request'
 
             if keyword not in self.options.keys():
-                logging.debug('ignoring keywords in this comment due to '
-                              'an unknown keyword `%s`', keyword_list)
-                return False
+                # the first keyword may be a valid command
+                if idx == 0 and keyword in self.commands:
+                    logging.debug("ignoring options due to unknown keyword")
+                    return False
+
+                raise UnknownCommand(active_options=self._get_active_options(),
+                                     command=keyword,
+                                     author=comment_author,
+                                     comment=comment)
 
             limited_access = self.options[keyword].privileged
             if limited_access:
                 if comment_author == pr_author:
-                    logging.debug('cannot use privileges on own PR')
-                    return False
+                    raise NotEnoughCredentials(
+                        active_options=self._get_active_options(),
+                        command=keyword,
+                        author=comment_author,
+                        self_pr=True,
+                        comment=comment
+                    )
 
                 if comment_author not in self.settings['admins']:
-                    logging.debug('ignoring keywords in this comment due to '
-                                  'unsufficient credentials `%s`',
-                                  keyword_list)
-                    return False
+                    raise NotEnoughCredentials(
+                        active_options=self._get_active_options(),
+                        command=keyword,
+                        author=comment_author,
+                        self_pr=False,
+                        comment=comment
+                    )
 
         return True
 
@@ -784,7 +800,7 @@ class WallE:
 
             keywords = match_.group('keywords').strip().split()
 
-            if not self._check_options(author, pr_author, keywords):
+            if not self._check_options(author, pr_author, keywords, raw):
                 logging.debug('Keyword comment ignored. '
                               'Not an option, checks failed: %s', raw)
                 continue
@@ -794,20 +810,29 @@ class WallE:
                 option = keyword.split('=')[0]
                 self.options[option].set(True)
 
-    def _check_command(self, author, command):
+    def _check_command(self, author, command, comment):
         logging.debug('checking command %s', command)
 
-        if command not in self.commands.keys():
-            logging.debug('ignoring command in this comment due to '
-                          'an unknown command `%s`', command)
-            return False
+        if command not in self.commands:
+            if command in self.options:
+                logging.debug("Ignoring option")
+                return False
+            # Should not happen because of previous option check,
+            # better be safe than sorry though
+            raise UnknownCommand(active_options=self._get_active_options(),
+                                 command=command,
+                                 author=author,
+                                 comment=comment)
 
         limited_access = self.commands[command].privileged
         if limited_access and author not in self.settings['admins']:
-            logging.debug('ignoring command in this comment due to '
-                          'unsufficient credentials `%s`', command)
-            return False
-
+            raise NotEnoughCredentials(
+                active_options=self._get_active_options(),
+                command=command,
+                author=author,
+                self_pr=False,
+                comment=comment
+            )
         return True
 
     def _handle_commands(self):
@@ -845,7 +870,7 @@ class WallE:
 
             command = match_.group('command')
 
-            if not self._check_command(author, command):
+            if not self._check_command(author, command, raw):
                 logging.debug('Command comment ignored. '
                               'Not a command, checks failed: %s' % raw)
                 continue
@@ -1426,6 +1451,10 @@ def setup_commands():
                     help='print Wall-E\'s current status in '
                          'the pull-request ```TBA```'),
         'build':
+            Command(privileged=False,
+                    handler='command_not_implemented',
+                    help='re-start a fresh build ```TBA```'),
+        'retry':
             Command(privileged=False,
                     handler='command_not_implemented',
                     help='re-start a fresh build ```TBA```'),
