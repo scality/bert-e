@@ -13,11 +13,12 @@ class RetryHandler(object):
 
     """
 
-    def __init__(self, limit=3600, logger=None):
+    def __init__(self, limit=3600, logger=None, max_delay=300):
         self.limit = limit
         self._cur_delay = 1
         self._elapsed = 0
         self._log = logger
+        self._max_delay = max_delay
 
     def __enter__(self):
         return self
@@ -28,7 +29,7 @@ class RetryHandler(object):
     def reset(self):
         """Reset timers."""
         self._cur_delay = 1
-        self.elapsed = 0
+        self._elapsed = 0
 
     def wait(self, err=RetryTimeout()):
         """Wait until next retry.
@@ -43,13 +44,13 @@ class RetryHandler(object):
             RetryTimeout by default.
 
         """
-        if self.limit is not None and self._elapsed > self.limit:
+        if self.limit is not None and self._elapsed >= self.limit:
             if self._log:
                 self._log.error("Reached timeout (%ds)", self.limit)
             raise err
         sleep(self._cur_delay)
         self._elapsed += self._cur_delay
-        self._cur_delay *= 2
+        self._cur_delay = min(self._max_delay, self._cur_delay * 2)
 
     def run(self, func, *args, **kwargs):
         """Wrap the execution of a callable, and retry as long as it fails and
@@ -66,7 +67,7 @@ class RetryHandler(object):
 
         """
         # Python 2 doesn't support mixing optional args with **kwargs syntax
-        catch = kwargs.pop('catch')
+        catch = kwargs.pop('catch', Exception)
         fail_msg = kwargs.pop('fail_msg',
                               "Call to '%s' failed" % func.__name__)
         while True:
