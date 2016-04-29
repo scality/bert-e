@@ -34,7 +34,7 @@ class RetryHandler(object):
         """Wait until next retry.
 
         If wait limit was exceeded (first try happened more than `limit`
-        nds ago), raise an error.
+        seconds ago), raise an error.
 
         Args:
             err (exception): exception to raise.

@@ -10,7 +10,7 @@ import smtplib
 import sys
 import time
 import traceback
-from utils import RetryHandler, RetryTimeout
+from utils import RetryHandler
 
 from jira.exceptions import JIRAError
 import requests
