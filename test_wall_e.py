@@ -461,13 +461,13 @@ class QuickTest(unittest.TestCase):
             self.assertEqual(4, len(history))
 
         with retry:
+            # Check that unpredicted errors are not silently caught
+            start = time()
             with self.assertRaises(RuntimeError):
-                # Check that unpredicted errors are not silently caught
-                start = time()
                 retry.run(dummy_func, 1, [], raise_exn=RuntimeError,
                           catch=DummyError)
-                elapsed = time() - start
-                self.assertLess(elapsed, 1)
+            elapsed = time() - start
+            self.assertLess(elapsed, 1)
 
 
 class FakeGitRepo:
