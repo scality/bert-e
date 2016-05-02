@@ -12,5 +12,4 @@ I didn't understand this comment by @{{ author }}:
 I don't know what `{{ command }}` means.
 
 Please **edit** or **delete** the corresponding comment so I can move on.
-I will not do anything until then.
 {% endblock %}

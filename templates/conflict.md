@@ -11,7 +11,7 @@ into integration branch `{{ destination.name }}`.
 {% if origin %}
 Please resolve the conflict **on the feature branch** (`{{ source.name }}`).
 {% else %}
-*Please resolve the conflict on the integration branch manually.*
+Please resolve the conflict on **the integration branch**.
 
 Here are the steps to resolve this conflict:
 

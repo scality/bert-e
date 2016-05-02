@@ -15,9 +15,4 @@ procedure:
  $ git push
 ```
 
-However, if you need to add changes for versions *posterior* to the initial
-target version, you will have to modify the corresponding
-`w/<target_version>/*` integration branch.
-
-In any case, please always comment pull request #{{ pr['id'] }} instead of this
-one.
+Please always comment pull request #{{ pr['id'] }} instead of this one.
