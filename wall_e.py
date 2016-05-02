@@ -6,10 +6,7 @@ from collections import OrderedDict
 import itertools
 import logging
 import re
-import smtplib
 import sys
-import time
-import traceback
 
 from jira.exceptions import JIRAError
 import requests
@@ -37,7 +34,6 @@ from wall_e_exceptions import (AfterPullRequest,
                                DevBranchesNotSelfContained,
                                DeprecatedStabilizationBranch,
                                HelpMessage,
-                               ImproperEmailFormat,
                                IncompatibleSourceBranchPrefix,
                                IncorrectFixVersion,
                                IncorrectJiraProject,
@@ -58,7 +54,6 @@ from wall_e_exceptions import (AfterPullRequest,
                                StatusReport,
                                SuccessMessage,
                                TesterApprovalRequired,
-                               UnableToSendEmail,
                                UnanimityApprovalRequired,
                                UnknownCommand,
                                UnrecognizedBranchPattern,
@@ -215,34 +210,6 @@ class Command(object):
         self.handler = handler
         self.help = help
         self.privileged = privileged
-
-
-def setup_email(destination):
-    """Check the capacity to send emails."""
-    match_ = re.match("(?P<short_name>[^@]*)@.*", destination)
-    if not match_:
-        raise ImproperEmailFormat("The specified email does "
-                                  "not seem valid (%s)" % destination)
-    try:
-        smtplib.SMTP('localhost')
-    except Exception as excp:
-        raise UnableToSendEmail("Unable to send email (%s)" % excp)
-
-
-def send_email(destination, title, content):
-    """Send some data by email."""
-    match_ = re.match("(?P<short_name>[^@]*)@.*", destination)
-    if not match_:
-        raise ImproperEmailFormat("The specified email does "
-                                  "not seem valid (%s)" % destination)
-    body = render('email_alert.md',
-                  name=match_.group('short_name'),
-                  subject=title,
-                  content=content,
-                  destination=destination,
-                  email=WALL_E_EMAIL)
-    smtpObj = smtplib.SMTP('localhost')
-    smtpObj.sendmail(WALL_E_EMAIL, [destination], body)
 
 
 def confirm(question):
@@ -1377,10 +1344,6 @@ def setup_parser():
         '-v', action='store_true', dest='verbose', default=False,
         help="Verbose mode")
     parser.add_argument(
-        '--alert-email', action='store', default=None, type=str,
-        help="Where to send notifications in case of "
-             "incorrect behaviour")
-    parser.add_argument(
         '--backtrace', action='store_true', default=False,
         help="Show backtrace instead of return code on console")
     parser.add_argument(
@@ -1497,17 +1460,6 @@ def main():
               args.settings)
         sys.exit(1)
 
-    if args.alert_email:
-        try:
-            setup_email(args.alert_email)
-        except ImproperEmailFormat:
-            print("Invalid email (%s)" % args.alert_email)
-            sys.exit(1)
-        except UnableToSendEmail:
-            print("It appears I won't be able to send emails, please check "
-                  "the email server.")
-            sys.exit(1)
-
     options = setup_options(args)
     commands = setup_commands()
 
@@ -1546,14 +1498,6 @@ def main():
         if not args.quiet:
             print('%d - %s' % (0, excp.__class__.__name__))
         return 0
-
-    except Exception:
-        if args.alert_email:
-            send_email(destination=args.alert_email,
-                       title="[Wall-E] Unexpected termination "
-                             "(%s)" % time.asctime(),
-                       content=traceback.format_exc())
-        raise
 
 
 if __name__ == '__main__':
