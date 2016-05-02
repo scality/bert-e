@@ -4,12 +4,19 @@ import groovy.json.JsonOutput
 
 
 def repo_slug = "wall-e"
+def key = "pipeline"
 def build_status = 'SUCCESSFUL'
 def git_commit = ''
 def git_branch = ''
 def short_commit = ''
-has_pr_list = false
 
+// test_this_branch:
+// - set to `true` to enable builds on this feature branch
+// - turn it back to `false` before merging to development/* branches
+//   (the builds will fail on integration branches as long a
+//   this variable is set to true, because we need this variable
+//   to remain false by default, to limit the total number of builds)
+def test_this_branch = false
 
 stage name: 'initialisation'
     node('master') {
@@ -23,9 +30,12 @@ stage name: 'initialisation'
 
         stash name: 'repository'
 
+        autoSkip(repo_slug, short_commit, git_branch, key, test_this_branch)
+        abortPreviousBuild()
+
         bitbucketNotify(repo_slug, git_branch, short_commit,
                         "build",
-                        "pipeline", "${env.BUILD_URL}console",
+                        key, "${env.BUILD_URL}console",
                         "INPROGRESS", false)
     }
 
@@ -72,7 +82,7 @@ stage name: 'finalisation'
     node('master') {
         bitbucketNotify(repo_slug, git_branch, short_commit,
                         "build",
-                        "pipeline", "${env.BUILD_URL}console",
+                        key, "${env.BUILD_URL}console",
                         build_status, true)
 
         if (build_status == 'FAILED') {
