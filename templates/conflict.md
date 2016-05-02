@@ -9,10 +9,7 @@ A conflict has been raised during the merge of `{{ source.name }}`
 into integration branch `{{ destination.name }}`.
 
 {% if origin %}
-Since the conflict was detected between your feature branch and the original
-target of your pull request, you are expected to resolve the conflict *on your
-feature branch* (`{{ source.name }}`) and let your fix propagate through the
-integration cascade.
+Please resolve the conflict **on the feature branch** (`{{ source.name }}`).
 {% else %}
 *Please resolve the conflict on the integration branch manually.*
 
