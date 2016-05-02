@@ -1,8 +1,4 @@
 #!groovy
-import groovy.json.JsonSlurper
-import groovy.json.JsonOutput
-
-
 def repo_slug = "wall-e"
 def key = "pipeline"
 def build_status = 'SUCCESSFUL'
