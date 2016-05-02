@@ -8,7 +8,7 @@ Integration pull requests created
 The following integration branches and associated pull requests have been created:
 
 {% for pr in child_prs -%}
-* pull request #{{ pr['id'] }} will merge `{{ pr['source']['branch']['name'] }}`
+* integration pull request #{{ pr['id'] }} will merge `{{ pr['source']['branch']['name'] }}`
  into `{{ pr['destination']['branch']['name'] }}`
 {% endfor %}
 
