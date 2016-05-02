@@ -82,10 +82,10 @@ SETTINGS = {
             'anneharper',
             'christophe_meron',
             'christophe_stoyanov',
+            'louis_pery_scality'
             'mcolzi',
             'romain_thebaud',
             'sleibo',
-            'louis_pery_scality'
         ],
         'admins': [
             WALL_E_USERNAME,  # we need this for test purposes
