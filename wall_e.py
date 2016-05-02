@@ -42,12 +42,14 @@ from wall_e_exceptions import (AfterPullRequest,
                                IncorrectFixVersion,
                                IncorrectJiraProject,
                                InitMessage,
+                               IntegrationPullRequestsCreated,
                                JiraIssueNotFound,
                                JiraUnknownIssueType,
                                MismatchPrefixIssueType,
                                MissingJiraId,
                                NotASingleDevBranch,
                                NothingToDo,
+                               NotEnoughCredentials,
                                NotMyJob,
                                ParentPullRequestNotFound,
                                PullRequestSkewDetected,
@@ -57,8 +59,9 @@ from wall_e_exceptions import (AfterPullRequest,
                                SuccessMessage,
                                TesterApprovalRequired,
                                UnableToSendEmail,
-                               UnrecognizedBranchPattern,
                                UnanimityApprovalRequired,
+                               UnknownCommand,
+                               UnrecognizedBranchPattern,
                                UnsupportedMultipleStabBranches,
                                VersionMismatch,
                                WallE_SilentException,
@@ -70,7 +73,6 @@ if six.PY3:
 
 WALL_E_USERNAME = 'scality_wall-e'
 WALL_E_EMAIL = 'wall_e@scality.com'
-
 JENKINS_USERNAME = 'scality_jenkins'
 
 SETTINGS = {
@@ -103,6 +105,7 @@ SETTINGS = {
             'ludovicmaillard',
             'mcolzi',
             'mvaude',
+            'nohar',
             'pierre_louis_bonicoli',
             'rayene_benrayana',
             'sylvain_killian'
@@ -348,10 +351,12 @@ class IntegrationBranch(WallEBranch):
         return pr
 
     def get_or_create_pull_request(self, parent_pr, open_prs, bitbucket_repo):
-        title = 'INTEGRATION [PR#%s > %s] %s' % (
-            parent_pr['id'],
-            self.destination_branch.name,
-            parent_pr['title']
+        title = bitbucket_api.fix_pull_request_title(
+            'INTEGRATION [PR#%s > %s] %s' % (
+                parent_pr['id'],
+                self.destination_branch.name,
+                parent_pr['title']
+            )
         )
 
         # WARNING potential infinite loop:
@@ -360,6 +365,8 @@ class IntegrationBranch(WallEBranch):
         # re-enter here and recreate the children pr.
         # solution: do not create the pr if it already exists
         pr = self._get_pull_request_from_list(open_prs)
+        # need a boolean to know if the PR is created or no
+        created = False
         if not pr:
             description = render('pull_request_description.md',
                                  wall_e=WALL_E_USERNAME,
@@ -372,7 +379,8 @@ class IntegrationBranch(WallEBranch):
                 close_source_branch=True,
                 reviewers=[{'username': parent_pr['author']['username']}],
                 description=description)
-        return pr
+            created = True
+        return pr, created
 
 
 def branch_factory(repo, branch_name):
@@ -621,7 +629,7 @@ class WallE:
                                max_history=None):
         # check last commits
         comments = reversed(self.comments)
-        if max_history is not None:
+        if max_history not in (None, -1):
             comments = itertools.islice(comments, 0, max_history)
         for comment in comments:
             u = comment['user']['username']
@@ -633,6 +641,8 @@ class WallE:
             if isinstance(username, list) and u not in username:
                 continue
             if startswith and not raw.startswith(startswith):
+                if max_history == -1:
+                    return
                 continue
             return comment
 
@@ -714,10 +724,10 @@ class WallE:
                           status=self.get_status_report(),
                           active_options=self._get_active_options())
 
-    def _check_options(self, comment_author, pr_author, keyword_list):
+    def _check_options(self, comment_author, pr_author, keyword_list, comment):
         logging.debug('checking keywords %s', keyword_list)
 
-        for keyword in keyword_list:
+        for idx, keyword in enumerate(keyword_list):
             if keyword.startswith('after_pull_request='):
                 match_ = re.match('after_pull_request=(?P<pr_id>\d+)$',
                                   keyword)
@@ -727,21 +737,35 @@ class WallE:
                 keyword = 'after_pull_request'
 
             if keyword not in self.options.keys():
-                logging.debug('ignoring keywords in this comment due to '
-                              'an unknown keyword `%s`', keyword_list)
-                return False
+                # the first keyword may be a valid command
+                if idx == 0 and keyword in self.commands:
+                    logging.debug("ignoring options due to unknown keyword")
+                    return False
+
+                raise UnknownCommand(active_options=self._get_active_options(),
+                                     command=keyword,
+                                     author=comment_author,
+                                     comment=comment)
 
             limited_access = self.options[keyword].privileged
             if limited_access:
                 if comment_author == pr_author:
-                    logging.debug('cannot use privileges on own PR')
-                    return False
+                    raise NotEnoughCredentials(
+                        active_options=self._get_active_options(),
+                        command=keyword,
+                        author=comment_author,
+                        self_pr=True,
+                        comment=comment
+                    )
 
                 if comment_author not in self.settings['admins']:
-                    logging.debug('ignoring keywords in this comment due to '
-                                  'unsufficient credentials `%s`',
-                                  keyword_list)
-                    return False
+                    raise NotEnoughCredentials(
+                        active_options=self._get_active_options(),
+                        command=keyword,
+                        author=comment_author,
+                        self_pr=False,
+                        comment=comment
+                    )
 
         return True
 
@@ -776,7 +800,7 @@ class WallE:
 
             keywords = match_.group('keywords').strip().split()
 
-            if not self._check_options(author, pr_author, keywords):
+            if not self._check_options(author, pr_author, keywords, raw):
                 logging.debug('Keyword comment ignored. '
                               'Not an option, checks failed: %s', raw)
                 continue
@@ -786,20 +810,29 @@ class WallE:
                 option = keyword.split('=')[0]
                 self.options[option].set(True)
 
-    def _check_command(self, author, command):
+    def _check_command(self, author, command, comment):
         logging.debug('checking command %s', command)
 
-        if command not in self.commands.keys():
-            logging.debug('ignoring command in this comment due to '
-                          'an unknown command `%s`', command)
-            return False
+        if command not in self.commands:
+            if command in self.options:
+                logging.debug("Ignoring option")
+                return False
+            # Should not happen because of previous option check,
+            # better be safe than sorry though
+            raise UnknownCommand(active_options=self._get_active_options(),
+                                 command=command,
+                                 author=author,
+                                 comment=comment)
 
         limited_access = self.commands[command].privileged
         if limited_access and author not in self.settings['admins']:
-            logging.debug('ignoring command in this comment due to '
-                          'unsufficient credentials `%s`', command)
-            return False
-
+            raise NotEnoughCredentials(
+                active_options=self._get_active_options(),
+                command=command,
+                author=author,
+                self_pr=False,
+                comment=comment
+            )
         return True
 
     def _handle_commands(self):
@@ -837,7 +870,7 @@ class WallE:
 
             command = match_.group('command')
 
-            if not self._check_command(author, command):
+            if not self._check_command(author, command, raw):
                 logging.debug('Command comment ignored. '
                               'Not a command, checks failed: %s' % raw)
                 continue
@@ -1038,37 +1071,50 @@ class WallE:
                     development_branch=development_branch,
                     active_options=self._get_active_options())
 
-    def _update(self, source, destination):
+    def _update(self, source, destination, origin=False):
         try:
             destination.merge_from_branch(source)
         except MergeFailedException:
             raise Conflict(source=source,
                            destination=destination,
-                           active_options=self._get_active_options())
+                           active_options=self._get_active_options(),
+                           origin=origin)
 
     def _update_integration_from_dev(self, integration_branches):
         # The first integration branch should not contain commits
         # that are not in development/* or in the feature branch.
-        self._check_history_did_not_change(integration_branches[0])
-        for integration_branch in integration_branches:
+        first, children = integration_branches[0], integration_branches[1:]
+        self._check_history_did_not_change(first)
+        self._update(first.destination_branch, first, True)
+        for integration_branch in children:
             self._update(
                 integration_branch.destination_branch,
                 integration_branch)
 
     def _update_integration_from_feature(self, integration_branches):
-        branch_to_merge_from = self.source_branch
-        for integration_branch in integration_branches:
+        first, children = integration_branches[0], integration_branches[1:]
+        self._update(self.source_branch, first, True)
+        branch_to_merge_from = first
+        for integration_branch in children:
             self._update(branch_to_merge_from, integration_branch)
             branch_to_merge_from = integration_branch
 
     def _create_pull_requests(self, integration_branches):
         # read open PRs and store them for multiple usage
         open_prs = list(self.bbrepo.get_pull_requests())
-        return [
+        prs, created = zip(*(
             integration_branch.get_or_create_pull_request(self.main_pr,
                                                           open_prs,
                                                           self.bbrepo)
-            for integration_branch in integration_branches]
+            for integration_branch in integration_branches))
+        if any(created):
+            raise IntegrationPullRequestsCreated(
+                        pr=self.main_pr,
+                        child_prs=prs,
+                        ignored=self._cascade.ignored_branches,
+                        active_options=self._get_active_options()
+                    )
+        return prs
 
     def _check_pull_request_skew(self, integration_branches, integration_prs):
         """Check potential skew between local commit and commit in PR.
@@ -1156,48 +1202,40 @@ class WallE:
         if not approved_by_author:
             raise AuthorApprovalRequired(
                 pr=self.main_pr,
-                child_prs=child_prs,
                 author_approval=approved_by_author,
                 peer_approval=approved_by_peer,
                 tester_approval=approved_by_tester,
                 requires_unanimity=requires_unanimity,
-                ignored=self._cascade.ignored_branches,
                 active_options=self._get_active_options()
             )
 
         if not approved_by_peer:
             raise PeerApprovalRequired(
                 pr=self.main_pr,
-                child_prs=child_prs,
                 author_approval=approved_by_author,
                 peer_approval=approved_by_peer,
                 tester_approval=approved_by_tester,
                 requires_unanimity=requires_unanimity,
-                ignored=self._cascade.ignored_branches,
                 active_options=self._get_active_options()
             )
 
         if not approved_by_tester:
             raise TesterApprovalRequired(
                 pr=self.main_pr,
-                child_prs=child_prs,
                 author_approval=approved_by_author,
                 peer_approval=approved_by_peer,
                 tester_approval=approved_by_tester,
                 requires_unanimity=requires_unanimity,
-                ignored=self._cascade.ignored_branches,
                 active_options=self._get_active_options()
             )
 
         if (requires_unanimity and not is_unanimous):
             raise UnanimityApprovalRequired(
                 pr=self.main_pr,
-                child_prs=child_prs,
                 author_approval=approved_by_author,
                 peer_approval=approved_by_peer,
                 tester_approval=approved_by_tester,
                 requires_unanimity=requires_unanimity,
-                ignored=self._cascade.ignored_branches,
                 active_options=self._get_active_options()
             )
 
@@ -1265,6 +1303,11 @@ class WallE:
             src_branch_name = self.main_pr['source']['branch']['name']
             self._setup_source_branch(repo, src_branch_name, dst_branch_name)
             self._setup_destination_branch(repo, dst_branch_name)
+
+            # Handle the case when bitbucket is lagging and the PR was actually
+            # merged before.
+            if self.destination_branch.includes_commit(self.source_branch):
+                raise NothingToDo()
 
             self._check_if_ignored()
             self._init_phase()
@@ -1408,6 +1451,10 @@ def setup_commands():
                     help='print Wall-E\'s current status in '
                          'the pull-request ```TBA```'),
         'build':
+            Command(privileged=False,
+                    handler='command_not_implemented',
+                    help='re-start a fresh build ```TBA```'),
+        'retry':
             Command(privileged=False,
                     handler='command_not_implemented',
                     help='re-start a fresh build ```TBA```'),

@@ -5,8 +5,9 @@ from string import Template
 import json
 import six
 import urllib
+import logging
 
-from requests import Session
+from requests import Session, HTTPError
 from requests.auth import HTTPBasicAuth
 
 if six.PY3:
@@ -14,6 +15,15 @@ if six.PY3:
     from past.builtins import xrange
 else:
     quote = urllib.quote
+
+
+MAX_PR_TITLE_LEN = 255
+
+
+def fix_pull_request_title(title):
+    if title < MAX_PR_TITLE_LEN:
+        return title
+    return title[:MAX_PR_TITLE_LEN-4] + '...'
 
 
 class Client(Session):
@@ -73,7 +83,11 @@ class BitBucketObject(object):
         response = self.client.post(Template(self.add_url)
                                     .substitute(self._json_data),
                                     json_str)
-        response.raise_for_status()
+        try:
+            response.raise_for_status()
+        except HTTPError:
+            logging.error(response.text)
+            raise
         return self.__class__(self.client, **response.json())
 
     def delete(self):

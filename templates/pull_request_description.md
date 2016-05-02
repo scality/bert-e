@@ -14,3 +14,10 @@ procedure:
  $ # <amend or cancel the changeset by _adding_ new commits>
  $ git push
 ```
+
+However, if you need to add changes for versions *posterior* to the initial
+target version, you will have to modify the corresponding
+`w/<target_version>/*` integration branch.
+
+In any case, please always comment pull request #{{ pr['id'] }} instead of this
+one.

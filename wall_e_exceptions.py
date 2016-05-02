@@ -9,13 +9,13 @@ class WallE_TemplateException(Exception):
     code = 0
     template = None
     # whether to re-publish if the message is already in the history
-    dont_repeat_if_in_history = 10
+    dont_repeat_if_in_history = -1
 
     def __init__(self, **kwargs):
         assert 'active_options' in kwargs
         assert self.code != 0
         assert self.template
-        assert self.dont_repeat_if_in_history >= 0
+        assert self.dont_repeat_if_in_history >= -1
         self.msg = render(self.template, code=self.code, **kwargs)
         super(WallE_TemplateException, self).__init__(self.msg)
 
@@ -28,8 +28,13 @@ class WallE_SilentException(Exception):
     pass
 
 
+# template for informative exceptions
+class WallE_InformationException(WallE_TemplateException):
+    pass
+
+
 # template exceptions
-class InitMessage(WallE_TemplateException):
+class InitMessage(WallE_InformationException):
     code = 100
     template = 'init.md'
 
@@ -130,6 +135,21 @@ class UnanimityApprovalRequired(WallE_TemplateException):
 class AfterPullRequest(WallE_TemplateException):
     code = 120
     template = 'after_pull_request.md'
+
+
+class IntegrationPullRequestsCreated(WallE_InformationException):
+    code = 121
+    template = 'integration_pull_requests.md'
+
+
+class UnknownCommand(WallE_TemplateException):
+    code = 122
+    template = 'unknown_command.md'
+
+
+class NotEnoughCredentials(WallE_TemplateException):
+    code = 123
+    template = "not_enough_credentials.md"
 
 
 # internal exceptions
