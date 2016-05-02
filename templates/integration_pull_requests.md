@@ -5,7 +5,7 @@ Integration pull requests created
 {% endblock %}
 
 {% block message %}
-The following integration branches and associated pull requests have been created:
+The integration branches and associated pull requests have been created:
 
 {% for pr in child_prs -%}
 * integration pull request #{{ pr['id'] }} will merge `{{ pr['source']['branch']['name'] }}`
