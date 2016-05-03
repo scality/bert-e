@@ -6,9 +6,9 @@ import logging
 import sys
 import unittest
 import requests
-from time import time
-from hashlib import md5
 from collections import OrderedDict
+from hashlib import md5
+from time import time
 
 import bitbucket_api
 import bitbucket_api_mock
