@@ -1116,9 +1116,9 @@ class WallE:
         else:
             prs, created = zip(*(
                 integration_branch.get_or_create_pull_request(self.main_pr,
-                                                            open_prs,
-                                                            self.bbrepo,
-                                                            False)
+                                                              open_prs,
+                                                              self.bbrepo,
+                                                              False)
                 for integration_branch in integration_branches[1:]))
             prs, created = (first_pr,) + prs, (first_created,) + created
         if any(created):
