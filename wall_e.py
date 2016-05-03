@@ -1105,22 +1105,13 @@ class WallE:
     def _create_pull_requests(self, integration_branches):
         # read open PRs and store them for multiple usage
         open_prs = list(self.bbrepo.get_pull_requests())
-        first_pr, first_created = (
-            integration_branches[0].get_or_create_pull_request(self.main_pr,
-                                                               open_prs,
-                                                               self.bbrepo,
-                                                               True)
-        )
-        if len(integration_branches) == 1:
-            prs, created = (first_pr,), (first_created,)
-        else:
-            prs, created = zip(*(
-                integration_branch.get_or_create_pull_request(self.main_pr,
-                                                              open_prs,
-                                                              self.bbrepo,
-                                                              False)
-                for integration_branch in integration_branches[1:]))
-            prs, created = (first_pr,) + prs, (first_created,) + created
+        prs, created = zip(*(
+            integration_branch.get_or_create_pull_request(self.main_pr,
+                                                          open_prs,
+                                                          self.bbrepo,
+                                                          idx == 0)
+            for idx, integration_branch in enumerate(integration_branches)
+        ))
         if any(created):
             raise IntegrationPullRequestsCreated(
                         pr=self.main_pr,
