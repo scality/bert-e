@@ -152,15 +152,6 @@ class NotEnoughCredentials(WallE_TemplateException):
     template = "not_enough_credentials.md"
 
 
-# internal exceptions
-class UnableToSendEmail(WallE_InternalException):
-    pass
-
-
-class ImproperEmailFormat(WallE_InternalException):
-    pass
-
-
 class BranchNameInvalid(WallE_InternalException):
     def __init__(self, name):
         msg = 'Invalid name: %r' % name
