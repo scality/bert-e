@@ -352,7 +352,8 @@ class IntegrationBranch(WallEBranch):
             break
         return pr
 
-    def get_or_create_pull_request(self, parent_pr, open_prs, bitbucket_repo):
+    def get_or_create_pull_request(self, parent_pr, open_prs, bitbucket_repo,
+                                   first=False):
         title = bitbucket_api.fix_pull_request_title(
             'INTEGRATION [PR#%s > %s] %s' % (
                 parent_pr['id'],
@@ -372,7 +373,9 @@ class IntegrationBranch(WallEBranch):
         if not pr:
             description = render('pull_request_description.md',
                                  wall_e=WALL_E_USERNAME,
-                                 pr=parent_pr)
+                                 pr=parent_pr,
+                                 branch=self.name,
+                                 first=first)
             pr = bitbucket_repo.create_pull_request(
                 title=title,
                 name='name',
@@ -1115,8 +1118,10 @@ class WallE:
         prs, created = zip(*(
             integration_branch.get_or_create_pull_request(self.main_pr,
                                                           open_prs,
-                                                          self.bbrepo)
-            for integration_branch in integration_branches))
+                                                          self.bbrepo,
+                                                          idx == 0)
+            for idx, integration_branch in enumerate(integration_branches)
+        ))
         if any(created):
             raise IntegrationPullRequestsCreated(
                         pr=self.main_pr,

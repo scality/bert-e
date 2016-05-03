@@ -15,7 +15,14 @@ stage name: 'initialisation'
     node('master') {
         deleteDir() // remove all previous artifacts from workspace
 
-        checkout scm
+        checkout([
+            $class: 'GitSCM',
+            branches: scm.branches,
+            doGenerateSubmoduleConfigurations: scm.doGenerateSubmoduleConfigurations,
+            extensions: scm.extensions + [[$class: 'CloneOption', noTags: false, reference: '/srv/git/wall-e.reference', shallow: true]],
+            submoduleCfg: [],
+            userRemoteConfigs: scm.userRemoteConfigs
+        ])
         sh('git rev-parse HEAD > GIT_COMMIT')
         git_commit=readFile('GIT_COMMIT')
         short_commit=git_commit.take(6)
