@@ -15,7 +15,6 @@ import bitbucket_api_mock
 import jira_api
 import jira_api_mock
 import wall_e
-from utils import RetryHandler
 from git_api import Repository as GitRepository
 from wall_e_exceptions import (AfterPullRequest,
                                AuthorApprovalRequired,
@@ -48,6 +47,7 @@ from wall_e_exceptions import (AfterPullRequest,
                                UnrecognizedBranchPattern,
                                UnsupportedMultipleStabBranches,
                                VersionMismatch)
+from utils import RetryHandler
 
 WALL_E_USERNAME = wall_e.WALL_E_USERNAME
 WALL_E_EMAIL = wall_e.WALL_E_EMAIL

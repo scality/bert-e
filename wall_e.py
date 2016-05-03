@@ -24,7 +24,6 @@ from git_api import (Repository as GitRepository,
                      RemoveFailedException,
                      PushFailedException)
 import jira_api
-from utils import RetryHandler
 from wall_e_exceptions import (AfterPullRequest,
                                AuthorApprovalRequired,
                                BranchHistoryMismatch,
@@ -68,6 +67,7 @@ from wall_e_exceptions import (AfterPullRequest,
                                VersionMismatch,
                                WallE_SilentException,
                                WallE_TemplateException)
+from utils import RetryHandler
 
 if six.PY3:
     raw_input = input
@@ -1290,9 +1290,9 @@ class WallE:
         assert build_state == 'SUCCESSFUL'
 
     def _merge(self, integration_branches):
-        # Retry for up to 1 hour when connectivity is lost
+        # Retry for up to 5 minutes when connectivity is lost
         # Simply accepting failure here could lead to a messy situation
-        retry = RetryHandler(3600, logging)
+        retry = RetryHandler(300, logging)
         for integration_branch in integration_branches:
             with retry:
                 retry.run(
