@@ -18,7 +18,8 @@ from git_api import (Repository as GitRepository,
                      Branch,
                      MergeFailedException,
                      CheckoutFailedException,
-                     RemoveFailedException)
+                     RemoveFailedException,
+                     PushFailedException)
 import jira_api
 from wall_e_exceptions import (AfterPullRequest,
                                AuthorApprovalRequired,
@@ -61,6 +62,7 @@ from wall_e_exceptions import (AfterPullRequest,
                                VersionMismatch,
                                WallE_SilentException,
                                WallE_TemplateException)
+from utils import RetryHandler
 
 if six.PY3:
     raw_input = input
@@ -1043,7 +1045,15 @@ class WallE:
 
     def _update(self, source, destination, origin=False):
         try:
-            destination.merge_from_branch(source)
+            # Retry for up to 60 seconds when connectivity is lost
+            with RetryHandler(60, logging) as retry:
+                retry.run(
+                    destination.merge_from_branch, source,
+                    catch=PushFailedException,
+                    fail_msg="Couldn't push merge (%s -> %s)" % (
+                        source, destination
+                    )
+                )
         except MergeFailedException:
             raise Conflict(source=source,
                            destination=destination,
@@ -1252,15 +1262,25 @@ class WallE:
         assert build_state == 'SUCCESSFUL'
 
     def _merge(self, integration_branches):
+        # Retry for up to 5 minutes when connectivity is lost
+        # Simply accepting failure here could lead to a messy situation
+        retry = RetryHandler(300, logging)
         for integration_branch in integration_branches:
-            integration_branch.update_to_development_branch()
+            with retry:
+                retry.run(
+                    integration_branch.update_to_development_branch,
+                    catch=PushFailedException,
+                    fail_msg="Failed to push merge of branch %s" % (
+                        integration_branch
+                    )
+                )
 
-            for integration_branch in integration_branches:
-                try:
-                    integration_branch.remove()
-                except RemoveFailedException:
-                    # ignore failures as this is non critical
-                    pass
+        for integration_branch in integration_branches:
+            try:
+                integration_branch.remove()
+            except RemoveFailedException:
+                # ignore failures as this is non critical
+                pass
 
     def _validate_repo(self):
         self._cascade.validate()

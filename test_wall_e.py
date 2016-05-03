@@ -6,8 +6,9 @@ import logging
 import sys
 import unittest
 import requests
-from hashlib import md5
 from collections import OrderedDict
+from hashlib import md5
+from time import time
 
 import bitbucket_api
 import bitbucket_api_mock
@@ -46,6 +47,7 @@ from wall_e_exceptions import (AfterPullRequest,
                                UnrecognizedBranchPattern,
                                UnsupportedMultipleStabBranches,
                                VersionMismatch)
+from utils import RetryHandler
 
 WALL_E_USERNAME = wall_e.WALL_E_USERNAME
 WALL_E_EMAIL = wall_e.WALL_E_EMAIL
@@ -423,6 +425,49 @@ class QuickTest(unittest.TestCase):
         fixver = []
         with self.assertRaises(DeprecatedStabilizationBranch):
             self.finalize_cascade(branches, tags, destination, fixver)
+
+    def test_retry_handler(self):
+        class DummyError(Exception):
+            pass
+
+        def dummy_func(num_fails, history, raise_exn=None):
+            """Function that fails the `num_fails` first times it is called."""
+            if raise_exn is not None:
+                raise raise_exn
+            history.append("attempt")
+            if len(history) <= num_fails:
+                raise DummyError
+
+        # Retry for at most 5 seconds, with at most 2 seconds between attempts
+        retry = RetryHandler(5, max_delay=2)
+
+        with retry:
+            history = []
+            start = time()
+            retry.run(dummy_func, 2, history, catch=DummyError)
+            elapsed = time() - start
+
+            self.assertGreaterEqual(elapsed, 3)
+            self.assertLess(elapsed, 4)
+            self.assertEqual(3, len(history))
+
+        with retry:
+            start = time()
+            history = []
+            with self.assertRaises(DummyError):
+                retry.run(dummy_func, 10, history)
+            elapsed = time() - start
+            self.assertGreaterEqual(elapsed, retry.limit)
+            self.assertEqual(4, len(history))
+
+        with retry:
+            # Check that unpredicted errors are not silently caught
+            start = time()
+            with self.assertRaises(RuntimeError):
+                retry.run(dummy_func, 1, [], raise_exn=RuntimeError,
+                          catch=DummyError)
+            elapsed = time() - start
+            self.assertLess(elapsed, 1)
 
 
 class FakeGitRepo:
