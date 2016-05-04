@@ -6,10 +6,7 @@ from collections import OrderedDict
 import itertools
 import logging
 import re
-import smtplib
 import sys
-import time
-import traceback
 
 from jira.exceptions import JIRAError
 import requests
@@ -21,7 +18,8 @@ from git_api import (Repository as GitRepository,
                      Branch,
                      MergeFailedException,
                      CheckoutFailedException,
-                     RemoveFailedException)
+                     RemoveFailedException,
+                     PushFailedException)
 import jira_api
 from wall_e_exceptions import (AfterPullRequest,
                                AuthorApprovalRequired,
@@ -37,7 +35,6 @@ from wall_e_exceptions import (AfterPullRequest,
                                DevBranchesNotSelfContained,
                                DeprecatedStabilizationBranch,
                                HelpMessage,
-                               ImproperEmailFormat,
                                IncompatibleSourceBranchPrefix,
                                IncorrectFixVersion,
                                IncorrectJiraProject,
@@ -58,7 +55,6 @@ from wall_e_exceptions import (AfterPullRequest,
                                StatusReport,
                                SuccessMessage,
                                TesterApprovalRequired,
-                               UnableToSendEmail,
                                UnanimityApprovalRequired,
                                UnknownCommand,
                                UnrecognizedBranchPattern,
@@ -66,6 +62,7 @@ from wall_e_exceptions import (AfterPullRequest,
                                VersionMismatch,
                                WallE_SilentException,
                                WallE_TemplateException)
+from utils import RetryHandler
 
 if six.PY3:
     raw_input = input
@@ -218,34 +215,6 @@ class Command(object):
         self.privileged = privileged
 
 
-def setup_email(destination):
-    """Check the capacity to send emails."""
-    match_ = re.match("(?P<short_name>[^@]*)@.*", destination)
-    if not match_:
-        raise ImproperEmailFormat("The specified email does "
-                                  "not seem valid (%s)" % destination)
-    try:
-        smtplib.SMTP('localhost')
-    except Exception as excp:
-        raise UnableToSendEmail("Unable to send email (%s)" % excp)
-
-
-def send_email(destination, title, content):
-    """Send some data by email."""
-    match_ = re.match("(?P<short_name>[^@]*)@.*", destination)
-    if not match_:
-        raise ImproperEmailFormat("The specified email does "
-                                  "not seem valid (%s)" % destination)
-    body = render('email_alert.md',
-                  name=match_.group('short_name'),
-                  subject=title,
-                  content=content,
-                  destination=destination,
-                  email=WALL_E_EMAIL)
-    smtpObj = smtplib.SMTP('localhost')
-    smtpObj.sendmail(WALL_E_EMAIL, [destination], body)
-
-
 def confirm(question):
     input_ = raw_input(question + " Enter (y)es or (n)o: ")
     return input_ == "yes" or input_ == "y"
@@ -351,7 +320,8 @@ class IntegrationBranch(WallEBranch):
             break
         return pr
 
-    def get_or_create_pull_request(self, parent_pr, open_prs, bitbucket_repo):
+    def get_or_create_pull_request(self, parent_pr, open_prs, bitbucket_repo,
+                                   first=False):
         title = bitbucket_api.fix_pull_request_title(
             'INTEGRATION [PR#%s > %s] %s' % (
                 parent_pr['id'],
@@ -371,7 +341,9 @@ class IntegrationBranch(WallEBranch):
         if not pr:
             description = render('pull_request_description.md',
                                  wall_e=WALL_E_USERNAME,
-                                 pr=parent_pr)
+                                 pr=parent_pr,
+                                 branch=self.name,
+                                 first=first)
             pr = bitbucket_repo.create_pull_request(
                 title=title,
                 name='name',
@@ -1074,7 +1046,15 @@ class WallE:
 
     def _update(self, source, destination, origin=False):
         try:
-            destination.merge_from_branch(source)
+            # Retry for up to 60 seconds when connectivity is lost
+            with RetryHandler(60, logging) as retry:
+                retry.run(
+                    destination.merge_from_branch, source,
+                    catch=PushFailedException,
+                    fail_msg="Couldn't push merge (%s -> %s)" % (
+                        source, destination
+                    )
+                )
         except MergeFailedException:
             raise Conflict(source=source,
                            destination=destination,
@@ -1106,8 +1086,10 @@ class WallE:
         prs, created = zip(*(
             integration_branch.get_or_create_pull_request(self.main_pr,
                                                           open_prs,
-                                                          self.bbrepo)
-            for integration_branch in integration_branches))
+                                                          self.bbrepo,
+                                                          idx == 0)
+            for idx, integration_branch in enumerate(integration_branches)
+        ))
         if any(created):
             raise IntegrationPullRequestsCreated(
                         pr=self.main_pr,
@@ -1281,15 +1263,25 @@ class WallE:
         assert build_state == 'SUCCESSFUL'
 
     def _merge(self, integration_branches):
+        # Retry for up to 5 minutes when connectivity is lost
+        # Simply accepting failure here could lead to a messy situation
+        retry = RetryHandler(300, logging)
         for integration_branch in integration_branches:
-            integration_branch.update_to_development_branch()
+            with retry:
+                retry.run(
+                    integration_branch.update_to_development_branch,
+                    catch=PushFailedException,
+                    fail_msg="Failed to push merge of branch %s" % (
+                        integration_branch
+                    )
+                )
 
-            for integration_branch in integration_branches:
-                try:
-                    integration_branch.remove()
-                except RemoveFailedException:
-                    # ignore failures as this is non critical
-                    pass
+        for integration_branch in integration_branches:
+            try:
+                integration_branch.remove()
+            except RemoveFailedException:
+                # ignore failures as this is non critical
+                pass
 
     def _validate_repo(self):
         self._cascade.validate()
@@ -1377,10 +1369,6 @@ def setup_parser():
     parser.add_argument(
         '-v', action='store_true', dest='verbose', default=False,
         help="Verbose mode")
-    parser.add_argument(
-        '--alert-email', action='store', default=None, type=str,
-        help="Where to send notifications in case of "
-             "incorrect behaviour")
     parser.add_argument(
         '--backtrace', action='store_true', default=False,
         help="Show backtrace instead of return code on console")
@@ -1498,17 +1486,6 @@ def main():
               args.settings)
         sys.exit(1)
 
-    if args.alert_email:
-        try:
-            setup_email(args.alert_email)
-        except ImproperEmailFormat:
-            print("Invalid email (%s)" % args.alert_email)
-            sys.exit(1)
-        except UnableToSendEmail:
-            print("It appears I won't be able to send emails, please check "
-                  "the email server.")
-            sys.exit(1)
-
     options = setup_options(args)
     commands = setup_commands()
 
@@ -1547,14 +1524,6 @@ def main():
         if not args.quiet:
             print('%d - %s' % (0, excp.__class__.__name__))
         return 0
-
-    except Exception:
-        if args.alert_email:
-            send_email(destination=args.alert_email,
-                       title="[Wall-E] Unexpected termination "
-                             "(%s)" % time.asctime(),
-                       content=traceback.format_exc())
-        raise
 
 
 if __name__ == '__main__':

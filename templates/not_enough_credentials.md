@@ -1,7 +1,7 @@
 {% extends "message.md" %}
 
 {% block title -%}
-Not authorized.
+Not authorized
 {% endblock %}
 
 {% block message %}
