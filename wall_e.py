@@ -82,7 +82,7 @@ SETTINGS = {
             'bjorn_schuberg',
             'christophe_meron',
             'christophe_stoyanov',
-            'louis_pery_scality'
+            'louis_pery_scality',
             'mcolzi',
             'romain_thebaud',
             'sleibo',
