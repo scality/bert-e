@@ -778,9 +778,9 @@ class TestWallE(unittest.TestCase):
                 e.msg)
             # Wall-E shouldn't instruct the user to modify the integration
             # branch with the same target as the original PR
-            self.assertNotIn(
-                "git checkout w/5.1/improvement/RING-0006",
-                e.msg)
+            self.assertIn('**on the feature branch**', e.msg)
+            self.assertIn('`improvement/RING-0006`', e.msg)
+            self.assertNotIn("git checkout w/5.1/improvement/RING-0006", e.msg)
         else:
             self.fail("No conflict detected.")
 
