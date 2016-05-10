@@ -760,17 +760,38 @@ class TestWallE(unittest.TestCase):
     def test_conflict(self):
         pr1 = self.create_pr('bugfix/RING-0006', 'development/5.1',
                              file_='toto.txt')
-        pr2 = self.create_pr('improvement/RING-0006', 'development/5.1',
+        pr2 = self.create_pr('bugfix/RING-0006-other', 'development/5.1',
                              file_='toto.txt')
-        pr3 = self.create_pr('improvement/RING-0006-other', 'development/4.3',
+        pr3 = self.create_pr('improvement/RING-0006', 'development/5.1',
                              file_='toto.txt')
+        pr4 = self.create_pr('improvement/RING-0006-other', 'development/4.3',
+                             file_='toto.txt')
+        # Start PR2 (create integration branches) first
+        self.skip_prs_integration_message(pr2['id'], self.bypass_all)
+
         self.skip_prs_integration_message(pr1['id'], self.bypass_all)
         retcode = self.handle(pr1['id'], options=self.bypass_all)
         self.assertEqual(retcode, SuccessMessage.code)
+
+        # Pursue PR2 (conflict on branch development/5.1 vs. w/ branch)
         try:
-            self.handle(pr2['id'],
-                        options=self.bypass_all,
-                        backtrace=True)
+            self.handle(pr2['id'], options=self.bypass_all, backtrace=True)
+        except Conflict as e:
+            self.assertIn(
+                "`development/5.1`\ninto integration branch "
+                "`w/5.1/bugfix/RING-0006-other`",
+                e.msg)
+            # Wall-E shouldn't instruct the user to modify the integration
+            # branch with the same target as the original PR
+            self.assertIn('**on the feature branch** '
+                          '(`bugfix/RING-0006-other`', e.msg)
+            self.assertNotIn("git checkout w/5.1/bugfix/RING-0006-other",
+                             e.msg)
+        else:
+            self.fail("No conflict detected.")
+
+        try:
+            self.handle(pr3['id'], options=self.bypass_all, backtrace=True)
         except Conflict as e:
             self.assertIn(
                 "`improvement/RING-0006`\ninto integration branch "
@@ -785,7 +806,7 @@ class TestWallE(unittest.TestCase):
             self.fail("No conflict detected.")
 
         try:
-            self.handle(pr3['id'],
+            self.handle(pr4['id'],
                         options=self.bypass_all,
                         backtrace=True)
         except Conflict as e:
