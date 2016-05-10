@@ -1059,7 +1059,8 @@ class WallE:
             raise Conflict(source=source,
                            destination=destination,
                            active_options=self._get_active_options(),
-                           origin=origin)
+                           origin=origin,
+                           feature_branch=self.source_branch)
 
     def _update_integration_from_dev(self, integration_branches):
         # The first integration branch should not contain commits

@@ -9,7 +9,7 @@ A conflict has been raised during the merge of `{{ source.name }}`
 into integration branch `{{ destination.name }}`.
 
 {% if origin %}
-Please resolve the conflict **on the feature branch** (`{{ source.name }}`).
+Please resolve the conflict **on the feature branch** (`{{ feature_branch.name }}`).
 {% else %}
 Please resolve the conflict on **the integration branch**.
 
