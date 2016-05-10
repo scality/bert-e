@@ -783,7 +783,7 @@ class TestWallE(unittest.TestCase):
                 e.msg)
             # Wall-E shouldn't instruct the user to modify the integration
             # branch with the same target as the original PR
-            self.assertIn('**on the feature branch** '
+            self.assertIn('on **the feature branch** '
                           '(`bugfix/RING-0006-other`', e.msg)
             self.assertNotIn("git checkout w/5.1/bugfix/RING-0006-other",
                              e.msg)
@@ -799,7 +799,7 @@ class TestWallE(unittest.TestCase):
                 e.msg)
             # Wall-E shouldn't instruct the user to modify the integration
             # branch with the same target as the original PR
-            self.assertIn('**on the feature branch** (`improvement/RING-0006`',
+            self.assertIn('on **the feature branch** (`improvement/RING-0006`',
                           e.msg)
             self.assertNotIn("git checkout w/5.1/improvement/RING-0006", e.msg)
         else:

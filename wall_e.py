@@ -1060,7 +1060,8 @@ class WallE:
                            destination=destination,
                            active_options=self._get_active_options(),
                            origin=origin,
-                           feature_branch=self.source_branch)
+                           feature_branch=self.source_branch,
+                           dev_branch=self.destination_branch)
 
     def _update_integration_from_dev(self, integration_branches):
         # The first integration branch should not contain commits
