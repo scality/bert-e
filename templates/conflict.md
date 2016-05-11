@@ -23,15 +23,14 @@ Please resolve the conflict on **the feature branch** (`{{ feature_branch.name }
 {% if source.name == dev_branch.name -%}
 Unfortunately, I cannot recover from this particular case automatically (see
 RELENG-1439). Once you have resolved the conflict, you will have to manually
-update or delete all `w/*` branches related to this pull request.  If you
-choose to delete them, please **decline the old integration pull requests
-manually**.
+delete all `w/*` branches related to this pull request
+(using `git push origin :<branch-name> `).
 
-Once it is done, please comment this pull request to resume the merge process.
+Once done, please **decline the old integration pull requests** and comment
+this pull request to resume the merge process.
 {% endif%}
-{% else %}
-Please resolve the conflict on **the integration branch**
-(`{{ destination.name }}`).
+{% else %} Please
+resolve the conflict on **the integration branch** (`{{ destination.name }}`).
 
 Here are the steps to resolve this conflict:
 
