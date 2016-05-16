@@ -200,6 +200,9 @@ class Option(object):
     def is_set(self):
         return self.value
 
+    def __repr__(self):
+        return "<%s, %s>" % (self.value, "admin" if self.privileged else "any")
+
 
 class Command(object):
     """Wall-E commands implementation.
