@@ -67,6 +67,7 @@ from wall_e_exceptions import (AfterPullRequest,
                                WallE_SilentException,
                                WallE_TemplateException,
                                WaitOptionIsSet)
+from utils import RetryHandler
 
 if six.PY3:
     raw_input = input
@@ -325,13 +326,14 @@ class IntegrationBranch(WallEBranch):
         return pr
 
     def get_or_create_pull_request(self, parent_pr, open_prs, bitbucket_repo,
-                                   first=False, dry_run):
+                                   dry_run, first=False):
         title = bitbucket_api.fix_pull_request_title(
             'INTEGRATION [PR#%s > %s] %s' % (
                 parent_pr['id'],
                 self.destination_branch.name,
                 parent_pr['title']
             )
+        )
 
         # WARNING potential infinite loop:
         # creating a child pr will trigger a 'pr update' webhook
@@ -1101,7 +1103,7 @@ class WallE:
             integration_branch.get_or_create_pull_request(self.main_pr,
                                                           open_prs,
                                                           self.bbrepo,
-                                                          idx == 0, self.dry_run)
+                                                          self.dry_run, idx == 0)
             for idx, integration_branch in enumerate(integration_branches)
         ))
         if any(created):
@@ -1523,7 +1525,6 @@ def main():
                    args.owner, args.slug, int(args.pull_request_id),
                    options, commands, SETTINGS[args.settings],
                    args.dry_run)
-
 
     is_repeat = "new"
     try:
