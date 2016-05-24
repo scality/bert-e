@@ -53,18 +53,11 @@ def filter_pr(your_login, your_password, your_mail, owner, slug, **kwargs):
         if not pr_match:
             continue
 
-        pr_log = ('%s (%s) [%s]->[%s]https://bitbucket.org'
-                 '/%s/%s/pull-requests/%s'
-                 % (pr['id'],
-                    pr['author']['display_name'],
-                    pr['source']['branch']['name'],
-                    pr['destination']['branch']['name'],
-                    owner,
-                    slug,
-                    pr['id']))
         pr_dict[pr['id']] = {'author': pr['author']['display_name'],
                              'source': pr['source']['branch']['name'],
-                             'destination': pr['destination']['branch']['name']}
+                             'destination': pr['destination']['branch']['name'],
+                             'created_on': pr['created_on'],
+                             'updated_on': pr['updated_on']}
     return pr_dict
 
 def main():
