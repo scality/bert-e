@@ -1,0 +1,13 @@
+# You can use a Docker image from Docker Hub or your own container
+# registry for your build environment.
+image: python:2.7
+
+pipelines:
+  default:
+    - step:
+        script:
+          - pip install -r requirements.txt
+          - flake8 *.py
+          - coverage run test_wall_e.py --failfast -v $WALL_E_PWD $EVE_PWD rayene_benrayana another_user_pass another_user@scality.com  
+          - coverage report
+          - coverage html
