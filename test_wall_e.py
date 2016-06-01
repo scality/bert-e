@@ -1918,6 +1918,25 @@ class TestWallE(unittest.TestCase):
             self.fail("Error from bitbucket: %s" % err.response.text)
         self.assertEqual(retcode, SuccessMessage.code)
 
+    def test_unvalid_walle_status_command(self):
+        """RELENG-1335: test WallE unvalid status command"""
+
+        feature_branch = 'bugfix/RING-007'
+        dst_branch = 'development/4.3'
+
+        pr = self.create_pr(feature_branch, dst_branch)
+        self.skip_prs_integration_message(pr['id'],
+                                          ['bypass_jira_check'])
+        retcode = self.handle(pr['id'], options=['bypass_jira_check'])
+        self.assertEqual(retcode, AuthorApprovalRequired.code)
+        pr.add_comment('@%s status?' % WALL_E_USERNAME)
+        retcode = self.handle(pr['id'], options=[
+                    'bypass_jira_check',
+                    'bypass_author_approval',
+		    'bypass_tester_approval',
+		    'bypass_peer_approval'])
+        self.assertEqual(retcode, UnknownCommand.code)
+
 
 def main():
     parser = argparse.ArgumentParser(description='Launches Wall-E tests.')
