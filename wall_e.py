@@ -539,7 +539,8 @@ class BranchCascade(object):
 
 class WallE:
     def __init__(self, bitbucket_login, bitbucket_password, bitbucket_mail,
-                 owner, slug, pull_request_id, options, commands, settings):
+                 owner, slug, pull_request_id, options, commands, settings,
+                 interactive, no_comment):
         self._bbconn = bitbucket_api.Client(
             bitbucket_login, bitbucket_password, bitbucket_mail)
         self.bbrepo = bitbucket_api.Repository(
@@ -568,6 +569,8 @@ class WallE:
         self.after_prs = []
         # first posted comments first in the list
         self.comments = []
+        self.interactive = interactive
+        self.no_comment = no_comment
 
     def option_is_set(self, name):
         if name not in self.options.keys():
@@ -619,28 +622,25 @@ class WallE:
                 continue
             return comment
 
-    def send_bitbucket_msg(self, msg, no_comment=False,
-                           dont_repeat_if_in_history=10,
-                           interactive=False):
+    def send_bitbucket_msg(self, msg,
+                           dont_repeat_if_in_history=10):
         logging.debug('considering sending: %s', msg)
 
-        if no_comment:
+        if self.no_comment:
             logging.debug('not sending message due to no_comment being True.')
             return
 
-        # if wall-e doesn't do anything in the last 10 comments,
-        # allow him to run again
+        # Apply no-repeat strategy
         if dont_repeat_if_in_history:
             if self.find_bitbucket_comment(
-                    username=WALL_E_USERNAME,
-                    startswith=msg,
+                    username=WALL_E_USERNAME, startswith=msg,
                     max_history=dont_repeat_if_in_history):
-                raise CommentAlreadyExists('The same comment has '
-                                           'already been posted by '
-                                           'Wall-E in the past. '
-                                           'Nothing to do here!')
+                raise CommentAlreadyExists(
+                    'The same comment has already been posted '
+                    'by Wall-E in the past. Nothing to do here!'
+                )
 
-        if interactive:
+        if self.interactive:
             print('%s\n' % msg)
             if not confirm('Do you want to send this comment?'):
                 return
@@ -648,6 +648,9 @@ class WallE:
         logging.debug('SENDING MSG %s', msg)
 
         self.main_pr.add_comment(msg)
+
+    def send_msg(self, msg):
+        self.send_bitbucket_msg(unicode(msg), msg.dont_repeat_if_in_history)
 
     def _check_pr_state(self):
         if self.main_pr['state'] != 'OPEN':  # REJECTED or FULFILLED
@@ -1288,8 +1291,7 @@ class WallE:
     def _validate_repo(self):
         self._cascade.validate()
 
-    def handle_pull_request(self, reference_git_repo='',
-                            no_comment=False, interactive=False):
+    def handle_pull_request(self, reference_git_repo=''):
 
         self._check_pr_state()
 
@@ -1323,7 +1325,7 @@ class WallE:
             self._check_approvals(child_prs)
             self._check_build_status(child_prs)
 
-            if interactive and not confirm('Do you want to merge ?'):
+            if self.interactive and not confirm('Do you want to merge ?'):
                 return
 
             self._merge(integration_branches)
@@ -1493,22 +1495,14 @@ def main():
 
     wall_e = WallE(WALL_E_USERNAME, args.password, WALL_E_EMAIL,
                    args.owner, args.slug, int(args.pull_request_id),
-                   options, commands, SETTINGS[args.settings])
+                   options, commands, SETTINGS[args.settings],
+                   args.interactive, args.no_comment)
 
     try:
-        wall_e.handle_pull_request(
-            reference_git_repo=args.reference_git_repo,
-            no_comment=args.no_comment,
-            interactive=args.interactive
-        )
-
+        wall_e.handle_pull_request(args.reference_git_repo)
     except WallE_TemplateException as excp:
         try:
-            wall_e.send_bitbucket_msg(unicode(excp),
-                                      dont_repeat_if_in_history=excp.
-                                      dont_repeat_if_in_history,
-                                      no_comment=args.no_comment,
-                                      interactive=args.interactive)
+            wall_e.send_msg(excp)
         except CommentAlreadyExists:
             logging.info('Comment already posted.')
 
