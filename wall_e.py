@@ -650,7 +650,11 @@ class WallE:
         self.main_pr.add_comment(msg)
 
     def send_msg(self, msg):
-        self.send_bitbucket_msg(unicode(msg), msg.dont_repeat_if_in_history)
+        try:
+            self.send_bitbucket_msg(unicode(msg),
+                                    msg.dont_repeat_if_in_history)
+        except CommentAlreadyExists:
+            logging.info("Comment '%s' already posted", msg.__class__.__name__)
 
     def _check_pr_state(self):
         if self.main_pr['state'] != 'OPEN':  # REJECTED or FULFILLED
@@ -696,9 +700,10 @@ class WallE:
             if author == WALL_E_USERNAME:
                 return
 
-        raise InitMessage(author=self.author_display_name,
-                          status=self.get_status_report(),
-                          active_options=self._get_active_options())
+        self.send_msg(InitMessage(
+            author=self.author_display_name, status=self.get_status_report(),
+            active_options=self._get_active_options()
+        ))
 
     def _check_options(self, comment_author, pr_author, keyword_list, comment):
         logging.debug('checking keywords %s', keyword_list)
@@ -1096,14 +1101,11 @@ class WallE:
             for idx, integration_branch in enumerate(integration_branches)
         ))
         if any(created):
-            try:
-                self.send_msg(IntegrationPullRequestsCreated(
-                    pr=self.main_pr, child_prs=prs,
-                    ignored=self._cascade.ignored_branches,
-                    active_options=self._get_active_options()
-                ))
-            except CommentAlreadyExists:
-                pass
+            self.send_msg(IntegrationPullRequestsCreated(
+                pr=self.main_pr, child_prs=prs,
+                ignored=self._cascade.ignored_branches,
+                active_options=self._get_active_options()
+            ))
         return prs
 
     def _check_pull_request_skew(self, integration_branches, integration_prs):
@@ -1503,10 +1505,7 @@ def main():
     try:
         wall_e.handle_pull_request(args.reference_git_repo)
     except WallE_TemplateException as excp:
-        try:
-            wall_e.send_msg(excp)
-        except CommentAlreadyExists:
-            logging.info('Comment already posted.')
+        wall_e.send_msg(excp)
 
         if args.backtrace:
             raise excp

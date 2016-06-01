@@ -569,8 +569,6 @@ class TestWallE(unittest.TestCase):
             reviewers=[{'username': rev} for rev in reviewers],
             description=''
         )
-        retcode = self.handle(pr['id'], backtrace=backtrace)
-        self.assertEqual(retcode, InitMessage.code)
         return pr
 
     def handle(self,
