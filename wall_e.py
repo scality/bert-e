@@ -1096,12 +1096,14 @@ class WallE:
             for idx, integration_branch in enumerate(integration_branches)
         ))
         if any(created):
-            raise IntegrationPullRequestsCreated(
-                        pr=self.main_pr,
-                        child_prs=prs,
-                        ignored=self._cascade.ignored_branches,
-                        active_options=self._get_active_options()
-                    )
+            try:
+                self.send_msg(IntegrationPullRequestsCreated(
+                    pr=self.main_pr, child_prs=prs,
+                    ignored=self._cascade.ignored_branches,
+                    active_options=self._get_active_options()
+                ))
+            except CommentAlreadyExists:
+                pass
         return prs
 
     def _check_pull_request_skew(self, integration_branches, integration_prs):

@@ -140,6 +140,7 @@ class AfterPullRequest(WallE_TemplateException):
 class IntegrationPullRequestsCreated(WallE_InformationException):
     code = 121
     template = 'integration_pull_requests.md'
+    dont_repeat_if_in_history = 10
 
 
 class UnknownCommand(WallE_TemplateException):

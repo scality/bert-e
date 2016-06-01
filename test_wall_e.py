@@ -602,14 +602,6 @@ class TestWallE(unittest.TestCase):
         sys.argv.append(self.args.wall_e_password)
         return wall_e.main()
 
-    def skip_prs_integration_message(self, pr_id, options=[]):
-        """Check and handle integrationPullRequestsCreated Exception
-
-        Raise an assertError if the exception didn't raise.
-        """
-        retcode = self.handle(pr_id, options=options)
-        self.assertEqual(retcode, IntegrationPullRequestsCreated.code)
-
     def test_full_merge_manual(self):
         """Test the following conditions:
 
@@ -619,8 +611,6 @@ class TestWallE(unittest.TestCase):
 
         """
         pr = self.create_pr('bugfix/RING-0001', 'development/4.3')
-        self.skip_prs_integration_message(pr['id'],
-                                          ['bypass_jira_check'])
         retcode = self.handle(pr['id'], options=['bypass_jira_check'])
         self.assertEqual(retcode, AuthorApprovalRequired.code)
         # check backtrace mode on the same error, and check same error happens
@@ -657,36 +647,24 @@ class TestWallE(unittest.TestCase):
         self.assertEqual(retcode, IncompatibleSourceBranchPrefix.code)
 
         pr = self.create_pr('bugfix/RING-00003', 'development/4.3')
-        self.skip_prs_integration_message(
-                pr['id'],
-                self.bypass_all_but(['bypass_incompatible_branch']))
         retcode = self.handle(
             pr['id'],
             options=self.bypass_all_but(['bypass_incompatible_branch']))
         self.assertEqual(retcode, SuccessMessage.code)
 
         pr = self.create_pr('improvement/RING-00004', 'development/4.3')
-        self.skip_prs_integration_message(
-                pr['id'],
-                self.bypass_all_but(['bypass_incompatible_branch']))
         retcode = self.handle(
             pr['id'],
             options=self.bypass_all_but(['bypass_incompatible_branch']))
         self.assertEqual(retcode, SuccessMessage.code)
 
         pr = self.create_pr('project/RING-00005', 'development/6.0')
-        self.skip_prs_integration_message(
-                pr['id'],
-                self.bypass_all_but(['bypass_incompatible_branch']))
         retcode = self.handle(
             pr['id'],
             options=self.bypass_all_but(['bypass_incompatible_branch']))
         self.assertEqual(retcode, SuccessMessage.code)
 
         pr = self.create_pr('feature/RING-00006', 'development/6.0')
-        self.skip_prs_integration_message(
-                pr['id'],
-                self.bypass_all_but(['bypass_incompatible_branch']))
         retcode = self.handle(
             pr['id'],
             options=self.bypass_all_but(['bypass_incompatible_branch']))
@@ -697,9 +675,6 @@ class TestWallE(unittest.TestCase):
         self.assertEqual(retcode, IncompatibleSourceBranchPrefix.code)
 
         pr = self.create_pr('bugfix/RING-00008', 'stabilization/4.3.18')
-        self.skip_prs_integration_message(
-                pr['id'],
-                self.bypass_all_but(['bypass_incompatible_branch']))
         retcode = self.handle(
             pr['id'],
             options=self.bypass_all_but(['bypass_incompatible_branch']))
@@ -710,9 +685,6 @@ class TestWallE(unittest.TestCase):
         self.assertEqual(retcode, IncompatibleSourceBranchPrefix.code)
 
         pr = self.create_pr('bugfix/RING-00010', 'stabilization/6.0.0')
-        self.skip_prs_integration_message(
-                pr['id'],
-                self.bypass_all_but(['bypass_incompatible_branch']))
         retcode = self.handle(
             pr['id'],
             options=self.bypass_all_but(['bypass_incompatible_branch']))
@@ -767,9 +739,10 @@ class TestWallE(unittest.TestCase):
         pr4 = self.create_pr('improvement/RING-0006-other', 'development/4.3',
                              file_='toto.txt')
         # Start PR2 (create integration branches) first
-        self.skip_prs_integration_message(pr2['id'], self.bypass_all)
 
-        self.skip_prs_integration_message(pr1['id'], self.bypass_all)
+        self.handle(
+            pr2['id'], self.bypass_all_but(['bypass_author_approval'])
+        )
         retcode = self.handle(pr1['id'], options=self.bypass_all)
         self.assertEqual(retcode, SuccessMessage.code)
 
@@ -835,8 +808,6 @@ class TestWallE(unittest.TestCase):
 
         pr = self.create_pr(feature_branch, dst_branch)
 
-        self.skip_prs_integration_message(pr['id'],
-                                          ['bypass_jira_check'])
         retcode = self.handle(pr['id'], options=['bypass_jira_check'])
         self.assertEqual(retcode, AuthorApprovalRequired.code)
 
@@ -879,8 +850,6 @@ class TestWallE(unittest.TestCase):
         for feature_branch in ['bugfix/RING-0008', 'bugfix/RING-0008-label']:
             dst_branch = 'stabilization/4.3.18'
             pr = self.create_pr(feature_branch, dst_branch)
-            self.skip_prs_integration_message(pr['id'],
-                                              ['bypass_jira_check'])
             retcode = self.handle(pr['id'], options=['bypass_jira_check'])
             self.assertEqual(retcode, AuthorApprovalRequired.code)
 
@@ -924,7 +893,6 @@ class TestWallE(unittest.TestCase):
 
         # merge to latest dev branch does not require a ticket
         pr = self.create_pr('bugfix/free_text', 'development/6.0')
-        self.skip_prs_integration_message(pr['id'])
         retcode = self.handle(pr['id'])
         self.assertEqual(retcode, AuthorApprovalRequired.code)
 
@@ -951,10 +919,7 @@ class TestWallE(unittest.TestCase):
     def test_main_pr_retrieval(self):
         # create integration PRs first:
         pr = self.create_pr('bugfix/RING-00066', 'development/4.3')
-        self.skip_prs_integration_message(pr['id'],
-                                          ['bypass_jira_check'])
-        retcode = self.handle(pr['id'],
-                              options=['bypass_jira_check'])
+        retcode = self.handle(pr['id'], options=['bypass_jira_check'])
         self.assertEqual(retcode, AuthorApprovalRequired.code)
         # simulate a child pr update
         retcode = self.handle(pr['id']+1,
@@ -1016,11 +981,9 @@ class TestWallE(unittest.TestCase):
 
         # Let's have Wall-E yield an actual AuthorApproval error message
         author_msg = ''
-        self.skip_prs_integration_message(pr['id'],
-                                          ['bypass_jira_check'])
         try:
-            self.handle(pr['id'], options=['bypass_jira_check'],
-                        backtrace=True)
+            self.handle(
+                pr['id'], options=['bypass_jira_check'], backtrace=True)
         except AuthorApprovalRequired as ret:
             author_msg = md5(ret.msg).digest()
 
@@ -1098,8 +1061,6 @@ class TestWallE(unittest.TestCase):
         pr_wall_e = self.bbrepo_wall_e.get_pull_request(
             pull_request_id=pr['id'])
         pr_wall_e.add_comment('this is my help already')
-        self.skip_prs_integration_message(pr['id'],
-                                          ['bypass_jira_check'])
         retcode = self.handle(pr['id'], options=['bypass_jira_check'])
         self.assertEqual(retcode, AuthorApprovalRequired.code)
 
@@ -1197,8 +1158,6 @@ class TestWallE(unittest.TestCase):
                              ' bypass_tester_approval'
                              ' bypass_build_status'
                              ' bypass_jira_check' % WALL_E_USERNAME)
-        retcode = self.handle(pr['id'], options=['bypass_jira_check'])
-        self.assertEqual(retcode, IntegrationPullRequestsCreated.code)
         retcode = self.handle(pr['id'])
         self.assertEqual(retcode, SuccessMessage.code)
 
@@ -1211,7 +1170,6 @@ class TestWallE(unittest.TestCase):
                              ' bypass_tester_approval'
                              '  bypass_build_status'
                              '   bypass_jira_check' % WALL_E_USERNAME)
-        self.skip_prs_integration_message(pr['id'])
         retcode = self.handle(pr['id'])
         self.assertEqual(retcode, SuccessMessage.code)
 
@@ -1223,7 +1181,6 @@ class TestWallE(unittest.TestCase):
         pr_admin.add_comment('@%s bypass_tester_approval' % WALL_E_USERNAME)
         pr_admin.add_comment('@%s bypass_build_status' % WALL_E_USERNAME)
         pr_admin.add_comment('@%s bypass_jira_check' % WALL_E_USERNAME)
-        self.skip_prs_integration_message(pr['id'])
         retcode = self.handle(pr['id'])
         self.assertEqual(retcode, SuccessMessage.code)
 
@@ -1234,9 +1191,6 @@ class TestWallE(unittest.TestCase):
                              ' bypass_author_approval'
                              ' bypass_peer_approval'
                              ' bypass_tester_approval' % WALL_E_USERNAME)
-        self.skip_prs_integration_message(pr['id'],
-                                          ['bypass_build_status',
-                                          'bypass_jira_check'])
         retcode = self.handle(pr['id'], options=['bypass_build_status',
                                                  'bypass_jira_check'])
         self.assertEqual(retcode, SuccessMessage.code)
@@ -1246,9 +1200,6 @@ class TestWallE(unittest.TestCase):
         pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id'])
         pr_admin.add_comment('@%s'
                              ' bypass_author_approval' % WALL_E_USERNAME)
-        self.skip_prs_integration_message(
-                pr['id'],
-                self.bypass_all_but(['bypass_author_approval']))
         retcode = self.handle(
             pr['id'],
             options=self.bypass_all_but(['bypass_author_approval']))
@@ -1259,12 +1210,6 @@ class TestWallE(unittest.TestCase):
         pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id'])
         pr_admin.add_comment('@%s'
                              ' bypass_peer_approval' % WALL_E_USERNAME)
-        self.skip_prs_integration_message(
-                pr['id'],
-                ['bypass_author_approval',
-                 'bypass_tester_approval',
-                 'bypass_jira_check',
-                 'bypass_build_status'])
         retcode = self.handle(pr['id'],
                               options=['bypass_author_approval',
                                        'bypass_tester_approval',
@@ -1277,12 +1222,6 @@ class TestWallE(unittest.TestCase):
         pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id'])
         pr_admin.add_comment('@%s'
                              ' bypass_jira_check' % WALL_E_USERNAME)
-        self.skip_prs_integration_message(
-                pr['id'],
-                ['bypass_author_approval',
-                 'bypass_tester_approval',
-                 'bypass_peer_approval',
-                 'bypass_build_status'])
         retcode = self.handle(pr['id'], options=['bypass_author_approval',
                                                  'bypass_tester_approval',
                                                  'bypass_peer_approval',
@@ -1294,9 +1233,6 @@ class TestWallE(unittest.TestCase):
         pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id'])
         pr_admin.add_comment('@%s'
                              ' bypass_build_status' % WALL_E_USERNAME)
-        self.skip_prs_integration_message(
-                pr['id'],
-                self.bypass_all_but(['bypass_build_status']))
         retcode = self.handle(
             pr['id'],
             options=self.bypass_all_but(['bypass_build_status']))
@@ -1323,7 +1259,6 @@ class TestWallE(unittest.TestCase):
             pr.add_comment('@%s bypass_tester_approval' % i)
         pr_admin.add_comment('@%s bypass_tester_approval' % WALL_E_USERNAME)
 
-        self.skip_prs_integration_message(pr['id'])
         retcode = self.handle(pr['id'])
         self.assertEqual(retcode, SuccessMessage.code)
 
@@ -1336,7 +1271,6 @@ class TestWallE(unittest.TestCase):
                              ' bypass_tester_approval'
                              '  bypass_build_status-bypass_jira_check' %
                              WALL_E_USERNAME)
-        self.skip_prs_integration_message(pr['id'])
         retcode = self.handle(pr['id'])
         self.assertEqual(retcode, SuccessMessage.code)
 
@@ -1345,9 +1279,6 @@ class TestWallE(unittest.TestCase):
         pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id'])
         pr_admin.add_comment('@%s'
                              ' bypass_incompatible_branch' % WALL_E_USERNAME)
-        self.skip_prs_integration_message(
-            pr['id'],
-            self.bypass_all_but(['bypass_incompatible_branch']))
         retcode = self.handle(
             pr['id'],
             options=self.bypass_all_but(['bypass_incompatible_branch']))
@@ -1355,9 +1286,6 @@ class TestWallE(unittest.TestCase):
 
     def test_rebased_feature_branch(self):
         pr = self.create_pr('bugfix/RING-00074', 'development/4.3')
-        self.skip_prs_integration_message(
-                pr['id'],
-                self.bypass_all_but(['bypass_build_status']))
         with self.assertRaises(BuildNotStarted):
             retcode = self.handle(
                 pr['id'],
@@ -1366,7 +1294,6 @@ class TestWallE(unittest.TestCase):
 
         # create another PR and merge it entirely
         pr2 = self.create_pr('bugfix/RING-00075', 'development/4.3')
-        self.skip_prs_integration_message(pr2['id'], self.bypass_all)
         retcode = self.handle(pr2['id'], options=self.bypass_all)
         self.assertEqual(retcode, SuccessMessage.code)
 
@@ -1378,9 +1305,6 @@ class TestWallE(unittest.TestCase):
         feature_branch = 'bugfix/RING-0076'
         first_integration_branch = 'w/4.3/bugfix/RING-0076'
         pr = self.create_pr(feature_branch, 'development/4.3')
-        self.skip_prs_integration_message(
-                pr['id'],
-                self.bypass_all_but(['bypass_build_status']))
         with self.assertRaises(BuildNotStarted):
             self.handle(pr['id'],
                         options=self.bypass_all_but(['bypass_build_status']),
@@ -1450,9 +1374,6 @@ class TestWallE(unittest.TestCase):
             wall_e.WallE._create_pull_requests = _create_pull_requests
 
             pr = self.create_pr('bugfix/RING-00081', 'development/6.0')
-            self.skip_prs_integration_message(
-                    pr['id'],
-                    self.bypass_all_but(['bypass_build_status']))
             # Create integration branch and child pr
             with self.assertRaises(BuildNotStarted):
                 self.handle(pr['id'],
@@ -1493,9 +1414,6 @@ class TestWallE(unittest.TestCase):
                           ' Fix __getitem__("hash") if required')
 
         pr = self.create_pr('bugfix/RING-00081', 'development/6.0')
-        self.skip_prs_integration_message(
-                pr['id'],
-                self.bypass_all_but(['bypass_build_status']))
         # Create integration branch and child pr
         with self.assertRaises(BuildNotStarted):
             self.handle(pr['id'],
@@ -1541,9 +1459,6 @@ class TestWallE(unittest.TestCase):
 
     def test_build_key_on_main_pr_has_no_effect(self):
         pr = self.create_pr('bugfix/RING-00078', 'development/4.3')
-        self.skip_prs_integration_message(
-                pr['id'],
-                self.bypass_all_but(['bypass_build_status']))
         with self.assertRaises(BuildNotStarted):
             self.handle(pr['id'],
                         options=self.bypass_all_but(['bypass_build_status']),
@@ -1551,9 +1466,6 @@ class TestWallE(unittest.TestCase):
         # create another PR, so that integration PR will have different
         # commits than source PR
         pr2 = self.create_pr('bugfix/RING-00079', 'development/4.3')
-        self.skip_prs_integration_message(
-                pr2['id'],
-                self.bypass_all_but(['bypass_build_status']))
         retcode = self.handle(pr2['id'], options=self.bypass_all)
         self.assertEqual(retcode, SuccessMessage.code)
         # restart PR number 1 to update it with content of 2
@@ -1574,9 +1486,6 @@ class TestWallE(unittest.TestCase):
         pr = self.create_pr('bugfix/RING-00081', 'development/4.3')
 
         # test build not started
-        self.skip_prs_integration_message(
-                pr['id'],
-                self.bypass_all_but(['bypass_build_status']))
         with self.assertRaises(BuildNotStarted):
             self.handle(pr['id'],
                         options=self.bypass_all_but(['bypass_build_status']),
@@ -1614,12 +1523,6 @@ class TestWallE(unittest.TestCase):
         pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id'])
         pr_admin.add_comment('@%s bypass_tester_approval' % WALL_E_USERNAME)
 
-        self.skip_prs_integration_message(
-                pr['id'],
-                ['bypass_author_approval',
-                 'bypass_peer_approval',
-                 'bypass_jira_check',
-                 'bypass_build_status'])
         retcode = self.handle(pr['id'], options=[
                               'bypass_author_approval',
                               'bypass_peer_approval',
@@ -1629,9 +1532,6 @@ class TestWallE(unittest.TestCase):
 
     def test_source_branch_history_changed(self):
         pr = self.create_pr('bugfix/RING-00001', 'development/4.3')
-        self.skip_prs_integration_message(
-                pr['id'],
-                self.bypass_all_but(['bypass_build_status']))
         with self.assertRaises(BuildNotStarted):
             self.handle(pr['id'],
                         options=self.bypass_all_but(['bypass_build_status']),
@@ -1654,9 +1554,6 @@ class TestWallE(unittest.TestCase):
 
     def test_source_branch_commit_added(self):
         pr = self.create_pr('bugfix/RING-00001', 'development/4.3')
-        self.skip_prs_integration_message(
-                pr['id'],
-                self.bypass_all_but(['bypass_build_status']))
         with self.assertRaises(BuildNotStarted):
             self.handle(pr['id'],
                         options=self.bypass_all_but(['bypass_build_status']),
@@ -1669,9 +1566,6 @@ class TestWallE(unittest.TestCase):
 
     def test_source_branch_forced_pushed(self):
         pr = self.create_pr('bugfix/RING-00001', 'development/4.3')
-        self.skip_prs_integration_message(
-                pr['id'],
-                self.bypass_all_but(['bypass_build_status']))
         with self.assertRaises(BuildNotStarted):
             self.handle(pr['id'],
                         options=self.bypass_all_but(['bypass_build_status']),
@@ -1687,9 +1581,6 @@ class TestWallE(unittest.TestCase):
 
     def test_integration_branch_and_source_branch_updated(self):
         pr = self.create_pr('bugfix/RING-00001', 'development/4.3')
-        self.skip_prs_integration_message(
-            pr['id'],
-            self.bypass_all_but(['bypass_build_status']))
         with self.assertRaises(BuildNotStarted):
             self.handle(
                 pr['id'],
@@ -1707,9 +1598,6 @@ class TestWallE(unittest.TestCase):
 
     def test_integration_branch_and_source_branch_force_updated(self):
         pr = self.create_pr('bugfix/RING-00001', 'development/4.3')
-        self.skip_prs_integration_message(
-                pr['id'],
-                self.bypass_all_but(['bypass_build_status']))
         with self.assertRaises(BuildNotStarted):
             self.handle(
                 pr['id'],
@@ -1761,11 +1649,6 @@ class TestWallE(unittest.TestCase):
 
     def test_success_message_content(self):
         pr = self.create_pr('bugfix/RING-00001', 'stabilization/5.1.4')
-        self.skip_prs_integration_message(pr['id'], options=[
-            'bypass_build_status',
-            'bypass_tester_approval',
-            'bypass_peer_approval',
-            'bypass_author_approval'])
         try:
             self.handle(pr['id'], options=[
                 'bypass_build_status',
@@ -1789,9 +1672,6 @@ class TestWallE(unittest.TestCase):
 
         pr = self.create_pr(feature_branch, dst_branch,
                             reviewers=reviewers)
-        self.skip_prs_integration_message(
-                pr['id'],
-                self.bypass_all + ['unanimity'])
         retcode = self.handle(pr['id'],
                               options=self.bypass_all + ['unanimity'])
         self.assertEqual(retcode, UnanimityApprovalRequired.code)
@@ -1805,9 +1685,6 @@ class TestWallE(unittest.TestCase):
         pr = self.create_pr(feature_branch, dst_branch)
 
         pr.add_comment('@%s unanimity' % WALL_E_USERNAME)
-
-        self.skip_prs_integration_message(pr['id'],
-                                          ['bypass_jira_check'])
 
         retcode = self.handle(pr['id'], options=['bypass_jira_check'])
         self.assertEqual(retcode, AuthorApprovalRequired.code)
@@ -1854,14 +1731,9 @@ class TestWallE(unittest.TestCase):
         retcode = self.handle(blocked_pr['id'], options=self.bypass_all)
         self.assertEqual(retcode, AfterPullRequest.code)
 
-        self.skip_prs_integration_message(pr_opened['id'],
-                                          self.bypass_all)
-
         retcode = self.handle(pr_opened['id'], options=self.bypass_all)
         self.assertEqual(retcode, SuccessMessage.code)
 
-        self.skip_prs_integration_message(blocked_pr['id'],
-                                          self.bypass_all)
         retcode = self.handle(blocked_pr['id'], options=self.bypass_all)
         self.assertEqual(retcode, UnanimityApprovalRequired.code)
 
@@ -1879,8 +1751,6 @@ class TestWallE(unittest.TestCase):
             real = wall_e.WallE._check_pr_state
 
             pr = self.create_pr('bugfix/RING-00081', 'development/6.0')
-            # Skip IntegrationBranchesCreated
-            self.handle(pr['id'], self.bypass_all)
             retcode = self.handle(pr['id'], self.bypass_all)
             self.assertEqual(retcode, SuccessMessage.code)
 
@@ -1911,8 +1781,6 @@ class TestWallE(unittest.TestCase):
         self.assertEqual(retcode, InitMessage.code)
 
         try:
-            # skip IntegrationBranchCreated
-            self.handle(pr['id'], options=self.bypass_all)
             retcode = self.handle(pr['id'], options=self.bypass_all)
         except requests.HTTPError as err:
             self.fail("Error from bitbucket: %s" % err.response.text)
