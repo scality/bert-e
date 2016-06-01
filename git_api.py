@@ -120,7 +120,7 @@ class Branch(object):
         return True
 
     def get_latest_commit(self):
-        return self.repo.cmd(('git rev-parse %s' % self.name))[0:12]
+        return self.repo.cmd(('git rev-parse %s' % self.name))
 
     def exists(self):
         try:

@@ -1121,15 +1121,15 @@ class WallE:
 
         """
         for branch, pr in zip(integration_branches, integration_prs):
-            branch_sha1 = branch.get_latest_commit()  # short sha1
-            pr_sha1 = pr['source']['commit']['hash']  # full sha1
-            if pr_sha1.startswith(branch_sha1):
+            branch_sha1 = branch.get_latest_commit()
+            pr_sha1 = pr['source']['commit']['hash']  # 12 hex hash
+            if branch_sha1.startswith(pr_sha1):
                 continue
 
             if branch.includes_commit(pr_sha1):
                 logging.warning('Skew detected (expected commit: %s, '
                                 'got PR commit: %s).', branch_sha1,
-                                pr_sha1[:12])
+                                pr_sha1)
                 logging.warning('Updating the integration PR locally.')
                 pr['source']['commit']['hash'] = branch_sha1
                 continue
