@@ -834,7 +834,7 @@ class WallE:
             # @scality_wall-e command arg1 arg2 ...
             regexp = "@%s[\s:]*" % WALL_E_USERNAME
             raw_cleaned = re.sub(regexp, '', raw.strip())
-            regexp = r"(?P<command>\w+)(?P<args>.*)$"
+            regexp = r"(?P<command>[A-Za-z_]+[^= ,])(?P<args>.*)$"
             match_ = re.match(regexp, raw_cleaned)
             if not match_:
                 logging.warning('Command comment ignored. '
