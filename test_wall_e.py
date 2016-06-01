@@ -1933,8 +1933,8 @@ class TestWallE(unittest.TestCase):
         retcode = self.handle(pr['id'], options=[
                     'bypass_jira_check',
                     'bypass_author_approval',
-		    'bypass_tester_approval',
-		    'bypass_peer_approval'])
+                    'bypass_tester_approval',
+                    'bypass_peer_approval'])
         self.assertEqual(retcode, UnknownCommand.code)
 
 
