@@ -1110,8 +1110,6 @@ class TestWallE(unittest.TestCase):
         dst_branch = 'development/4.3'
 
         pr = self.create_pr(feature_branch, dst_branch)
-        self.skip_prs_integration_message(pr['id'],
-                                          ['bypass_jira_check'])
         retcode = self.handle(pr['id'], options=['bypass_jira_check'])
         self.assertEqual(retcode, AuthorApprovalRequired.code)
         pr.add_comment('@%s status?' % WALL_E_USERNAME)

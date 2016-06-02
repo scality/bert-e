@@ -5,6 +5,9 @@ from sys import maxint
 from template_loader import render
 
 
+# This NEVER_REPEAT option works by setting the dont_repeat_if_in_history
+# attribute to an impossibly high value. Wall-E will not repeat the same
+# message if it appears in the `sys.maxint` last comments in a pull request
 NEVER_REPEAT = maxint
 
 
