@@ -1448,10 +1448,6 @@ class TestWallE(unittest.TestCase):
         )
 
     def test_pr_skew_with_lagging_pull_request_data(self):
-        if not TestWallE.args.disable_mock:
-            self.skipTest('Not supported with mock bitbucket.'
-                          ' Fix __getitem__("hash") if required')
-
         # create hook
         try:
             real = wall_e.WallE._create_pull_requests
@@ -1505,10 +1501,6 @@ class TestWallE(unittest.TestCase):
             wall_e.WallE._create_pull_requests = real
 
     def test_pr_skew_with_new_external_commit(self):
-        if not TestWallE.args.disable_mock:
-            self.skipTest('Not supported with mock bitbucket.'
-                          ' Fix __getitem__("hash") if required')
-
         pr = self.create_pr('bugfix/RING-00081', 'development/6.0')
         self.skip_prs_integration_message(
                 pr['id'],
@@ -1540,8 +1532,9 @@ class TestWallE(unittest.TestCase):
                     'git rev-parse w/6.0/bugfix/RING-00081')
 
                 child_prs = real(*args, **kwargs)
-                # make 100% sure the PR is up-to-date (since BB lags):
-                child_prs[0]['source']['commit']['hash'] = sha1
+                if TestWallE.args.disable_mock:
+                    # make 100% sure the PR is up-to-date (since BB lags):
+                    child_prs[0]['source']['commit']['hash'] = sha1
                 return child_prs
 
             wall_e.WallE._create_pull_requests = _create_pull_requests
@@ -1889,9 +1882,6 @@ class TestWallE(unittest.TestCase):
         integration PRs.
 
         """
-        if not TestWallE.args.disable_mock:
-            self.skipTest('Not supported with mock bitbucket.')
-
         try:
             real = wall_e.WallE._check_pr_state
 
@@ -1910,10 +1900,6 @@ class TestWallE(unittest.TestCase):
             self.bbrepo_wall_e.get_pull_request = real
 
     def test_pr_title_too_long(self):
-        if not TestWallE.args.disable_mock:
-            self.skipTest('Not supported with mock bitbucket.'
-                          ' Fix __getitem__("hash") if required')
-
         create_branch(self.gitrepo, 'bugfix/RING-00001',
                       from_branch='development/4.3', file_=True)
         pr = self.bbrepo_eva.create_pull_request(
