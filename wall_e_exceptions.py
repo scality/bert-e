@@ -1,7 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+from sys import maxint
 
 from template_loader import render
+
+
+NEVER_REPEAT = maxint
 
 
 # base exceptions
@@ -30,7 +34,7 @@ class WallE_SilentException(Exception):
 
 # template for informative exceptions
 class WallE_InformationException(WallE_TemplateException):
-    pass
+    dont_repeat_if_in_history = NEVER_REPEAT
 
 
 # template exceptions
@@ -140,7 +144,6 @@ class AfterPullRequest(WallE_TemplateException):
 class IntegrationPullRequestsCreated(WallE_InformationException):
     code = 121
     template = 'integration_pull_requests.md'
-    dont_repeat_if_in_history = 10
 
 
 class UnknownCommand(WallE_TemplateException):
