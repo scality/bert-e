@@ -8,7 +8,7 @@ import unittest
 import requests
 from collections import OrderedDict
 from hashlib import md5
-from time import time
+import time
 
 import bitbucket_api
 import bitbucket_api_mock
@@ -443,30 +443,30 @@ class QuickTest(unittest.TestCase):
 
         with retry:
             history = []
-            start = time()
+            start = time.time()
             retry.run(dummy_func, 2, history, catch=DummyError)
-            elapsed = time() - start
+            elapsed = time.time() - start
 
             self.assertGreaterEqual(elapsed, 3)
             self.assertLess(elapsed, 4)
             self.assertEqual(3, len(history))
 
         with retry:
-            start = time()
+            start = time.time()
             history = []
             with self.assertRaises(DummyError):
                 retry.run(dummy_func, 10, history)
-            elapsed = time() - start
+            elapsed = time.time() - start
             self.assertGreaterEqual(elapsed, retry.limit)
             self.assertEqual(4, len(history))
 
         with retry:
             # Check that unpredicted errors are not silently caught
-            start = time()
+            start = time.time()
             with self.assertRaises(RuntimeError):
                 retry.run(dummy_func, 1, [], raise_exn=RuntimeError,
                           catch=DummyError)
-            elapsed = time() - start
+            elapsed = time.time() - start
             self.assertLess(elapsed, 1)
 
 
@@ -511,6 +511,8 @@ class TestWallE(unittest.TestCase):
             is_private=True,
             scm='git')
         try:
+            if TestWallE.args.disable_mock:
+                time.sleep(5)  # don't be too agressive on API
             self.bbrepo.delete()
         except requests.exceptions.HTTPError as e:
             if e.response.status_code != 404:
@@ -547,6 +549,8 @@ class TestWallE(unittest.TestCase):
                             self.args.your_mail)
 
     def tearDown(self):
+        if TestWallE.args.disable_mock:
+            time.sleep(5)  # don't be too agressive on API
         self.bbrepo.delete()
         self.gitrepo.delete()
 
@@ -1446,6 +1450,23 @@ class TestWallE(unittest.TestCase):
             name=name,
             url=url
         )
+
+        # workaround laggy bitbucket
+        if TestWallE.args.disable_mock:
+            i = 0
+            while i < 20:
+                time.sleep(5)
+                if self.get_build_status_on_pr_id(pr_id) != state:
+                    continue
+                return
+            self.fail('Laggy Bitbucket detected.')
+
+    def get_build_status_on_pr_id(self, pr_id, key='pipeline'):
+        pr = self.bbrepo_wall_e.get_pull_request(pull_request_id=pr_id)
+        return self.bbrepo_wall_e.get_build_status(
+            revision=pr['source']['commit']['hash'],
+            key=key,
+        )['state']
 
     def test_pr_skew_with_lagging_pull_request_data(self):
         if not TestWallE.args.disable_mock:
