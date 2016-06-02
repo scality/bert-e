@@ -1453,8 +1453,7 @@ class TestWallE(unittest.TestCase):
 
         # workaround laggy bitbucket
         if TestWallE.args.disable_mock:
-            i = 0
-            while i < 20:
+            for _ in range(20):
                 time.sleep(5)
                 if self.get_build_status_on_pr_id(pr_id) != state:
                     continue
