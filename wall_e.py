@@ -350,7 +350,6 @@ class IntegrationBranch(WallEBranch):
                 source={'branch': {'name': self.name}},
                 destination={'branch': {'name': self.destination_branch.name}},
                 close_source_branch=True,
-                reviewers=[{'username': parent_pr['author']['username']}],
                 description=description)
             created = True
         return pr, created
