@@ -30,7 +30,6 @@ from wall_e_exceptions import (AfterPullRequest,
                                DeprecatedStabilizationBranch,
                                HelpMessage,
                                IncompatibleSourceBranchPrefix,
-                               InitMessage,
                                MissingJiraId,
                                NotEnoughCredentials,
                                NothingToDo,
@@ -1795,8 +1794,6 @@ class TestWallE(unittest.TestCase):
             close_source_branch=True,
             description=''
         )
-        retcode = self.handle(pr['id'], options=self.bypass_all)
-        self.assertEqual(retcode, InitMessage.code)
 
         try:
             retcode = self.handle(pr['id'], options=self.bypass_all)
