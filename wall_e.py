@@ -842,7 +842,7 @@ class WallE:
             # @scality_wall-e command arg1 arg2 ...
             regexp = "@%s[\s:]*" % WALL_E_USERNAME
             raw_cleaned = re.sub(regexp, '', raw.strip())
-            regexp = r"(?P<command>\w+)(?P<args>.*)$"
+            regexp = r"(?P<command>[A-Za-z_]+[^= ,])(?P<args>.*)$"
             match_ = re.match(regexp, raw_cleaned)
             if not match_:
                 logging.warning('Command comment ignored. '
@@ -1128,15 +1128,15 @@ class WallE:
 
         """
         for branch, pr in zip(integration_branches, integration_prs):
-            branch_sha1 = branch.get_latest_commit()  # short sha1
-            pr_sha1 = pr['source']['commit']['hash']  # full sha1
-            if pr_sha1.startswith(branch_sha1):
+            branch_sha1 = branch.get_latest_commit()
+            pr_sha1 = pr['source']['commit']['hash']  # 12 hex hash
+            if branch_sha1.startswith(pr_sha1):
                 continue
 
             if branch.includes_commit(pr_sha1):
                 logging.warning('Skew detected (expected commit: %s, '
                                 'got PR commit: %s).', branch_sha1,
-                                pr_sha1[:12])
+                                pr_sha1)
                 logging.warning('Updating the integration PR locally.')
                 pr['source']['commit']['hash'] = branch_sha1
                 continue
