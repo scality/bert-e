@@ -649,7 +649,7 @@ class WallE:
 
         self.main_pr.add_comment(msg)
 
-    def send_msg(self, msg):
+    def send_msg_and_continue(self, msg):
         try:
             self.send_bitbucket_msg(unicode(msg),
                                     msg.dont_repeat_if_in_history)
@@ -689,18 +689,7 @@ class WallE:
 
     def _send_greetings(self):
         """Display a welcome message if conditions are met."""
-        for comment in self.comments:
-            author = comment['user']['username']
-            if isinstance(author, list):
-                # python2 returns a list
-                if len(author) != 1:
-                    continue
-                author = author[0]
-
-            if author == WALL_E_USERNAME:
-                return
-
-        self.send_msg(InitMessage(
+        self.send_msg_and_continue(InitMessage(
             author=self.author_display_name, status=self.get_status_report(),
             active_options=self._get_active_options()
         ))
@@ -1101,7 +1090,7 @@ class WallE:
             for idx, integration_branch in enumerate(integration_branches)
         ))
         if any(created):
-            self.send_msg(IntegrationPullRequestsCreated(
+            self.send_msg_and_continue(IntegrationPullRequestsCreated(
                 pr=self.main_pr, child_prs=prs,
                 ignored=self._cascade.ignored_branches,
                 active_options=self._get_active_options()
@@ -1505,7 +1494,7 @@ def main():
     try:
         wall_e.handle_pull_request(args.reference_git_repo)
     except WallE_TemplateException as excp:
-        wall_e.send_msg(excp)
+        wall_e.send_msg_and_continue(excp)
 
         if args.backtrace:
             raise excp
