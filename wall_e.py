@@ -49,6 +49,7 @@ from wall_e_exceptions import (AfterPullRequest,
                                NotEnoughCredentials,
                                NotMyJob,
                                ParentPullRequestNotFound,
+                               PullRequestDeclined,
                                PullRequestSkewDetected,
                                SubtaskIssueNotSupported,
                                PeerApprovalRequired,
@@ -656,9 +657,11 @@ class WallE:
             logging.info("Comment '%s' already posted", msg.__class__.__name__)
 
     def _check_pr_state(self):
-        if self.main_pr['state'] != 'OPEN':  # REJECTED or FULFILLED
+        if (self.main_pr['state'] != 'OPEN' and
+            self.main_pr['state'] != 'DECLINED'):
             raise NothingToDo('The pull-request\'s state is "%s"'
                               % self.main_pr['state'])
+        return self.main_pr['state']
 
     def _clone_git_repo(self, reference_git_repo):
         git_repo = GitRepository(self.bbrepo.get_git_url())
@@ -674,6 +677,16 @@ class WallE:
 
     def _setup_destination_branch(self, repo, dst_branch_name):
         self.destination_branch = branch_factory(repo, dst_branch_name)
+
+    def _handle_declined_pr(self, repo):
+        # main PR is declined, cleanup everything and quit
+        self._build_branch_cascade(repo)
+        changed = self._remove_integration_data(repo, self.source_branch)
+
+        if changed:
+            raise PullRequestDeclined()
+        else:
+            raise NothingToDo()
 
     def _check_if_ignored(self):
         # check feature branch
@@ -881,6 +894,9 @@ class WallE:
                 active_options=self._get_active_options())
 
     def _build_branch_cascade(self, git_repo):
+        if self._cascade.destination_branches:
+            # building cascade one time is enough
+            return
         for prefix in ['development', 'stabilization']:
             cmd = 'git branch -r --list origin/%s/*' % prefix
             for branch in git_repo.cmd(cmd).split('\n')[:-1]:
@@ -1027,6 +1043,29 @@ class WallE:
                 integration_branch.create(
                     integration_branch.destination_branch)
         return integration_branches
+
+    def _remove_integration_data(self, repo, source_branch):
+        changed = False
+        integration_branches = []
+        open_prs = list(self.bbrepo.get_pull_requests())
+        for dst_branch in self._cascade.destination_branches:
+            name = 'w/%s/%s' % (dst_branch.version, source_branch)
+            # decline integration PR
+            for pr in open_prs:
+                if (pr['state'] == 'OPEN' and
+                    pr['source']['branch']['name'] == name and
+                    pr['destination']['branch']['name'] == dst_branch.name):
+                    pr.decline()
+                    changed = True
+                    break
+            # remove integration branch
+            integration_branch = branch_factory(repo, name)
+            integration_branch.source_branch = source_branch
+            integration_branch.destination_branch = dst_branch
+            if integration_branch.exists():
+                integration_branch.remove()
+                changed = True
+        return changed
 
     def _check_history_did_not_change(self, integration_branch):
         development_branch = integration_branch.destination_branch
@@ -1292,6 +1331,9 @@ class WallE:
             src_branch_name = self.main_pr['source']['branch']['name']
             self._setup_source_branch(repo, src_branch_name, dst_branch_name)
             self._setup_destination_branch(repo, dst_branch_name)
+
+            if self.main_pr['state'] == 'DECLINED':
+                self._handle_declined_pr(repo)
 
             # Handle the case when bitbucket is lagging and the PR was actually
             # merged before.

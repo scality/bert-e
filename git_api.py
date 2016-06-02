@@ -146,8 +146,7 @@ class Branch(object):
 
     def remove(self):
         # hardcode a security since wall-e is all-powerful
-        if (self.name.startswith('development') or
-                self.name.startswith('release')):
+        if not self.name.startswith('w/'):
             raise ForbiddenOperation('cannot delete branch %s' %
                                      self.name)
 

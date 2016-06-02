@@ -255,3 +255,7 @@ class BuildInProgress(WallE_SilentException):
 
 class BuildNotStarted(WallE_SilentException):
     pass
+
+
+class PullRequestDeclined(WallE_SilentException):
+    pass
