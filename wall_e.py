@@ -1050,9 +1050,11 @@ class WallE:
             name = 'w/%s/%s' % (dst_branch.version, source_branch)
             # decline integration PR
             for pr in open_prs:
-                if (pr['state'] == 'OPEN' and
+                if (
+                    pr['state'] == 'OPEN' and
                     pr['source']['branch']['name'] == name and
-                        pr['destination']['branch']['name'] == dst_branch.name):
+                    pr['destination']['branch']['name'] == dst_branch.name
+                   ):
                     pr.decline()
                     changed = True
                     break
