@@ -1373,17 +1373,21 @@ class TestWallE(unittest.TestCase):
         if TestWallE.args.disable_mock:
             for _ in range(20):
                 time.sleep(5)
-                if self.get_build_status_on_pr_id(pr_id) != state:
+                if self.get_build_status_on_pr_id(pr_id, key=key) != state:
                     continue
                 return
             self.fail('Laggy Bitbucket detected.')
 
     def get_build_status_on_pr_id(self, pr_id, key='pipeline'):
         pr = self.bbrepo_wall_e.get_pull_request(pull_request_id=pr_id)
-        return self.bbrepo_wall_e.get_build_status(
-            revision=pr['source']['commit']['hash'],
-            key=key,
-        )['state']
+        try:
+            status = self.bbrepo_wall_e.get_build_status(
+                revision=pr['source']['commit']['hash'],
+                key=key,
+            )['state']
+        except requests.HTTPError as err:
+            status = ''
+        return status
 
     def test_pr_skew_with_lagging_pull_request_data(self):
         # create hook
