@@ -2,25 +2,25 @@
 # -*- coding: utf-8 -*-
 
 import argparse
-from collections import OrderedDict
 import itertools
 import logging
-import re
 import sys
+from collections import OrderedDict
 
-from jira.exceptions import JIRAError
+import bitbucket_api
+import jira_api
+import re
 import requests
 import six
-
-from template_loader import render
-import bitbucket_api
 from git_api import (Repository as GitRepository,
                      Branch,
                      MergeFailedException,
                      CheckoutFailedException,
                      RemoveFailedException,
                      PushFailedException)
-import jira_api
+from jira.exceptions import JIRAError
+from template_loader import render
+from utils import RetryHandler
 from wall_e_exceptions import (AfterPullRequest,
                                AuthorApprovalRequired,
                                BranchHistoryMismatch,
@@ -63,7 +63,6 @@ from wall_e_exceptions import (AfterPullRequest,
                                VersionMismatch,
                                WallE_SilentException,
                                WallE_TemplateException)
-from utils import RetryHandler
 
 if six.PY3:
     raw_input = input
@@ -77,16 +76,8 @@ SETTINGS = {
     'ring': {
         'jira_key': 'RING',
         'build_key': 'pipeline',
+        'required_peer_approvals': 2,
         'testers': [
-            WALL_E_USERNAME,  # we need this for test purposes
-            'anneharper',
-            'bjorn_schuberg',
-            'christophe_meron',
-            'christophe_stoyanov',
-            'louis_pery_scality',
-            'mcolzi',
-            'romain_thebaud',
-            'sleibo',
         ],
         'admins': [
             WALL_E_USERNAME,  # we need this for test purposes
@@ -113,6 +104,7 @@ SETTINGS = {
     'wall-e': {
         'jira_key': 'RELENG',
         'build_key': 'pipeline',
+        'required_peer_approvals': 2,
         'testers': [
         ],
         'admins': [
@@ -125,6 +117,7 @@ SETTINGS = {
     'gollum': {
         'jira_key': 'RELENG',
         'build_key': 'pipeline',
+        'required_peer_approvals': 2,
         'testers': [
         ],
         'admins': [
@@ -136,6 +129,7 @@ SETTINGS = {
     'releng-jenkins': {
         'jira_key': 'RELENG',
         'build_key': 'pipeline',
+        'required_peer_approvals': 2,
         'testers': [
         ],
         'admins': [
@@ -148,6 +142,7 @@ SETTINGS = {
     'wall-e-demo': {
         'jira_key': 'DEMOWALLE',
         'build_key': 'pipeline',
+        'required_peer_approvals': 2,
         'testers': [
         ],
         'admins': [
@@ -1071,16 +1066,32 @@ class WallE:
                 changed = True
         return changed
 
-    def _check_history_did_not_change(self, integration_branch):
-        development_branch = integration_branch.destination_branch
-        for commit in integration_branch.get_all_commits(
-                integration_branch.source_branch):
-            if not development_branch.includes_commit(commit):
+    def _check_pristine(self, integration_branch):
+        """Validate that `integration_branch` contains commits
+        from its source branch and destination branch only.
+
+        This method is only optimised for the _first_ integration
+        branch (the current use case).
+
+        raises:
+            - BranchHistoryMismatch: if a commit from neither source
+               nor destination is detected
+
+        """
+        source_branch = integration_branch.source_branch
+        destination_branch = integration_branch.destination_branch
+        # Always get new commits compared to the destination (i.e. obtain the
+        # list of commits from the source branch), because
+        # the destination may grow very fast during the lifetime of the
+        # source branch. A long list is very slow to process due to the loop
+        # RELENG-1451.
+        for commit in integration_branch.get_commit_diff(destination_branch):
+            if not source_branch.includes_commit(commit):
                 raise BranchHistoryMismatch(
                     commit=commit,
                     integration_branch=integration_branch,
-                    feature_branch=integration_branch.source_branch,
-                    development_branch=development_branch,
+                    feature_branch=source_branch,
+                    development_branch=destination_branch,
                     active_options=self._get_active_options())
 
     def _update(self, source, destination, origin=False):
@@ -1106,7 +1117,7 @@ class WallE:
         # The first integration branch should not contain commits
         # that are not in development/* or in the feature branch.
         first, children = integration_branches[0], integration_branches[1:]
-        self._check_history_did_not_change(first)
+        self._check_pristine(first)
         self._update(first.destination_branch, first, True)
         for integration_branch in children:
             self._update(
@@ -1186,8 +1197,11 @@ class WallE:
             - TesterApprovalRequired
 
         """
+        required_peer_approvals = self.settings['required_peer_approvals']
+        current_peer_approvals = 0
+        if self.option_is_set('bypass_peer_approval'):
+            current_peer_approvals = required_peer_approvals
         approved_by_author = self.option_is_set('bypass_author_approval')
-        approved_by_peer = self.option_is_set('bypass_peer_approval')
         approved_by_tester = self.option_is_set('bypass_tester_approval')
         requires_unanimity = self.option_is_set('unanimity')
         is_unanimous = True
@@ -1202,7 +1216,8 @@ class WallE:
         if self.author in self.settings['testers']:
             approved_by_tester = True
 
-        if (approved_by_author and approved_by_peer and
+        if (approved_by_author and
+                (current_peer_approvals >= required_peer_approvals) and
                 approved_by_tester and not requires_unanimity):
             return
 
@@ -1220,23 +1235,25 @@ class WallE:
             elif participant['user']['username'] in self.settings['testers']:
                 approved_by_tester = True
             else:
-                approved_by_peer = True
+                current_peer_approvals += 1
 
+        missing_peer_approvals = \
+            required_peer_approvals - current_peer_approvals
         if not approved_by_author:
             raise AuthorApprovalRequired(
                 pr=self.main_pr,
                 author_approval=approved_by_author,
-                peer_approval=approved_by_peer,
+                missing_peer_approvals=missing_peer_approvals,
                 tester_approval=approved_by_tester,
                 requires_unanimity=requires_unanimity,
                 active_options=self._get_active_options()
             )
 
-        if not approved_by_peer:
+        if missing_peer_approvals > 0:
             raise PeerApprovalRequired(
                 pr=self.main_pr,
                 author_approval=approved_by_author,
-                peer_approval=approved_by_peer,
+                missing_peer_approvals=missing_peer_approvals,
                 tester_approval=approved_by_tester,
                 requires_unanimity=requires_unanimity,
                 active_options=self._get_active_options()
@@ -1246,7 +1263,7 @@ class WallE:
             raise TesterApprovalRequired(
                 pr=self.main_pr,
                 author_approval=approved_by_author,
-                peer_approval=approved_by_peer,
+                missing_peer_approvals=missing_peer_approvals,
                 tester_approval=approved_by_tester,
                 requires_unanimity=requires_unanimity,
                 active_options=self._get_active_options()
@@ -1256,7 +1273,7 @@ class WallE:
             raise UnanimityApprovalRequired(
                 pr=self.main_pr,
                 author_approval=approved_by_author,
-                peer_approval=approved_by_peer,
+                missing_peer_approvals=missing_peer_approvals,
                 tester_approval=approved_by_tester,
                 requires_unanimity=requires_unanimity,
                 active_options=self._get_active_options()
