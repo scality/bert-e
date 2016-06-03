@@ -37,6 +37,7 @@ from wall_e_exceptions import (AfterPullRequest,
                                ParentPullRequestNotFound,
                                PeerApprovalRequired,
                                StatusReport,
+                               PullRequestDeclined,
                                PullRequestSkewDetected,
                                SuccessMessage,
                                TesterApprovalRequired,
@@ -1804,6 +1805,52 @@ class TestWallE(unittest.TestCase):
         except requests.HTTPError as err:
             self.fail("Error from bitbucket: %s" % err.response.text)
         self.assertEqual(retcode, SuccessMessage.code)
+
+    def test_main_pr_declined(self):
+        """Check integration data (PR+branches) is deleted when original
+        PR is declined."""
+        pr = self.create_pr('bugfix/RING-00001', 'development/4.3')
+        with self.assertRaises(BuildNotStarted):
+            self.handle(
+                pr['id'],
+                options=self.bypass_all_but(['bypass_build_status']),
+                backtrace=True)
+
+        # check integration data is there
+        branches = self.gitrepo.cmd(
+            'git ls-remote origin w/*/bugfix/RING-00001')
+        assert len(branches)
+        pr_ = self.bbrepo.get_pull_request(pull_request_id=pr['id']+1)
+        assert pr_['state'] == 'OPEN'
+        pr_ = self.bbrepo.get_pull_request(pull_request_id=pr['id']+2)
+        assert pr_['state'] == 'OPEN'
+        pr_ = self.bbrepo.get_pull_request(pull_request_id=pr['id']+3)
+        assert pr_['state'] == 'OPEN'
+
+        pr.decline()
+        with self.assertRaises(PullRequestDeclined):
+            self.handle(
+                pr['id'],
+                options=self.bypass_all_but(['bypass_build_status']),
+                backtrace=True)
+
+        # check integration data is gone
+        branches = self.gitrepo.cmd(
+            'git ls-remote origin w/*/bugfix/RING-00001')
+        assert branches == ''
+        pr_ = self.bbrepo.get_pull_request(pull_request_id=pr['id']+1)
+        assert pr_['state'] == 'DECLINED'
+        pr_ = self.bbrepo.get_pull_request(pull_request_id=pr['id']+2)
+        assert pr_['state'] == 'DECLINED'
+        pr_ = self.bbrepo.get_pull_request(pull_request_id=pr['id']+3)
+        assert pr_['state'] == 'DECLINED'
+
+        # check nothing bad happens if called again
+        with self.assertRaises(NothingToDo):
+            self.handle(
+                pr['id'],
+                options=self.bypass_all_but(['bypass_build_status']),
+                backtrace=True)
 
 
 def main():

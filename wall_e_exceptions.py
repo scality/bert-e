@@ -1,14 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-from sys import maxint
-
 from template_loader import render
 
 
-# This NEVER_REPEAT option works by setting the dont_repeat_if_in_history
-# attribute to an impossibly high value. Wall-E will not repeat the same
-# message if it appears in the `sys.maxint` last comments in a pull request
-NEVER_REPEAT = maxint
+# When dont_repeat_if_in_history is None, Wall-E will look for the message
+# in the whole list of comments.
+NEVER_REPEAT = None
 
 
 # base exceptions
@@ -22,7 +19,8 @@ class WallE_TemplateException(Exception):
         assert 'active_options' in kwargs
         assert self.code != 0
         assert self.template
-        assert self.dont_repeat_if_in_history >= -1
+        norepeat = self.dont_repeat_if_in_history
+        assert norepeat is None or norepeat >= -1
         self.msg = render(self.template, code=self.code, **kwargs)
         super(WallE_TemplateException, self).__init__(self.msg)
 
@@ -254,4 +252,8 @@ class BuildInProgress(WallE_SilentException):
 
 
 class BuildNotStarted(WallE_SilentException):
+    pass
+
+
+class PullRequestDeclined(WallE_SilentException):
     pass
