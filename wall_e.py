@@ -657,8 +657,7 @@ class WallE:
             logging.info("Comment '%s' already posted", msg.__class__.__name__)
 
     def _check_pr_state(self):
-        if (self.main_pr['state'] != 'OPEN' and
-            self.main_pr['state'] != 'DECLINED'):
+        if self.main_pr['state'] not in ('OPEN', 'DECLINED'):
             raise NothingToDo('The pull-request\'s state is "%s"'
                               % self.main_pr['state'])
         return self.main_pr['state']
