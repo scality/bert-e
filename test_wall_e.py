@@ -1386,7 +1386,7 @@ class TestWallE(unittest.TestCase):
                 revision=pr['source']['commit']['hash'],
                 key=key,
             )['state']
-        except requests.HTTPError as err:
+        except requests.HTTPError:
             status = ''
         return status
 
