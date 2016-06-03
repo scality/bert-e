@@ -1045,7 +1045,6 @@ class WallE:
 
     def _remove_integration_data(self, repo, source_branch):
         changed = False
-        integration_branches = []
         open_prs = list(self.bbrepo.get_pull_requests())
         for dst_branch in self._cascade.destination_branches:
             name = 'w/%s/%s' % (dst_branch.version, source_branch)
@@ -1053,7 +1052,7 @@ class WallE:
             for pr in open_prs:
                 if (pr['state'] == 'OPEN' and
                     pr['source']['branch']['name'] == name and
-                    pr['destination']['branch']['name'] == dst_branch.name):
+                        pr['destination']['branch']['name'] == dst_branch.name):
                     pr.decline()
                     changed = True
                     break
