@@ -700,6 +700,10 @@ class WallE:
 
     def _send_greetings(self):
         """Display a welcome message if conditions are met."""
+        # Skip if Wall-E has already posted a comment on this PR
+        if self.find_bitbucket_comment(username=WALL_E_USERNAME):
+            return
+
         self.send_msg_and_continue(InitMessage(
             author=self.author_display_name, status=self.get_status_report(),
             active_options=self._get_active_options()
