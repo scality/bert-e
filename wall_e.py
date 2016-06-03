@@ -663,13 +663,13 @@ class WallE:
         return self.main_pr['state']
 
     def _clone_git_repo(self, reference_git_repo):
-        git_repo = GitRepository(self.bbrepo.get_git_url())
-        git_repo.clone(reference_git_repo)
-        git_repo.fetch_all_branches()
-        git_repo.config('user.email', WALL_E_EMAIL)
-        git_repo.config('user.name', WALL_E_USERNAME)
-        git_repo.config('merge.renameLimit', '999999')
-        return git_repo
+        repo = GitRepository(self.bbrepo.get_git_url())
+        repo.clone(reference_git_repo)
+        repo.fetch_all_branches()
+        repo.config('user.email', WALL_E_EMAIL)
+        repo.config('user.name', WALL_E_USERNAME)
+        repo.config('merge.renameLimit', '999999')
+        return repo
 
     def _setup_source_branch(self, repo, src_branch_name, dst_branch_name):
         self.source_branch = branch_factory(repo, src_branch_name)
@@ -892,23 +892,23 @@ class WallE:
                 declined_prs=declined_prs,
                 active_options=self._get_active_options())
 
-    def _build_branch_cascade(self, git_repo):
+    def _build_branch_cascade(self, repo):
         if self._cascade.destination_branches:
             # building cascade one time is enough
             return
         for prefix in ['development', 'stabilization']:
             cmd = 'git branch -r --list origin/%s/*' % prefix
-            for branch in git_repo.cmd(cmd).split('\n')[:-1]:
+            for branch in repo.cmd(cmd).split('\n')[:-1]:
                 match_ = re.match('\s*origin/(?P<name>.*)', branch)
                 if not match_:
                     continue
                 try:
-                    branch = branch_factory(git_repo, match_.group('name'))
+                    branch = branch_factory(repo, match_.group('name'))
                 except UnrecognizedBranchPattern:
                     continue
                 self._cascade.add_branch(branch)
 
-        for tag in git_repo.cmd('git tag').split('\n')[:-1]:
+        for tag in repo.cmd('git tag').split('\n')[:-1]:
             self._cascade.update_micro(tag)
 
         self._cascade.finalize(self.destination_branch)
@@ -1022,11 +1022,11 @@ class WallE:
             self._jira_check_issue_type(issue)
             self._jira_check_version(issue)
 
-    def _check_source_branch_still_exists(self, git_repo):
+    def _check_source_branch_still_exists(self, repo):
         # check source branch still exists
         # (it may have been deleted by developers)
         try:
-            Branch(git_repo, self.source_branch.name).checkout()
+            Branch(repo, self.source_branch.name).checkout()
         except CheckoutFailedException:
             raise NothingToDo(self.source_branch.name)
 
