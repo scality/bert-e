@@ -105,7 +105,7 @@ class Branch(object):
         if do_push:
             self.push()
 
-    def get_all_commits(self, source_branch):
+    def get_commit_diff(self, source_branch):
         self.repo.checkout(source_branch.name)
         log = self.repo.cmd('git log --no-merges --pretty=%%H %s..%s' % (
             source_branch.name, self.name), universal_newlines=True)

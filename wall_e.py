@@ -1028,16 +1028,32 @@ class WallE:
                     integration_branch.destination_branch)
         return integration_branches
 
-    def _check_history_did_not_change(self, integration_branch):
-        development_branch = integration_branch.destination_branch
-        for commit in integration_branch.get_all_commits(
-                integration_branch.source_branch):
-            if not development_branch.includes_commit(commit):
+    def _check_pristine(self, integration_branch):
+        """Validate that `integration_branch` contains commits
+        from its source branch and destination branch only.
+
+        This method is only optimised for the _first_ integration
+        branch (the current use case).
+
+        raises:
+            - BranchHistoryMismatch: if a commit from neither source
+               nor destination is detected
+
+        """
+        source_branch = integration_branch.source_branch
+        destination_branch = integration_branch.destination_branch
+        # Always get new commits compared to the destination (i.e. obtain the
+        # list of commits from the source branch), because
+        # the destination may grow very fast during the lifetime of the
+        # source branch. A long list is very slow to process due to the loop
+        # RELENG-1451.
+        for commit in integration_branch.get_commit_diff(destination_branch):
+            if not source_branch.includes_commit(commit):
                 raise BranchHistoryMismatch(
                     commit=commit,
                     integration_branch=integration_branch,
-                    feature_branch=integration_branch.source_branch,
-                    development_branch=development_branch,
+                    feature_branch=source_branch,
+                    development_branch=destination_branch,
                     active_options=self._get_active_options())
 
     def _update(self, source, destination, origin=False):
@@ -1063,7 +1079,7 @@ class WallE:
         # The first integration branch should not contain commits
         # that are not in development/* or in the feature branch.
         first, children = integration_branches[0], integration_branches[1:]
-        self._check_history_did_not_change(first)
+        self._check_pristine(first)
         self._update(first.destination_branch, first, True)
         for integration_branch in children:
             self._update(
