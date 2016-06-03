@@ -12,7 +12,6 @@ All notable changes to this project will be documented in this file.
 ### Added
 - clean integration data when the original PR is declined
 
-
 ## [1.0.11] - 2016-05-09
 ### Fixed
 - fixed typo in new tester name
