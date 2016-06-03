@@ -7,6 +7,7 @@ All notable changes to this project will be documented in this file.
 - fix recognition of incorrect commands
 - fix over-long wall-e instances when target branch has diverged a lot
 ### Changed
+- do not add author as a reviewer on integration PR, to reduce email traffic (opt-in)
 - more comprehensive conflict resolution message
 - informative messages are now sent in the same session of Wall-E
 ### Added
