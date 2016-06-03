@@ -4,8 +4,8 @@ All notable changes to this project will be documented in this file.
 ## [1.0.12] - 2016-06-03
 ### Fixed
 - only use long sha1 where possible for safety
-- fixed recognition of incorrect commands
-- fixed over-long wall-e instances when target branch have diverged a lot
+- fix recognition of incorrect commands
+- fix over-long wall-e instances when target branch has diverged a lot
 ### Changed
 - more comprehensive conflict resolution message
 - informative messages are now sent in the same session of Wall-E
@@ -14,19 +14,19 @@ All notable changes to this project will be documented in this file.
 
 ## [1.0.11] - 2016-05-09
 ### Fixed
-- fixed typo in new tester name
+- fix typo in new tester name
 
 ## [1.0.10] - 2016-05-04
 ### Fixed
 - support long PR titles
 ### Changed
 - update Jenkinsfile
-- rework messages
-- removed email handler
+- reword messages
+- remove email handler
 - rework no-repeat strategy
 ### Added
 - add 'integration PR created' message
-- added retry strategy
+- add retry strategy
 - block on unrecognised or unauthorized messages
 - add more testers to Ring project
 
@@ -36,7 +36,7 @@ All notable changes to this project will be documented in this file.
 
 ## [1.0.8] - 2016-04-08
 ### Fixed
-- workaround random order of message obtained from BB PRs
+- workaround random order of messages obtained from BB PRs
 
 ## [1.0.7] - 2016-04-07
 ### Fixed
@@ -56,17 +56,17 @@ All notable changes to this project will be documented in this file.
 ### Fixed
 - fixed display of expected fix versions
 ### Changed
-- improved Jenkinsfile: use externalised bitbucketNotify function
+- improve Jenkinsfile: use externalised bitbucketNotify function
 - update link to online documentation
 ### Added
-- added releng-jenkins project
+- add releng-jenkins project
 
 ## [1.0.3] - 2016-02-25
 ### Fixed
 - fix prefix in Mismatch Prefix message
 - fix formatting of log statement
 ### Added
-- added demo project
+- add demo project
 
 ## [1.0.2] - 2016-02-24
 ### Fixed
