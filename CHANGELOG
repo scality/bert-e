@@ -1,6 +1,74 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [1.0.12] - 2016-06-03
+### Fixed
+- only use long sha1 where possible for safety
+- fixed recognition of incorrect commands
+- fixed over-long wall-e instances when target branch have diverged a lot
+### Changed
+- more comprehensive conflict resolution message
+- informative messages are now sent in the same session of Wall-E
+### Added
+- clean integration data when the original PR is declined
+
+
+## [1.0.11] - 2016-05-09
+### Fixed
+- fixed typo in new tester name
+
+## [1.0.10] - 2016-05-04
+### Fixed
+- support long PR titles
+### Changed
+- update Jenkinsfile
+- rework messages
+- removed email handler
+- rework no-repeat strategy
+### Added
+- add 'integration PR created' message
+- added retry strategy
+- block on unrecognised or unauthorized messages
+- add more testers to Ring project
+
+## [1.0.9] - 2016-04-19
+### Changed
+- add new administrators to Ring project
+
+## [1.0.8] - 2016-04-08
+### Fixed
+- workaround random order of message obtained from BB PRs
+
+## [1.0.7] - 2016-04-07
+### Fixed
+- remove all previous artifacts from workspace
+### Added
+- detect and resolve laggy bitbucket situations (PR skew)
+
+## [1.0.6] - 2016-03-24
+### Fixed
+- do not abort merge in case of problem during merge
+
+## [1.0.5] - 2016-03-24
+### Fixed
+- increase rename limit in Git
+
+## [1.0.4] - 2016-03-15
+### Fixed
+- fixed display of expected fix versions
+### Changed
+- improved Jenkinsfile: use externalised bitbucketNotify function
+- update link to online documentation
+### Added
+- added releng-jenkins project
+
+## [1.0.3] - 2016-02-25
+### Fixed
+- fix prefix in Mismatch Prefix message
+- fix formatting of log statement
+### Added
+- added demo project
+
 ## [1.0.2] - 2016-02-24
 ### Fixed
 - RELENG-1005 display of the non-targetted branches is incorrect
