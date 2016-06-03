@@ -54,7 +54,7 @@ All notable changes to this project will be documented in this file.
 
 ## [1.0.4] - 2016-03-15
 ### Fixed
-- fixed display of expected fix versions
+- fix display of expected fix versions
 ### Changed
 - improve Jenkinsfile: use externalised bitbucketNotify function
 - update link to online documentation
