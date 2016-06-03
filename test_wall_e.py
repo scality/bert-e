@@ -1813,7 +1813,8 @@ class TestWallE(unittest.TestCase):
                 backtrace=True)
 
         # check integration data is there
-        branches = self.gitrepo.cmd('git ls-remote origin w/*/bugfix/RING-00001')
+        branches = self.gitrepo.cmd(
+            'git ls-remote origin w/*/bugfix/RING-00001')
         assert len(branches)
         pr_ = self.bbrepo.get_pull_request(pull_request_id=pr['id']+1)
         assert pr_['state'] == 'OPEN'
@@ -1830,7 +1831,8 @@ class TestWallE(unittest.TestCase):
                 backtrace=True)
 
         # check integration data is gone
-        branches = self.gitrepo.cmd('git ls-remote origin w/*/bugfix/RING-00001')
+        branches = self.gitrepo.cmd(
+            'git ls-remote origin w/*/bugfix/RING-00001')
         assert branches == ''
         pr_ = self.bbrepo.get_pull_request(pull_request_id=pr['id']+1)
         assert pr_['state'] == 'DECLINED'
