@@ -571,6 +571,8 @@ class WallE:
         self.comments = []
         self.interactive = interactive
         self.no_comment = no_comment
+        self.issue = None
+        self.expect_regexes = None
 
     def option_is_set(self, name):
         if name not in self.options.keys():
@@ -995,12 +997,25 @@ class WallE:
                 active_options=self._get_active_options())
 
     def _jira_check_version(self, issue):
-        issue_versions = [version.name for version in
-                          issue.fields.fixVersions]
-        issue_versions.sort()
-        issue_versions = set(issue_versions)
+        issue_versions = [version.name for version in issue.fields.fixVersions]
         expect_versions = self._cascade.target_versions
-        expect_versions.sort()
+
+        # if you want to merge in 5.1.7, accepted regxes are :
+        # 5.1.z, 5.y.z and x.y.z
+        self.expect_regexes = []
+        expect_versions_parts = expect_versions[0].split('.')
+        expect_versions_parts[2] = 'z'
+        self.expect_regexes.append('.'.join(expect_versions_parts))
+        expect_versions_parts[1] = 'y'
+        self.expect_regexes.append('.'.join(expect_versions_parts))
+        expect_versions_parts[0] = 'x'
+        self.expect_regexes.append('.'.join(expect_versions_parts))
+
+        if len(issue_versions) == 1 and \
+                issue_versions[0] in self.expect_regexes:
+            return
+
+        issue_versions = set(issue_versions)
         expect_versions = set(expect_versions)
 
         if issue_versions != expect_versions:
@@ -1008,7 +1023,18 @@ class WallE:
                 issue=issue,
                 issue_versions=issue_versions,
                 expect_versions=expect_versions,
+                expect_regexes=self.expect_regexes,
                 active_options=self._get_active_options())
+
+    def _jira_set_version(self):
+        if not self.issue:
+            return
+        issue_versions = [version.name for version in
+                          self.issue.fields.fixVersions]
+        if issue_versions[0] not in self.expect_regexes:
+            return
+        fix_versions = [{'name': v} for v in self._cascade.target_versions]
+        self.issue.update(fields={'fixVersions': fix_versions})
 
     def _jira_checks(self):
         """Check the Jira issue id specified in the source branch."""
@@ -1020,11 +1046,11 @@ class WallE:
 
         if self._jira_check_reference():
             issue_id = self.source_branch.jira_issue_key
-            issue = self._jira_get_issue(issue_id)
+            self.issue = self._jira_get_issue(issue_id)
 
-            self._jira_check_project(issue)
-            self._jira_check_issue_type(issue)
-            self._jira_check_version(issue)
+            self._jira_check_project(self.issue)
+            self._jira_check_issue_type(self.issue)
+            self._jira_check_version(self.issue)
 
     def _check_source_branch_still_exists(self, repo):
         # check source branch still exists
@@ -1383,6 +1409,7 @@ class WallE:
                 return
 
             self._merge(integration_branches)
+            self._jira_set_version()
             self._validate_repo()
 
         raise SuccessMessage(
