@@ -743,7 +743,7 @@ class WallE:
                         comment=comment
                     )
 
-                if comment_author not in self.settings['admins']:
+                if comment_author not in self.bbrepo.get_group('administrators)').get_member_usernames():
                     raise NotEnoughCredentials(
                         active_options=self._get_active_options(),
                         command=keyword,

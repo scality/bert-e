@@ -128,6 +128,10 @@ class Repository(BitBucketObject):
         kwargs['full_name'] = self['owner'] + '/' + self['repo_slug']
         return PullRequest.get(self.client, **kwargs)
 
+    def get_group(self, **kwargs):
+        kwargs['owner'] = self['owner']
+        return PullRequest.get(self.client, **kwargs)
+
     def get_build_status(self, **kwargs):
         kwargs['owner'] = self['owner']
         kwargs['repo_slug'] = self['repo_slug']
@@ -222,3 +226,17 @@ class BuildStatus(BitBucketObject):
     list_url = 'https://api.bitbucket.org/2.0/repositories/$owner/' \
         '$repo_slug/commit/$revision/statuses/build'
     add_url = list_url
+
+
+class Group(BitBucketObject):
+    get_url = "https://api.bitbucket.org/1.0/groups/$owner/$group_slug"
+
+    def get_members(self, **kwargs):
+        return PullRequest.get_list(self.client, **kwargs)
+
+    def get_member_usernames(self, **kwargs):
+        return [m['name'] for m in self.get_members(**kwargs)]
+
+
+class Member(BitBucketObject):
+    list_url = "https://api.bitbucket.org/1.0/groups/$owner/$group_slug/members"

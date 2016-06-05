@@ -139,6 +139,9 @@ class Repository(BitBucketObject):
                 return pr
         raise Exception("Did not find this pr")
 
+    def get_group(self, group_slug):
+        return Group()
+
     def get_build_status(self, revision, key):
         try:
             return self.gitrepo.revisions[(revision, key)]
@@ -148,6 +151,10 @@ class Repository(BitBucketObject):
     def set_build_status(self, revision, key, state, name, url):
         self.get_git_url()
         self.gitrepo.revisions[(revision, key)] = {'state': state}
+
+class Group(BitBucketObject):
+    def get_member_usernames(self):
+        return []
 
 
 class PullRequestController(Controller):
