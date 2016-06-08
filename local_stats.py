@@ -32,16 +32,20 @@ def handle(pull_request_id):
     sys.argv.append(WALL_E_PASSWORD)
     return wall_e.main()
 
-#p = {2743: {'author': 'author', 'source':'from', 'destination':'to', 'created_on':'', 'updated_on': ''}}
+#p = {3125: {'author': 'author', 'source':'from', 'destination':'to', 'created_on':'', 'updated_on': ''}}
 for (pr_id, data) in p.items():
-    code, excp, repeat = handle(pr_id)
-    print('{}; {}; {}; {}; {}; {}; {}; {}; {}'.format(
-        pr_id,
-        code,
-        excp,
-        repeat,
-        data['author'],
-        data['source'],
-        data['destination'],
-        data['created_on'],
-        data['updated_on']))
+    try:
+        code, excp, repeat = handle(pr_id)
+    except:
+        print('{} retry'.format(pr_id))
+    else:
+        print('{}; {}; {}; {}; {}; {}; {}; {}; {}'.format(
+            pr_id,
+            code,
+            excp,
+            repeat,
+            data['author'],
+            data['source'],
+            data['destination'],
+            data['created_on'],
+            data['updated_on']))
