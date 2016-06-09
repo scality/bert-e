@@ -26,11 +26,11 @@ class WallE_TemplateException(Exception):
 
 
 class WallE_InternalException(Exception):
-    pass
+    code = 1
 
 
 class WallE_SilentException(Exception):
-    pass
+    code = 2
 
 
 # template for informative exceptions
@@ -157,13 +157,26 @@ class NotEnoughCredentials(WallE_TemplateException):
     template = "not_enough_credentials.md"
 
 
+# internal exceptions
+class UnableToSendEmail(WallE_InternalException):
+    code = 201
+
+
+class ImproperEmailFormat(WallE_InternalException):
+    code = 202
+
+
 class BranchNameInvalid(WallE_InternalException):
+    code = 203
+
     def __init__(self, name):
         msg = 'Invalid name: %r' % name
         super(BranchNameInvalid, self).__init__(msg)
 
 
 class UnsupportedMultipleStabBranches(WallE_InternalException):
+    code = 204
+
     def __init__(self, branch, other_branch):
         msg = 'Unsupported multiple stabilization branches ' \
               'have been detected: %r, %r ' \
@@ -172,6 +185,8 @@ class UnsupportedMultipleStabBranches(WallE_InternalException):
 
 
 class DeprecatedStabilizationBranch(WallE_InternalException):
+    code = 205
+
     def __init__(self, branch, tag):
         msg = 'Branch %r must be deleted as the tag %r has been created' % (
             branch, tag)
@@ -179,6 +194,8 @@ class DeprecatedStabilizationBranch(WallE_InternalException):
 
 
 class VersionMismatch(WallE_InternalException):
+    code = 206
+
     def __init__(self, dev_branch, stabilization_branch):
         msg = 'Branch %r (micro==%d) and %r do not match' % (
             dev_branch.name,
@@ -188,10 +205,12 @@ class VersionMismatch(WallE_InternalException):
 
 
 class UnrecognizedBranchPattern(WallE_InternalException):
-    pass
+    code = 207
 
 
 class ParentPullRequestNotFound(WallE_InternalException):
+    code = 208
+
     def __init__(self, pr_id):
         msg = ("The parent Pull Request from this pull request #%s"
                " couldn't be found." % pr_id)
@@ -199,12 +218,16 @@ class ParentPullRequestNotFound(WallE_InternalException):
 
 
 class JiraUnknownIssueType(WallE_InternalException):
+    code = 209
+
     def __init__(self, issue_type):
         msg = ("Jira issue: unknown type %r" % issue_type)
         super(JiraUnknownIssueType, self).__init__(msg)
 
 
 class DevBranchesNotSelfContained(WallE_InternalException):
+    code = 210
+
     def __init__(self, upstream_branch, downstream_branch):
         msg = ("The git repository appears to be in a bad shape. "
                "Branch `%s` is not included in branch `%s`." % (
@@ -213,6 +236,8 @@ class DevBranchesNotSelfContained(WallE_InternalException):
 
 
 class DevBranchDoesNotExist(WallE_InternalException):
+    code = 211
+
     def __init__(self, branch):
         msg = ("The git repository appears to be in a bad shape. "
                "Branch `%s` does not exist." % branch)
@@ -220,6 +245,8 @@ class DevBranchDoesNotExist(WallE_InternalException):
 
 
 class NotASingleDevBranch(WallE_InternalException):
+    code = 212
+
     def __init__(self):
         msg = ("The git repository appears to be in a bad shape. "
                "There is not a single development to merge to.")
@@ -227,6 +254,8 @@ class NotASingleDevBranch(WallE_InternalException):
 
 
 class PullRequestSkewDetected(WallE_InternalException):
+    code = 213
+
     def __init__(self, pr_id, local_sha1, pr_sha1):
         msg = "The pull request %d contains a more recent commit " \
               "than I expected (expected %s, got %s)" \
@@ -236,24 +265,24 @@ class PullRequestSkewDetected(WallE_InternalException):
 
 # silent exceptions
 class CommentAlreadyExists(WallE_SilentException):
-    pass
+    code = 300
 
 
 class NotMyJob(WallE_SilentException):
-    pass
+    code = 301
 
 
 class NothingToDo(WallE_SilentException):
-    pass
+    code = 302
 
 
 class BuildInProgress(WallE_SilentException):
-    pass
+    code = 303
 
 
 class BuildNotStarted(WallE_SilentException):
-    pass
+    code = 304
 
 
 class PullRequestDeclined(WallE_SilentException):
-    pass
+    code = 305
