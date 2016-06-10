@@ -4,18 +4,19 @@
 import argparse
 import logging
 import sys
+import time
 import unittest
-import requests
 from collections import OrderedDict
 from hashlib import md5
-import time
 
 import bitbucket_api
 import bitbucket_api_mock
 import jira_api
 import jira_api_mock
+import requests
 import wall_e
 from git_api import Repository as GitRepository
+from utils import RetryHandler
 from wall_e_exceptions import (AfterPullRequest,
                                AuthorApprovalRequired,
                                BranchHistoryMismatch,
@@ -40,13 +41,11 @@ from wall_e_exceptions import (AfterPullRequest,
                                PullRequestDeclined,
                                PullRequestSkewDetected,
                                SuccessMessage,
-                               TesterApprovalRequired,
                                UnanimityApprovalRequired,
                                UnknownCommand,
                                UnrecognizedBranchPattern,
                                UnsupportedMultipleStabBranches,
                                VersionMismatch)
-from utils import RetryHandler
 
 WALL_E_USERNAME = wall_e.WALL_E_USERNAME
 WALL_E_EMAIL = wall_e.WALL_E_EMAIL
@@ -823,17 +822,17 @@ class TestWallE(unittest.TestCase):
         retcode = self.handle(pr['id'], options=['bypass_jira_check'])
         self.assertEqual(retcode, PeerApprovalRequired.code)
 
-        # Reviewer adds approval
-        pr_peer = self.bbrepo.get_pull_request(
+        # 1st reviewer adds approval
+        pr_peer1 = self.bbrepo.get_pull_request(
             pull_request_id=pr['id'])
-        pr_peer.approve()
+        pr_peer1.approve()
         retcode = self.handle(pr['id'], options=['bypass_jira_check'])
-        self.assertEqual(retcode, TesterApprovalRequired.code)
+        self.assertEqual(retcode, PeerApprovalRequired.code)
 
-        # Tester adds approval
-        pr_tester = self.bbrepo_wall_e.get_pull_request(
+        # 2nd reviewer adds approval
+        pr_peer2 = self.bbrepo_wall_e.get_pull_request(
             pull_request_id=pr['id'])
-        pr_tester.approve()
+        pr_peer2.approve()
         retcode = self.handle(pr['id'], options=[
                               'bypass_jira_check',
                               'bypass_build_status'])
@@ -1118,10 +1117,10 @@ class TestWallE(unittest.TestCase):
         self.assertEqual(retcode, AuthorApprovalRequired.code)
         pr.add_comment('@%s status?' % WALL_E_USERNAME)
         retcode = self.handle(pr['id'], options=[
-                    'bypass_jira_check',
-                    'bypass_author_approval',
-                    'bypass_tester_approval',
-                    'bypass_peer_approval'])
+            'bypass_jira_check',
+            'bypass_author_approval',
+            'bypass_tester_approval',
+            'bypass_peer_approval'])
         self.assertEqual(retcode, UnknownCommand.code)
 
     def test_bypass_options(self):
@@ -1507,8 +1506,8 @@ class TestWallE(unittest.TestCase):
         self.set_build_status_on_pr_id(pr['id']+3, 'SUCCESSFUL')
         self.set_build_status_on_pr_id(pr['id'], 'FAILED')
         retcode = self.handle(
-                pr['id'],
-                options=self.bypass_all_but(['bypass_build_status']))
+            pr['id'],
+            options=self.bypass_all_but(['bypass_build_status']))
         self.assertEqual(retcode, SuccessMessage.code)
 
     def test_build_status(self):
@@ -1723,16 +1722,16 @@ class TestWallE(unittest.TestCase):
         retcode = self.handle(pr['id'], options=['bypass_jira_check'])
         self.assertEqual(retcode, PeerApprovalRequired.code)
 
-        # Reviewer adds approval
+        # 1st reviewer adds approval
         pr_peer = self.bbrepo.get_pull_request(pull_request_id=pr['id'])
         pr_peer.approve()
         retcode = self.handle(pr['id'], options=['bypass_jira_check'])
-        self.assertEqual(retcode, TesterApprovalRequired.code)
+        self.assertEqual(retcode, PeerApprovalRequired.code)
 
-        # Tester adds approval
-        pr_tester = self.bbrepo_wall_e.get_pull_request(
+        # 2nd reviewer adds approval
+        pr_peer = self.bbrepo_wall_e.get_pull_request(
             pull_request_id=pr['id'])
-        pr_tester.approve()
+        pr_peer.approve()
         retcode = self.handle(pr['id'], options=[
                               'bypass_jira_check',
                               'bypass_build_status'])
