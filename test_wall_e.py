@@ -902,7 +902,7 @@ class TestWallE(unittest.TestCase):
         retcode = self.handle(pr['id'])
         self.assertEqual(retcode, MissingJiraId.code)
 
-    def test_autofill_jira_fixversion(self):
+    def test_partial_autofill_jira_fixversion(self):
         jira_api_mock.add_issue('RING-1234')
         issue = jira_api.JiraIssue(issue_id='RING-1234', login='wall_e',
                                    passwd=self.bbrepo.client.auth.password)
@@ -925,6 +925,22 @@ class TestWallE(unittest.TestCase):
         self.assertEqual(retcode, SuccessMessage.code)
         versions = [fv.name for fv in issue.fields.fixVersions]
         self.assertEqual(set(versions), set(['4.3.19', '5.1.5', '6.0.1']))
+
+    def test_full_autofill_jira_fixversion(self):
+        jira_api_mock.add_issue('RING-1234')
+        issue = jira_api.JiraIssue(issue_id='RING-1234', login='wall_e',
+                                   passwd=self.bbrepo.client.auth.password)
+
+        issue.update(fields={'fixVersions': [{'name': 'x.y.z'}]})
+        pr = self.create_pr('bugfix/RING-1234', 'development/5.1')
+        retcode = self.handle(
+            pr['id'],
+            options=self.bypass_all_but(['bypass_jira_check']),
+            backtrace=False
+        )
+        self.assertEqual(retcode, SuccessMessage.code)
+        versions = [fv.name for fv in issue.fields.fixVersions]
+        self.assertEqual(set(versions), set(['5.1.5', '6.0.1']))
 
     def test_to_unrecognized_destination_branch(self):
         create_branch(self.gitrepo, 'master2',
