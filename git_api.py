@@ -72,6 +72,7 @@ class Repository(object):
             raise PushFailedException(name)
 
     def cmd(self, command, retry=0, **kwargs):
+        command = command.replace('$', '\$')
         cwd = kwargs.get('cwd', self.cmd_directory)
         try:
             ret = cmd(command, cwd=cwd, **kwargs)
