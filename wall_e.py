@@ -4,7 +4,6 @@
 import argparse
 import itertools
 import logging
-import sys
 from collections import OrderedDict
 
 import bitbucket_api
@@ -1027,7 +1026,7 @@ class WallE:
                     pr['state'] == 'OPEN' and
                     pr['source']['branch']['name'] == name and
                     pr['destination']['branch']['name'] == dst_branch.name
-                   ):
+                ):
                     pr.decline()
                     changed = True
                     break
