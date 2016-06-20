@@ -4,7 +4,6 @@
 import argparse
 import itertools
 import logging
-import sys
 from collections import OrderedDict
 
 import bitbucket_api
@@ -101,44 +100,6 @@ SETTINGS = {
             'sylvain_killian'
         ]
     },
-    'wall-e': {
-        'jira_key': 'RELENG',
-        'build_key': 'pipeline',
-        'required_peer_approvals': 2,
-        'testers': [
-        ],
-        'admins': [
-            'ludovicmaillard',
-            'pierre_louis_bonicoli',
-            'rayene_benrayana',
-            'sylvain_killian'
-        ]
-    },
-    'gollum': {
-        'jira_key': 'RELENG',
-        'build_key': 'pipeline',
-        'required_peer_approvals': 2,
-        'testers': [
-        ],
-        'admins': [
-            'pierre_louis_bonicoli',
-            'rayene_benrayana',
-            'sylvain_killian'
-        ]
-    },
-    'releng-jenkins': {
-        'jira_key': 'RELENG',
-        'build_key': 'pipeline',
-        'required_peer_approvals': 2,
-        'testers': [
-        ],
-        'admins': [
-            'bertrand_demiddelaer_scality',
-            'pierre_louis_bonicoli',
-            'rayene_benrayana',
-            'sylvain_killian'
-        ]
-    },
     'wall-e-demo': {
         'jira_key': 'DEMOWALLE',
         'build_key': 'pipeline',
@@ -150,6 +111,18 @@ SETTINGS = {
             'rayene_benrayana',
             'sylvain_killian',
             'mvaude',
+        ]
+    },
+    'default': {
+        'jira_key': 'RELENG',
+        'build_key': 'pipeline',
+        'required_peer_approvals': 2,
+        'testers': [
+        ],
+        'admins': [
+            'pierre_louis_bonicoli',
+            'rayene_benrayana',
+            'sylvain_killian',
         ]
     }
 }
@@ -1053,7 +1026,7 @@ class WallE:
                     pr['state'] == 'OPEN' and
                     pr['source']['branch']['name'] == name and
                     pr['destination']['branch']['name'] == dst_branch.name
-                   ):
+                ):
                     pr.decline()
                     changed = True
                     break
@@ -1540,10 +1513,7 @@ def main():
         args.settings = args.slug
 
     if args.settings not in SETTINGS:
-        print("Invalid repository/settings. I don't know how to work "
-              "with %s. Specify settings with the --settings options." %
-              args.settings)
-        sys.exit(1)
+        args.settings = 'default'
 
     options = setup_options(args)
     commands = setup_commands()
