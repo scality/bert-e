@@ -80,7 +80,7 @@ SETTINGS = {
         ],
         'admins': [
             WALL_E_USERNAME,  # we need this for test purposes
-            'alexander_garthwaite',
+            'jonathan_gramain',
             'benoit_a',
             'flavienlebarbe',
             'jienhua',
