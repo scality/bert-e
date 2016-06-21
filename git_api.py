@@ -1,4 +1,5 @@
 import os
+from pipes import quote
 from shutil import rmtree
 from simplecmd import cmd
 import subprocess
@@ -27,7 +28,7 @@ class Repository(object):
     def clone(self, reference=''):
         if reference:
             reference = '--reference ' + reference
-        self.cmd('git clone %s %s' % (reference, self._url))
+        self.cmd('git clone %s %s', reference, self._url)
         repo_slug = self._url.split('/')[-1].replace('.git', '')
         # all commands will now execute from repo directory
         self.cmd_directory = os.path.join(self.tmp_directory, repo_slug)
@@ -35,13 +36,12 @@ class Repository(object):
     def fetch_all_branches(self):
         for remote in self.cmd("git branch -r").split('\n')[:-1]:
             local = remote.replace('origin/', '').split()[-1]
-            self.cmd("git branch --track {0} {1} || exit 0"
-                     .format(local, remote))
+            self.cmd("git branch --track %s %s || exit 0", local, remote)
         self.cmd('git fetch --all')
         self.cmd('git pull --all || exit 0')
 
     def config(self, key, value):
-        self.cmd('git config %s %s' % (key, value))
+        self.cmd('git config %s %s', key, value)
 
     def remote_branch_exists(self, name):
         """Test if a remote branch exists.
@@ -53,7 +53,7 @@ class Repository(object):
             A boolean: True if the remote branch exists.
         """
         try:
-            cmd('git ls-remote --heads --exit-code %s %s' % (self._url, name))
+            self.cmd('git ls-remote --heads --exit-code %s %s', self._url, name)
         except subprocess.CalledProcessError:
             return False
 
@@ -71,8 +71,12 @@ class Repository(object):
         except subprocess.CalledProcessError:
             raise PushFailedException(name)
 
-    def cmd(self, command, retry=0, **kwargs):
-        command = command.replace('$', '\$')
+    def cmd(self, command, *args, **kwargs):
+        retry = kwargs.pop('retry', 0)
+        command = command % tuple(
+            quote(arg.strip()) if isinstance(arg, str) and arg else arg
+            for arg in args
+        )
         cwd = kwargs.get('cwd', self.cmd_directory)
         try:
             ret = cmd(command, cwd=cwd, **kwargs)
@@ -98,9 +102,9 @@ class Branch(object):
         self.checkout()
 
         try:
-            self.repo.cmd('git merge --no-edit %s %s'
-                          % ('--no-ff' if force_commit else '',
-                             source_branch.name))  # <- May fail if conflict
+            command = 'git merge --no-edit %s %%s' % ('--no-ff' if force_commit
+                                                      else '')
+            self.repo.cmd(command, source_branch.name)  # May fail if conflict
         except subprocess.CalledProcessError:
             raise MergeFailedException(self.name, source_branch.name)
         if do_push:
@@ -108,20 +112,21 @@ class Branch(object):
 
     def get_commit_diff(self, source_branch):
         self.repo.checkout(source_branch.name)
-        log = self.repo.cmd('git log --no-merges --pretty=%%H %s..%s' % (
-            source_branch.name, self.name), universal_newlines=True)
+        log = self.repo.cmd('git log --no-merges --pretty=%%H %s..%s',
+                            source_branch.name, self.name,
+                            universal_newlines=True)
         return log.splitlines()
 
     def includes_commit(self, sha1):
         try:
-            self.repo.cmd('git merge-base --is-ancestor %s %s' % (sha1,
-                                                                  self.name))
+            self.repo.cmd('git merge-base --is-ancestor %s %s',
+                          str(sha1), self.name)
         except subprocess.CalledProcessError:
             return False
         return True
 
     def get_latest_commit(self):
-        return self.repo.cmd(('git rev-parse %s' % self.name))
+        return self.repo.cmd('git rev-parse %s', self.name)
 
     def exists(self):
         try:
@@ -139,7 +144,7 @@ class Branch(object):
     def create(self, source_branch):
         self.repo.checkout(source_branch.name)
         try:
-            self.repo.cmd('git checkout -b ' + self.name)
+            self.repo.cmd('git checkout -b %s', self.name)
         except subprocess.CalledProcessError:
             msg = "branch:%s source:%s" % (self.name, source_branch.name)
             raise BranchCreationFailedException(msg)

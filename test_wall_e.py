@@ -72,7 +72,7 @@ def initialize_git_repo(repo, username, usermail):
         create_branch(repo, 'development/'+major_minor,
                       'stabilization/'+full_version, file_=True, do_push=False)
         if major != 6:
-            repo.cmd('git tag %s.%s.%s' % (major, minor, micro-1))
+            repo.cmd('git tag %s.%s.%s', major, minor, micro-1)
 
     repo.cmd('git branch -d master')
     # the following command fail randomly on bitbucket, so retry
@@ -82,8 +82,8 @@ def initialize_git_repo(repo, username, usermail):
 
 def create_branch(repo, name, from_branch=None, file_=False, do_push=True):
     if from_branch:
-        repo.cmd('git checkout '+from_branch)
-    repo.cmd('git checkout -b %s' % name)
+        repo.cmd('git checkout %s', from_branch)
+    repo.cmd('git checkout -b %s', name)
     if file_:
         add_file_to_branch(repo, name, file_, do_push)
 
