@@ -53,7 +53,8 @@ class Repository(object):
             A boolean: True if the remote branch exists.
         """
         try:
-            self.cmd('git ls-remote --heads --exit-code %s %s', self._url, name)
+            self.cmd('git ls-remote --heads --exit-code %s %s',
+                     self._url, name)
         except subprocess.CalledProcessError:
             return False
 
