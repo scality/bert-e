@@ -62,7 +62,7 @@ class Repository(object):
 
     def checkout(self, name):
         try:
-            self.cmd('git checkout ' + name)
+            self.cmd('git checkout %s', name)
         except subprocess.CalledProcessError:
             raise CheckoutFailedException(name)
 
