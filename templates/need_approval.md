@@ -13,7 +13,7 @@ The following approvals are missing before I can proceed with the merge:
 {% if missing_peer_approvals == 1 %}
 * at least one peer
 {% elif missing_peer_approvals > 1 %}
-* at least {missing_peer_approvals} peers
+* at least {{missing_peer_approvals}} peers
 {% endif %}
 {% if not tester_approval %}
 * at least one tester
