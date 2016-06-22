@@ -1854,7 +1854,7 @@ class TestWallE(unittest.TestCase):
 
     def test_branch_name_escape(self):
         """Make sure git api support branch names with
-        special chars interpreting them in bash.
+        special chars and doesn't interpret them in bash.
 
         """
         unescaped = 'bugfix/dangerous-branch-name-${RING}'
