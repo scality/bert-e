@@ -6,6 +6,7 @@ import subprocess
 import time
 from tempfile import mkdtemp
 import logging
+import six
 
 
 class Repository(object):
@@ -122,7 +123,7 @@ class Branch(object):
     def includes_commit(self, sha1):
         try:
             self.repo.cmd('git merge-base --is-ancestor %s %s',
-                          str(sha1), self.name)
+                          six.text_type(sha1), self.name)
         except subprocess.CalledProcessError:
             return False
         return True
