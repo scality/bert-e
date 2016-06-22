@@ -15,7 +15,8 @@ import jira_api
 import jira_api_mock
 import requests
 import wall_e
-from git_api import Repository as GitRepository
+from git_api import Repository as GitRepository, Branch
+from simplecmd import cmd
 from utils import RetryHandler
 from wall_e_exceptions import (AfterPullRequest,
                                AuthorApprovalRequired,
@@ -1850,6 +1851,17 @@ class TestWallE(unittest.TestCase):
                 pr['id'],
                 options=self.bypass_all_but(['bypass_build_status']),
                 backtrace=True)
+
+    def test_branch_name_escape(self):
+        """Make sure git api support branch names with
+        special chars interpreting them in bash.
+
+        """
+        unescaped = 'bugfix/dangerous-branch-name-${RING}'
+        branch_name = unescaped.replace('$', '\$')
+        cmd('git checkout development/5.1', cwd=self.gitrepo.cmd_directory)
+        cmd('git checkout -b %s' % branch_name, cwd=self.gitrepo.cmd_directory)
+        self.assertTrue(Branch(self.gitrepo, unescaped).exists())
 
 
 def main():

@@ -62,7 +62,7 @@ class Repository(object):
 
     def checkout(self, name):
         try:
-            self.cmd('git checkout ' + name)
+            self.cmd('git checkout %s', name)
         except subprocess.CalledProcessError:
             raise CheckoutFailedException(name)
 
@@ -74,10 +74,11 @@ class Repository(object):
 
     def cmd(self, command, *args, **kwargs):
         retry = kwargs.pop('retry', 0)
-        command = command % tuple(
-            quote(arg.strip()) if isinstance(arg, str) and arg else arg
-            for arg in args
-        )
+        if args:
+            command = command % tuple(
+                quote(arg.strip()) if isinstance(arg, str) and arg else arg
+                for arg in args
+            )
         cwd = kwargs.get('cwd', self.cmd_directory)
         try:
             ret = cmd(command, cwd=cwd, **kwargs)
