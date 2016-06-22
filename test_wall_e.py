@@ -1858,9 +1858,13 @@ class TestWallE(unittest.TestCase):
 
         """
         unescaped = 'bugfix/dangerous-branch-name-${RING}'
+
+        # Bypass git-api to create the branch (explicit escape of the bad char)
         branch_name = unescaped.replace('$', '\$')
         cmd('git checkout development/5.1', cwd=self.gitrepo.cmd_directory)
         cmd('git checkout -b %s' % branch_name, cwd=self.gitrepo.cmd_directory)
+
+        # Check that the branch exists with its unescaped name and the git-api
         self.assertTrue(Branch(self.gitrepo, unescaped).exists())
 
 
