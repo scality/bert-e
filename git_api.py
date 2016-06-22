@@ -27,9 +27,10 @@ class Repository(object):
         self.cmd_directory = None
 
     def clone(self, reference=''):
+        clone_cmd = 'git clone'
         if reference:
-            reference = '--reference ' + reference
-        self.cmd('git clone %s %s', reference, self._url)
+            clone_cmd += ' --reference ' + reference
+        self.cmd('%s %%s' % clone_cmd, self._url)
         repo_slug = self._url.split('/')[-1].replace('.git', '')
         # all commands will now execute from repo directory
         self.cmd_directory = os.path.join(self.tmp_directory, repo_slug)
