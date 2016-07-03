@@ -72,6 +72,7 @@ if six.PY3:
 WALL_E_USERNAME = 'scality_wall-e'
 WALL_E_EMAIL = 'wall_e@scality.com'
 JENKINS_USERNAME = 'scality_jenkins'
+HOTFIX_KEYWORD = 'hf'
 
 SETTINGS = {
     'ring': {
@@ -997,7 +998,9 @@ class WallE:
                 active_options=self._get_active_options())
 
     def _jira_check_version(self, issue):
-        issue_versions = [version.name for version in issue.fields.fixVersions]
+        issue_versions = [
+            version.name for version in issue.fields.fixVersions
+            if HOTFIX_KEYWORD not in version.name]
         expect_versions = self._cascade.target_versions
 
         # if you want to merge in 5.1.7, accepted regxes are :
@@ -1029,12 +1032,17 @@ class WallE:
     def _jira_set_version(self):
         if not self.issue:
             return
-        issue_versions = [version.name for version in
-                          self.issue.fields.fixVersions]
-        if issue_versions[0] not in self.expect_regexes:
-            return
-        fix_versions = [{'name': v} for v in self._cascade.target_versions]
-        self.issue.update(fields={'fixVersions': fix_versions})
+        fix_versions = []
+        update = False
+        for version in self.issue.fields.fixVersions:
+            if version.name in self.expect_regexes:
+                fix_versions.extend(self._cascade.target_versions)
+                update = True
+            else:
+                fix_versions.append(version.name)
+        if update:
+            fix_versions = [{'name': v} for v in fix_versions]
+            self.issue.update(fields={'fixVersions': fix_versions})
 
     def _jira_checks(self):
         """Check the Jira issue id specified in the source branch."""

@@ -942,6 +942,26 @@ class TestWallE(unittest.TestCase):
         versions = [fv.name for fv in issue.fields.fixVersions]
         self.assertEqual(set(versions), set(['5.1.5', '6.0.1']))
 
+    def test_ignore_hotfix_in_jira_fixversion(self):
+        jira_api_mock.add_issue('RING-1234')
+        issue = jira_api.JiraIssue(issue_id='RING-1234', login='wall_e',
+                                   passwd=self.bbrepo.client.auth.password)
+
+        issue.update(fields={'fixVersions': [
+            {'name': 'x.y.z'},
+            {'name': '5.1.4_hf2'},
+        ]})
+        pr = self.create_pr('bugfix/RING-1234', 'development/5.1')
+        retcode = self.handle(
+            pr['id'],
+            options=self.bypass_all_but(['bypass_jira_check']),
+            backtrace=False
+        )
+        self.assertEqual(retcode, SuccessMessage.code)
+        versions = [fv.name for fv in issue.fields.fixVersions]
+        self.assertEqual(set(versions), set(['5.1.5', '6.0.1', '5.1.4_hf2']))
+
+
     def test_to_unrecognized_destination_branch(self):
         create_branch(self.gitrepo, 'master2',
                       from_branch='development/4.3', file_=True)
