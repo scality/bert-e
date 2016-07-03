@@ -1,6 +1,12 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [1.0.13] - 2016-06-22
+### Fixed
+- quote commands in git API to avoid bash interpolation
+### Changed
+- remove 'tester' role and replace the tester approval with a second peer approval
+
 ## [1.0.12] - 2016-06-03
 ### Fixed
 - only use long sha1 where possible for safety

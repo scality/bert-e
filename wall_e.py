@@ -2,25 +2,24 @@
 # -*- coding: utf-8 -*-
 
 import argparse
-from collections import OrderedDict
 import itertools
 import logging
-import re
-import sys
+from collections import OrderedDict
 
-from jira.exceptions import JIRAError
+import bitbucket_api
+import jira_api
+import re
 import requests
 import six
-
-from template_loader import render
-import bitbucket_api
 from git_api import (Repository as GitRepository,
                      Branch,
                      MergeFailedException,
                      CheckoutFailedException,
                      RemoveFailedException,
                      PushFailedException)
-import jira_api
+from jira.exceptions import JIRAError
+from template_loader import render
+from utils import RetryHandler
 from wall_e_exceptions import (AfterPullRequest,
                                AuthorApprovalRequired,
                                BranchHistoryMismatch,
@@ -63,7 +62,6 @@ from wall_e_exceptions import (AfterPullRequest,
                                VersionMismatch,
                                WallE_SilentException,
                                WallE_TemplateException)
-from utils import RetryHandler
 
 if six.PY3:
     raw_input = input
@@ -77,20 +75,12 @@ SETTINGS = {
     'ring': {
         'jira_key': 'RING',
         'build_key': 'pipeline',
+        'required_peer_approvals': 2,
         'testers': [
-            WALL_E_USERNAME,  # we need this for test purposes
-            'anneharper',
-            'bjorn_schuberg',
-            'christophe_meron',
-            'christophe_stoyanov',
-            'louis_pery_scality',
-            'mcolzi',
-            'romain_thebaud',
-            'sleibo',
         ],
         'admins': [
             WALL_E_USERNAME,  # we need this for test purposes
-            'alexander_garthwaite',
+            'jonathan_gramain',
             'benoit_a',
             'flavienlebarbe',
             'jienhua',
@@ -110,44 +100,10 @@ SETTINGS = {
             'sylvain_killian'
         ]
     },
-    'wall-e': {
-        'jira_key': 'RELENG',
-        'build_key': 'pipeline',
-        'testers': [
-        ],
-        'admins': [
-            'ludovicmaillard',
-            'pierre_louis_bonicoli',
-            'rayene_benrayana',
-            'sylvain_killian'
-        ]
-    },
-    'gollum': {
-        'jira_key': 'RELENG',
-        'build_key': 'pipeline',
-        'testers': [
-        ],
-        'admins': [
-            'pierre_louis_bonicoli',
-            'rayene_benrayana',
-            'sylvain_killian'
-        ]
-    },
-    'releng-jenkins': {
-        'jira_key': 'RELENG',
-        'build_key': 'pipeline',
-        'testers': [
-        ],
-        'admins': [
-            'bertrand_demiddelaer_scality',
-            'pierre_louis_bonicoli',
-            'rayene_benrayana',
-            'sylvain_killian'
-        ]
-    },
     'wall-e-demo': {
         'jira_key': 'DEMOWALLE',
         'build_key': 'pipeline',
+        'required_peer_approvals': 2,
         'testers': [
         ],
         'admins': [
@@ -155,6 +111,18 @@ SETTINGS = {
             'rayene_benrayana',
             'sylvain_killian',
             'mvaude',
+        ]
+    },
+    'default': {
+        'jira_key': 'RELENG',
+        'build_key': 'pipeline',
+        'required_peer_approvals': 2,
+        'testers': [
+        ],
+        'admins': [
+            'pierre_louis_bonicoli',
+            'rayene_benrayana',
+            'sylvain_killian',
         ]
     }
 }
@@ -1058,7 +1026,7 @@ class WallE:
                     pr['state'] == 'OPEN' and
                     pr['source']['branch']['name'] == name and
                     pr['destination']['branch']['name'] == dst_branch.name
-                   ):
+                ):
                     pr.decline()
                     changed = True
                     break
@@ -1202,8 +1170,11 @@ class WallE:
             - TesterApprovalRequired
 
         """
+        required_peer_approvals = self.settings['required_peer_approvals']
+        current_peer_approvals = 0
+        if self.option_is_set('bypass_peer_approval'):
+            current_peer_approvals = required_peer_approvals
         approved_by_author = self.option_is_set('bypass_author_approval')
-        approved_by_peer = self.option_is_set('bypass_peer_approval')
         approved_by_tester = self.option_is_set('bypass_tester_approval')
         requires_unanimity = self.option_is_set('unanimity')
         is_unanimous = True
@@ -1218,7 +1189,8 @@ class WallE:
         if self.author in self.settings['testers']:
             approved_by_tester = True
 
-        if (approved_by_author and approved_by_peer and
+        if (approved_by_author and
+                (current_peer_approvals >= required_peer_approvals) and
                 approved_by_tester and not requires_unanimity):
             return
 
@@ -1236,23 +1208,25 @@ class WallE:
             elif participant['user']['username'] in self.settings['testers']:
                 approved_by_tester = True
             else:
-                approved_by_peer = True
+                current_peer_approvals += 1
 
+        missing_peer_approvals = \
+            required_peer_approvals - current_peer_approvals
         if not approved_by_author:
             raise AuthorApprovalRequired(
                 pr=self.main_pr,
                 author_approval=approved_by_author,
-                peer_approval=approved_by_peer,
+                missing_peer_approvals=missing_peer_approvals,
                 tester_approval=approved_by_tester,
                 requires_unanimity=requires_unanimity,
                 active_options=self._get_active_options()
             )
 
-        if not approved_by_peer:
+        if missing_peer_approvals > 0:
             raise PeerApprovalRequired(
                 pr=self.main_pr,
                 author_approval=approved_by_author,
-                peer_approval=approved_by_peer,
+                missing_peer_approvals=missing_peer_approvals,
                 tester_approval=approved_by_tester,
                 requires_unanimity=requires_unanimity,
                 active_options=self._get_active_options()
@@ -1262,7 +1236,7 @@ class WallE:
             raise TesterApprovalRequired(
                 pr=self.main_pr,
                 author_approval=approved_by_author,
-                peer_approval=approved_by_peer,
+                missing_peer_approvals=missing_peer_approvals,
                 tester_approval=approved_by_tester,
                 requires_unanimity=requires_unanimity,
                 active_options=self._get_active_options()
@@ -1272,7 +1246,7 @@ class WallE:
             raise UnanimityApprovalRequired(
                 pr=self.main_pr,
                 author_approval=approved_by_author,
-                peer_approval=approved_by_peer,
+                missing_peer_approvals=missing_peer_approvals,
                 tester_approval=approved_by_tester,
                 requires_unanimity=requires_unanimity,
                 active_options=self._get_active_options()
@@ -1539,10 +1513,7 @@ def main():
         args.settings = args.slug
 
     if args.settings not in SETTINGS:
-        print("Invalid repository/settings. I don't know how to work "
-              "with %s. Specify settings with the --settings options." %
-              args.settings)
-        sys.exit(1)
+        args.settings = 'default'
 
     options = setup_options(args)
     commands = setup_commands()
