@@ -924,7 +924,7 @@ class TestWallE(unittest.TestCase):
             options=self.bypass_all_but(['bypass_jira_check']))
         self.assertEqual(retcode, SuccessMessage.code)
         versions = [fv.name for fv in issue.fields.fixVersions]
-        self.assertEqual(set(versions), set(['4.3.19', '5.1.5', '6.0.1']))
+        self.assertEqual(set(versions), {'4.3.19', '5.1.5', '6.0.1'})
 
     def test_full_autofill_jira_fixversion(self):
         jira_api_mock.add_issue('RING-1234')
@@ -940,7 +940,7 @@ class TestWallE(unittest.TestCase):
         )
         self.assertEqual(retcode, SuccessMessage.code)
         versions = [fv.name for fv in issue.fields.fixVersions]
-        self.assertEqual(set(versions), set(['5.1.5', '6.0.1']))
+        self.assertEqual(set(versions), {'5.1.5', '6.0.1'})
 
     def test_ignore_hotfix_in_jira_fixversion(self):
         jira_api_mock.add_issue('RING-1234')
@@ -959,7 +959,7 @@ class TestWallE(unittest.TestCase):
         )
         self.assertEqual(retcode, SuccessMessage.code)
         versions = [fv.name for fv in issue.fields.fixVersions]
-        self.assertEqual(set(versions), set(['5.1.5', '6.0.1', '5.1.4_hf2']))
+        self.assertEqual(set(versions), {'5.1.5', '6.0.1', '5.1.4_hf2'})
 
 
     def test_to_unrecognized_destination_branch(self):
