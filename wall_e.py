@@ -222,7 +222,6 @@ class HotfixBranch(WallEBranch):
 
 class UserBranch(WallEBranch):
     pattern = '^user/(?P<label>.+)$'
-    allow_ticketless_pr = True
 
 
 class ReleaseBranch(WallEBranch):
@@ -231,14 +230,12 @@ class ReleaseBranch(WallEBranch):
 
 
 class FeatureBranch(WallEBranch):
-    correction_prefixes = ('improvement', 'bugfix')
     all_prefixes = ('improvement', 'bugfix', 'feature', 'project')
     jira_issue_pattern = '(?P<jira_project>[A-Z0-9_]+)-[0-9]+'
     prefixes = '(?P<prefix>(%s))' % '|'.join(all_prefixes)
     pattern = "^%s/(?P<label>(?P<jira_issue_key>%s)?" \
               "(?(jira_issue_key).*|.+))$" % (prefixes, jira_issue_pattern)
     cascade_producer = True
-    allow_ticketless_pr = True
 
 
 class DevelopmentBranch(WallEBranch):
@@ -246,7 +243,7 @@ class DevelopmentBranch(WallEBranch):
     cascade_producer = True
     cascade_consumer = True
     can_be_destination = True
-    allow_prefixes = FeatureBranch.correction_prefixes
+    allow_prefixes = FeatureBranch.all_prefixes
 
     def __eq__(self, other):
         return self.__class__ == other.__class__ and \
@@ -257,7 +254,7 @@ class DevelopmentBranch(WallEBranch):
 class StabilizationBranch(DevelopmentBranch):
     pattern = '^stabilization/' \
               '(?P<version>(?P<major>\d+)\.(?P<minor>\d+)\.(?P<micro>\d+))$'
-    allow_prefixes = FeatureBranch.correction_prefixes
+    allow_prefixes = FeatureBranch.all_prefixes
 
     def __eq__(self, other):
         return DevelopmentBranch.__eq__(self, other) and \
@@ -498,11 +495,6 @@ class BranchCascade(object):
 
         self._set_target_versions(destination_branch)
         self.ignored_branches.sort()
-
-        # the last dev branch accepts ticketless pull requests,
-        # and any type of ticket type
-        dev_branch.allow_ticketless_pr = True
-        dev_branch.allow_prefixes = FeatureBranch.all_prefixes
 
 
 class WallE:

@@ -31,7 +31,6 @@ from wall_e_exceptions import (AfterPullRequest,
                                DevBranchesNotSelfContained,
                                DeprecatedStabilizationBranch,
                                HelpMessage,
-                               IncompatibleSourceBranchPrefix,
                                MissingJiraId,
                                NotEnoughCredentials,
                                NothingToDo,
@@ -638,59 +637,6 @@ class TestWallE(unittest.TestCase):
         retcode = self.handle(pr['id'])
         self.assertEqual(retcode, 0)
 
-    def test_incompatible_prefixes(self):
-        pr = self.create_pr('feature/RING-00001', 'development/4.3')
-        retcode = self.handle(pr['id'])
-        self.assertEqual(retcode, IncompatibleSourceBranchPrefix.code)
-
-        pr = self.create_pr('project/RING-00002', 'development/4.3')
-        retcode = self.handle(pr['id'])
-        self.assertEqual(retcode, IncompatibleSourceBranchPrefix.code)
-
-        pr = self.create_pr('bugfix/RING-00003', 'development/4.3')
-        retcode = self.handle(
-            pr['id'],
-            options=self.bypass_all_but(['bypass_incompatible_branch']))
-        self.assertEqual(retcode, SuccessMessage.code)
-
-        pr = self.create_pr('improvement/RING-00004', 'development/4.3')
-        retcode = self.handle(
-            pr['id'],
-            options=self.bypass_all_but(['bypass_incompatible_branch']))
-        self.assertEqual(retcode, SuccessMessage.code)
-
-        pr = self.create_pr('project/RING-00005', 'development/6.0')
-        retcode = self.handle(
-            pr['id'],
-            options=self.bypass_all_but(['bypass_incompatible_branch']))
-        self.assertEqual(retcode, SuccessMessage.code)
-
-        pr = self.create_pr('feature/RING-00006', 'development/6.0')
-        retcode = self.handle(
-            pr['id'],
-            options=self.bypass_all_but(['bypass_incompatible_branch']))
-        self.assertEqual(retcode, SuccessMessage.code)
-
-        pr = self.create_pr('feature/RING-00007', 'stabilization/4.3.18')
-        retcode = self.handle(pr['id'])
-        self.assertEqual(retcode, IncompatibleSourceBranchPrefix.code)
-
-        pr = self.create_pr('bugfix/RING-00008', 'stabilization/4.3.18')
-        retcode = self.handle(
-            pr['id'],
-            options=self.bypass_all_but(['bypass_incompatible_branch']))
-        self.assertEqual(retcode, SuccessMessage.code)
-
-        pr = self.create_pr('feature/RING-00009', 'stabilization/6.0.0')
-        retcode = self.handle(pr['id'])
-        self.assertEqual(retcode, IncompatibleSourceBranchPrefix.code)
-
-        pr = self.create_pr('bugfix/RING-00010', 'stabilization/6.0.0')
-        retcode = self.handle(
-            pr['id'],
-            options=self.bypass_all_but(['bypass_incompatible_branch']))
-        self.assertEqual(retcode, SuccessMessage.code)
-
     def test_not_my_job_cases(self):
         feature_branch = 'feature/RING-00002'
         from_branch = 'development/6.0'
@@ -888,14 +834,17 @@ class TestWallE(unittest.TestCase):
         retcode = self.handle(pr['id'])
         self.assertEqual(retcode, MissingJiraId.code)
 
+        pr = self.create_pr('bugfix/00067', 'development/6.0')
+        retcode = self.handle(pr['id'])
+        self.assertEqual(retcode, MissingJiraId.code)
+
         pr = self.create_pr('improvement/i', 'development/4.3')
         retcode = self.handle(pr['id'])
         self.assertEqual(retcode, MissingJiraId.code)
 
-        # merge to latest dev branch does not require a ticket
         pr = self.create_pr('bugfix/free_text', 'development/6.0')
         retcode = self.handle(pr['id'])
-        self.assertEqual(retcode, AuthorApprovalRequired.code)
+        self.assertEqual(retcode, MissingJiraId.code)
 
         pr = self.create_pr('bugfix/free_text2', 'stabilization/6.0.0')
         retcode = self.handle(pr['id'])
