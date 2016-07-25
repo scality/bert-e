@@ -1,0 +1,32 @@
+---
+branches:
+  feature/*:
+    stage: tests
+  bugfix/*:
+    stage: tests
+  improvement/*:
+    stage: tests
+
+stages:
+  tests:
+    image:
+      type: docker
+      path: eve/ubuntu-trusty
+    steps:
+      - Git:
+          name: pull the branch to test
+          repourl: "%(prop:repository)s"
+          branch: "%(prop:branch)s"
+      - ShellCommand:
+          name: linting with flake8
+          command: flake8 *.py
+      - ShellCommand:
+          name: launch Wall-E tests
+          command: python test_wall_e.py
+                     -v
+                     --repo-prefix _test_wall_e_eve
+                     foo
+                     bar
+                     sylvain_killian
+                     foo
+                     sylvain.killian@scality.com
