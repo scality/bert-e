@@ -1,7 +1,7 @@
-coverage
-flake8
+coverage==4.2
+flake8==3.0.2
 jira==1.0.3
 requests==2.9.1
-six
-future
+six==1.10.0
+future==0.15.2
 Jinja2==2.7.1
