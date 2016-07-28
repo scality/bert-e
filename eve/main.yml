@@ -16,7 +16,8 @@ stages:
       - Git:
           name: pull the branch to test
           repourl: "%(prop:repository)s"
-          branch: "%(prop:branch)s"
+          branch: "%(prop:revision)s"
+          shallow: True
       - ShellCommand:
           name: linting with flake8
           command: flake8 *.py
