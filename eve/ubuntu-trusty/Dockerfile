@@ -1,10 +1,11 @@
 FROM ubuntu:trusty
 
-RUN apt-get -y update && apt-get install -y \
-   python-dev \
-   python-pip \
-   wget \
-   git
+RUN apt-get --assume-yes update
+RUN DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends --assume-yes \
+    python-dev \
+    python-pip \
+    wget \
+    git
 
 RUN wget --no-verbose --tries=3 --timeout=30 https://bootstrap.pypa.io/get-pip.py
 RUN python get-pip.py pip==8.1.2
