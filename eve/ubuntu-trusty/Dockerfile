@@ -4,8 +4,11 @@ ENV HOME_BUILDBOT /var/lib/buildbot
 
 RUN apt-get --assume-yes update
 RUN DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends --assume-yes \
+    openssh-client \
+    build-essential \
+    ca-certificates \
+    python \
     python-dev \
-    python-pip \
     wget \
     git
 
