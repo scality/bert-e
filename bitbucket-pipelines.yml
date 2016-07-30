@@ -8,6 +8,21 @@ pipelines:
         script:
           - pip install -r requirements.txt
           - flake8 *.py
-          - coverage run test_wall_e.py --failfast -v $WALL_E_PWD $EVE_PWD rayene_benrayana another_user_pass another_user@scality.com  
+          - coverage run test_webhook_listener.py
+          - coverage run test_wall_e.py --failfast -v dummy_pwd dummy_pwd rayene_benrayana another_user_pass another_user@scality.com
           - coverage report
           - coverage html
+  development/1.0:
+    - step:
+        script:
+          - echo $DOCKER_HOST1_ENV_TAR_GZ_BASE64 | base64 --decode | tar -zxvf -
+          - . env
+          - curl -sSL https://get.docker.com/ | sh
+          - ./deploy.sh wall_e_development_1_0 5001
+  release/1.0:
+    - step:
+        script:
+          - echo $DOCKER_HOST1_ENV_TAR_GZ_BASE64 | base64 --decode | tar -zxvf -
+          - . env
+          - curl -sSL https://get.docker.com/ | sh
+          - ./deploy.sh wall_e_release_1_0 5000
