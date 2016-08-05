@@ -89,6 +89,7 @@ SETTINGS = {
             'quentin_jacquemart',
             'xavier_roche',
             # RELENG below
+            'akim_sadaoui',
             'anneharper',
             'bertrand_demiddelaer_scality',
             'mcolzi',
