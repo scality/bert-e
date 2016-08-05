@@ -91,11 +91,8 @@ SETTINGS = {
             # RELENG below
             'anneharper',
             'bertrand_demiddelaer_scality',
-            'ludovicmaillard',
             'mcolzi',
-            'mvaude',
             'nohar',
-            'pierre_louis_bonicoli',
             'rayene_benrayana',
             'sylvain_killian'
         ]
@@ -107,10 +104,8 @@ SETTINGS = {
         'testers': [
         ],
         'admins': [
-            'pierre_louis_bonicoli',
             'rayene_benrayana',
             'sylvain_killian',
-            'mvaude',
         ]
     },
     'default': {
@@ -120,7 +115,6 @@ SETTINGS = {
         'testers': [
         ],
         'admins': [
-            'pierre_louis_bonicoli',
             'rayene_benrayana',
             'sylvain_killian',
         ]
