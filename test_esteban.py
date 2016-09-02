@@ -1,8 +1,8 @@
 import unittest
 
-import webhook_listener
+import esteban
 import json
-from test_webhook_listener_data import COMMENT_CREATED
+from test_esteban_data import COMMENT_CREATED
 
 import bitbucket_api
 import bitbucket_api_mock
@@ -20,7 +20,7 @@ class TestWebhookListener(unittest.TestCase):
         os.environ['WEBHOOK_LOGIN'] = 'dummy'
         os.environ['WEBHOOK_PWD'] = 'dummy'
 
-        app = webhook_listener.app.test_client()
+        app = esteban.APP.test_client()
         basic_auth = 'Basic ' + base64.b64encode(bytes(
             os.environ['WEBHOOK_LOGIN'] + ":" +
             os.environ['WEBHOOK_PWD'])).decode('ascii')
@@ -36,7 +36,7 @@ class TestWebhookListener(unittest.TestCase):
             u'test_repo',
             '1',
             'dummy'], sys.argv[1:])
-        print resp
+        # print resp
 
 
 if __name__ == '__main__':
