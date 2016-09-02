@@ -64,7 +64,7 @@ def main():
 
     bbrepo.delete_webhooks_with_title('Wall-E')
     bbrepo.create_webhook(**request)
-    print bbrepo
+
 
 if __name__ == '__main__':
     main()
