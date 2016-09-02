@@ -35,15 +35,14 @@ def parse_bitbucket_webhook():
     if not branch_or_commit_or_pr:
         return
 
-    sys.argv.append('-v')
+    sys.argv.extend([
+        '-v',
+        '--owner', repo_owner,
+        '--slug', repo_slug,
+        str(branch_or_commit_or_pr),
+        os.environ['WALL_E_PWD']
+    ])
 
-    sys.argv.append('--owner')
-    sys.argv.append(repo_owner)
-    sys.argv.append('--slug')
-    sys.argv.append(repo_slug)
-
-    sys.argv.append(str(branch_or_commit_or_pr))
-    sys.argv.append(os.environ['WALL_E_PWD'])
     return wall_e.main()
 
 
@@ -67,6 +66,7 @@ def handle_repo_event(event, json_data):
 def handle_pullrequest_event(event, json_data):
     pr_id = json_data['pullrequest']['id']
     return pr_id
+
 
 if __name__ == '__main__':
     assert os.environ['WEBHOOK_LOGIN']

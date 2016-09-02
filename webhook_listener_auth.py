@@ -22,11 +22,12 @@ def authenticate():
         {'WWW-Authenticate': 'Basic realm="Login Required"'})
 
 
-def requires_auth(f):
-    @wraps(f)
+def requires_auth(func):
+    """Decorator to require auth on selected operations."""
+    @wraps(func)
     def decorated(*args, **kwargs):
         auth = request.authorization
         if not auth or not check_auth(auth.username, auth.password):
             return authenticate()
-        return f(*args, **kwargs)
+        return func(*args, **kwargs)
     return decorated
