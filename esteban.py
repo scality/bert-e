@@ -3,19 +3,18 @@
 launches, Wall-E accordingly.
 """
 import argparse
+import json
+import logging
+import sys
 from collections import namedtuple
 from datetime import datetime
 from functools import wraps
-import json
-import logging
-import os
-import sys
 from threading import Thread
 
+import os
+import wall_e
 from flask import Flask, request, Response
 from raven.contrib.flask import Sentry
-
-import wall_e
 
 if sys.version_info.major < 3:
     import Queue as queue
@@ -40,15 +39,8 @@ def wall_e_launcher():
     pwd = os.environ['WALL_E_PWD']
     while True:
         job = FIFO.get()
-        sys.argv.clear()
-        sys.argv.extend([
-            'wall_e',
-            '-v',
-            '--owner', job.repo_owner,
-            '--slug', job.repo_slug,
-            job.revision,
-            pwd
-        ])
+        sys.argv = ['wall_e', '-v', '--owner', job.repo_owner,
+                    '--slug', job.repo_slug, job.revision, pwd]
 
         try:
             wall_e.main()
