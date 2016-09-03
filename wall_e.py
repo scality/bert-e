@@ -74,7 +74,7 @@ JENKINS_USERNAME = 'scality_jenkins'
 SETTINGS = {
     'ring': {
         'jira_key': 'RING',
-        'build_key': 'pipeline',
+        'build_key': 'pre-merge',
         'required_peer_approvals': 2,
         'testers': [
         ],
@@ -102,7 +102,7 @@ SETTINGS = {
     },
     'wall-e-demo': {
         'jira_key': 'DEMOWALLE',
-        'build_key': 'pipeline',
+        'build_key': 'pre-merge',
         'required_peer_approvals': 2,
         'testers': [
         ],
@@ -115,7 +115,7 @@ SETTINGS = {
     },
     'default': {
         'jira_key': 'RELENG',
-        'build_key': 'pipeline',
+        'build_key': 'pre-merge',
         'required_peer_approvals': 2,
         'testers': [
         ],
