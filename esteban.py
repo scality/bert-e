@@ -51,7 +51,8 @@ def wall_e_launcher():
                 logging.error(err)
 
         logging.debug("It took Esteban %s to handle job %s:%s",
-                      datetime.now() - job.start_time, job.repo_slug, job.rev)
+                      datetime.now() - job.start_time, job.repo_slug,
+                      job.revision)
 
 
 def check_auth(username, password):
