@@ -89,6 +89,11 @@ def requires_auth(func):
     return decorated
 
 
+@APP.route('/', methods=['GET'])
+def display_queue():
+    return str(list(FIFO.queue))
+
+
 @APP.route('/bitbucket', methods=['POST'])
 @requires_auth
 def parse_bitbucket_webhook():
