@@ -1531,7 +1531,7 @@ def main():
         if args.backtrace:
             raise excp
 
-        logging.info('Exception raised: %d', excp.code)
+        logging.info('Exception raised: %d %s', excp.code, excp.__class__)
         if not args.quiet:
             print('%d - %s' % (excp.code, excp.__class__.__name__))
         return excp.code
