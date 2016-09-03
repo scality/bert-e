@@ -99,6 +99,7 @@ def parse_bitbucket_webhook():
     repo_owner = json_data['repository']['owner']['username']
     repo_slug = json_data['repository']['name']
     branch_or_commit_or_pr = None
+    revision = None
     # if entity == 'repo':
     #    revision = handle_repo_event(event, json_data)
     if entity == 'pullrequest':
