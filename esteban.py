@@ -40,7 +40,7 @@ def wall_e_launcher():
     while True:
         job = FIFO.get()
         sys.argv = ['wall_e', '-v', '--owner', job.repo_owner,
-                    '--slug', job.repo_slug, job.revision, pwd]
+                    '--slug', job.repo_slug, str(job.revision), pwd]
 
         try:
             wall_e.main()
