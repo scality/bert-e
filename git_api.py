@@ -1,12 +1,13 @@
-import os
-from pipes import quote
-from shutil import rmtree
-from simplecmd import cmd
+import logging
 import subprocess
 import time
+from pipes import quote
+from shutil import rmtree
 from tempfile import mkdtemp
-import logging
+
+import os
 import six
+from simplecmd import cmd
 
 
 class Repository(object):
@@ -27,11 +28,18 @@ class Repository(object):
         self.cmd_directory = None
 
     def clone(self, reference=''):
-        clone_cmd = 'git clone'
-        if reference:
-            clone_cmd += ' --reference ' + reference
-        self.cmd('%s %%s' % clone_cmd, self._url)
         repo_slug = self._url.split('/')[-1].replace('.git', '')
+
+        if not reference:
+            reference = '/var/cache/wall-e/' + repo_slug
+            if not os.path.isdir(reference):
+                # fixme: isdir() is not a good test of repo existence
+                self.cmd('git clone %s %s', self._url, reference)
+
+        clone_cmd = 'git clone'
+        clone_cmd += ' --reference ' + reference
+        self.cmd('%s %%s' % clone_cmd, self._url)
+
         # all commands will now execute from repo directory
         self.cmd_directory = os.path.join(self.tmp_directory, repo_slug)
 
