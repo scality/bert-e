@@ -1,13 +1,14 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import subprocess
 import logging
+import subprocess
+
 import os
 import os.path
 
 
-def cmd(command, shell=True, stderr=None, **kwargs):
+def cmd(command, shell=True, stderr=subprocess.STDOUT, **kwargs):
     """Execute a command using subprocess.check_output
 
     The executed command and the standard output are displayed when debug log

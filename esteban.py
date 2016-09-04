@@ -40,7 +40,7 @@ def wall_e_launcher():
     while True:
         job = FIFO.get()
         sys.argv = ['wall_e', '-v', '--owner', job.repo_owner,
-                    '--slug', job.repo_slug, str(job.revision), pwd]
+                    '--slug', job.repo_slug, job.revision, pwd]
 
         try:
             wall_e.main()
@@ -100,8 +100,8 @@ def parse_bitbucket_webhook():
     repo_slug = json_data['repository']['name']
     branch_or_commit_or_pr = None
     revision = None
-    # if entity == 'repo':
-    #    revision = handle_repo_event(event, json_data)
+    if entity == 'repo':
+        revision = handle_repo_event(event, json_data)
     if entity == 'pullrequest':
         revision = handle_pullrequest_event(event, json_data)
 
@@ -125,17 +125,22 @@ def handle_repo_event(event, json_data):
     """
     if event == 'push':
         if 'new' not in json_data['push']:
-            # a branch has been deleted, ignoring...
+            logging.info('A branch has been deleted, ignoring...')
             return
         push_type = json_data['push']['new']['type']
         if push_type != 'branch':
+            logging.info('Something has been pushed but it is not a branch, '
+                         'ignoring...')
             return
         branch_name = json_data['push']['new']['name']
+        logging.info('The branch <%s> has been updated', branch_name)
         return branch_name
 
     if event in ['commit_status_created', 'commit_status_updated']:
         commit_url = json_data['commit_status']['links']['commit']['href']
         commit_sha1 = commit_url.split('/')[-1]
+        logging.info('The build status of commit <%s> has been updated: %s',
+                     commit_sha1, commit_url)
         return commit_sha1
 
 
@@ -146,7 +151,8 @@ def handle_pullrequest_event(event, json_data):
 
     """
     pr_id = json_data['pullrequest']['id']
-    return pr_id
+    logging.info('The pull request <%s> has been updated', pr_id)
+    return str(pr_id)
 
 
 def main():

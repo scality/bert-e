@@ -31,10 +31,15 @@ class Repository(object):
         repo_slug = self._url.split('/')[-1].replace('.git', '')
 
         if not reference:
-            reference = '/var/cache/wall-e/' + repo_slug
+            top = os.path.expanduser('~/.wall-e/')
+            try:
+                os.mkdir(top)
+            except OSError:
+                pass
+            reference = top + repo_slug
             if not os.path.isdir(reference):
                 # fixme: isdir() is not a good test of repo existence
-                self.cmd('git clone %s %s', self._url, reference)
+                self.cmd('git clone --mirror %s %s', self._url, reference)
 
         clone_cmd = 'git clone'
         clone_cmd += ' --reference ' + reference
@@ -69,6 +74,15 @@ class Repository(object):
             return False
 
         return True
+
+    def get_branches_from_sha1(self, sha1):
+        lines = self.cmd('git ls-remote --heads %s', self._url).splitlines()
+        branches = []
+        for line in lines:
+            line_sha1, reference = line.split()
+            if line_sha1 == sha1 and reference.startswith('refs/heads/'):
+                branches.append(reference.replace('refs/heads/', '').strip())
+        return branches
 
     def checkout(self, name):
         try:
