@@ -49,7 +49,6 @@ def wall_e_launcher():
                 SENTRY.captureException()
             else:
                 logging.error(err)
-                raise
 
         logging.debug("It took Esteban %s to handle job %s:%s",
                       datetime.now() - job.start_time, job.repo_slug,
