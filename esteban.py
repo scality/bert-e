@@ -25,12 +25,12 @@ else:
 
 APP = Flask(__name__)
 FIFO = queue.Queue()
-
 try:
     SENTRY = Sentry(APP, logging=True, level=logging.INFO,
                     dsn=os.environ['SENTRY_DSN'])
 except KeyError:
     SENTRY = None
+
 
 Job = namedtuple('Job', ('repo_owner', 'repo_slug', 'revision', 'start_time'))
 
@@ -40,26 +40,30 @@ def wall_e_launcher():
     pwd = os.environ['WALL_E_PWD']
     while True:
         job = FIFO.get()
-        sys.argv.clear()
+        sys.argv[:] = []
         sys.argv.extend([
             'wall_e',
             '-v',
             '--owner', job.repo_owner,
             '--slug', job.repo_slug,
-            job.revision,
+            str(job.revision),
             pwd
         ])
-
         try:
             wall_e.main()
         except Exception as err:
             if SENTRY:
                 SENTRY.captureException()
             else:
-                logging.error(err)
+                logging.error("Wall-e job %s finished with an error: %s",
+                              job, err)
+        finally:
+            FIFO.task_done()
 
-        logging.debug("It took Esteban %s to handle job %s:%s",
-                      datetime.now() - job.start_time, job.repo_slug, job.rev)
+            logging.debug("It took Esteban %s to handle job %s:%s",
+                          datetime.now() - job.start_time,
+                          job.repo_slug, job.revision)
+
 
 
 def check_auth(username, password):
