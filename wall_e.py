@@ -282,8 +282,8 @@ class IntegrationBranch(WallEBranch):
             if pr['source']['branch']['name'] != self.name:
                 continue
             if self.destination_branch and \
-                            pr['destination']['branch']['name'] != \
-                            self.destination_branch.name:
+                    pr['destination']['branch']['name'] != \
+                    self.destination_branch.name:
                 continue
             return pr
 
@@ -512,7 +512,7 @@ class WallE:
         self.bbrepo = bitbucket_api.Repository(
             self._bbconn, owner=owner, repo_slug=slug)
         if isinstance(pr_id_or_revision, basestring) and \
-                        len(pr_id_or_revision) == 40:
+                len(pr_id_or_revision) == 40:
             # it is a sha1
             pr = self.get_pull_request_from_sha1(pr_id_or_revision)
             if not pr:
@@ -532,7 +532,6 @@ class WallE:
                                           pr_id_or_revision)
                 # self.get_pull_request_from_branch(pull_request_id_or_revision)
                 pass
-
 
         self.main_pr = self.bbrepo.get_pull_request(
             pull_request_id=pull_request_id)
