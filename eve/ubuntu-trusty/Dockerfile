@@ -18,17 +18,11 @@ RUN /usr/local/bin/pip install buildbot-worker==0.9.0b9
 COPY requirements.txt requirements.txt
 RUN /usr/local/bin/pip install -r requirements.txt
 
-# Create buildbot user
-RUN groupadd -r buildbot
-RUN useradd -r -m -d $HOME_BUILDBOT -g buildbot buildbot
-COPY id_rsa $HOME_BUILDBOT/.ssh/id_rsa
-RUN chmod 600 $HOME_BUILDBOT/.ssh/id_rsa
-RUN ssh-keyscan bitbucket.org >> $HOME_BUILDBOT/.ssh/known_hosts
-RUN chown -R buildbot:buildbot $HOME_BUILDBOT
+USER eve
+WORKDIR /home/eve
 
-# Switch to user
-USER buildbot
-WORKDIR $HOME_BUILDBOT
-
+ENV LANG=C.UTF-8 \
+    BUILD_DISTRO=trusty \
+    JOB_NAME=walle_trusty_docker
 
 CMD  buildbot-worker create-worker . "$BUILDMASTER:$BUILDMASTER_PORT" "$WORKERNAME" "$WORKERPASS" && buildbot-worker start --nodaemon
