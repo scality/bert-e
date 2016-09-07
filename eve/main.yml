@@ -9,7 +9,7 @@ branches:
 
 stages:
   tests:
-    image:
+    worker:
       type: docker
       path: eve/ubuntu-trusty
     steps:
