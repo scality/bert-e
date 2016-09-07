@@ -3,20 +3,19 @@
 launches, Wall-E accordingly.
 """
 import argparse
-from collections import namedtuple
-from datetime import datetime
-from functools import wraps
 import json
 import logging
 import os
 import sys
+from collections import namedtuple
+from datetime import datetime
+from functools import wraps
 from threading import Thread
 
 from flask import Flask, request, Response
 from raven.contrib.flask import Sentry
 
 import wall_e
-
 if sys.version_info.major < 3:
     import Queue as queue
 else:
@@ -30,7 +29,6 @@ try:
                     dsn=os.environ['SENTRY_DSN'])
 except KeyError:
     SENTRY = None
-
 
 Job = namedtuple('Job', ('repo_owner', 'repo_slug', 'revision', 'start_time'))
 
@@ -65,7 +63,6 @@ def wall_e_launcher():
                           job.repo_slug, job.revision)
 
 
-
 def check_auth(username, password):
     """This function is called to check if a username /
     password combination is valid.
@@ -93,6 +90,11 @@ def requires_auth(func):
     return decorated
 
 
+@APP.route('/', methods=['GET'])
+def display_queue():
+    return str(list(FIFO.queue))
+
+
 @APP.route('/bitbucket', methods=['POST'])
 @requires_auth
 def parse_bitbucket_webhook():
@@ -104,9 +106,10 @@ def parse_bitbucket_webhook():
     repo_owner = json_data['repository']['owner']['username']
     repo_slug = json_data['repository']['name']
     branch_or_commit_or_pr = None
+    revision = None
     if entity == 'repo':
         revision = handle_repo_event(event, json_data)
-    elif entity == 'pullrequest':
+    if entity == 'pullrequest':
         revision = handle_pullrequest_event(event, json_data)
 
     if not revision:
@@ -129,17 +132,22 @@ def handle_repo_event(event, json_data):
     """
     if event == 'push':
         if 'new' not in json_data['push']:
-            # a branch has been deleted, ignoring...
+            logging.info('A branch has been deleted, ignoring...')
             return
         push_type = json_data['push']['new']['type']
         if push_type != 'branch':
+            logging.info('Something has been pushed but it is not a branch, '
+                         'ignoring...')
             return
         branch_name = json_data['push']['new']['name']
+        logging.info('The branch <%s> has been updated', branch_name)
         return branch_name
 
     if event in ['commit_status_created', 'commit_status_updated']:
         commit_url = json_data['commit_status']['links']['commit']['href']
         commit_sha1 = commit_url.split('/')[-1]
+        logging.info('The build status of commit <%s> has been updated: %s',
+                     commit_sha1, commit_url)
         return commit_sha1
 
 
@@ -150,7 +158,8 @@ def handle_pullrequest_event(event, json_data):
 
     """
     pr_id = json_data['pullrequest']['id']
-    return pr_id
+    logging.info('The pull request <%s> has been updated', pr_id)
+    return str(pr_id)
 
 
 def main():
