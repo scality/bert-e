@@ -7,7 +7,7 @@ import json
 import logging
 import os
 import sys
-from collections import namedtuple
+from collections import namedtuple, deque
 from datetime import datetime
 from functools import wraps
 from threading import Thread
@@ -24,6 +24,8 @@ else:
 
 APP = Flask(__name__)
 FIFO = queue.Queue()
+DONE = deque(maxlen=1000)
+
 try:
     SENTRY = Sentry(APP, logging=True, level=logging.INFO,
                     dsn=os.environ['SENTRY_DSN'])
@@ -61,6 +63,7 @@ def wall_e_launcher():
             logging.debug("It took Esteban %s to handle job %s:%s",
                           datetime.now() - job.start_time,
                           job.repo_slug, job.revision)
+            DONE.appendleft(job)
 
 
 def check_auth(username, password):
@@ -92,7 +95,13 @@ def requires_auth(func):
 
 @APP.route('/', methods=['GET'])
 def display_queue():
-    return str(list(FIFO.queue))
+    output = []
+    tasks = FIFO.queue
+    output.append('{0} queued jobs:'.format(len(tasks)))
+    output.extend('* [{3}] {0}/{1} - {2}'.format(job) for job in tasks)
+    output.append('\nCompleted jobs:')
+    output.extend('* [{3}] {0}/{1} - {2}'.format(job) for job in DONE)
+    return '\n'.join(output)
 
 
 @APP.route('/bitbucket', methods=['POST'])
@@ -116,8 +125,15 @@ def parse_bitbucket_webhook():
         logging.debug('Nothing to do')
         return Response('OK', 200)
 
-    logging.info('Queuing job %s:%s', repo_slug, revision)
-    FIFO.put(Job(repo_owner, repo_slug, revision, datetime.now()))
+    job = Job(repo_owner, repo_slug, revision, datetime.now())
+
+    if any(filter(lambda j: j[:3] == job[:3], FIFO.queue)):
+        logging.info('%s/%s:%s already in queue. Skipping.',
+                     repo_owner, repo_slug, revision)
+        return Response('OK', 200)
+
+    logging.info('Queuing job %s', job)
+    FIFO.put(job)
 
     return Response('OK', 200)
 
