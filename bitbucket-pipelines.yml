@@ -8,7 +8,7 @@ pipelines:
         script:
           - pip install -r requirements.txt
           - flake8 *.py
-          - coverage run test_webhook_listener.py
+          - coverage run test_esteban.py
           - coverage run test_wall_e.py --failfast -v dummy_pwd dummy_pwd rayene_benrayana another_user_pass another_user@scality.com
           - coverage report
           - coverage html

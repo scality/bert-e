@@ -98,9 +98,9 @@ def display_queue():
     output = []
     tasks = FIFO.queue
     output.append('{0} queued jobs:'.format(len(tasks)))
-    output.extend('* [{3}] {0}/{1} - {2}'.format(job) for job in tasks)
+    output.extend('* [{3}] {0}/{1} - {2}'.format(*job) for job in tasks)
     output.append('\nCompleted jobs:')
-    output.extend('* [{3}] {0}/{1} - {2}'.format(job) for job in DONE)
+    output.extend('* [{3}] {0}/{1} - {2}'.format(*job) for job in DONE)
     return '\n'.join(output)
 
 
@@ -114,7 +114,6 @@ def parse_bitbucket_webhook():
     json_data = json.loads(request.data)
     repo_owner = json_data['repository']['owner']['username']
     repo_slug = json_data['repository']['name']
-    branch_or_commit_or_pr = None
     revision = None
     if entity == 'repo':
         revision = handle_repo_event(event, json_data)
@@ -128,8 +127,7 @@ def parse_bitbucket_webhook():
     job = Job(repo_owner, repo_slug, revision, datetime.now())
 
     if any(filter(lambda j: j[:3] == job[:3], FIFO.queue)):
-        logging.info('%s/%s:%s already in queue. Skipping.',
-                     repo_owner, repo_slug, revision)
+        logging.info('%s/%s:%s already in queue. Skipping.', *(job[:3]))
         return Response('OK', 200)
 
     logging.info('Queuing job %s', job)
@@ -194,8 +192,8 @@ def main():
 
     args = parser.parse_args()
 
-    #assert os.environ['WEBHOOK_LOGIN']
-    #assert os.environ['WEBHOOK_PWD']
+    # assert os.environ['WEBHOOK_LOGIN']
+    # assert os.environ['WEBHOOK_PWD']
 
     logging.basicConfig(level=logging.DEBUG if args.verbose else logging.INFO)
 
