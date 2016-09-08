@@ -1307,7 +1307,7 @@ class TestWallE(unittest.TestCase):
             self.handle(pr['id'], options=self.bypass_all)
 
     def set_build_status_on_pr_id(self, pr_id, state,
-                                  key='pipeline',
+                                  key='pre-merge',
                                   name='Test build status',
                                   url='http://www.scality.com'):
         pr = self.bbrepo_wall_e.get_pull_request(pull_request_id=pr_id)
@@ -1506,6 +1506,30 @@ class TestWallE(unittest.TestCase):
                               'bypass_peer_approval',
                               'bypass_jira_check',
                               'bypass_build_status'])
+        self.assertEqual(retcode, SuccessMessage.code)
+
+    def test_build_status_triggered_by_build_result(self):
+        pr = self.create_pr('bugfix/RING-00081', 'development/5.1')
+        with self.assertRaises(BuildNotStarted):
+            self.handle(pr['id'],
+                        options=self.bypass_all_but(['bypass_build_status']),
+                        backtrace=True)
+        self.set_build_status_on_pr_id(pr['id'] + 1, 'FAILED')
+        self.set_build_status_on_pr_id(pr['id'] + 2, 'SUCCESSFUL')
+
+        childpr = self.bbrepo_wall_e.get_pull_request(
+            pull_request_id=pr['id'] + 1)
+
+        retcode = self.handle(childpr['source']['commit']['hash'],
+                              options=self.bypass_all_but(
+                                  ['bypass_build_status']))
+        self.assertEqual(retcode, BuildFailed.code)
+
+        self.set_build_status_on_pr_id(pr['id'] + 1, 'SUCCESSFUL')
+
+        retcode = self.handle(childpr['source']['commit']['hash'],
+                              options=self.bypass_all_but(
+                                  ['bypass_build_status']))
         self.assertEqual(retcode, SuccessMessage.code)
 
     def test_source_branch_history_changed(self):

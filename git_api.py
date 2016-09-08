@@ -1,12 +1,13 @@
-import os
-from pipes import quote
-from shutil import rmtree
-from simplecmd import cmd
+import logging
 import subprocess
 import time
+from pipes import quote
+from shutil import rmtree
 from tempfile import mkdtemp
-import logging
+
+import os
 import six
+from simplecmd import cmd
 
 
 class Repository(object):
@@ -27,11 +28,23 @@ class Repository(object):
         self.cmd_directory = None
 
     def clone(self, reference=''):
-        clone_cmd = 'git clone'
-        if reference:
-            clone_cmd += ' --reference ' + reference
-        self.cmd('%s %%s' % clone_cmd, self._url)
         repo_slug = self._url.split('/')[-1].replace('.git', '')
+
+        if not reference:
+            top = os.path.expanduser('~/.wall-e/')
+            try:
+                os.mkdir(top)
+            except OSError:
+                pass
+            reference = top + repo_slug
+            if not os.path.isdir(reference):
+                # fixme: isdir() is not a good test of repo existence
+                self.cmd('git clone --mirror %s %s', self._url, reference)
+
+        clone_cmd = 'git clone'
+        clone_cmd += ' --reference ' + reference
+        self.cmd('%s %%s' % clone_cmd, self._url)
+
         # all commands will now execute from repo directory
         self.cmd_directory = os.path.join(self.tmp_directory, repo_slug)
 
@@ -61,6 +74,15 @@ class Repository(object):
             return False
 
         return True
+
+    def get_branches_from_sha1(self, sha1):
+        lines = self.cmd('git ls-remote --heads %s', self._url).splitlines()
+        branches = []
+        for line in lines:
+            line_sha1, reference = line.split()
+            if line_sha1 == sha1 and reference.startswith('refs/heads/'):
+                branches.append(reference.replace('refs/heads/', '').strip())
+        return branches
 
     def checkout(self, name):
         try:

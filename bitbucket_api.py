@@ -138,6 +138,27 @@ class Repository(BitBucketObject):
         kwargs['repo_slug'] = self['repo_slug']
         return BuildStatus(self.client, **kwargs).create()
 
+    def get_webhooks(self, **kwargs):
+        kwargs['owner'] = self['owner']
+        kwargs['repo_slug'] = self['repo_slug']
+        return WebHook.get_list(self.client, **kwargs)
+
+    def create_webhook(self, **kwargs):
+        kwargs['owner'] = self['owner']
+        kwargs['repo_slug'] = self['repo_slug']
+        return WebHook(self.client, **kwargs).create()
+
+    def delete_webhooks_with_title(self, title):
+        kwargs = {}
+        kwargs['owner'] = self['owner']
+        kwargs['repo_slug'] = self['repo_slug']
+        for webhook in self.get_webhooks(**kwargs):
+            if webhook['description'] == title:
+                webhook['owner'] = self['owner']
+                webhook['repo_slug'] = self['repo_slug']
+                webhook['uid'] = webhook['uuid']
+                webhook.delete()
+
 
 class PullRequest(BitBucketObject):
     add_url = ('https://api.bitbucket.org/2.0/repositories/'
@@ -221,4 +242,12 @@ class BuildStatus(BitBucketObject):
         'commit/$revision/statuses/build/$key'
     list_url = 'https://api.bitbucket.org/2.0/repositories/$owner/' \
         '$repo_slug/commit/$revision/statuses/build'
+    add_url = list_url
+
+
+class WebHook(BitBucketObject):
+    get_url = 'https://api.bitbucket.org/2.0/repositories/$owner/$repo_slug/' \
+        'hooks/$uid'
+    list_url = 'https://api.bitbucket.org/2.0/repositories/$owner/$repo_slug/'\
+        'hooks'
     add_url = list_url

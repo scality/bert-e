@@ -1,17 +1,25 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import subprocess
 import logging
 import os
 import os.path
+import sys
+
+if (sys.version_info.major, sys.version_info.minor) < (3, 3):
+    import subprocess32 as subprocess
+else:
+    import subprocess
 
 
-def cmd(command, shell=True, stderr=None, **kwargs):
+def cmd(command, shell=True, stderr=subprocess.STDOUT, timeout=300, **kwargs):
     """Execute a command using subprocess.check_output
 
     The executed command and the standard output are displayed when debug log
     level is enabled.
+
+    By default, a timeout of 5 minutes is applied to all commands. To disable
+    it, use timeout=None.
 
     Args: same as subprocess.check_output.
 
@@ -24,8 +32,9 @@ def cmd(command, shell=True, stderr=None, **kwargs):
         logging.debug('#' * 50 + ' pwd = ' + kwargs.get('cwd', os.getcwd()))
         logging.debug('# BASH : %s', command)
         return subprocess.check_output(command, shell=shell, stderr=stderr,
-                                       **kwargs)
+                                       timeout=timeout, **kwargs)
     else:
         with open(os.devnull, 'wb') as devnull:
-            return subprocess.check_output(command, shell=shell,
-                                           stderr=devnull, **kwargs)
+            return subprocess.check_output(
+                command, shell=shell, stderr=devnull, timeout=timeout, **kwargs
+            )

@@ -74,7 +74,7 @@ JENKINS_USERNAME = 'scality_jenkins'
 SETTINGS = {
     'ring': {
         'jira_key': 'RING',
-        'build_key': 'pipeline',
+        'build_key': 'pre-merge',
         'required_peer_approvals': 2,
         'testers': [
         ],
@@ -102,7 +102,7 @@ SETTINGS = {
     },
     'wall-e-demo': {
         'jira_key': 'DEMOWALLE',
-        'build_key': 'pipeline',
+        'build_key': 'pre-merge',
         'required_peer_approvals': 2,
         'testers': [
         ],
@@ -115,7 +115,7 @@ SETTINGS = {
     },
     'default': {
         'jira_key': 'RELENG',
-        'build_key': 'pipeline',
+        'build_key': 'pre-merge',
         'required_peer_approvals': 2,
         'testers': [
         ],
@@ -274,17 +274,15 @@ class IntegrationBranch(WallEBranch):
         self.destination_branch.merge(self, force_commit=False)
         self.destination_branch.push()
 
-    def _get_pull_request_from_list(self, open_prs):
-        pr = None
-        for pr_ in open_prs:
-            if pr_['source']['branch']['name'] != self.name:
+    def get_pull_request_from_list(self, open_prs):
+        for pr in open_prs:
+            if pr['source']['branch']['name'] != self.name:
                 continue
-            if pr_['destination']['branch']['name'] != \
+            if self.destination_branch and \
+                    pr['destination']['branch']['name'] != \
                     self.destination_branch.name:
                 continue
-            pr = pr_
-            break
-        return pr
+            return pr
 
     def get_or_create_pull_request(self, parent_pr, open_prs, bitbucket_repo,
                                    first=False):
@@ -301,7 +299,7 @@ class IntegrationBranch(WallEBranch):
         # wall-e will analyse it, retrieve the main pr, then
         # re-enter here and recreate the children pr.
         # solution: do not create the pr if it already exists
-        pr = self._get_pull_request_from_list(open_prs)
+        pr = self.get_pull_request_from_list(open_prs)
         # need a boolean to know if the PR is created or no
         created = False
         if not pr:
@@ -499,12 +497,34 @@ class BranchCascade(object):
 
 class WallE:
     def __init__(self, bitbucket_login, bitbucket_password, bitbucket_mail,
-                 owner, slug, pull_request_id, options, commands, settings,
-                 interactive, no_comment):
+                 owner, slug, pr_id_or_revision, options, commands,
+                 settings, interactive, no_comment):
         self._bbconn = bitbucket_api.Client(
             bitbucket_login, bitbucket_password, bitbucket_mail)
         self.bbrepo = bitbucket_api.Repository(
             self._bbconn, owner=owner, repo_slug=slug)
+        if isinstance(pr_id_or_revision, basestring) and \
+                len(pr_id_or_revision) == 40:
+            # it is a sha1
+            pr = self.get_pull_request_from_sha1(pr_id_or_revision)
+            if not pr:
+                raise NothingToDo('Could not find the PR corresponding to'
+                                  ' sha1: %s' % pr_id_or_revision)
+            pull_request_id = int(pr['id'])
+
+        else:
+            try:
+                pull_request_id = int(pr_id_or_revision)
+                # it is probably a pull request id
+
+            except ValueError:
+                # we will assume it is a branch
+                raise NotImplementedError('Triggering Wall-E with branch '
+                                          'names is not implemented yet: %s',
+                                          pr_id_or_revision)
+                # self.get_pull_request_from_branch(pull_request_id_or_revision)
+                pass
+
         self.main_pr = self.bbrepo.get_pull_request(
             pull_request_id=pull_request_id)
         self.author = self.main_pr['author']['username']
@@ -531,6 +551,19 @@ class WallE:
         self.comments = []
         self.interactive = interactive
         self.no_comment = no_comment
+
+    def get_pull_request_from_sha1(self, sha1):
+        open_prs = list(self.bbrepo.get_pull_requests())
+        for branch in self._get_integration_branches_from_sha1(sha1):
+            pr = branch.get_pull_request_from_list(open_prs)
+            if pr:
+                return pr
+
+    def _get_integration_branches_from_sha1(self, sha1):
+        git_repo = GitRepository(self.bbrepo.get_git_url())
+        return [IntegrationBranch(self, branch) for branch in
+                git_repo.get_branches_from_sha1(sha1)
+                if branch.startswith('w/')]
 
     def option_is_set(self, name):
         if name not in self.options.keys():
@@ -1511,7 +1544,7 @@ def main():
     commands = setup_commands()
 
     wall_e = WallE(WALL_E_USERNAME, args.password, WALL_E_EMAIL,
-                   args.owner, args.slug, int(args.pull_request_id),
+                   args.owner, args.slug, args.pull_request_id.strip(),
                    options, commands, SETTINGS[args.settings],
                    args.interactive, args.no_comment)
 
@@ -1523,7 +1556,7 @@ def main():
         if args.backtrace:
             raise excp
 
-        logging.info('Exception raised: %d', excp.code)
+        logging.info('Exception raised: %d %s', excp.code, excp.__class__)
         if not args.quiet:
             print('%d - %s' % (excp.code, excp.__class__.__name__))
         return excp.code
