@@ -14,10 +14,11 @@ stages:
       path: eve/ubuntu-trusty
     steps:
       - Git:
-          name: pull the branch to test
-          repourl: "%(prop:repository)s"
-          branch: "%(prop:revision)s"
+          name: git pull
+          repourl: "%(prop:git_reference)s"
           shallow: True
+          retryFetch: True
+          haltOnFailure: True
       - ShellCommand:
           name: linting with flake8
           command: flake8 *.py
