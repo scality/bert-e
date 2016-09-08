@@ -511,7 +511,7 @@ class WallE:
             bitbucket_login, bitbucket_password, bitbucket_mail)
         self.bbrepo = bitbucket_api.Repository(
             self._bbconn, owner=owner, repo_slug=slug)
-        if isinstance(pr_id_or_revision, basestring) and \
+        if isinstance(pr_id_or_revision, str) and \
                 len(pr_id_or_revision) == 40:
             # it is a sha1
             pr = self.get_pull_request_from_sha1(pr_id_or_revision)
@@ -569,7 +569,7 @@ class WallE:
         candidates = sorted(
             filter(lambda pr: bool(pr),
                    (b.get_pull_request_from_list(open_prs) for b in
-                    self._get_integration_branches_from_sha1(sha1)))
+                    self._get_integration_branches_from_sha1(sha1))),
             key=lambda pr: pr['id']
         )
         if candidates:
