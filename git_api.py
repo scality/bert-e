@@ -1,13 +1,12 @@
 import logging
-import subprocess
+import os
 import time
 from pipes import quote
 from shutil import rmtree
 from tempfile import mkdtemp
 
-import os
 import six
-from simplecmd import cmd
+from simplecmd import cmd, CalledProcessError
 
 
 class Repository(object):
@@ -27,10 +26,19 @@ class Repository(object):
         self.tmp_directory = None
         self.cmd_directory = None
 
-    def clone(self, reference=''):
+    def clone(self, reference='', create_mirror=True):
+        """Clone the repository locally.
+
+        Args:
+            * reference: use given local repository as a reference.
+            * create_mirror: if set to True (default), then in the absence of a
+                reference argument, create a git mirror of the repository under
+                the ``$HOME/.wall-e`` tree.
+
+        """
         repo_slug = self._url.split('/')[-1].replace('.git', '')
 
-        if not reference:
+        if not reference and create_mirror:
             top = os.path.expanduser('~/.wall-e/')
             try:
                 os.mkdir(top)
@@ -70,7 +78,7 @@ class Repository(object):
         try:
             self.cmd('git ls-remote --heads --exit-code %s %s',
                      self._url, name)
-        except subprocess.CalledProcessError:
+        except CalledProcessError:
             return False
 
         return True
@@ -87,13 +95,13 @@ class Repository(object):
     def checkout(self, name):
         try:
             self.cmd('git checkout %s', name)
-        except subprocess.CalledProcessError:
+        except CalledProcessError:
             raise CheckoutFailedException(name)
 
     def push(self, name):
         try:
             self.cmd('git push --set-upstream origin ' + name)
-        except subprocess.CalledProcessError:
+        except CalledProcessError:
             raise PushFailedException(name)
 
     def cmd(self, command, *args, **kwargs):
@@ -106,7 +114,7 @@ class Repository(object):
         cwd = kwargs.get('cwd', self.cmd_directory)
         try:
             ret = cmd(command, cwd=cwd, **kwargs)
-        except subprocess.CalledProcessError:
+        except CalledProcessError:
             if retry == 0:
                 raise
 
@@ -131,7 +139,7 @@ class Branch(object):
             command = 'git merge --no-edit %s %%s' % ('--no-ff' if force_commit
                                                       else '')
             self.repo.cmd(command, source_branch.name)  # May fail if conflict
-        except subprocess.CalledProcessError:
+        except CalledProcessError:
             raise MergeFailedException(self.name, source_branch.name)
         if do_push:
             self.push()
@@ -147,7 +155,7 @@ class Branch(object):
         try:
             self.repo.cmd('git merge-base --is-ancestor %s %s',
                           six.text_type(sha1), self.name)
-        except subprocess.CalledProcessError:
+        except CalledProcessError:
             return False
         return True
 
@@ -171,7 +179,7 @@ class Branch(object):
         self.repo.checkout(source_branch.name)
         try:
             self.repo.cmd('git checkout -b %s', self.name)
-        except subprocess.CalledProcessError:
+        except CalledProcessError:
             msg = "branch:%s source:%s" % (self.name, source_branch.name)
             raise BranchCreationFailedException(msg)
         self.push()

@@ -12,6 +12,9 @@ else:
     import subprocess
 
 
+CalledProcessError = subprocess.CalledProcessError
+
+
 def cmd(command, shell=True, stderr=subprocess.STDOUT, timeout=300, **kwargs):
     """Execute a command using subprocess.check_output
 

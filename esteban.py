@@ -192,11 +192,7 @@ def main():
 
     args = parser.parse_args()
 
-    # assert os.environ['WEBHOOK_LOGIN']
-    # assert os.environ['WEBHOOK_PWD']
-
     logging.basicConfig(level=logging.DEBUG if args.verbose else logging.INFO)
-
     worker = Thread(target=wall_e_launcher)
     worker.daemon = True
     worker.start()
