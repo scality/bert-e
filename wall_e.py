@@ -553,11 +553,19 @@ class WallE:
         self.no_comment = no_comment
 
     def get_pull_request_from_sha1(self, sha1):
+        """Get the oldest open integration pull request containing given
+        commit.
+
+        """
         open_prs = list(self.bbrepo.get_pull_requests())
-        for branch in self._get_integration_branches_from_sha1(sha1):
-            pr = branch.get_pull_request_from_list(open_prs)
-            if pr:
-                return pr
+        candidates = sorted(
+            filter(lambda pr: bool(pr),
+                   (b.get_pull_request_from_list(open_prs) for b in
+                    self._get_integration_branches_from_sha1(sha1)))
+            key=lambda pr: pr['id']
+        )
+        if candidates:
+            return candidates[0]
 
     def _get_integration_branches_from_sha1(self, sha1):
         git_repo = GitRepository(self.bbrepo.get_git_url())
