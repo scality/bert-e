@@ -520,7 +520,7 @@ class WallE:
             except ValueError:
                 # we will assume it is a branch
                 raise NotImplementedError('Triggering Wall-E with branch '
-                                          'names is not implemented yet: %s',
+                                          'names is not implemented: %s',
                                           pr_id_or_revision)
                 # self.get_pull_request_from_branch(pull_request_id_or_revision)
                 pass
@@ -1414,7 +1414,8 @@ def setup_parser():
         help="Wall-E's password [for Jira and Bitbucket]")
     parser.add_argument(
         '--reference-git-repo', default='',
-        help="Reference to a local git repo to improve cloning delay")
+        help="Reference to a local git repo to improve cloning delay. "
+        "If empty, a local clone will be created")
     parser.add_argument(
         '--owner', default='scality',
         help="The owner of the repo (default: scality)")
