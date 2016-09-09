@@ -101,7 +101,7 @@ def display_queue():
     output.extend('* [{3}] {0}/{1} - {2}'.format(*job) for job in tasks)
     output.append('\nCompleted jobs:')
     output.extend('* [{3}] {0}/{1} - {2}'.format(*job) for job in DONE)
-    return '\n'.join(output)
+    return Response('\n'.join(output), mimetype='text/plain')
 
 
 @APP.route('/bitbucket', methods=['POST'])
