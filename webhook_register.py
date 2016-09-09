@@ -28,11 +28,11 @@ EVENTS = (
     # 'repo:imported',
     # 'repo:updated',
     # 'repo:deleted',
-    'repo:push',
+    # 'repo:push',
 
     'repo:commit_status_created',
     'repo:commit_status_updated',
-    'repo:commit_comment_created',
+    # 'repo:commit_comment_created',
 )
 
 

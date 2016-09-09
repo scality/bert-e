@@ -140,23 +140,10 @@ def handle_repo_event(event, json_data):
     """Handle repository event.
 
     Parse the event's JSON for interesting events
-    ('push', 'commit_status_created', 'commit_status_updated') and return
+    ('commit_status_created', 'commit_status_updated') and return
     the corresponding git rev-spec to analyse.
 
     """
-    if event == 'push':
-        if 'new' not in json_data['push']:
-            logging.info('A branch has been deleted, ignoring...')
-            return
-        push_type = json_data['push']['new']['type']
-        if push_type != 'branch':
-            logging.info('Something has been pushed but it is not a branch, '
-                         'ignoring...')
-            return
-        branch_name = json_data['push']['new']['name']
-        logging.info('The branch <%s> has been updated', branch_name)
-        return branch_name
-
     if event in ['commit_status_created', 'commit_status_updated']:
         commit_url = json_data['commit_status']['links']['commit']['href']
         commit_sha1 = commit_url.split('/')[-1]
