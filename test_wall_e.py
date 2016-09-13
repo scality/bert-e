@@ -16,7 +16,7 @@ import jira_api_mock
 import requests
 import wall_e
 from git_api import Repository as GitRepository, Branch
-from simplecmd import cmd
+from simplecmd import cmd, CommandError
 from utils import RetryHandler
 from wall_e_exceptions import (AfterPullRequest,
                                AuthorApprovalRequired,
@@ -466,6 +466,16 @@ class QuickTest(unittest.TestCase):
                           catch=DummyError)
             elapsed = time.time() - start
             self.assertLess(elapsed, 1)
+
+    def test_cmd(self):
+        with self.assertRaises(CommandError):
+            cmd('exit 1')
+
+        start = time.time()
+        with self.assertRaises(CommandError):
+            cmd('sleep 5', timeout=1)
+        self.assertLess(time.time() - start, 5)
+        self.assertEqual('plop\n', cmd('echo plop'))
 
 
 class FakeGitRepo:
