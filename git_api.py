@@ -6,7 +6,7 @@ from shutil import rmtree
 from tempfile import mkdtemp
 
 import six
-from simplecmd import cmd, CalledProcessError
+from simplecmd import cmd, CommandError
 
 
 class Repository(object):
@@ -78,7 +78,7 @@ class Repository(object):
         try:
             self.cmd('git ls-remote --heads --exit-code %s %s',
                      self._url, name)
-        except CalledProcessError:
+        except CommandError:
             return False
 
         return True
@@ -95,13 +95,13 @@ class Repository(object):
     def checkout(self, name):
         try:
             self.cmd('git checkout %s', name)
-        except CalledProcessError:
+        except CommandError:
             raise CheckoutFailedException(name)
 
     def push(self, name):
         try:
             self.cmd('git push --set-upstream origin ' + name)
-        except CalledProcessError:
+        except CommandError:
             raise PushFailedException(name)
 
     def cmd(self, command, *args, **kwargs):
@@ -114,7 +114,7 @@ class Repository(object):
         cwd = kwargs.get('cwd', self.cmd_directory)
         try:
             ret = cmd(command, cwd=cwd, **kwargs)
-        except CalledProcessError:
+        except CommandError:
             if retry == 0:
                 raise
 
@@ -139,7 +139,7 @@ class Branch(object):
             command = 'git merge --no-edit %s %%s' % ('--no-ff' if force_commit
                                                       else '')
             self.repo.cmd(command, source_branch.name)  # May fail if conflict
-        except CalledProcessError:
+        except CommandError:
             raise MergeFailedException(self.name, source_branch.name)
         if do_push:
             self.push()
@@ -155,7 +155,7 @@ class Branch(object):
         try:
             self.repo.cmd('git merge-base --is-ancestor %s %s',
                           six.text_type(sha1), self.name)
-        except CalledProcessError:
+        except CommandError:
             return False
         return True
 
@@ -179,7 +179,7 @@ class Branch(object):
         self.repo.checkout(source_branch.name)
         try:
             self.repo.cmd('git checkout -b %s', self.name)
-        except CalledProcessError:
+        except CommandError:
             msg = "branch:%s source:%s" % (self.name, source_branch.name)
             raise BranchCreationFailedException(msg)
         self.push()

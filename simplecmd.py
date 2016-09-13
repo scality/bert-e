@@ -4,6 +4,7 @@
 import logging
 import os
 import os.path
+import signal
 import sys
 
 if (sys.version_info.major, sys.version_info.minor) < (3, 3):
@@ -12,7 +13,9 @@ else:
     import subprocess
 
 
-CalledProcessError = subprocess.CalledProcessError
+class CommandError(Exception):
+    """An error or timeout occured during the execution of a command."""
+    pass
 
 
 def cmd(command, shell=True, stderr=subprocess.STDOUT, timeout=300, **kwargs):
@@ -30,14 +33,33 @@ def cmd(command, shell=True, stderr=subprocess.STDOUT, timeout=300, **kwargs):
 
     Return: the standard output
     """
+    kwargs.update({'shell': shell, 'stderr': stderr})
     if logging.getLogger().isEnabledFor(logging.DEBUG):
         logging.debug('')
         logging.debug('#' * 50 + ' pwd = ' + kwargs.get('cwd', os.getcwd()))
         logging.debug('# BASH : %s', command)
-        return subprocess.check_output(command, shell=shell, stderr=stderr,
-                                       timeout=timeout, **kwargs)
+        return _do_cmd(command, timeout, **kwargs)
     else:
         with open(os.devnull, 'wb') as devnull:
-            return subprocess.check_output(
-                command, shell=shell, stderr=devnull, timeout=timeout, **kwargs
-            )
+            kwargs['stderr'] = devnull
+            return _do_cmd(command, timeout, **kwargs)
+
+
+def _do_cmd(command, timeout, **kwargs):
+    """Wrapper around subprocess to corectly kill children process groups in
+    case of timeout.
+
+    """
+    # http://stackoverflow.com/questions/36952245/subprocess-timeout-failure
+    kwargs['stdout'] = subprocess.PIPE
+    kwargs['preexec_fn'] = os.setsid
+    with subprocess.Popen(command, **kwargs) as proc:
+        try:
+            output, _ = proc.communicate(timeout=timeout)
+            return output
+        except subprocess.TimeoutExpired as err:
+            os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+            proc.communicate()
+            raise CommandError("Command %s timed out." % command)
+        except Exception as err:
+            raise CommandError(str(err))
