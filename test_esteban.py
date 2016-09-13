@@ -21,9 +21,6 @@ class TestWebhookListener(unittest.TestCase):
         os.environ['WEBHOOK_PWD'] = 'dummy'
 
         app = esteban.APP.test_client()
-        worker = esteban.Thread(target=esteban.wall_e_launcher)
-        worker.daemon = True
-        worker.start()
         basic_auth = 'Basic ' + base64.b64encode(bytes(
             os.environ['WEBHOOK_LOGIN'] + ":" +
             os.environ['WEBHOOK_PWD'])).decode('ascii')
@@ -32,6 +29,10 @@ class TestWebhookListener(unittest.TestCase):
                                  'Authorization': basic_auth})
         self.assertEqual(200, resp.status_code)
         self.assertEqual(esteban.FIFO.unfinished_tasks, 1)
+
+        worker = esteban.Thread(target=esteban.wall_e_launcher)
+        worker.daemon = True
+        worker.start()
         esteban.FIFO.join()
         self.assertEqual(
             sys.argv[1:],
