@@ -46,7 +46,7 @@ def cmd(command, shell=True, stderr=subprocess.STDOUT, timeout=300, **kwargs):
 
 
 def _do_cmd(command, timeout, **kwargs):
-    """Wrapper around subprocess to corectly kill children process groups in
+    """Wrapper around subprocess to correctly kill children process groups in
     case of timeout.
 
     """
