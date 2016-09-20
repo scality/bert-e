@@ -7,7 +7,7 @@ stages:
   tests:
     worker:
       type: docker
-      path: eve/ubuntu-trusty
+      path: eve/ubuntu-xenial
     steps:
       - Git:
           name: git pull
