@@ -1565,6 +1565,24 @@ class TestWallE(unittest.TestCase):
             options=self.bypass_all_but(['bypass_build_status']))
         self.assertEqual(retcode, BranchHistoryMismatch.code)
 
+    def test_source_branch_commit_added_and_target_updated(self):
+        pr = self.create_pr('bugfix/RING-00001', 'development/4.3')
+        pr2 = self.create_pr('bugfix/RING-00002', 'development/4.3')
+        with self.assertRaises(BuildNotStarted):
+            self.handle(pr['id'],
+                        options=self.bypass_all_but(['bypass_build_status']),
+                        backtrace=True)
+
+        # Source branch is modified
+        add_file_to_branch(self.gitrepo, 'bugfix/RING-00001', 'some_file')
+        # Another PR is merged
+        retcode = self.handle(pr2['id'], options=self.bypass_all)
+        self.assertEqual(retcode, SuccessMessage.code)
+
+        retcode = self.handle(pr['id'],
+                              options=self.bypass_all)
+        self.assertEqual(retcode, SuccessMessage.code)
+
     def test_source_branch_commit_added(self):
         pr = self.create_pr('bugfix/RING-00001', 'development/4.3')
         with self.assertRaises(BuildNotStarted):
