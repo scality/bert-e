@@ -251,3 +251,112 @@ COMMENT_CREATED = {u'actor': ACTOR,
                    u'comment': COMMENT,
                    u'pullrequest': PULL_REQUEST,
                    u'repository': REPOSITORY}
+
+COMMIT_STATUS_CREATED = {
+  u'commit_status': {
+    u'description': u'in progress...[repository: wall-e][branch: feature/RELENG-1560-git-transactions]',
+    u'links': {
+      u'commit': {
+        u'href': u'https://api.bitbucket.org/2.0/repositories/scality/wall-e/commit/b97b433b41405f157c51ca1336c21583413b87f3'
+      },
+      u'self': {
+        u'href': u'https://api.bitbucket.org/2.0/repositories/scality/wall-e/commit/b97b433b41405f157c51ca1336c21583413b87f3/statuses/build/pre-merge'
+      }
+    },
+    u'url': u'https://eve.devsca.com/wall-e/#builders/14/builds/1',
+    u'created_on': u'2016-09-20T08:38:05.255626+00:00',
+    u'repository': {
+      u'links': {
+        u'self': {
+          u'href': u'https://api.bitbucket.org/2.0/repositories/scality/wall-e'
+        },
+        u'html': {
+          u'href': u'https://bitbucket.org/scality/wall-e'
+        },
+        u'avatar': {
+          u'href': u'https://bitbucket.org/scality/wall-e/avatar/32/'
+        }
+      },
+      u'type': u'repository',
+      u'name': u'wall-e',
+      u'full_name': u'scality/wall-e',
+      u'uuid': u'{5ff810b5-328e-4b7e-a003-9e822fa87b58}'
+    },
+    u'state': u'INPROGRESS',
+    u'key': u'pre-merge',
+    u'updated_on': u'2016-09-20T08:38:05.255666+00:00',
+    u'type': u'build',
+    u'name': u'(starting) build #154 on wall-e:feature/RELENG-1560-git-transactions '
+  },
+  u'repository': {
+    u'scm': u'git',
+    u'website': u'',
+    u'name': u'wall-e',
+    u'links': {
+      u'self': {
+        u'href': u'https://api.bitbucket.org/2.0/repositories/scality/wall-e'
+      },
+      u'html': {
+        u'href': u'https://bitbucket.org/scality/wall-e'
+      },
+      u'avatar': {
+        u'href': u'https://bitbucket.org/scality/wall-e/avatar/32/'
+      }
+    },
+    u'project': {
+      u'links': {
+        u'self': {
+          u'href': u'https://api.bitbucket.org/2.0/teams/scality/projects/RELENG'
+        },
+        u'html': {
+          u'href': u'https://bitbucket.org/account/user/scality/projects/RELENG'
+        },
+        u'avatar': {
+          u'href': u'https://bitbucket.org/account/user/scality/projects/RELENG/avatar/32'
+        }
+      },
+      u'type': u'project',
+      u'name': u'Release Engineering',
+      u'key': u'RELENG',
+      u'uuid': u'{b7f2f3a1-e702-4c66-bd54-9fcb060982b9}'
+    },
+    u'full_name': u'scality/wall-e',
+    u'owner': {
+      u'username': u'scality',
+      u'type': u'team',
+      u'display_name': u'scality',
+      u'uuid': u'{ae308896-bf88-4899-a729-be0b0bb567ee}',
+      u'links': {
+        u'self': {
+          u'href': u'https://api.bitbucket.org/2.0/teams/scality'
+        },
+        u'html': {
+          u'href': u'https://bitbucket.org/scality/'
+        },
+        u'avatar': {
+          u'href': u'https://bitbucket.org/account/scality/avatar/32/'
+        }
+      }
+    },
+    u'type': u'repository',
+    u'is_private': True,
+    u'uuid': u'{5ff810b5-328e-4b7e-a003-9e822fa87b58}'
+  },
+  u'actor': {
+    u'username': u'scality_eva',
+    u'type': u'user',
+    u'display_name': u'Eva Scality',
+    u'uuid': u'{38ec89b3-7097-4517-a474-a35d6e8e24d6}',
+    u'links': {
+      u'self': {
+        u'href': u'https://api.bitbucket.org/2.0/users/scality_eva'
+      },
+      u'html': {
+        u'href': u'https://bitbucket.org/scality_eva/'
+      },
+      u'avatar': {
+        u'href': u'https://bitbucket.org/account/scality_eva/avatar/32/'
+      }
+    }
+  }
+}
