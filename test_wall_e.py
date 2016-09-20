@@ -708,8 +708,8 @@ class TestWallE(unittest.TestCase):
             self.handle(pr2['id'], options=self.bypass_all, backtrace=True)
         except Conflict as e:
             self.assertIn(
-                "`development/5.1`\ninto integration branch "
-                "`w/5.1/bugfix/RING-0006-other`",
+                "`w/5.1/bugfix/RING-0006-other` with\ncontents from "
+                "`bugfix/RING-0006-other` and `development/5.1`",
                 e.msg)
             # Wall-E shouldn't instruct the user to modify the integration
             # branch with the same target as the original PR
@@ -724,8 +724,8 @@ class TestWallE(unittest.TestCase):
             self.handle(pr3['id'], options=self.bypass_all, backtrace=True)
         except Conflict as e:
             self.assertIn(
-                "`improvement/RING-0006`\ninto integration branch "
-                "`w/5.1/improvement/RING-0006`",
+                "`w/5.1/improvement/RING-0006` with\ncontents from "
+                "`improvement/RING-0006` and `development/5.1`",
                 e.msg)
             # Wall-E shouldn't instruct the user to modify the integration
             # branch with the same target as the original PR
@@ -741,8 +741,9 @@ class TestWallE(unittest.TestCase):
                         backtrace=True)
         except Conflict as e:
             self.assertIn(
-                "`w/4.3/improvement/RING-0006-other`\ninto integration branch "
-                "`w/5.1/improvement/RING-0006-other`",
+                "`w/5.1/improvement/RING-0006-other` with\ncontents from "
+                "`w/4.3/improvement/RING-0006-other` and "
+                "`development/5.1`",
                 e.msg)
             # Wall-E MUST instruct the user to modify the integration
             # branch with the same target as the original PR
@@ -1688,7 +1689,7 @@ class TestWallE(unittest.TestCase):
                               options=self.bypass_all + ['unanimity'])
         self.assertEqual(retcode, UnanimityApprovalRequired.code)
 
-    def test_unanimity_required_all_approval(self, ):
+    def test_unanimity_required_all_approval(self):
         """Test unanimity with all approval required"""
 
         feature_branch = 'bugfix/RING-007'

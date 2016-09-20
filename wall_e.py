@@ -1099,43 +1099,25 @@ class WallE:
                     development_branch=destination_branch,
                     active_options=self._get_active_options())
 
-    def _update(self, source, destination, origin=False):
+    def _update(self, wbranch, source, origin=False):
         try:
-            # Retry for up to 60 seconds when connectivity is lost
-            with RetryHandler(60, logging) as retry:
-                retry.run(
-                    destination.merge_from_branch, source,
-                    catch=PushFailedException,
-                    fail_msg="Couldn't push merge (%s -> %s)" % (
-                        source, destination
-                    )
-                )
+            wbranch.merge(source, wbranch.destination_branch,
+                          do_push=False)
         except MergeFailedException:
             raise Conflict(source=source,
-                           destination=destination,
+                           wbranch=wbranch,
                            active_options=self._get_active_options(),
                            origin=origin,
                            feature_branch=self.source_branch,
                            dev_branch=self.destination_branch)
 
-    def _update_integration_from_dev(self, integration_branches):
-        # The first integration branch should not contain commits
-        # that are not in development/* or in the feature branch.
-        first, children = integration_branches[0], integration_branches[1:]
-        self._check_pristine(first)
-        self._update(first.destination_branch, first, True)
-        for integration_branch in children:
-            self._update(
-                integration_branch.destination_branch,
-                integration_branch)
-
-    def _update_integration_from_feature(self, integration_branches):
-        first, children = integration_branches[0], integration_branches[1:]
-        self._update(self.source_branch, first, True)
-        branch_to_merge_from = first
-        for integration_branch in children:
-            self._update(branch_to_merge_from, integration_branch)
-            branch_to_merge_from = integration_branch
+    def _update_integration(self, integration_branches):
+        prev, children = integration_branches[0], integration_branches[1:]
+        self._check_pristine(prev)
+        self._update(prev, self.source_branch, True)
+        for branch in children:
+            self._update(branch, prev)
+            prev = branch
 
     def _create_pull_requests(self, integration_branches):
         # read open PRs and store them for multiple usage
@@ -1348,6 +1330,15 @@ class WallE:
     def _validate_repo(self):
         self._cascade.validate()
 
+    def _push(self, repo):
+        retry = RetryHandler(30, logging)
+        with retry:
+            retry.run(
+                repo.push_all,
+                catch=PushFailedException,
+                fail_msg="Failed to push changes"
+            )
+
     def handle_pull_request(self, reference_git_repo=''):
 
         self._check_pr_state()
@@ -1378,8 +1369,10 @@ class WallE:
             integration_branches = self._create_integration_branches(
                 repo, self.source_branch)
 
-            self._update_integration_from_dev(integration_branches)
-            self._update_integration_from_feature(integration_branches)
+            try:
+                self._update_integration(integration_branches)
+            finally:
+                self._push(repo)
             child_prs = self._create_pull_requests(integration_branches)
             self._check_pull_request_skew(integration_branches, child_prs)
             self._check_approvals(child_prs)

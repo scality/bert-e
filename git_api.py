@@ -104,6 +104,12 @@ class Repository(object):
         except CommandError:
             raise PushFailedException(name)
 
+    def push_all(self):
+        try:
+            self.cmd('git push --all --atomic')
+        except CommandError as err:
+            raise PushFailedException(err)
+
     def cmd(self, command, *args, **kwargs):
         retry = kwargs.pop('retry', 0)
         if args:
@@ -131,16 +137,20 @@ class Branch(object):
         self.repo = repo
         self.name = name
 
-    def merge(self, source_branch, do_push=False, force_commit=False):
-        self.repo.checkout(source_branch.name)
+    def merge(self, *source_branches, **kwargs):
+        do_push = kwargs.pop('do_push', False)
+        force_commit = kwargs.pop('force_commit', False)
+        for source_branch in source_branches:
+            self.repo.checkout(source_branch.name)
         self.checkout()
 
+        branches = ' '.join(("'%s'" % s.name) for s in source_branches)
         try:
-            command = 'git merge --no-edit %s %%s' % ('--no-ff' if force_commit
-                                                      else '')
-            self.repo.cmd(command, source_branch.name)  # May fail if conflict
+            command = 'git merge --no-edit %s %s' % ('--no-ff' if force_commit
+                                                     else '', branches)
+            self.repo.cmd(command)  # May fail if conflict
         except CommandError:
-            raise MergeFailedException(self.name, source_branch.name)
+            raise MergeFailedException(self.name, branches)
         if do_push:
             self.push()
 
