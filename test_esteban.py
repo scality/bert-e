@@ -61,6 +61,5 @@ class TestWebhookListener(unittest.TestCase):
         esteban.FIFO.task_done()
 
 
-
 if __name__ == '__main__':
     unittest.main(failfast=True)
