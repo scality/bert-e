@@ -271,8 +271,7 @@ class IntegrationBranch(WallEBranch):
         self.merge(source_branch, do_push=True)
 
     def update_to_development_branch(self):
-        self.destination_branch.merge(self, force_commit=False)
-        self.destination_branch.push()
+        self.destination_branch.merge(self, force_commit=False, do_push=False)
 
     def get_pull_request_from_list(self, open_prs):
         for pr in open_prs:
@@ -1306,19 +1305,11 @@ class WallE:
             raise BuildInProgress()
         assert build_state == 'SUCCESSFUL'
 
-    def _merge(self, integration_branches):
-        # Retry for up to 5 minutes when connectivity is lost
-        # Simply accepting failure here could lead to a messy situation
-        retry = RetryHandler(300, logging)
+    def _merge(self, integration_branches, repo):
         for integration_branch in integration_branches:
-            with retry:
-                retry.run(
-                    integration_branch.update_to_development_branch,
-                    catch=PushFailedException,
-                    fail_msg="Failed to push merge of branch %s" % (
-                        integration_branch
-                    )
-                )
+            integration_branch.update_to_development_branch()
+
+        self._push(repo)
 
         for integration_branch in integration_branches:
             try:
@@ -1381,7 +1372,7 @@ class WallE:
             if self.interactive and not confirm('Do you want to merge ?'):
                 return
 
-            self._merge(integration_branches)
+            self._merge(integration_branches, repo)
             self._validate_repo()
 
         raise SuccessMessage(
