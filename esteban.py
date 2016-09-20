@@ -145,6 +145,10 @@ def handle_repo_event(event, json_data):
 
     """
     if event in ['commit_status_created', 'commit_status_updated']:
+        build_status = json_data['commit_status']['state']
+        # Ignore notifications that the build started
+        if build_status == 'INPROGRESS':
+            return
         commit_url = json_data['commit_status']['links']['commit']['href']
         commit_sha1 = commit_url.split('/')[-1]
         logging.info('The build status of commit <%s> has been updated: %s',
