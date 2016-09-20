@@ -3,6 +3,7 @@ import unittest
 import esteban
 import json
 from test_esteban_data import COMMENT_CREATED, COMMIT_STATUS_CREATED
+from copy import deepcopy
 
 import bitbucket_api
 import bitbucket_api_mock
@@ -42,11 +43,23 @@ class TestWebhookListener(unittest.TestCase):
         self.assertEqual(esteban.FIFO.unfinished_tasks, 0)
 
     def test_build_status_filtered(self):
+        data = deepcopy(COMMIT_STATUS_CREATED)
+        data[b'commit_status'][b'state'] = b'INPROGRESS'
         resp = self.handle_post('repo:commit_status_created',
-                                COMMIT_STATUS_CREATED)
+                                data)
 
         self.assertEqual(200, resp.status_code)
         self.assertEqual(esteban.FIFO.unfinished_tasks, 0)
+
+        data[b'commit_status'][b'state'] = b'SUCCESS'
+        resp = self.handle_post('repo:commit_status_created',
+                                data)
+        self.assertEqual(esteban.FIFO.unfinished_tasks, 1)
+
+        # consume job
+        esteban.FIFO.get()
+        esteban.FIFO.task_done()
+
 
 
 if __name__ == '__main__':
