@@ -1,6 +1,15 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [1.0.14] - 2016-06-23
+# Added
+- new standalone webhook listener&parser (esteban)
+- (experimental) react to commit sha1 instead of pull-request ID
+- add a timeout to all system commands
+- improve reactivity by not reacting to 'build started' events
+# Fixed
+- fix freeze on a git command
+
 ## [1.0.13] - 2016-06-22
 ### Fixed
 - quote commands in git API to avoid bash interpolation
