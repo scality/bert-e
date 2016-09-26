@@ -62,7 +62,7 @@ def _do_cmd(command, timeout, **kwargs):
             output, _ = proc.communicate(timeout=timeout)
             if proc.returncode != 0:
                 raise CommandError('Command %s returned with code %d: %s' %
-                                   command, proc.returncode, output)
+                                   (command, proc.returncode, output))
             return output
         except subprocess.TimeoutExpired as err:
             os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
