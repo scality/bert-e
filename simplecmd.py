@@ -41,7 +41,7 @@ def cmd(command, shell=True, stderr=subprocess.STDOUT, timeout=300, **kwargs):
         try:
             return _do_cmd(command, timeout, **kwargs)
         except CommandError as err:
-            logging.error(err)
+            logging.error('%s', err)
             raise
     else:
         with open(os.devnull, 'wb') as devnull:
