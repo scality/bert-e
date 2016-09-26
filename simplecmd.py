@@ -38,7 +38,11 @@ def cmd(command, shell=True, stderr=subprocess.STDOUT, timeout=300, **kwargs):
         logging.debug('')
         logging.debug('#' * 50 + ' pwd = ' + kwargs.get('cwd', os.getcwd()))
         logging.debug('# BASH : %s', command)
-        return _do_cmd(command, timeout, **kwargs)
+        try:
+            return _do_cmd(command, timeout, **kwargs)
+        except CommandError as err:
+            logging.error(err)
+            raise
     else:
         with open(os.devnull, 'wb') as devnull:
             kwargs['stderr'] = devnull
@@ -57,8 +61,8 @@ def _do_cmd(command, timeout, **kwargs):
         try:
             output, _ = proc.communicate(timeout=timeout)
             if proc.returncode != 0:
-                raise CommandError('Command %s returned with code %d.' %
-                                   command, proc.returncode)
+                raise CommandError('Command %s returned with code %d: %s' %
+                                   command, proc.returncode, output)
             return output
         except subprocess.TimeoutExpired as err:
             os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
