@@ -40,8 +40,9 @@ def cmd(command, shell=True, stderr=subprocess.STDOUT, timeout=300, **kwargs):
         logging.debug('# BASH : %s', command)
         try:
             return _do_cmd(command, timeout, **kwargs)
-        except CommandError as err:
-            logging.error('%s', err)
+        except CommandError:
+            logging.exception("An exception occured while calling '%s'",
+                              command)
             raise
     else:
         with open(os.devnull, 'wb') as devnull:
