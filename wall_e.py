@@ -1100,21 +1100,15 @@ class WallE:
 
     def _update(self, wbranch, source, origin=False):
         try:
-            wbranch.merge(source, wbranch.destination_branch,
+            wbranch.merge(wbranch.destination_branch, source,
                           do_push=False)
         except MergeFailedException:
-            try:
-                # Merge octopus failed, try two successive merges
-                wbranch.reset()
-                wbranch.merge(wbranch.destination_branch, do_push=False)
-                wbranch.merge(source, do_push=False)
-            except MergeFailedException:
-                raise Conflict(source=source,
-                               wbranch=wbranch,
-                               active_options=self._get_active_options(),
-                               origin=origin,
-                               feature_branch=self.source_branch,
-                               dev_branch=self.destination_branch)
+            raise Conflict(source=source,
+                           wbranch=wbranch,
+                           active_options=self._get_active_options(),
+                           origin=origin,
+                           feature_branch=self.source_branch,
+                           dev_branch=self.destination_branch)
 
     def _update_integration(self, integration_branches):
         prev, children = integration_branches[0], integration_branches[1:]

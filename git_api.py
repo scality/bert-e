@@ -98,9 +98,6 @@ class Repository(object):
         except CommandError:
             raise CheckoutFailedException(name)
 
-    def reset(self):
-        self.cmd('git reset HEAD --hard')
-
     def push(self, name):
         try:
             self.cmd('git push --set-upstream origin ' + name)
@@ -184,9 +181,6 @@ class Branch(object):
 
     def checkout(self):
         self.repo.checkout(self.name)
-
-    def reset(self):
-        self.repo.reset()
 
     def push(self):
         self.repo.push(self.name)
