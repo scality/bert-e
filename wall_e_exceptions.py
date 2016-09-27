@@ -157,6 +157,42 @@ class NotEnoughCredentials(WallE_TemplateException):
     template = "not_enough_credentials.md"
 
 
+class QueueConflict(WallE_TemplateException):
+    code = 124
+    template = "queue_conflict.md"
+
+
+class Queued(WallE_TemplateException):
+    code = 125
+    template = 'queued.md'
+
+    def __init__(self, branches, ignored, issue, author, active_options):
+        """Save args for later use by tests."""
+        self.branches = branches
+        self.ignored = ignored
+        self.issue = issue
+        self.author = author
+        self.active_options = active_options
+        super(Queued, self).__init__(
+            branches=branches,
+            ignored=ignored,
+            issue=issue,
+            author=author,
+            active_options=active_options
+        )
+
+
+class PartialMerge(WallE_TemplateException):
+    code = 126
+    template = 'partial_merge.md'
+    dont_repeat_if_in_history = 0  # allow repeating as many times as it occurs
+
+
+class QueueOutOfOrder(WallE_TemplateException):
+    code = 127
+    template = "queue_out_of_order.md"
+
+
 # internal exceptions
 class UnableToSendEmail(WallE_InternalException):
     code = 201
@@ -263,6 +299,148 @@ class PullRequestSkewDetected(WallE_InternalException):
         super(PullRequestSkewDetected, self).__init__(msg)
 
 
+class IncoherentQueues(WallE_InternalException):
+    code = 214
+
+    def __init__(self, errors):
+        """Display errors as a list, with error code included
+        for easy parsing in tests and easy lookup in code.
+
+        """
+        msg = 'The queues are in an incoherent state, ' \
+              'I will block until the following points are resolved:\n' + \
+              '\n'.join([" - [{code}] {label}".format(
+                   code=error.code, label=error.msg) for error in errors])
+        super(IncoherentQueues, self).__init__(msg)
+
+
+class InvalidQueueBranch(WallE_InternalException):
+    code = 215
+
+    def __init__(self, branch):
+        msg = "This is not a queue branch:" \
+              "%s" % (branch)
+        super(InvalidQueueBranch, self).__init__(msg)
+
+
+class QueuesNotValidated(WallE_InternalException):
+    code = 216
+
+    def __init__(self):
+        msg = "The queues have not been validated, can't use them."
+        super(QueuesNotValidated, self).__init__(msg)
+
+
+class UnsupportedTokenType(WallE_InternalException):
+    code = 217
+
+    def __init__(self, token):
+        msg = "The input token %r is not supported." % token
+        super(UnsupportedTokenType, self).__init__(msg)
+
+
+class QueueValidationError(Exception):
+    """Extend simple string class with an error code and recovery potential."""
+    code = 'Q000'
+    auto_recovery = False  # set to True to let wall-e fix the problem alone
+
+    def __init__(self, msg):
+        self.msg = msg
+        super(QueueValidationError, self).__init__(msg)
+
+
+class MasterQueueMissing(QueueValidationError):
+    code = 'Q001'
+    auto_recovery = False
+
+    def __init__(self, version):
+        msg = 'there are integration queues on this version ' \
+              'but q/%s is missing' % version
+        super(MasterQueueMissing, self).__init__(msg)
+
+
+class MasterQueueLateVsDev(QueueValidationError):
+    code = 'Q002'
+    auto_recovery = False
+
+    def __init__(self, masterq, dev):
+        msg = '{masterq} is late ' \
+              'compared to {dev}'.format(**locals())
+        super(MasterQueueLateVsDev, self).__init__(msg)
+
+
+class MasterQueueNotInSync(QueueValidationError):
+    code = 'Q003'
+    auto_recovery = False
+
+    def __init__(self, masterq, dev):
+        msg = 'no pending integration ' \
+              'queues, yet {masterq} is not in sync ' \
+              'with {dev}'.format(**locals())
+        super(MasterQueueNotInSync, self).__init__(msg)
+
+
+class MasterQueueLateVsInt(QueueValidationError):
+    code = 'Q004'
+    auto_recovery = False
+
+    def __init__(self, masterq, intq):
+        msg = '{masterq} is more recent ' \
+              'than greatest integration queue ' \
+              '{intq}'.format(**locals())
+        super(MasterQueueLateVsInt, self).__init__(msg)
+
+
+class MasterQueueYoungerThanInt(QueueValidationError):
+    code = 'Q005'
+    auto_recovery = False
+
+    def __init__(self, masterq, intq):
+        msg = 'greatest integration queue {intq} ' \
+              'is late compared to {masterq}'.format(**locals())
+        super(MasterQueueYoungerThanInt, self).__init__(msg)
+
+
+class MasterQueueDiverged(QueueValidationError):
+    code = 'Q006'
+    auto_recovery = False
+
+    def __init__(self, masterq, intq):
+        msg = '{masterq} and greatest ' \
+              'integration queue {intq} have ' \
+              'diverged'.format(**locals())
+        super(MasterQueueDiverged, self).__init__(msg)
+
+
+class QueueInclusionIssue(QueueValidationError):
+    code = 'Q007'
+    auto_recovery = False
+
+    def __init__(self, nextq, intq):
+        msg = '{intq} is not included in ' \
+              '{nextq}'.format(**locals())
+        super(QueueInclusionIssue, self).__init__(msg)
+
+
+class QueueInconsistentPullRequestsOrder(QueueValidationError):
+    code = 'Q008'
+    auto_recovery = False
+
+    def __init__(self):
+        msg = 'The order of integration queues with respect to ' \
+              'the pull requests appears to be incorrect'
+        super(QueueInconsistentPullRequestsOrder, self).__init__(msg)
+
+
+class QueueIncomplete(QueueValidationError):
+    code = 'Q009'
+    auto_recovery = False
+
+    def __init__(self):
+        msg = 'An integration queue is missing'
+        super(QueueIncomplete, self).__init__(msg)
+
+
 # silent exceptions
 class CommentAlreadyExists(WallE_SilentException):
     code = 300
@@ -286,3 +464,7 @@ class BuildNotStarted(WallE_SilentException):
 
 class PullRequestDeclined(WallE_SilentException):
     code = 305
+
+
+class Merged(WallE_SilentException):
+    code = 306
