@@ -16,7 +16,7 @@ import jira_api_mock
 import requests
 import wall_e
 from git_api import Repository as GitRepository, Branch
-from simplecmd import cmd
+from simplecmd import cmd, CommandError
 from utils import RetryHandler
 from wall_e_exceptions import (AfterPullRequest,
                                AuthorApprovalRequired,
@@ -467,6 +467,16 @@ class QuickTest(unittest.TestCase):
             elapsed = time.time() - start
             self.assertLess(elapsed, 1)
 
+    def test_cmd(self):
+        with self.assertRaises(CommandError):
+            cmd('exit 1')
+
+        start = time.time()
+        with self.assertRaises(CommandError):
+            cmd('sleep 5', timeout=1)
+        self.assertLess(time.time() - start, 5)
+        self.assertEqual('plop\n', cmd('echo plop'))
+
 
 class FakeGitRepo:
     def includes_commit(self, commit):
@@ -698,8 +708,8 @@ class TestWallE(unittest.TestCase):
             self.handle(pr2['id'], options=self.bypass_all, backtrace=True)
         except Conflict as e:
             self.assertIn(
-                "`development/5.1`\ninto integration branch "
-                "`w/5.1/bugfix/RING-0006-other`",
+                "`w/5.1/bugfix/RING-0006-other` with\ncontents from "
+                "`bugfix/RING-0006-other` and `development/5.1`",
                 e.msg)
             # Wall-E shouldn't instruct the user to modify the integration
             # branch with the same target as the original PR
@@ -714,8 +724,8 @@ class TestWallE(unittest.TestCase):
             self.handle(pr3['id'], options=self.bypass_all, backtrace=True)
         except Conflict as e:
             self.assertIn(
-                "`improvement/RING-0006`\ninto integration branch "
-                "`w/5.1/improvement/RING-0006`",
+                "`w/5.1/improvement/RING-0006` with\ncontents from "
+                "`improvement/RING-0006` and `development/5.1`",
                 e.msg)
             # Wall-E shouldn't instruct the user to modify the integration
             # branch with the same target as the original PR
@@ -731,8 +741,9 @@ class TestWallE(unittest.TestCase):
                         backtrace=True)
         except Conflict as e:
             self.assertIn(
-                "`w/4.3/improvement/RING-0006-other`\ninto integration branch "
-                "`w/5.1/improvement/RING-0006-other`",
+                "`w/5.1/improvement/RING-0006-other` with\ncontents from "
+                "`w/4.3/improvement/RING-0006-other` and "
+                "`development/5.1`",
                 e.msg)
             # Wall-E MUST instruct the user to modify the integration
             # branch with the same target as the original PR
@@ -1307,7 +1318,7 @@ class TestWallE(unittest.TestCase):
             self.handle(pr['id'], options=self.bypass_all)
 
     def set_build_status_on_pr_id(self, pr_id, state,
-                                  key='pipeline',
+                                  key='pre-merge',
                                   name='Test build status',
                                   url='http://www.scality.com'):
         pr = self.bbrepo_wall_e.get_pull_request(pull_request_id=pr_id)
@@ -1508,6 +1519,30 @@ class TestWallE(unittest.TestCase):
                               'bypass_build_status'])
         self.assertEqual(retcode, SuccessMessage.code)
 
+    def test_build_status_triggered_by_build_result(self):
+        pr = self.create_pr('bugfix/RING-00081', 'development/5.1')
+        with self.assertRaises(BuildNotStarted):
+            self.handle(pr['id'],
+                        options=self.bypass_all_but(['bypass_build_status']),
+                        backtrace=True)
+        self.set_build_status_on_pr_id(pr['id'] + 1, 'FAILED')
+        self.set_build_status_on_pr_id(pr['id'] + 2, 'SUCCESSFUL')
+
+        childpr = self.bbrepo_wall_e.get_pull_request(
+            pull_request_id=pr['id'] + 1)
+
+        retcode = self.handle(childpr['source']['commit']['hash'],
+                              options=self.bypass_all_but(
+                                  ['bypass_build_status']))
+        self.assertEqual(retcode, BuildFailed.code)
+
+        self.set_build_status_on_pr_id(pr['id'] + 1, 'SUCCESSFUL')
+
+        retcode = self.handle(childpr['source']['commit']['hash'],
+                              options=self.bypass_all_but(
+                                  ['bypass_build_status']))
+        self.assertEqual(retcode, SuccessMessage.code)
+
     def test_source_branch_history_changed(self):
         pr = self.create_pr('bugfix/RING-00001', 'development/4.3')
         with self.assertRaises(BuildNotStarted):
@@ -1529,6 +1564,24 @@ class TestWallE(unittest.TestCase):
             pr['id'],
             options=self.bypass_all_but(['bypass_build_status']))
         self.assertEqual(retcode, BranchHistoryMismatch.code)
+
+    def test_source_branch_commit_added_and_target_updated(self):
+        pr = self.create_pr('bugfix/RING-00001', 'development/4.3')
+        pr2 = self.create_pr('bugfix/RING-00002', 'development/4.3')
+        with self.assertRaises(BuildNotStarted):
+            self.handle(pr['id'],
+                        options=self.bypass_all_but(['bypass_build_status']),
+                        backtrace=True)
+
+        # Source branch is modified
+        add_file_to_branch(self.gitrepo, 'bugfix/RING-00001', 'some_file')
+        # Another PR is merged
+        retcode = self.handle(pr2['id'], options=self.bypass_all)
+        self.assertEqual(retcode, SuccessMessage.code)
+
+        retcode = self.handle(pr['id'],
+                              options=self.bypass_all)
+        self.assertEqual(retcode, SuccessMessage.code)
 
     def test_source_branch_commit_added(self):
         pr = self.create_pr('bugfix/RING-00001', 'development/4.3')
@@ -1654,7 +1707,7 @@ class TestWallE(unittest.TestCase):
                               options=self.bypass_all + ['unanimity'])
         self.assertEqual(retcode, UnanimityApprovalRequired.code)
 
-    def test_unanimity_required_all_approval(self, ):
+    def test_unanimity_required_all_approval(self):
         """Test unanimity with all approval required"""
 
         feature_branch = 'bugfix/RING-007'

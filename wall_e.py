@@ -74,7 +74,7 @@ JENKINS_USERNAME = 'scality_jenkins'
 SETTINGS = {
     'ring': {
         'jira_key': 'RING',
-        'build_key': 'pipeline',
+        'build_key': 'pre-merge',
         'required_peer_approvals': 2,
         'testers': [
         ],
@@ -100,7 +100,7 @@ SETTINGS = {
     },
     'wall-e-demo': {
         'jira_key': 'DEMOWALLE',
-        'build_key': 'pipeline',
+        'build_key': 'pre-merge',
         'required_peer_approvals': 2,
         'testers': [
         ],
@@ -111,7 +111,7 @@ SETTINGS = {
     },
     'default': {
         'jira_key': 'RELENG',
-        'build_key': 'pipeline',
+        'build_key': 'pre-merge',
         'required_peer_approvals': 2,
         'testers': [
         ],
@@ -266,20 +266,17 @@ class IntegrationBranch(WallEBranch):
         self.merge(source_branch, do_push=True)
 
     def update_to_development_branch(self):
-        self.destination_branch.merge(self, force_commit=False)
-        self.destination_branch.push()
+        self.destination_branch.merge(self, force_commit=False, do_push=False)
 
-    def _get_pull_request_from_list(self, open_prs):
-        pr = None
-        for pr_ in open_prs:
-            if pr_['source']['branch']['name'] != self.name:
+    def get_pull_request_from_list(self, open_prs):
+        for pr in open_prs:
+            if pr['source']['branch']['name'] != self.name:
                 continue
-            if pr_['destination']['branch']['name'] != \
+            if self.destination_branch and \
+                    pr['destination']['branch']['name'] != \
                     self.destination_branch.name:
                 continue
-            pr = pr_
-            break
-        return pr
+            return pr
 
     def get_or_create_pull_request(self, parent_pr, open_prs, bitbucket_repo,
                                    first=False):
@@ -296,7 +293,7 @@ class IntegrationBranch(WallEBranch):
         # wall-e will analyse it, retrieve the main pr, then
         # re-enter here and recreate the children pr.
         # solution: do not create the pr if it already exists
-        pr = self._get_pull_request_from_list(open_prs)
+        pr = self.get_pull_request_from_list(open_prs)
         # need a boolean to know if the PR is created or no
         created = False
         if not pr:
@@ -494,12 +491,34 @@ class BranchCascade(object):
 
 class WallE:
     def __init__(self, bitbucket_login, bitbucket_password, bitbucket_mail,
-                 owner, slug, pull_request_id, options, commands, settings,
-                 interactive, no_comment):
+                 owner, slug, pr_id_or_revision, options, commands,
+                 settings, interactive, no_comment):
         self._bbconn = bitbucket_api.Client(
             bitbucket_login, bitbucket_password, bitbucket_mail)
         self.bbrepo = bitbucket_api.Repository(
             self._bbconn, owner=owner, repo_slug=slug)
+        if isinstance(pr_id_or_revision, str) and \
+                len(pr_id_or_revision) == 40:
+            # it is a sha1
+            pr = self.get_pull_request_from_sha1(pr_id_or_revision)
+            if not pr:
+                raise NothingToDo('Could not find the PR corresponding to'
+                                  ' sha1: %s' % pr_id_or_revision)
+            pull_request_id = int(pr['id'])
+
+        else:
+            try:
+                pull_request_id = int(pr_id_or_revision)
+                # it is probably a pull request id
+
+            except ValueError:
+                # we will assume it is a branch
+                raise NotImplementedError('Triggering Wall-E with branch '
+                                          'names is not implemented: %s',
+                                          pr_id_or_revision)
+                # self.get_pull_request_from_branch(pull_request_id_or_revision)
+                pass
+
         self.main_pr = self.bbrepo.get_pull_request(
             pull_request_id=pull_request_id)
         self.author = self.main_pr['author']['username']
@@ -526,6 +545,26 @@ class WallE:
         self.comments = []
         self.interactive = interactive
         self.no_comment = no_comment
+
+    def get_pull_request_from_sha1(self, sha1):
+        """Get the oldest open integration pull request containing given
+        commit.
+
+        """
+        open_prs = list(self.bbrepo.get_pull_requests())
+        candidates = sorted(
+            filter(bool, (b.get_pull_request_from_list(open_prs) for b in
+                          self._get_integration_branches_from_sha1(sha1))),
+            key=lambda pr: pr['id']
+        )
+        if candidates:
+            return candidates[0]
+
+    def _get_integration_branches_from_sha1(self, sha1):
+        git_repo = GitRepository(self.bbrepo.get_git_url())
+        return [IntegrationBranch(self, branch) for branch in
+                git_repo.get_branches_from_sha1(sha1)
+                if branch.startswith('w/')]
 
     def option_is_set(self, name):
         if name not in self.options.keys():
@@ -1054,43 +1093,25 @@ class WallE:
                     development_branch=destination_branch,
                     active_options=self._get_active_options())
 
-    def _update(self, source, destination, origin=False):
+    def _update(self, wbranch, source, origin=False):
         try:
-            # Retry for up to 60 seconds when connectivity is lost
-            with RetryHandler(60, logging) as retry:
-                retry.run(
-                    destination.merge_from_branch, source,
-                    catch=PushFailedException,
-                    fail_msg="Couldn't push merge (%s -> %s)" % (
-                        source, destination
-                    )
-                )
+            wbranch.merge(wbranch.destination_branch, source,
+                          do_push=False)
         except MergeFailedException:
             raise Conflict(source=source,
-                           destination=destination,
+                           wbranch=wbranch,
                            active_options=self._get_active_options(),
                            origin=origin,
                            feature_branch=self.source_branch,
                            dev_branch=self.destination_branch)
 
-    def _update_integration_from_dev(self, integration_branches):
-        # The first integration branch should not contain commits
-        # that are not in development/* or in the feature branch.
-        first, children = integration_branches[0], integration_branches[1:]
-        self._check_pristine(first)
-        self._update(first.destination_branch, first, True)
-        for integration_branch in children:
-            self._update(
-                integration_branch.destination_branch,
-                integration_branch)
-
-    def _update_integration_from_feature(self, integration_branches):
-        first, children = integration_branches[0], integration_branches[1:]
-        self._update(self.source_branch, first, True)
-        branch_to_merge_from = first
-        for integration_branch in children:
-            self._update(branch_to_merge_from, integration_branch)
-            branch_to_merge_from = integration_branch
+    def _update_integration(self, integration_branches):
+        prev, children = integration_branches[0], integration_branches[1:]
+        self._check_pristine(prev)
+        self._update(prev, self.source_branch, True)
+        for branch in children:
+            self._update(branch, prev)
+            prev = branch
 
     def _create_pull_requests(self, integration_branches):
         # read open PRs and store them for multiple usage
@@ -1279,19 +1300,11 @@ class WallE:
             raise BuildInProgress()
         assert build_state == 'SUCCESSFUL'
 
-    def _merge(self, integration_branches):
-        # Retry for up to 5 minutes when connectivity is lost
-        # Simply accepting failure here could lead to a messy situation
-        retry = RetryHandler(300, logging)
+    def _merge(self, integration_branches, repo):
         for integration_branch in integration_branches:
-            with retry:
-                retry.run(
-                    integration_branch.update_to_development_branch,
-                    catch=PushFailedException,
-                    fail_msg="Failed to push merge of branch %s" % (
-                        integration_branch
-                    )
-                )
+            integration_branch.update_to_development_branch()
+
+        self._push(repo)
 
         for integration_branch in integration_branches:
             try:
@@ -1302,6 +1315,15 @@ class WallE:
 
     def _validate_repo(self):
         self._cascade.validate()
+
+    def _push(self, repo):
+        retry = RetryHandler(30, logging)
+        with retry:
+            retry.run(
+                repo.push_all,
+                catch=PushFailedException,
+                fail_msg="Failed to push changes"
+            )
 
     def handle_pull_request(self, reference_git_repo=''):
 
@@ -1333,8 +1355,10 @@ class WallE:
             integration_branches = self._create_integration_branches(
                 repo, self.source_branch)
 
-            self._update_integration_from_dev(integration_branches)
-            self._update_integration_from_feature(integration_branches)
+            try:
+                self._update_integration(integration_branches)
+            finally:
+                self._push(repo)
             child_prs = self._create_pull_requests(integration_branches)
             self._check_pull_request_skew(integration_branches, child_prs)
             self._check_approvals(child_prs)
@@ -1343,7 +1367,7 @@ class WallE:
             if self.interactive and not confirm('Do you want to merge ?'):
                 return
 
-            self._merge(integration_branches)
+            self._merge(integration_branches, repo)
             self._validate_repo()
 
         raise SuccessMessage(
@@ -1369,7 +1393,8 @@ def setup_parser():
         help="Wall-E's password [for Jira and Bitbucket]")
     parser.add_argument(
         '--reference-git-repo', default='',
-        help="Reference to a local git repo to improve cloning delay")
+        help="Reference to a local git repo to improve cloning delay. "
+        "If empty, a local clone will be created")
     parser.add_argument(
         '--owner', default='scality',
         help="The owner of the repo (default: scality)")
@@ -1506,7 +1531,7 @@ def main():
     commands = setup_commands()
 
     wall_e = WallE(WALL_E_USERNAME, args.password, WALL_E_EMAIL,
-                   args.owner, args.slug, int(args.pull_request_id),
+                   args.owner, args.slug, args.pull_request_id.strip(),
                    options, commands, SETTINGS[args.settings],
                    args.interactive, args.no_comment)
 
@@ -1518,7 +1543,7 @@ def main():
         if args.backtrace:
             raise excp
 
-        logging.info('Exception raised: %d', excp.code)
+        logging.info('Exception raised: %d %s', excp.code, excp.__class__)
         if not args.quiet:
             print('%d - %s' % (excp.code, excp.__class__.__name__))
         return excp.code

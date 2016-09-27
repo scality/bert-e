@@ -5,8 +5,8 @@ Conflict during merge
 {% endblock %}
 
 {% block message %}
-A conflict has been raised during the merge of `{{ source.name }}`
-into integration branch `{{ destination.name }}`.
+A conflict has been raised during the update of integration branch `{{ wbranch.name }}` with
+contents from `{{ source.name }}` and `{{ wbranch.destination_branch.name }}`.
 
 {% if origin %}
 Please resolve the conflict on **the feature branch** (`{{ feature_branch.name }}`).
@@ -30,17 +30,19 @@ Once done, please **decline the old integration pull requests** and comment
 this pull request to resume the merge process.
 {% endif%}
 {% else %} Please
-resolve the conflict on **the integration branch** (`{{ destination.name }}`).
+resolve the conflict on **the integration branch** (`{{ wbranch.name }}`).
 
 Here are the steps to resolve this conflict:
 
 ```
 #!bash
  $ git fetch
- $ git checkout {{ destination.name }}
+ $ git checkout {{ wbranch.name }}
+ $ git merge origin/{{ wbranch.destination_branch.name }}
+ $ # <intense conflict resolution>
  $ git merge origin/{{ source.name }}
  $ # <intense conflict resolution>
- $ git push origin HEAD:{{ destination.name }}
+ $ git push origin HEAD:{{ wbranch.name }}
 ```
 {%endif%}
 {% endblock %}

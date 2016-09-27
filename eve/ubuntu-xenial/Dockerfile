@@ -1,4 +1,4 @@
-FROM ubuntu:trusty
+FROM ubuntu:xenial
 
 ENV HOME_BUILDBOT /var/lib/buildbot
 
@@ -8,18 +8,17 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends --ass
     build-essential \
     ca-certificates \
     python \
+    python-pkg-resources \
+    python-setuptools \
     python-pip \
     python-dev \
     wget \
     git
 
-RUN wget --no-verbose --tries=3 --timeout=30 https://bootstrap.pypa.io/get-pip.py
-
 COPY requirements.txt /tmp/
 
-RUN /usr/bin/pip2 install pip==8.1.2 \
- && pip2 install -r /tmp/requirements.txt \
- && /usr/local/bin/pip install buildbot-worker==0.9.0rc1 \
+RUN pip2 install -r /tmp/requirements.txt \
+ && pip2 install buildbot-worker==0.9.0rc1 \
  && git config --global credential.helper store \
  && adduser -u 1042 --home /home/eve --disabled-password --gecos "" eve \
  && adduser eve sudo \
