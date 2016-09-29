@@ -143,7 +143,10 @@ class Repository(BitBucketObject):
         # Check if a successful build for this sha1 is in cache
         status = BUILD_STATUS_CACHE[key].get(sha1, None)
         if status == 'SUCCESSFUL':
+            logging.debug('Build status on %s: cache GET (%s)', sha1, status)
             return status
+
+        logging.debug('Build status on %s: cache MISS (%s)', sha1, status)
 
         # Either not in cache or wasn't successful last time. Check BB again.
         try:
