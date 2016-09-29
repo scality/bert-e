@@ -808,6 +808,8 @@ class TestWallE(RepositoryTests):
         retcode = self.handle(pr['id'])
         self.assertEqual(retcode, 0)
 
+        assert pr['id'] in wall_e.STATUS.get('merged PRs', [])
+
     def test_not_my_job_cases(self):
         feature_branch = 'feature/RING-00002'
         from_branch = 'development/6.0'
@@ -2580,6 +2582,7 @@ class TestQueueing(RepositoryTests):
         self.set_build_status(sha1=sha1_w_6_0, state='FAILED')
         with self.assertRaises(NothingToDo):
             self.handle(pr['id'], options=self.bypass_all, backtrace=True)
+
         with self.assertRaises(NothingToDo):
             self.handle(pr['source']['commit']['hash'],
                         options=self.bypass_all,
@@ -2590,6 +2593,11 @@ class TestQueueing(RepositoryTests):
                         options=self.bypass_all,
                         backtrace=True)
 
+        status = wall_e.STATUS.get('merge queue', OrderedDict())
+        assert 1 in status
+        assert len(status[1]) == 3
+        versions = tuple(version for version, _ in status[1])
+        assert versions == ('6.0', '5.1', '4.3')
         # check validity of repo and branches
         for branch in ['q/4.3', 'q/5.1', 'q/6.0']:
             assert self.gitrepo.remote_branch_exists(branch)
@@ -2608,6 +2616,7 @@ class TestQueueing(RepositoryTests):
 
         last_comment = list(pr.get_comments())[-1]['content']['raw']
         assert 'I have successfully merged' in last_comment
+        assert 1 in wall_e.STATUS.get('merged PRs', [])
 
     def test_system_missing_integration_queue_before_in_queue(self):
         pr1 = self.create_pr('bugfix/RING-00001', 'development/4.3')

@@ -101,7 +101,7 @@ def requires_auth(func):
 def display_queue():
     output = []
 
-    merged_prs = wall_e.STATUS.get('merged PRs', None)
+    merged_prs = wall_e.STATUS.get('merged PRs', [])
     merge_queue = wall_e.STATUS.get('merge_queue', None)
     cur_job = wall_e.STATUS.get('current job', None)
 
@@ -117,6 +117,8 @@ def display_queue():
     if merge_queue:
         output.append('Merge queue status:')
         for pr_id, queued_commits in merge_queue.items():
+            if int(pr_id) in merged_prs:
+                continue
             build_status = []
             for version, sha1 in queued_commits:
                 build = BUILD_STATUS_CACHE['pre-merge'].get(sha1, 'INPROGRESS')

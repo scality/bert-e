@@ -2109,6 +2109,20 @@ class WallE:
 
 
 def update_queue_status(queue_collection):
+    """Set the inspectable merge queue status.
+
+    It consists in an ordereddict on the form:
+
+        {
+            PR_ID: [(VERSION, SHA1), (VERSION, SHA1), ...]
+            ...
+        }
+
+    It is ordered by PR queuing date (the most recently queued PR last).
+    The lists are ordered by target version number (the most recent version
+    first).
+
+    """
     queues = queue_collection._queues
     qib = QueueIntegrationBranch
     status = OrderedDict()
@@ -2124,6 +2138,12 @@ def update_queue_status(queue_collection):
 
 
 def add_merged_pr(pr_id):
+    """Add pr_id to the list of merged pull requests.
+
+    This list is an inspectable dequeue containing the last 10 merged pull
+    requests' IDs.
+
+    """
     merged_prs = STATUS.setdefault('merged PRs', deque(maxlen=10))
     merged_prs.append(pr_id)
 
