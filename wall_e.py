@@ -5,11 +5,12 @@ import argparse
 import itertools
 import logging
 from collections import OrderedDict
+from copy import deepcopy
+from functools import total_ordering
 
 import bitbucket_api
 import jira_api
 import re
-import requests
 import six
 from git_api import (Repository as GitRepository,
                      Branch,
@@ -18,6 +19,7 @@ from git_api import (Repository as GitRepository,
                      RemoveFailedException,
                      PushFailedException)
 from jira.exceptions import JIRAError
+from simplecmd import CommandError
 from template_loader import render
 from utils import RetryHandler
 from wall_e_exceptions import (AfterPullRequest,
@@ -34,13 +36,16 @@ from wall_e_exceptions import (AfterPullRequest,
                                DevBranchesNotSelfContained,
                                DeprecatedStabilizationBranch,
                                HelpMessage,
+                               IncoherentQueues,
                                IncompatibleSourceBranchPrefix,
                                IncorrectFixVersion,
                                IncorrectJiraProject,
                                InitMessage,
                                IntegrationPullRequestsCreated,
+                               InvalidQueueBranch,
                                JiraIssueNotFound,
                                JiraUnknownIssueType,
+                               Merged,
                                MismatchPrefixIssueType,
                                MissingJiraId,
                                NotASingleDevBranch,
@@ -48,10 +53,15 @@ from wall_e_exceptions import (AfterPullRequest,
                                NotEnoughCredentials,
                                NotMyJob,
                                ParentPullRequestNotFound,
+                               PartialMerge,
                                PullRequestDeclined,
                                PullRequestSkewDetected,
                                SubtaskIssueNotSupported,
                                PeerApprovalRequired,
+                               Queued,
+                               QueueConflict,
+                               QueuesNotValidated,
+                               QueueOutOfOrder,
                                StatusReport,
                                SuccessMessage,
                                TesterApprovalRequired,
@@ -59,9 +69,18 @@ from wall_e_exceptions import (AfterPullRequest,
                                UnknownCommand,
                                UnrecognizedBranchPattern,
                                UnsupportedMultipleStabBranches,
+                               UnsupportedTokenType,
                                VersionMismatch,
                                WallE_SilentException,
                                WallE_TemplateException)
+from wall_e_exceptions import (MasterQueueDiverged,
+                               MasterQueueLateVsDev,
+                               MasterQueueLateVsInt,
+                               MasterQueueMissing,
+                               MasterQueueNotInSync,
+                               MasterQueueYoungerThanInt,
+                               QueueInclusionIssue,
+                               QueueInconsistentPullRequestsOrder)
 
 if six.PY3:
     raw_input = input
@@ -70,6 +89,8 @@ if six.PY3:
 WALL_E_USERNAME = 'scality_wall-e'
 WALL_E_EMAIL = 'wall_e@scality.com'
 JENKINS_USERNAME = 'scality_jenkins'
+
+SHA1_LENGHT = [12, 40]
 
 SETTINGS = {
     'ring': {
@@ -184,6 +205,34 @@ def confirm(question):
     return input_ == "yes" or input_ == "y"
 
 
+class WallEPullRequest():
+    def __init__(self, bbrepo, wall_e_username, pr_id):
+        pull_request_id = int(pr_id)
+
+        self.bbrepo = bbrepo
+        self.bb_pr = self.bbrepo.get_pull_request(
+            pull_request_id=pull_request_id)
+        self.author = self.bb_pr['author']['username']
+        self.author_display_name = self.bb_pr['author']['display_name']
+        if wall_e_username == self.author:
+            res = re.search('(?P<pr_id>\d+)',
+                            self.bb_pr['description'])
+            if not res:
+                raise ParentPullRequestNotFound(self.bb_pr['id'])
+            pull_request_id = int(res.group('pr_id'))
+            self.bb_pr = self.bbrepo.get_pull_request(
+                pull_request_id=pull_request_id
+            )
+            self.author = self.bb_pr['author']['username']
+            self.author_display_name = self.bb_pr['author']['display_name']
+
+        # first posted comments first in the list
+        self.comments = []
+        self.after_prs = []
+        self.source_branch = None
+        self.destination_branch = None
+
+
 class WallEBranch(Branch):
     pattern = '(?P<prefix>[a-z]+)/(?P<label>.+)'
     major = 0
@@ -200,7 +249,8 @@ class WallEBranch(Branch):
         if not match:
             raise BranchNameInvalid(name)
         for key, value in match.groupdict().items():
-            if key in ('major', 'minor', 'micro') and value is not None:
+            if (key in ('major', 'minor', 'micro', 'pr_id') and
+                    value is not None):
                 value = int(value)
             self.__setattr__(key, value)
 
@@ -263,10 +313,10 @@ class IntegrationBranch(WallEBranch):
     source_branch = ''
 
     def merge_from_branch(self, source_branch):
-        self.merge(source_branch, do_push=True)
+        self.merge(source_branch)
 
     def update_to_development_branch(self):
-        self.destination_branch.merge(self, force_commit=False, do_push=False)
+        self.destination_branch.merge(self, force_commit=False)
 
     def get_pull_request_from_list(self, open_prs):
         for pr in open_prs:
@@ -298,7 +348,6 @@ class IntegrationBranch(WallEBranch):
         created = False
         if not pr:
             description = render('pull_request_description.md',
-                                 wall_e=WALL_E_USERNAME,
                                  pr=parent_pr,
                                  branch=self.name,
                                  first=first)
@@ -312,9 +361,46 @@ class IntegrationBranch(WallEBranch):
             created = True
         return pr, created
 
+    def remove(self, do_push=False):
+        # make sure we are not on the branch to remove
+        self.destination_branch.checkout()
+        super(IntegrationBranch, self).remove(do_push)
+
+
+class QueueBranch(WallEBranch):
+    pattern = '^q/(?P<version>(?P<major>\d+)\.(?P<minor>\d+)' \
+              '(\.(?P<micro>\d+))?)$'
+    destination_branch = ''
+
+    def __init__(self, repo, name):
+        super(QueueBranch, self).__init__(repo, name)
+        if self.micro is not None:
+            dest = branch_factory(repo, 'stabilization/%s' % self.version)
+        else:
+            dest = branch_factory(repo, 'development/%s' % self.version)
+        self.destination_branch = dest
+
+    def __eq__(self, other):
+        return self.__class__ == other.__class__ and \
+            self.name == other.name
+
+
+@total_ordering
+class QueueIntegrationBranch(WallEBranch):
+    pattern = '^q/(?P<pr_id>\d+)/' + IntegrationBranch.pattern[3:]
+
+    def __eq__(self, other):
+        return self.__class__ == other.__class__ and \
+            self.name == other.name
+
+    def __lt__(self, other):
+        return self.__class__ == other.__class__ and \
+            other.includes_commit(self)
+
 
 def branch_factory(repo, branch_name):
     for cls in [StabilizationBranch, DevelopmentBranch, ReleaseBranch,
+                QueueBranch, QueueIntegrationBranch,
                 FeatureBranch, HotfixBranch, IntegrationBranch, UserBranch]:
         try:
             branch = cls(repo, branch_name)
@@ -325,12 +411,431 @@ def branch_factory(repo, branch_name):
     raise UnrecognizedBranchPattern(branch_name)
 
 
+class QueueCollection(object):
+    """Manipulate and analyse all active queues in the repository."""
+
+    def __init__(self, bbrepo, build_key, merge_paths):
+        self.bbrepo = bbrepo
+        self.build_key = build_key
+        self.merge_paths = merge_paths
+        self._queues = OrderedDict()
+        self._mergeable_queues = None
+        self._mergeable_prs = []
+        self._validated = False
+
+    def build(self, repo):
+        """Collect q branches from repository, add them to the collection."""
+        cmd = 'git branch -r --list origin/q/*'
+        for branch in repo.cmd(cmd).split('\n')[:-1]:
+            match_ = re.match('\s*origin/(?P<name>.*)', branch)
+            if not match_:
+                continue
+            try:
+                branch = branch_factory(repo, match_.group('name'))
+            except UnrecognizedBranchPattern:
+                continue
+            self._add_branch(branch)
+
+        self.finalize()
+
+    @property
+    def mergeable_queues(self):
+        """Return a collection of queues suitable for merge.
+        
+        This only works after the collection is validated.
+
+        """
+        if self._mergeable_queues is None:
+            self._process()
+        return self._mergeable_queues
+
+    @property
+    def mergeable_prs(self):
+        """Return the list of pull requests suitable for merge.
+        
+        This only works after the collection is validated.
+
+        """
+        if self._mergeable_queues is None:
+            self._process()
+        return self._mergeable_prs
+
+    def _add_branch(self, branch):
+        """Add a single branch to the queue collection."""
+        if not isinstance(branch, (QueueBranch, QueueIntegrationBranch)):
+            raise InvalidQueueBranch(branch)
+        self._validated = False
+        # make sure we have a local copy of the branch
+        # (enables get_latest_commit)
+        branch.checkout()
+        version = branch.version
+        if version not in self._queues.keys():
+            self._queues[version] = {
+                QueueBranch: None,
+                QueueIntegrationBranch: []
+            }
+            # Sort the top dict again
+            self._queues = OrderedDict(sorted(self._queues.items()))
+
+        if isinstance(branch, QueueBranch):
+            self._queues[version][QueueBranch] = branch
+        else:
+            self._queues[version][QueueIntegrationBranch].append(branch)
+
+    def _horizontal_validation(self, version):
+        """Validation of the queue collection on one given version.
+        
+        Called by validate().
+
+        """
+        errors = []
+        masterq = self._queues[version][QueueBranch]
+        # check master queue state
+        if not masterq:
+            errors.append(
+                MasterQueueMissing(version))
+        else:
+            if not masterq.includes_commit(masterq.destination_branch):
+                errors.append(MasterQueueLateVsDev(
+                    masterq,
+                    masterq.destination_branch
+                ))
+
+            if not self._queues[version][QueueIntegrationBranch]:
+                # check master queue points to dev
+                if (masterq.get_latest_commit() !=
+                        masterq.destination_branch.get_latest_commit()):
+                    errors.append(MasterQueueNotInSync(
+                        masterq,
+                        masterq.destination_branch
+                    ))
+            else:
+                # check state of master queue wrt to greatest integration
+                # queue
+                greatest_intq = (
+                    self._queues[version][QueueIntegrationBranch][0]
+                )
+                if (greatest_intq.get_latest_commit() !=
+                        masterq.get_latest_commit()):
+                    if greatest_intq.includes_commit(masterq):
+                        errors.append(MasterQueueLateVsInt(
+                            masterq, greatest_intq))
+
+                    elif masterq.includes_commit(greatest_intq):
+                        errors.append(MasterQueueYoungerThanInt(
+                            masterq, greatest_intq))
+
+                    else:
+                        errors.append(MasterQueueDiverged(
+                            masterq, greatest_intq))
+
+            # check each integration queue contains the previous one
+            nextq = masterq
+            for intq in self._queues[version][QueueIntegrationBranch]:
+                if not nextq.includes_commit(intq):
+                    errors.append(QueueInclusionIssue(nextq, intq))
+                nextq = intq
+            if not nextq.includes_commit(masterq.destination_branch):
+                errors.append(QueueInclusionIssue(
+                    nextq,
+                    masterq.destination_branch
+                ))
+        return errors
+
+    def _vertical_validation(self, stack, versions):
+        """Validation of the queue collection on one given merge path.
+
+        Called by validate().
+
+        """
+
+        errors = []
+        prs = self._extract_pr_ids(stack)
+        last_version = versions[-1]
+
+        # check all subsequent versions have a master queue
+        has_queues = False
+        for version in versions:
+            if version not in stack:
+                if has_queues:
+                    errors.append(MasterQueueMissing(version))
+                continue
+            has_queues = True
+            if not stack[version][QueueBranch]:
+                errors.append(MasterQueueMissing(version))
+
+        # check queues are sync'ed vertically and included in each other
+        # (last one corresponds to same PR on all versions..., and so on)
+        # other way to say it: each version has all the PR_ids of the
+        # previous version
+        if last_version in stack:
+            while stack[last_version][QueueIntegrationBranch]:
+                next_vqint = stack[last_version][QueueIntegrationBranch].pop(0)
+                pr = next_vqint.pr_id
+                if pr not in prs:
+                    # early fail
+                    break
+                for version in reversed(versions[:-1]):
+                    if version not in stack:
+                        # supposedly finished
+                        break
+                    if (stack[version][QueueIntegrationBranch] and
+                            stack[version][QueueIntegrationBranch][0].pr_id ==
+                            pr):
+                        vqint = stack[version][QueueIntegrationBranch].pop(0)
+                        # take this opportunity to check vertical inclusion
+                        if not next_vqint.includes_commit(vqint):
+                            errors.append(
+                                QueueInclusionIssue(next_vqint, vqint))
+                        next_vqint = vqint
+                    else:
+                        # this pr is supposedly entirely removed from the stack
+                        # if it comes back again, its an error
+                        break
+                prs.remove(pr)
+            if prs:
+                # after this algorithm prs should be empty
+                errors.append(QueueInconsistentPullRequestsOrder())
+            else:
+                # and stack should be empty too
+                for version in versions:
+                    if (version in stack
+                            and stack[version][QueueIntegrationBranch]):
+                        errors.append(QueueInconsistentPullRequestsOrder())
+        return errors
+
+    def validate(self):
+        """Check the state of queues declared via add_branch.
+
+        The following checks are performed:
+        - horizontal checks: on a given branch version, each integration
+            queue must include the previous one; the master queue must
+            point to the last integration queue; In case there is no
+            integration queue (nothing queued for this version), the
+            master queue must point on the corresponding development
+            branch.
+        - vertical checks: across versions, on each merge path, the queues
+            must be in the correct order (pr1 queued first, pr2 then, ...);
+            when a pr is queued in a version, it must be present in all the
+            following integration queues; for a given pr, the queues must be
+            included in each other.
+        - completeness: in order to detect missing integration queues
+            (manuel delete for example), deconstruct the master queues
+            by reverting merge commits; each result should not differ in
+            content from the previous integration queue; The last diff is
+            checked vs the corresponding development branch. TODO
+
+        """
+        errors = []
+        versions = self._queues.keys()
+
+        if not versions:
+            # no queues, cool stuff
+            self._validated = True
+            return
+
+        for version in versions:
+            errs = self._horizontal_validation(version)
+            errors.extend(errs)
+
+        for merge_path in self.merge_paths:
+            versions = [branch.version for branch in merge_path]
+            stack = deepcopy(self._queues)
+            # remove versions not on this merge_path from consideration
+            for version in stack.keys():
+                if version not in versions:
+                    stack.pop(version)
+
+            errs = self._vertical_validation(stack, versions)
+            errors.extend(errs)
+
+        if errors:
+            raise IncoherentQueues(errors)
+
+        self._validated = True
+
+    def _recursive_lookup(self, queues):
+        """Given a set of queues, remove all queues that can't be merged,
+        based on the build status obtained from the repository manager.
+        
+        A pull request must be removed from the list if the build on at least
+        one version is FAILED, and if this failure is not recovered by
+        a later pull request.
+
+        Return once a mergeable set is identified or the set is empty.
+
+        """
+        first_failed_pr = 0
+        for version in queues.keys():
+            qints = queues[version][QueueIntegrationBranch]
+            if qints:
+                qint = qints[0]
+                status = self.bbrepo.get_build_status(
+                    revision=qint.get_latest_commit(),
+                    key=self.build_key
+                )
+                if status != 'SUCCESSFUL':
+                    first_failed_pr = qint.pr_id
+                    break
+
+        if first_failed_pr == 0:
+            # all tip queues are pass, merge as it is
+            return
+
+        # remove all queues that don't pass globally,
+        # up to the identified failed pr, and retry
+        for version in queues.keys():
+            intqs = queues[version][QueueIntegrationBranch]
+            while intqs:
+                intq = intqs.pop(0)
+                if intq.pr_id == first_failed_pr:
+                    break
+
+        self._recursive_lookup(queues)
+
+    def _extract_pr_ids(self, queues):
+        """Return list of pull requests present in a set of queues.
+
+        This is obtained by reading pr ids from the greatest
+        development queue branch, so assumes that this branch
+        contains a reference to all pull requests in queues (this
+        is normally the case if everything was queued by Wall-E.
+
+        Return (list):
+            pull request ids in provided queue set (in the order
+                of addition to the queue, from oldest to newest)
+
+        """
+        prs = []
+        # identify version corresponding to last dev queue
+        # (i.e. ignore stab queues)
+        greatest_dev = None
+        for version in reversed(queues.keys()):
+            if re.match(r'^\d+\.\d+$', version):
+                greatest_dev = version
+                break
+        if greatest_dev:
+            for qint in queues[greatest_dev][QueueIntegrationBranch]:
+                prs.insert(0, qint.pr_id)
+        return prs
+
+    def _remove_unmergeable(self, prs, queues):
+        """Given a set of queues, remove all queues that are not in
+        the provided list of pull request ids.
+        
+        """
+        for version in queues.keys():
+            while (queues[version][QueueIntegrationBranch] and
+                    queues[version][QueueIntegrationBranch][0].pr_id not in
+                    prs):
+                queues[version][QueueIntegrationBranch].pop(0)
+
+    def _process(self):
+        """Given a sorted list of queues, identify most buildable series.
+
+        We need to look at mergeable PRs from the point of view
+        of all the possible merge_paths individually, then merge
+        the results in a super-mergeable status.
+
+        Populates:
+            - _mergeable_queues (list): queues corresponding to the
+                mergeable PRs
+            - _mergeable_prs (list): pull requests affected by the merge
+
+        """
+        if not self._validated:
+            raise QueuesNotValidated()
+
+        mergeable_prs = self._extract_pr_ids(self._queues)
+        for merge_path in self.merge_paths:
+            versions = [branch.version for branch in merge_path]
+            stack = deepcopy(self._queues)
+            # remove versions not on this merge_path from consideration
+            for version in stack.keys():
+                if version not in versions:
+                    stack.pop(version)
+
+            # obtain list of mergeable prs on this merge_path
+            self._recursive_lookup(stack)
+            path_mergeable_prs = self._extract_pr_ids(stack)
+            # smallest table is the common denominator
+            if len(path_mergeable_prs) < len(mergeable_prs):
+                mergeable_prs = path_mergeable_prs
+
+        self._mergeable_prs = mergeable_prs
+        mergeable_queues = deepcopy(self._queues)
+        self._remove_unmergeable(mergeable_prs, mergeable_queues)
+        self._mergeable_queues = mergeable_queues
+
+    def finalize(self):
+        """Finalize the collection of queues.
+
+        Assumes _queues has been populated by calls to add_branch.
+
+        """
+        # order integration queues by content
+        for version in self._queues.keys():
+            self._queues[version][
+                QueueIntegrationBranch].sort(reverse=True)
+
+
 class BranchCascade(object):
     def __init__(self):
         self._cascade = OrderedDict()
+        self._cascade_full = None
         self.destination_branches = []  # store branches
         self.ignored_branches = []  # store branch names (easier sort)
         self.target_versions = []
+        self._merge_paths = []
+
+    def build(self, repo, destination_branch=None):
+        for prefix in ['development', 'stabilization']:
+            cmd = 'git branch -r --list origin/%s/*' % prefix
+            for branch in repo.cmd(cmd).split('\n')[:-1]:
+                match_ = re.match('\s*origin/(?P<name>.*)', branch)
+                if not match_:
+                    continue
+                try:
+                    branch = branch_factory(repo, match_.group('name'))
+                except UnrecognizedBranchPattern:
+                    continue
+                self.add_branch(branch)
+
+        for tag in repo.cmd('git tag').split('\n')[:-1]:
+            self.update_micro(tag)
+
+        if destination_branch:
+            self.finalize(destination_branch)
+
+    def get_merge_paths(self):
+        """Return the dict of all greatest merge paths.
+
+        The items in the list correspond to:
+        - the path (list of branches) from the oldest dev
+            branch to the newest dev branch
+        - the path (list of branches) from each stabilization branch
+            to the newest dev branch
+
+        This is used by QueueCollection to check the integrity of queues.
+
+        It is not required to finalize the cascade to extract this
+        information, a simple call to build is enough.
+
+        """
+        if self._merge_paths:
+            return self._merge_paths
+
+        ret = [[]]
+        for branches in self._cascade.values():
+            if branches[DevelopmentBranch]:
+                if branches[StabilizationBranch]:
+                    # create a new path starting from this stab
+                    ret.append([branches[StabilizationBranch]])
+                # append this version to all paths
+                for path in ret:
+                    path.append(branches[DevelopmentBranch])
+        self._merge_paths = ret
+        return ret
 
     def add_branch(self, branch):
         if not branch.can_be_destination:
@@ -434,6 +939,7 @@ class BranchCascade(object):
             list: list of ignored destination branches
 
         """
+        self.get_merge_paths()  # populate merge paths before removing data
         ignore_stb_branches = False
         include_dev_branches = False
         dev_branch = None
@@ -490,61 +996,118 @@ class BranchCascade(object):
 
 
 class WallE:
-    def __init__(self, bitbucket_login, bitbucket_password, bitbucket_mail,
-                 owner, slug, pr_id_or_revision, options, commands,
-                 settings, interactive, no_comment):
+    def __init__(self, args, options, commands):
         self._bbconn = bitbucket_api.Client(
-            bitbucket_login, bitbucket_password, bitbucket_mail)
+            args.username, args.password, args.email)
         self.bbrepo = bitbucket_api.Repository(
-            self._bbconn, owner=owner, repo_slug=slug)
-        if isinstance(pr_id_or_revision, str) and \
-                len(pr_id_or_revision) == 40:
-            # it is a sha1
-            pr = self.get_pull_request_from_sha1(pr_id_or_revision)
-            if not pr:
-                raise NothingToDo('Could not find the PR corresponding to'
-                                  ' sha1: %s' % pr_id_or_revision)
-            pull_request_id = int(pr['id'])
-
-        else:
-            try:
-                pull_request_id = int(pr_id_or_revision)
-                # it is probably a pull request id
-
-            except ValueError:
-                # we will assume it is a branch
-                raise NotImplementedError('Triggering Wall-E with branch '
-                                          'names is not implemented: %s',
-                                          pr_id_or_revision)
-                # self.get_pull_request_from_branch(pull_request_id_or_revision)
-                pass
-
-        self.main_pr = self.bbrepo.get_pull_request(
-            pull_request_id=pull_request_id)
-        self.author = self.main_pr['author']['username']
-        self.author_display_name = self.main_pr['author']['display_name']
-        if WALL_E_USERNAME == self.author:
-            res = re.search('(?P<pr_id>\d+)',
-                            self.main_pr['description'])
-            if not res:
-                raise ParentPullRequestNotFound(self.main_pr['id'])
-            self.pull_request_id = int(res.group('pr_id'))
-            self.main_pr = self.bbrepo.get_pull_request(
-                pull_request_id=self.pull_request_id
-            )
-            self.author = self.main_pr['author']['username']
-            self.author_display_name = self.main_pr['author']['display_name']
+            self._bbconn, owner=args.owner, repo_slug=args.slug)
         self.options = options
         self.commands = commands
-        self.settings = settings
-        self.source_branch = None
-        self.destination_branch = None
+        self.settings = SETTINGS[args.settings]
+        self.backtrace = args.backtrace
+        self.email = args.email
+        self.interactive = args.interactive
+        self.no_comment = args.no_comment
+        self.quiet = args.quiet
+        self.ref_git_repo = args.reference_git_repo
+        self.token = args.token.strip()
+        self.use_queue = not args.disable_queues
+        self.username = args.username
+        self.repo = self._clone_git_repo()
+
+    def test_sha1_in_queue(self, sha1):
+        cmd = 'git branch -r --contains %s "origin/q/*"'
+        try:
+            ret = self.repo.cmd(cmd, sha1)
+        except CommandError:
+            return False
+        return ret != ''
+
+    def handler(self):
+        """Determine the resolution path based on the input id.
+
+        Args:
+          - token (str):
+            - pull request id: handle the pull request update
+            - sha1: analyse state of the queues,
+               only if the sha1 belongs to a queue
+
+        Returns:
+            - a wall-e return code
+
+        """
+        try:
+            if len(self.token) in SHA1_LENGHT:
+                # it is a sha1 (build status received),
+                # check if the sha1 belongs to a queue or a PR
+                if self.use_queue and self.test_sha1_in_queue(self.token):
+                    return self.handle_merge_queues()
+
+                return self.handle_pull_request_from_sha1(self.token)
+
+            try:
+                int(self.token)
+            except ValueError:
+                pass
+            else:
+                # it is probably a pull request id
+                return self.handle_pull_request(self.token)
+
+            raise UnsupportedTokenType(self.token)
+
+        except WallE_SilentException as excp:
+            if self.backtrace:
+                raise excp
+
+            logging.info('Exception raised: %d', excp.code)
+            if not self.quiet:
+                print('%d - %s' % (0, excp.__class__.__name__))
+            return 0
+
+    def handle_pull_request(self, pr_id):
+        """Entry point to handle a pull request id."""
+        self._pr = WallEPullRequest(self.bbrepo, self.username, pr_id)
         self._cascade = BranchCascade()
-        self.after_prs = []
-        # first posted comments first in the list
-        self.comments = []
-        self.interactive = interactive
-        self.no_comment = no_comment
+
+        try:
+            self._handle_pull_request()
+        except WallE_TemplateException as excp:
+            self.send_msg_and_continue(excp)
+
+            if self.backtrace:
+                raise excp
+
+            logging.info('Exception raised: %d %s', excp.code, excp.__class__)
+            if not self.quiet:
+                print('%d - %s' % (excp.code, excp.__class__.__name__))
+            return excp.code
+
+    def handle_pull_request_from_sha1(self, sha1):
+        """Entry point to handle a pull request from a sha1."""
+        pr = self.get_pull_request_from_sha1(sha1)
+        if not pr:
+            raise NothingToDo('Could not find the PR corresponding to'
+                              ' sha1: %s' % sha1)
+        return self.handle_pull_request(pr['id'])
+
+    def handle_merge_queues(self):
+        """Entry point to handle queues following a build status update."""
+        cascade = BranchCascade()
+        cascade.build(self.repo)
+        qc = self._validate_queues(cascade)
+
+        if not qc.mergeable_prs:
+            raise NothingToDo()
+
+        self._merge_queues(qc.mergeable_queues)
+
+        # notify PRs and cleanup
+        for pr_id in qc.mergeable_prs:
+            self._close_queued_pull_request(pr_id, deepcopy(cascade))
+
+        # git push --all --force --prune
+        self._push(prune=True)
+        raise Merged()
 
     def get_pull_request_from_sha1(self, sha1):
         """Get the oldest open integration pull request containing given
@@ -598,7 +1161,7 @@ class WallE:
                                startswith=None,
                                max_history=None):
         # check last commits
-        comments = reversed(self.comments)
+        comments = reversed(self._pr.comments)
         if max_history not in (None, -1):
             comments = itertools.islice(comments, 0, max_history)
         for comment in comments:
@@ -627,7 +1190,7 @@ class WallE:
         # Apply no-repeat strategy
         if dont_repeat_if_in_history:
             if self.find_bitbucket_comment(
-                    username=WALL_E_USERNAME, startswith=msg,
+                    username=self.username, startswith=msg,
                     max_history=dont_repeat_if_in_history):
                 raise CommentAlreadyExists(
                     'The same comment has already been posted '
@@ -641,7 +1204,7 @@ class WallE:
 
         logging.debug('SENDING MSG %s', msg)
 
-        self.main_pr.add_comment(msg)
+        self._pr.bb_pr.add_comment(msg)
 
     def send_msg_and_continue(self, msg):
         try:
@@ -651,55 +1214,57 @@ class WallE:
             logging.info("Comment '%s' already posted", msg.__class__.__name__)
 
     def _check_pr_state(self):
-        if self.main_pr['state'] not in ('OPEN', 'DECLINED'):
+        if self._pr.bb_pr['state'] not in ('OPEN', 'DECLINED'):
             raise NothingToDo('The pull-request\'s state is "%s"'
-                              % self.main_pr['state'])
-        return self.main_pr['state']
+                              % self._pr.bb_pr['state'])
+        return self._pr.bb_pr['state']
 
-    def _clone_git_repo(self, reference_git_repo):
+    def _clone_git_repo(self):
         repo = GitRepository(self.bbrepo.get_git_url())
-        repo.clone(reference_git_repo)
+        repo.clone(self.ref_git_repo)
         repo.fetch_all_branches()
-        repo.config('user.email', WALL_E_EMAIL)
-        repo.config('user.name', WALL_E_USERNAME)
+        repo.config('user.email', self.email)
+        repo.config('user.name', self.username)
         repo.config('merge.renameLimit', '999999')
         return repo
 
-    def _setup_source_branch(self, repo, src_branch_name, dst_branch_name):
-        self.source_branch = branch_factory(repo, src_branch_name)
+    def _setup_source_branch(self, src_branch_name, dst_branch_name):
+        self._pr.source_branch = branch_factory(self.repo, src_branch_name)
 
-    def _setup_destination_branch(self, repo, dst_branch_name):
-        self.destination_branch = branch_factory(repo, dst_branch_name)
+    def _setup_destination_branch(self, dst_branch_name):
+        self.destination_branch = branch_factory(self.repo, dst_branch_name)
 
-    def _handle_declined_pr(self, repo):
+    def _handle_declined_pr(self):
         # main PR is declined, cleanup everything and quit
-        self._build_branch_cascade(repo)
-        changed = self._remove_integration_data(repo, self.source_branch)
+        self._build_branch_cascade()
+        changed = self._remove_integration_data(self._pr.source_branch)
 
         if changed:
+            self._push(prune=True)
             raise PullRequestDeclined()
         else:
             raise NothingToDo()
 
     def _check_if_ignored(self):
         # check feature branch
-        if not self.source_branch.cascade_producer:
-            raise NotMyJob(self.source_branch.name,
+        if not self._pr.source_branch.cascade_producer:
+            raise NotMyJob(self._pr.source_branch.name,
                            self.destination_branch.name)
 
         # check selected destination branch
         if not self.destination_branch.cascade_consumer:
-            raise NotMyJob(self.source_branch.name,
+            raise NotMyJob(self._pr.source_branch.name,
                            self.destination_branch.name)
 
     def _send_greetings(self):
         """Display a welcome message if conditions are met."""
         # Skip if Wall-E has already posted a comment on this PR
-        if self.find_bitbucket_comment(username=WALL_E_USERNAME):
+        if self.find_bitbucket_comment(username=self.username):
             return
 
         self.send_msg_and_continue(InitMessage(
-            author=self.author_display_name, status=self.get_status_report(),
+            author=self._pr.author_display_name,
+            status=self.get_status_report(),
             active_options=self._get_active_options()
         ))
 
@@ -712,7 +1277,7 @@ class WallE:
                                   keyword)
                 if not match_:
                     return False
-                self.after_prs.append(match_.group('pr_id'))
+                self._pr.after_prs.append(match_.group('pr_id'))
                 keyword = 'after_pull_request'
 
             if keyword not in self.options.keys():
@@ -750,13 +1315,13 @@ class WallE:
 
     def _get_options(self, pr_author):
         """Load settings from pull-request comments."""
-        for comment in self.comments:
+        for comment in self._pr.comments:
             raw = comment['content']['raw']
-            if not raw.strip().startswith('@%s' % WALL_E_USERNAME):
+            if not raw.strip().startswith('@%s' % self.username):
                 continue
 
             logging.debug('Found a keyword comment: %s', raw)
-            raw_cleaned = raw.strip()[len(WALL_E_USERNAME) + 1:]
+            raw_cleaned = raw.strip()[len(self.username) + 1:]
 
             author = comment['user']['username']
             if isinstance(author, list):
@@ -816,7 +1381,7 @@ class WallE:
 
     def _handle_commands(self):
         """Detect the last command in pull-request comments and act on it."""
-        for comment in reversed(self.comments):
+        for comment in reversed(self._pr.comments):
             author = comment['user']['username']
             if isinstance(author, list):
                 # python2 returns a list
@@ -827,18 +1392,18 @@ class WallE:
             # if Wall-E is the author of this comment, any previous command
             # has been treated or is outdated, since Wall-E replies to all
             # commands. The search is over.
-            if author == WALL_E_USERNAME:
+            if author == self.username:
                 return
 
             raw = comment['content']['raw']
-            if not raw.strip().startswith('@%s' % WALL_E_USERNAME):
+            if not raw.strip().startswith('@%s' % self.username):
                 continue
 
             logging.debug('Found a potential command comment: %s', raw)
 
             # accept all commands in the form:
             # @scality_wall-e command arg1 arg2 ...
-            regexp = "@%s[\s:]*" % WALL_E_USERNAME
+            regexp = "@%s[\s:]*" % self.username
             raw_cleaned = re.sub(regexp, '', raw.strip())
             regexp = r"(?P<command>[A-Za-z_]+[^= ,])(?P<args>.*)$"
             match_ = re.match(regexp, raw_cleaned)
@@ -862,62 +1427,48 @@ class WallE:
     def _init_phase(self):
         """Send greetings if required, read options and commands."""
         # read comments and store them for multiple usage
-        self.comments = list(self.main_pr.get_comments())
-        if self.comments and self.comments[0]['id'] > self.comments[-1]['id']:
-            self.comments.reverse()
+        self._pr.comments = list(self._pr.bb_pr.get_comments())
+        if (self._pr.comments and
+                self._pr.comments[0]['id'] > self._pr.comments[-1]['id']):
+            self._pr.comments.reverse()
 
         self._send_greetings()
-        self._get_options(self.author)
+        self._get_options(self._pr.author)
         self._handle_commands()
 
     def _check_dependencies(self):
         if self.option_is_set('wait'):
             raise NothingToDo('wait option is set')
 
-        if not self.after_prs:
+        if not self._pr.after_prs:
             return
 
         prs = [self.bbrepo.get_pull_request(pull_request_id=int(x))
-               for x in self.after_prs]
+               for x in self._pr.after_prs]
 
         opened_prs = filter(lambda x: x['state'] == 'OPEN', prs)
         merged_prs = filter(lambda x: x['state'] == 'MERGED', prs)
         declined_prs = filter(lambda x: x['state'] == 'DECLINED', prs)
 
-        if len(self.after_prs) != len(merged_prs):
+        if len(self._pr.after_prs) != len(merged_prs):
             raise AfterPullRequest(
                 opened_prs=opened_prs,
                 declined_prs=declined_prs,
                 active_options=self._get_active_options())
 
-    def _build_branch_cascade(self, repo):
+    def _build_branch_cascade(self):
         if self._cascade.destination_branches:
             # building cascade one time is enough
             return
-        for prefix in ['development', 'stabilization']:
-            cmd = 'git branch -r --list origin/%s/*' % prefix
-            for branch in repo.cmd(cmd).split('\n')[:-1]:
-                match_ = re.match('\s*origin/(?P<name>.*)', branch)
-                if not match_:
-                    continue
-                try:
-                    branch = branch_factory(repo, match_.group('name'))
-                except UnrecognizedBranchPattern:
-                    continue
-                self._cascade.add_branch(branch)
-
-        for tag in repo.cmd('git tag').split('\n')[:-1]:
-            self._cascade.update_micro(tag)
-
-        self._cascade.finalize(self.destination_branch)
+        self._cascade.build(self.repo, self.destination_branch)
 
     def _check_compatibility_src_dest(self):
         if self.option_is_set('bypass_incompatible_branch'):
             return
         for dest_branch in self._cascade.destination_branches:
-            if self.source_branch.prefix not in dest_branch.allow_prefixes:
+            if self._pr.source_branch.prefix not in dest_branch.allow_prefixes:
                 raise IncompatibleSourceBranchPrefix(
-                    source=self.source_branch,
+                    source=self._pr.source_branch,
                     destination=self.destination_branch,
                     active_options=self._get_active_options())
 
@@ -932,11 +1483,11 @@ class WallE:
             MissingJiraId: if a Jira issue is required but missing
 
         """
-        if not self.source_branch.jira_issue_key:
+        if not self._pr.source_branch.jira_issue_key:
             for dest_branch in self._cascade.destination_branches:
                 if not dest_branch.allow_ticketless_pr:
                     raise MissingJiraId(
-                        source_branch=self.source_branch.name,
+                        source_branch=self._pr.source_branch.name,
                         dest_branch=dest_branch.name,
                         active_options=self._get_active_options())
             return False
@@ -959,7 +1510,7 @@ class WallE:
 
     def _jira_check_project(self, issue):
         # check the project
-        if (self.source_branch.jira_project !=
+        if (self._pr.source_branch.jira_project !=
                 self.settings['jira_key']):
             raise IncorrectJiraProject(
                 expected_project=self.settings['jira_key'],
@@ -980,9 +1531,9 @@ class WallE:
         if expected_prefix is None:
             raise JiraUnknownIssueType(issuetype)
 
-        if expected_prefix != self.source_branch.prefix:
+        if expected_prefix != self._pr.source_branch.prefix:
             raise MismatchPrefixIssueType(
-                prefix=self.source_branch.prefix,
+                prefix=self._pr.source_branch.prefix,
                 expected=issuetype,
                 pairs=JIRA_ISSUE_BRANCH_PREFIX,
                 issue=issue,
@@ -1013,26 +1564,26 @@ class WallE:
             return
 
         if self._jira_check_reference():
-            issue_id = self.source_branch.jira_issue_key
+            issue_id = self._pr.source_branch.jira_issue_key
             issue = self._jira_get_issue(issue_id)
 
             self._jira_check_project(issue)
             self._jira_check_issue_type(issue)
             self._jira_check_version(issue)
 
-    def _check_source_branch_still_exists(self, repo):
+    def _check_source_branch_still_exists(self):
         # check source branch still exists
         # (it may have been deleted by developers)
         try:
-            Branch(repo, self.source_branch.name).checkout()
+            Branch(self.repo, self._pr.source_branch.name).checkout()
         except CheckoutFailedException:
-            raise NothingToDo(self.source_branch.name)
+            raise NothingToDo(self._pr.source_branch.name)
 
-    def _create_integration_branches(self, repo, source_branch):
+    def _create_integration_branches(self, source_branch):
         integration_branches = []
         for dst_branch in self._cascade.destination_branches:
             name = 'w/%s/%s' % (dst_branch.version, source_branch)
-            integration_branch = branch_factory(repo, name)
+            integration_branch = branch_factory(self.repo, name)
             integration_branch.source_branch = source_branch
             integration_branch.destination_branch = dst_branch
             integration_branches.append(integration_branch)
@@ -1041,7 +1592,7 @@ class WallE:
                     integration_branch.destination_branch)
         return integration_branches
 
-    def _remove_integration_data(self, repo, source_branch):
+    def _remove_integration_data(self, source_branch):
         changed = False
         open_prs = list(self.bbrepo.get_pull_requests())
         for dst_branch in self._cascade.destination_branches:
@@ -1057,13 +1608,31 @@ class WallE:
                     changed = True
                     break
             # remove integration branch
-            integration_branch = branch_factory(repo, name)
+            integration_branch = branch_factory(self.repo, name)
             integration_branch.source_branch = source_branch
             integration_branch.destination_branch = dst_branch
             if integration_branch.exists():
                 integration_branch.remove()
                 changed = True
         return changed
+
+    def _check_in_sync(self, integration_branches):
+        """Validate that each `integration_branch` contains the last
+        commit from its predecessor.
+
+        Return (bool):
+            - True: all in sync
+            - False: one of the integration branch at least needs an
+             update
+
+        """
+        prev = integration_branches[0].source_branch
+        for branch in integration_branches:
+            if not branch.includes_commit(
+                    prev.get_latest_commit()):
+                return False
+            prev = branch
+        return True
 
     def _check_pristine(self, integration_branch):
         """Validate that `integration_branch` contains commits
@@ -1095,20 +1664,19 @@ class WallE:
 
     def _update(self, wbranch, source, origin=False):
         try:
-            wbranch.merge(wbranch.destination_branch, source,
-                          do_push=False)
+            wbranch.merge(wbranch.destination_branch, source)
         except MergeFailedException:
             raise Conflict(source=source,
                            wbranch=wbranch,
                            active_options=self._get_active_options(),
                            origin=origin,
-                           feature_branch=self.source_branch,
+                           feature_branch=self._pr.source_branch,
                            dev_branch=self.destination_branch)
 
     def _update_integration(self, integration_branches):
         prev, children = integration_branches[0], integration_branches[1:]
         self._check_pristine(prev)
-        self._update(prev, self.source_branch, True)
+        self._update(prev, self._pr.source_branch, True)
         for branch in children:
             self._update(branch, prev)
             prev = branch
@@ -1117,7 +1685,7 @@ class WallE:
         # read open PRs and store them for multiple usage
         open_prs = list(self.bbrepo.get_pull_requests())
         prs, created = zip(*(
-            integration_branch.get_or_create_pull_request(self.main_pr,
+            integration_branch.get_or_create_pull_request(self._pr.bb_pr,
                                                           open_prs,
                                                           self.bbrepo,
                                                           idx == 0)
@@ -1125,7 +1693,8 @@ class WallE:
         ))
         if any(created):
             self.send_msg_and_continue(IntegrationPullRequestsCreated(
-                pr=self.main_pr, child_prs=prs,
+                wall_e=self.username,
+                pr=self._pr.bb_pr, child_prs=prs,
                 ignored=self._cascade.ignored_branches,
                 active_options=self._get_active_options()
             ))
@@ -1194,7 +1763,7 @@ class WallE:
 
         # If a tester is the author of the PR we will bypass
         #  the tester approval
-        if self.author in self.settings['testers']:
+        if self._pr.author in self.settings['testers']:
             approved_by_tester = True
 
         if (approved_by_author and
@@ -1204,14 +1773,14 @@ class WallE:
 
         # NB: when author hasn't approved the PR, author isn't listed in
         # 'participants'
-        for participant in self.main_pr['participants']:
+        for participant in self._pr.bb_pr['participants']:
             if not participant['approved']:
                 # Exclude WALL_E and SCALITY_JENKINS
-                if (not participant['user']['username'] in [WALL_E_USERNAME,
+                if (not participant['user']['username'] in [self.username,
                                                             JENKINS_USERNAME]):
                     is_unanimous = False
                 continue
-            if participant['user']['username'] == self.author:
+            if participant['user']['username'] == self._pr.author:
                 approved_by_author = True
             elif participant['user']['username'] in self.settings['testers']:
                 approved_by_tester = True
@@ -1222,7 +1791,7 @@ class WallE:
             required_peer_approvals - current_peer_approvals
         if not approved_by_author:
             raise AuthorApprovalRequired(
-                pr=self.main_pr,
+                pr=self._pr.bb_pr,
                 author_approval=approved_by_author,
                 missing_peer_approvals=missing_peer_approvals,
                 tester_approval=approved_by_tester,
@@ -1232,7 +1801,7 @@ class WallE:
 
         if missing_peer_approvals > 0:
             raise PeerApprovalRequired(
-                pr=self.main_pr,
+                pr=self._pr.bb_pr,
                 author_approval=approved_by_author,
                 missing_peer_approvals=missing_peer_approvals,
                 tester_approval=approved_by_tester,
@@ -1242,7 +1811,7 @@ class WallE:
 
         if not approved_by_tester:
             raise TesterApprovalRequired(
-                pr=self.main_pr,
+                pr=self._pr.bb_pr,
                 author_approval=approved_by_author,
                 missing_peer_approvals=missing_peer_approvals,
                 tester_approval=approved_by_tester,
@@ -1252,7 +1821,7 @@ class WallE:
 
         if (requires_unanimity and not is_unanimous):
             raise UnanimityApprovalRequired(
-                pr=self.main_pr,
+                pr=self._pr.bb_pr,
                 author_approval=approved_by_author,
                 missing_peer_approvals=missing_peer_approvals,
                 tester_approval=approved_by_tester,
@@ -1260,18 +1829,12 @@ class WallE:
                 active_options=self._get_active_options()
             )
 
+    def _get_sha1_build_status(self, sha1, key=None):
+        key = key or self.settings['build_key']
+        return self.bbrepo.get_build_status(revision=sha1, key=key)
+
     def _get_pr_build_status(self, key, pr):
-        try:
-            build_state = self.bbrepo.get_build_status(
-                revision=pr['source']['commit']['hash'],
-                key=key
-            )['state']
-        except requests.exceptions.HTTPError as e:
-            if e.response.status_code == 404:
-                return 'NOTSTARTED'
-            else:
-                raise
-        return build_state
+        return self._get_sha1_build_status(pr['source']['commit']['hash'], key)
 
     def _check_build_status(self, child_prs):
         """Report the worst status available."""
@@ -1300,11 +1863,55 @@ class WallE:
             raise BuildInProgress()
         assert build_state == 'SUCCESSFUL'
 
-    def _merge(self, integration_branches, repo):
+    def _get_queue_branch(self, dev_branch, create=True):
+        name = 'q/%s' % dev_branch.version
+        queue_branch = branch_factory(self.repo, name)
+        if not queue_branch.exists() and create:
+            queue_branch.create(dev_branch)
+        return queue_branch
+
+    def _get_queue_integration_branch(self, pr_id, integration_branch):
+        """Get the q/pr_id/x.y/* branch corresponding to a w/x.y/* branch."""
+        wbranch = integration_branch
+        name = 'q/%s/%s/%s' % (pr_id, wbranch.version, self._pr.source_branch)
+        qint_branch = branch_factory(self.repo, name)
+        return qint_branch
+
+    def _add_to_queue(self, integration_branches):
+        qbranches = [self._get_queue_branch(w.destination_branch)
+                     for w in integration_branches]
+
+        qbranch, qbranches = qbranches[0], qbranches[1:]
+        wbranch, wbranches = integration_branches[0], integration_branches[1:]
+
+        try:
+            qbranch.merge(wbranch)
+            qint = self._get_queue_integration_branch(
+                self._pr.bb_pr['id'], wbranch)
+            qint.create(qbranch)
+            qint_branches = [qint]
+            for qbranch, wbranch in zip(qbranches, wbranches):
+                qbranch.merge(qint, wbranch)  # octopus merge
+                qint = self._get_queue_integration_branch(
+                    self._pr.bb_pr['id'], wbranch)
+                qint.create(qbranch)
+                qint_branches.append(qint)
+        except MergeFailedException:
+            raise QueueConflict(
+                    active_options=self._get_active_options())
+
+        self._push()
+
+    def _already_in_queue(self, integration_branches):
+        qint_branches = [self._get_queue_integration_branch(
+                             self._pr.bb_pr['id'], w)
+                         for w in integration_branches]
+        exist = [q.exists() for q in qint_branches]
+        return any(exist)
+
+    def _merge(self, integration_branches):
         for integration_branch in integration_branches:
             integration_branch.update_to_development_branch()
-
-        self._push(repo)
 
         for integration_branch in integration_branches:
             try:
@@ -1313,69 +1920,183 @@ class WallE:
                 # ignore failures as this is non critical
                 pass
 
+        self._push(prune=True)
+
+    def _merge_queues(self, queues):
+        for branches in queues.values():
+            # Fast-forward development/x.y to the most recent mergeable queue
+            destination = branches[QueueBranch].destination_branch
+            if branches[QueueIntegrationBranch]:
+                latest = branches[QueueIntegrationBranch][0]
+                logging.debug("Merging %s into %s", latest, destination)
+                destination.merge(latest)
+
+                # Delete the merged queue-integration branches
+                for queue in branches[QueueIntegrationBranch]:
+                    logging.debug("Removing %s", queue)
+                    queue.remove()
+
     def _validate_repo(self):
         self._cascade.validate()
 
-    def _push(self, repo):
+    def _validate_queues(self, cascade):
+        qc = QueueCollection(
+            self.bbrepo,
+            self.settings['build_key'],
+            cascade.get_merge_paths()
+        )
+        qc.build(self.repo)
+        # extract destination branches from cascade
+        qc.validate()
+        return qc
+
+    def _push(self, prune=False):
         retry = RetryHandler(30, logging)
         with retry:
             retry.run(
-                repo.push_all,
+                self.repo.push_all,
+                prune=prune,
                 catch=PushFailedException,
                 fail_msg="Failed to push changes"
             )
 
-    def handle_pull_request(self, reference_git_repo=''):
+    def _close_queued_pull_request(self, pr_id, cascade):
+        self._pr = WallEPullRequest(self.bbrepo, self.username, pr_id)
+        self._cascade = cascade
+        src_branch = branch_factory(
+            self.repo,
+            self._pr.bb_pr['source']['branch']['name']
+        )
+        dst_branch = branch_factory(
+            self.repo,
+            self._pr.bb_pr['destination']['branch']['name']
+        )
+        self._cascade.finalize(dst_branch)
+
+        if dst_branch.includes_commit(src_branch.get_latest_commit()):
+            # Everything went fine, send a success message
+            self.send_msg_and_continue(SuccessMessage(
+                branches=self._cascade.destination_branches,
+                ignored=self._cascade.ignored_branches,
+                issue=src_branch.jira_issue_key,
+                author=self._pr.bb_pr['author']['display_name'],
+                active_options=[]))
+
+        else:
+            # Frown at the author for adding posterior changes. This
+            # message will wake wall-e up on the Pull Request, and the queues
+            # have disappeared, so the normal pre-queuing workflow will restart
+            # naturally.
+            commits = src_branch.get_commit_diff(dst_branch)
+            self.send_msg_and_continue(PartialMerge(
+                commits=commits,
+                branches=self._cascade.destination_branches,
+                active_options=[]))
+
+        # Remove integration branches (potentially let wall-e rebuild them if
+        # the merge was partial)
+        wbranches = self._create_integration_branches(src_branch)
+
+        # Checkout destination branch so we are not on a w/* branch when
+        # deleting it.
+        dst_branch.checkout()
+        for wbranch in wbranches:
+            try:
+                wbranch.remove()
+            except RemoveFailedException:
+                # not critical
+                pass
+
+    def _handle_pull_request(self):
+        """Analyse and handle a pull request that has just been updated."""
 
         self._check_pr_state()
 
-        with self._clone_git_repo(reference_git_repo) as repo:
-            dst_branch_name = self.main_pr['destination']['branch']['name']
-            src_branch_name = self.main_pr['source']['branch']['name']
-            self._setup_source_branch(repo, src_branch_name, dst_branch_name)
-            self._setup_destination_branch(repo, dst_branch_name)
+        dst_branch_name = self._pr.bb_pr['destination']['branch']['name']
+        src_branch_name = self._pr.bb_pr['source']['branch']['name']
+        self._setup_source_branch(src_branch_name, dst_branch_name)
+        self._setup_destination_branch(dst_branch_name)
 
-            if self.main_pr['state'] == 'DECLINED':
-                self._handle_declined_pr(repo)
+        if self._pr.bb_pr['state'] == 'DECLINED':
+            self._handle_declined_pr()
 
-            # Handle the case when bitbucket is lagging and the PR was actually
-            # merged before.
-            if self.destination_branch.includes_commit(self.source_branch):
-                raise NothingToDo()
+        # Handle the case when bitbucket is lagging and the PR was actually
+        # merged before.
+        if self.destination_branch.includes_commit(self._pr.source_branch):
+            raise NothingToDo()
 
-            self._check_if_ignored()
-            self._init_phase()
-            self._check_dependencies()
-            self._build_branch_cascade(repo)
-            self._validate_repo()
-            self._check_compatibility_src_dest()
-            self._jira_checks()
-            self._check_source_branch_still_exists(repo)
+        self._check_if_ignored()
+        self._init_phase()
+        self._check_dependencies()
+        self._build_branch_cascade()
+        self._validate_repo()
+        self._check_compatibility_src_dest()
+        self._jira_checks()
+        self._check_source_branch_still_exists()
 
-            integration_branches = self._create_integration_branches(
-                repo, self.source_branch)
+        integration_branches = self._create_integration_branches(
+            self._pr.source_branch)
 
+        if self.use_queue and self._already_in_queue(integration_branches):
+            # Nothing to do, just wait for the queue to be handled :)
+            raise NothingToDo()
+
+        in_sync = self._check_in_sync(integration_branches)
+
+        try:
+            self._update_integration(integration_branches)
+        except:
+            raise
+        else:
+            if self.use_queue and in_sync:
+                # In queue mode, in case no conflict is detected,
+                # we want to keep the integration branches as they are,
+                # hense reset branches to avoid a push later in the code
+                for branch in integration_branches:
+                    branch.reset()
+        finally:
+            self._push()
+
+        child_prs = self._create_pull_requests(integration_branches)
+
+        self._check_pull_request_skew(integration_branches, child_prs)
+        self._check_approvals(child_prs)
+        self._check_build_status(child_prs)
+
+        if self.interactive and not confirm('Do you want to merge/queue?'):
+            return
+
+        # If the integration pull requests were already in sync with the
+        # feature branch before our last update (which serves as a final
+        # check for conflicts), and all builds were green, and we reached
+        # this point without an error, then all conditions are met to enter
+        # the queue.
+        if self.use_queue:
+            # validate current state of queues
             try:
-                self._update_integration(integration_branches)
-            finally:
-                self._push(repo)
-            child_prs = self._create_pull_requests(integration_branches)
-            self._check_pull_request_skew(integration_branches, child_prs)
-            self._check_approvals(child_prs)
-            self._check_build_status(child_prs)
-
-            if self.interactive and not confirm('Do you want to merge ?'):
-                return
-
-            self._merge(integration_branches, repo)
+                self._validate_queues(self._cascade)
+            except IncoherentQueues:
+                raise QueueOutOfOrder(
+                    active_options=self._get_active_options())
+            # Enter the merge queue!
+            self._add_to_queue(integration_branches)
             self._validate_repo()
+            raise Queued(
+                branches=self._cascade.destination_branches,
+                ignored=self._cascade.ignored_branches,
+                issue=self._pr.source_branch.jira_issue_key,
+                author=self._pr.author_display_name,
+                active_options=self._get_active_options())
 
-        raise SuccessMessage(
-            branches=self._cascade.destination_branches,
-            ignored=self._cascade.ignored_branches,
-            issue=self.source_branch.jira_issue_key,
-            author=self.author_display_name,
-            active_options=self._get_active_options())
+        else:
+            self._merge(integration_branches)
+            self._validate_repo()
+            raise SuccessMessage(
+                branches=self._cascade.destination_branches,
+                ignored=self._cascade.ignored_branches,
+                issue=self._pr.source_branch.jira_issue_key,
+                author=self._pr.author_display_name,
+                active_options=self._get_active_options())
 
 
 def setup_parser():
@@ -1383,14 +2104,24 @@ def setup_parser():
                                      description='Merges bitbucket '
                                                  'pull requests.')
     parser.add_argument(
+        '--disable-queues', action='store_true', default=False,
+        help="Deactivate optimistic merge queue (legacy mode)")
+    parser.add_argument(
         '--option', '-o', action='append', type=str, dest='cmd_line_options',
         help="Activate additional options")
     parser.add_argument(
-        'pull_request_id',
-        help="The ID of the pull request")
+        'token', type=str,
+        help="The ID of the pull request or sha1 (%s characters) "
+             "to analyse" % SHA1_LENGHT)
     parser.add_argument(
         'password',
         help="Wall-E's password [for Jira and Bitbucket]")
+    parser.add_argument(
+        '--username', default=WALL_E_USERNAME,
+        help="Wall-E's username [for Jira and Bitbucket]")
+    parser.add_argument(
+        '--email', default=WALL_E_EMAIL,
+        help="Wall-E's email [for Jira and Bitbucket]")
     parser.add_argument(
         '--reference-git-repo', default='',
         help="Reference to a local git repo to improve cloning delay. "
@@ -1530,32 +2261,8 @@ def main():
     options = setup_options(args)
     commands = setup_commands()
 
-    wall_e = WallE(WALL_E_USERNAME, args.password, WALL_E_EMAIL,
-                   args.owner, args.slug, args.pull_request_id.strip(),
-                   options, commands, SETTINGS[args.settings],
-                   args.interactive, args.no_comment)
+    return WallE(args, options, commands).handler()
 
-    try:
-        wall_e.handle_pull_request(args.reference_git_repo)
-    except WallE_TemplateException as excp:
-        wall_e.send_msg_and_continue(excp)
-
-        if args.backtrace:
-            raise excp
-
-        logging.info('Exception raised: %d %s', excp.code, excp.__class__)
-        if not args.quiet:
-            print('%d - %s' % (excp.code, excp.__class__.__name__))
-        return excp.code
-
-    except WallE_SilentException as excp:
-        if args.backtrace:
-            raise excp
-
-        logging.info('Exception raised: %d', excp.code)
-        if not args.quiet:
-            print('%d - %s' % (0, excp.__class__.__name__))
-        return 0
 
 if __name__ == '__main__':
     main()
