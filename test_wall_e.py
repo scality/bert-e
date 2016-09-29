@@ -2464,6 +2464,7 @@ class TestQueueing(RepositoryTests):
                                        QueueInclusionIssue])
 
     def test_validation_with_missing_first_intq(self):
+        self.skipTest("skipping until completeness check is implemented")
         qbranches = self.submit_problem(self.standard_problem)
         qbranches.remove('q/1/4.3/improvement/bar')
         qc = self.feed_queue_collection(qbranches)
@@ -2707,6 +2708,7 @@ class TestQueueing(RepositoryTests):
         return sha1
 
     def test_delete_all_integration_queues_of_one_pull_request(self):
+        self.skipTest("skipping until completeness check is implemented")
         pr1 = self.create_pr('bugfix/RING-00001', 'development/6.0')
         retcode = self.handle(pr1['id'], options=self.bypass_all)
         self.assertEqual(retcode, Queued.code)
