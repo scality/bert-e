@@ -49,7 +49,6 @@ def wall_e_launcher():
             '-v',
             '--owner', job.repo_owner,
             '--slug', job.repo_slug,
-            '--use-queue',
             str(job.revision),
             pwd
         ])
