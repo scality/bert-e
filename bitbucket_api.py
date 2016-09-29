@@ -1,12 +1,14 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+from collections import defaultdict
 from string import Template
 import json
 import six
 import urllib
 import logging
 
+from utils import LRUCache
 from requests import Session, HTTPError
 from requests.auth import HTTPBasicAuth
 
@@ -18,6 +20,10 @@ else:
 
 
 MAX_PR_TITLE_LEN = 255
+
+# Key: build_key
+# Value: LRUCache
+BUILD_STATUS_CACHE = defaultdict(LRUCache)
 
 
 def fix_pull_request_title(title):
@@ -131,7 +137,29 @@ class Repository(BitBucketObject):
     def get_build_status(self, **kwargs):
         kwargs['owner'] = self['owner']
         kwargs['repo_slug'] = self['repo_slug']
-        return BuildStatus.get(self.client, **kwargs)
+        sha1 = kwargs['revision']
+        key = kwargs['key']
+
+        # Check if a successful build for this sha1 is in cache
+        status = BUILD_STATUS_CACHE[key].get(sha1, None)
+        if status == 'SUCCESSFUL':
+            logging.debug('Build status on %s: cache GET (%s)', sha1, status)
+            return status
+
+        logging.debug('Build status on %s: cache MISS (%s)', sha1, status)
+
+        # Either not in cache or wasn't successful last time. Check BB again.
+        try:
+            status = BuildStatus.get(self.client, **kwargs)
+            return BUILD_STATUS_CACHE[key].set(sha1, status['state'])
+        except HTTPError as e:
+            if e.response.status_code == 404:
+                return BUILD_STATUS_CACHE[key].set(sha1, 'NOTSTARTED')
+            raise
+
+    def invalidate_build_status_cache(self):
+        """Reset cache entries (useful for tests)."""
+        BUILD_STATUS_CACHE.clear()
 
     def set_build_status(self, **kwargs):
         kwargs['owner'] = self['owner']

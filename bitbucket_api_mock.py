@@ -143,11 +143,14 @@ class Repository(BitBucketObject):
         try:
             return self.gitrepo.revisions[(revision, key)]
         except KeyError:
-            raise requests.exceptions.HTTPError(response=Error404Response())
+            return 'NOTSTARTED'
+
+    def invalidate_build_status_cache(self):
+        pass
 
     def set_build_status(self, revision, key, state, name, url):
         self.get_git_url()
-        self.gitrepo.revisions[(revision, key)] = {'state': state}
+        self.gitrepo.revisions[(revision, key)] = state
 
 
 class PullRequestController(Controller):
@@ -234,7 +237,7 @@ class PullRequest(BitBucketObject):
             "commit": Branch(self.repo.gitrepo, destination['branch']['name']),
             "repository": fake_repository_dict("sd")
         }
-        self.id = len(PullRequest.items)
+        self.id = len(PullRequest.items) + 1
         self.links = fake_links_dict(
             ['activity', 'approve', 'comments', 'commits',
              'decline', 'diff', 'html', 'merge', 'self'])
@@ -282,7 +285,7 @@ class Comment(BitBucketObject):
         self.created_on = "2013-11-19T21:19:24.138375+00:00"
         self.user = fake_user_dict(client.username)
         self.updated_on = "2013-11-19T21:19:24.141013+00:00"
-        self.id = len(Comment.items)
+        self.id = len(Comment.items) + 1
 
     def create(self):
         self.__class__.items.append(self)
