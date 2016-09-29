@@ -2771,8 +2771,6 @@ class TestQueueing(RepositoryTests):
         retcode = self.handle(pr['id'], options=self.bypass_all)
         self.assertEqual(retcode, Queued.code)
 
-        self.set_build_status_on_pr_id(pr['id']+1, 'SUCCESSFUL')
-
         old_sha1 = pr['source']['commit']['hash']
 
         # Add a new commit
@@ -2786,6 +2784,8 @@ class TestQueueing(RepositoryTests):
 
         with self.assertRaises(NothingToDo):
             self.handle(pr['id'], options=self.bypass_all, backtrace=True)
+
+        self.set_build_status_on_pr_id(pr['id']+1, 'SUCCESSFUL')
 
         with self.assertRaises(Merged):
             self.handle(old_sha1,
@@ -2813,8 +2813,6 @@ class TestQueueing(RepositoryTests):
         retcode = self.handle(pr['id'], options=self.bypass_all)
         self.assertEqual(retcode, Queued.code)
 
-        self.set_build_status_on_pr_id(pr['id']+1, 'SUCCESSFUL')
-
         old_sha1 = pr['source']['commit']['hash']
 
         # rewrite history of feature branch
@@ -2825,6 +2823,8 @@ class TestQueueing(RepositoryTests):
 
         with self.assertRaises(NothingToDo):
             self.handle(pr['id'], options=self.bypass_all, backtrace=True)
+
+        self.set_build_status_on_pr_id(pr['id']+1, 'SUCCESSFUL')
 
         with self.assertRaises(Merged):
             self.handle(old_sha1,
@@ -2854,17 +2854,11 @@ class TestQueueing(RepositoryTests):
                       'w/6.0/bugfix/RING-00001').get_latest_commit()
         self.gitrepo.cmd('git push origin')
 
-        with self.assertRaises(NothingToDo):
+        with self.assertRaises(Merged):
             self.handle(pr['id'], options=self.bypass_all, backtrace=True)
 
-        with self.assertRaises(Merged):
-            self.handle(pr['source']['commit']['hash'],
-                        options=self.bypass_all,
-                        backtrace=True)
-
         with self.assertRaises(NothingToDo):
-            retcode = self.handle(pr['id'], options=self.bypass_all,
-                                  backtrace=True)
+            self.handle(pr['id'], options=self.bypass_all, backtrace=True)
 
         self.gitrepo.cmd('git fetch')
         # Check the additional commit was not merged
