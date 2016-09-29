@@ -1,7 +1,11 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
-## [1.0.14] - 2016-06-23
+## [2.0.0] - 2016-09-29
+# Added
+- new queueing system
+
+## [1.0.14] - 2016-09-23
 # Added
 - new standalone webhook listener&parser (esteban)
 - (experimental) react to commit sha1 instead of pull-request ID
