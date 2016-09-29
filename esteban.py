@@ -111,7 +111,7 @@ def display_queue():
 
     if merged_prs:
         output.append('Recently merged Pull Requests:')
-        output.extend('* #' + pr_id for pr_id in merged_prs)
+        output.extend('* #{}'.format(pr_id) for pr_id in merged_prs)
         output.append('\n')
 
     if merge_queue:
