@@ -1,4 +1,73 @@
 from time import sleep
+from collections import deque
+
+
+class LRUCache(object):
+    """Simple LRU cache implementation."""
+
+    def __init__(self, size=1000):
+        """Build a new LRUCache.
+
+        Args:
+            * size (int): size of the cache. Defaults to 1000 items
+
+        """
+        self._size = size
+        self._dict = dict()
+        self._keys = deque()
+
+    def get(self, key, default):
+        """Get an item from the cache.
+
+        Args:
+            * key (hashable): key of the item to get.
+            * default: default value to return if key is absent.
+
+        Returns:
+            The value associated to the key, of default value if absent.
+
+        """
+        try:
+            self._keys.remove(key)
+            self._keys.appendleft(key)
+            return self._dict[key]
+        except ValueError:
+            return default
+
+    def set(self, key, val):
+        """Add an item into the cache.
+
+        If key is already present, move it to top and replace its value.
+        Else, make room in the cache for the new value, by deleting old
+        entries.
+
+        Args:
+            * key (hashable): key of the new object
+            * val: value to associate to the key
+
+        """
+        try:
+            # Key is in cache. Move it to top.
+            self._keys.remove(key)
+            self._keys.appendleft(key)
+        except ValueError:
+            # Key is not in cache. Make room for it.
+            while len(self._keys) > self._size - 1:
+                self._dict.pop(self._keys.pop())
+        self._dict[key] = val
+        return val
+
+    @property
+    def size(self):
+        """Size of the cache."""
+        return self._size
+
+    @size.setter
+    def size(self, val):
+        """Setting the size property of the cache allows to redimension it."""
+        self._size = val
+        while len(self._keys) > val:
+            self._dict.pop(self._keys.pop())
 
 
 class RetryTimeout(Exception):

@@ -104,9 +104,10 @@ class Repository(object):
         except CommandError:
             raise PushFailedException(name)
 
-    def push_all(self):
+    def push_all(self, prune=False):
+        prune = '--prune' if prune else ''
         try:
-            self.cmd('git push --all --atomic')
+            self.cmd('git push --all --atomic %s' % prune)
         except CommandError as err:
             raise PushFailedException(err)
 
@@ -170,7 +171,7 @@ class Branch(object):
         return True
 
     def get_latest_commit(self):
-        return self.repo.cmd('git rev-parse %s', self.name)
+        return self.repo.cmd('git rev-parse %s', self.name).rstrip()
 
     def exists(self):
         try:
@@ -181,6 +182,10 @@ class Branch(object):
 
     def checkout(self):
         self.repo.checkout(self.name)
+
+    def reset(self):
+        self.repo.cmd('git checkout %s', self.name)
+        self.repo.cmd('git reset --hard origin/%s', self.name)
 
     def push(self):
         self.repo.push(self.name)
@@ -194,12 +199,15 @@ class Branch(object):
             raise BranchCreationFailedException(msg)
         self.push()
 
-    def remove(self):
+    def remove(self, do_push=False):
         # hardcode a security since wall-e is all-powerful
-        if not self.name.startswith('w/'):
+        if not (self.name.startswith('w/') or self.name.startswith('q/')):
             raise ForbiddenOperation('cannot delete branch %s' %
                                      self.name)
 
+        self.repo.cmd('git branch -D %s', self.name)
+        if not do_push:
+            return
         try:
             self.repo.push(':' + self.name)
         except PushFailedException:
