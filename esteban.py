@@ -104,11 +104,11 @@ def display_queue():
 
     merged_prs = wall_e.STATUS.get('merged PRs', None)
     merge_queue = wall_e.STATUS.get('merge_queue', None)
-    current_job = wall_e.STATUS.get('current job', None)
+    cur_job = wall_e.STATUS.get('current job', None)
 
     tasks = FIFO.queue
-    if current_job is not None:
-        output.append('Current job: [{3}] {0}/{1} - {2}\n'.format(current_job))
+    if cur_job is not None:
+        output.append('Current job: [{3}] {0}/{1} - {2}\n'.format(*cur_job))
 
     if merged_prs:
         output.append('Recently merged Pull Requests:')
