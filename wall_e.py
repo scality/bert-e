@@ -2310,7 +2310,11 @@ def main():
     options = setup_options(args)
     commands = setup_commands()
 
-    return WallE(args, options, commands).handler()
+    walle = WallE(args, options, commands)
+    try:
+        walle.handler()
+    finally:
+        walle.repo.delete()
 
 
 if __name__ == '__main__':
