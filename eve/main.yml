@@ -1,6 +1,6 @@
 ---
 branches:
-  feature/*, bugfix/*, improvement/*, w/*:
+  feature/*, bugfix/*, improvement/*, w/*, q/*:
     stage: tests
 
 stages:
@@ -22,7 +22,18 @@ stages:
           name: Esteban tests
           command: coverage run -a test_esteban.py
       - ShellCommand:
-          name: Wall-E tests
+          name: Wall-E tests (no queue support)
+          command: coverage run -a test_wall_e.py
+                     -v
+                     --repo-prefix _test_wall_e_eve
+                     --disable-queues
+                     foo
+                     bar
+                     sylvain_killian
+                     foo
+                     sylvain.killian@scality.com
+      - ShellCommand:
+          name: Wall-E tests with queue support
           command: coverage run -a test_wall_e.py
                      -v
                      --repo-prefix _test_wall_e_eve
