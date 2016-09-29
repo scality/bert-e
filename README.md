@@ -20,36 +20,39 @@ $ pip install flake8 jira==1.0.3 requests==2.9.1 six-1.10.0 Jinja2==2.7.1
 $ python python wall_e.py <pull_request_id> <wall_e_pasword>
 
 $ python wall_e.py --help
-usage: wall_e.py [-h] [--option CMD_LINE_OPTIONS]
+usage: wall_e.py [-h] [--disable-queues] [--option CMD_LINE_OPTIONS]
+                 [--username USERNAME] [--email EMAIL]
                  [--reference-git-repo REFERENCE_GIT_REPO] [--owner OWNER]
                  [--slug SLUG] [--settings SETTINGS] [--interactive]
-                 [--no-comment] [-v] [--alert-email ALERT_EMAIL] [--backtrace]
-                 [--quiet]
-                 pull_request_id password
+                 [--no-comment] [-v] [--backtrace] [--quiet]
+                 token password
 
 Merges bitbucket pull requests.
 
 positional arguments:
-  pull_request_id       The ID of the pull request
+  token                 The ID of the pull request or sha1 ([12, 40]
+                        characters) to analyse
   password              Wall-E's password [for Jira and Bitbucket]
 
 optional arguments:
   -h, --help            show this help message and exit
+  --disable-queues      Deactivate optimistic merge queue (legacy mode)
   --option CMD_LINE_OPTIONS, -o CMD_LINE_OPTIONS
                         Activate additional options
+  --username USERNAME   Wall-E's username [for Jira and Bitbucket]
+  --email EMAIL         Wall-E's email [for Jira and Bitbucket]
   --reference-git-repo REFERENCE_GIT_REPO
-                        Reference to a local git repo to improve cloning delay
+                        Reference to a local git repo to improve cloning
+                        delay. If empty, a local clone will be created
   --owner OWNER         The owner of the repo (default: scality)
   --slug SLUG           The repo's slug (default: ring)
   --settings SETTINGS   The settings to use (default to repository slug)
   --interactive         Ask before merging or sending comments
   --no-comment          Do not add any comment to the pull request page
   -v                    Verbose mode
-  --alert-email ALERT_EMAIL
-                        Where to send notifications in case of incorrect
-                        behaviour
   --backtrace           Show backtrace instead of return code on console
   --quiet               Don't print return codes on the console
+
 ```
 
 ### How to launch tests? ###
