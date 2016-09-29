@@ -121,7 +121,6 @@ def display_queue():
                 continue
             build_status = []
             for version, sha1 in queued_commits:
-                print sha1
                 build = BUILD_STATUS_CACHE['pre-merge'].get(sha1, 'INPROGRESS')
                 build_status.append('{}: {}'.format(version, build))
 
