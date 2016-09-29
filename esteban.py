@@ -15,6 +15,8 @@ from threading import Thread
 from flask import Flask, request, Response
 from raven.contrib.flask import Sentry
 
+from bitbucket_api import BUILD_STATUS_CACHE
+
 import wall_e
 if sys.version_info.major < 3:
     import Queue as queue
@@ -46,6 +48,7 @@ def wall_e_launcher():
             '-v',
             '--owner', job.repo_owner,
             '--slug', job.repo_slug,
+            '--use-queue',
             str(job.revision),
             pwd
         ])
@@ -96,8 +99,36 @@ def requires_auth(func):
 @APP.route('/', methods=['GET'])
 def display_queue():
     output = []
+
+    merged_prs = wall_e.STATUS.get('merged PRs', None)
+    merge_queue = wall_e.STATUS.get('merge_queue', None)
+    current_job = wall_e.STATUS.get('current job', None)
+
     tasks = FIFO.queue
-    output.append('{0} queued jobs:'.format(len(tasks)))
+    if current_job is not None:
+        output.append('Current job: [{3}] {0}/{1} - {2}\n'.format(current_job))
+
+    if merged_prs:
+        output.append('Recently merged Pull Requests:')
+        output.extend('* #' + pr_id for pr_id in merged_prs)
+        output.append('\n')
+
+    if merge_queue:
+        output.append('Merge queue status:')
+        for pr_id, queued_commits in merge_queue.items():
+            build_status = []
+            for version, sha1 in queued_commits:
+                build = BUILD_STATUS_CACHE['pre-merge'].get(sha1, 'INPROGRESS')
+                build_status.append('{}: {}'.format(version, build))
+
+            output.append(
+                '* #{}\t{}'.format(pr_id, ''.join(
+                    '{:<20}'.format(b) for b in build_status
+                ))
+            )
+        output.append('\n')
+
+    output.append('{0} pending jobs:'.format(len(tasks)))
     output.extend('* [{3}] {0}/{1} - {2}'.format(*job) for job in tasks)
     output.append('\nCompleted jobs:')
     output.extend('* [{3}] {0}/{1} - {2}'.format(*job) for job in DONE)
@@ -146,11 +177,18 @@ def handle_repo_event(event, json_data):
     """
     if event in ['commit_status_created', 'commit_status_updated']:
         build_status = json_data['commit_status']['state']
+        key = json_data['commit_status']['key']
+        commit_url = json_data['commit_status']['links']['commit']['href']
+        commit_sha1 = commit_url.split('/')[-1]
+
+        # If we don't have a successful build for this sha1, update the cache
+        if (BUILD_STATUS_CACHE[key].get(commit_sha1, 'SUCCESSFUL') !=
+                'SUCCESSFUL'):
+            BUILD_STATUS_CACHE[key].set(commit_sha1, build_status)
+
         # Ignore notifications that the build started
         if build_status == 'INPROGRESS':
             return
-        commit_url = json_data['commit_status']['links']['commit']['href']
-        commit_sha1 = commit_url.split('/')[-1]
         logging.info('The build status of commit <%s> has been updated: %s',
                      commit_sha1, commit_url)
         return commit_sha1

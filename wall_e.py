@@ -4,7 +4,7 @@
 import argparse
 import itertools
 import logging
-from collections import OrderedDict
+from collections import OrderedDict, deque
 from copy import deepcopy
 from functools import total_ordering
 
@@ -149,6 +149,11 @@ JIRA_ISSUE_BRANCH_PREFIX = {
     'Bug': 'bugfix',
     'Improvement': 'improvement'
 }
+
+
+# This variable is used to get an introspectable status that Esteban can
+# display.
+STATUS = {}
 
 
 class Option(object):
@@ -441,7 +446,7 @@ class QueueCollection(object):
     @property
     def mergeable_queues(self):
         """Return a collection of queues suitable for merge.
-        
+
         This only works after the collection is validated.
 
         """
@@ -452,7 +457,7 @@ class QueueCollection(object):
     @property
     def mergeable_prs(self):
         """Return the list of pull requests suitable for merge.
-        
+
         This only works after the collection is validated.
 
         """
@@ -484,7 +489,7 @@ class QueueCollection(object):
 
     def _horizontal_validation(self, version):
         """Validation of the queue collection on one given version.
-        
+
         Called by validate().
 
         """
@@ -599,8 +604,8 @@ class QueueCollection(object):
             else:
                 # and stack should be empty too
                 for version in versions:
-                    if (version in stack
-                            and stack[version][QueueIntegrationBranch]):
+                    if (version in stack and
+                            stack[version][QueueIntegrationBranch]):
                         errors.append(QueueInconsistentPullRequestsOrder())
         return errors
 
@@ -657,7 +662,7 @@ class QueueCollection(object):
     def _recursive_lookup(self, queues):
         """Given a set of queues, remove all queues that can't be merged,
         based on the build status obtained from the repository manager.
-        
+
         A pull request must be removed from the list if the build on at least
         one version is FAILED, and if this failure is not recovered by
         a later pull request.
@@ -722,7 +727,7 @@ class QueueCollection(object):
     def _remove_unmergeable(self, prs, queues):
         """Given a set of queues, remove all queues that are not in
         the provided list of pull request ids.
-        
+
         """
         for version in queues.keys():
             while (queues[version][QueueIntegrationBranch] and
@@ -1095,15 +1100,18 @@ class WallE:
         cascade = BranchCascade()
         cascade.build(self.repo)
         qc = self._validate_queues(cascade)
-
         if not qc.mergeable_prs:
             raise NothingToDo()
+
+        # Update the queue status
+        update_queue_status(qc)
 
         self._merge_queues(qc.mergeable_queues)
 
         # notify PRs and cleanup
         for pr_id in qc.mergeable_prs:
             self._close_queued_pull_request(pr_id, deepcopy(cascade))
+            add_merged_pr(pr_id)
 
         # git push --all --force --prune
         self._push(prune=True)
@@ -2090,6 +2098,7 @@ class WallE:
 
         else:
             self._merge(integration_branches)
+            add_merged_pr(self._pr.bb_pr['id'])
             self._validate_repo()
             raise SuccessMessage(
                 branches=self._cascade.destination_branches,
@@ -2097,6 +2106,26 @@ class WallE:
                 issue=self._pr.source_branch.jira_issue_key,
                 author=self._pr.author_display_name,
                 active_options=self._get_active_options())
+
+
+def update_queue_status(queue_collection):
+    queues = queue_collection._queues
+    qib = QueueIntegrationBranch
+    status = OrderedDict()
+    # initialize status dict
+    for branch in reversed(queues[queues.keys()[-1]][qib]):
+        status[branch.pr_id] = []
+
+    for version, queue in reversed(queues.items()):
+        for branch in queue[qib]:
+            status[branch.pr_id].append((version, branch.get_latest_commit()))
+
+    STATUS['merge queue'] = status
+
+
+def add_merged_pr(pr_id):
+    merged_prs = STATUS.setdefault('merged PRs', deque(maxlen=10))
+    merged_prs.append(pr_id)
 
 
 def setup_parser():
