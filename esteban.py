@@ -43,12 +43,12 @@ def wall_e_launcher():
     while True:
         job = FIFO.get()
         sys.argv[:] = []
+        wall_e.STATUS['current job'] = job
         sys.argv.extend([
             'wall_e',
             '-v',
             '--owner', job.repo_owner,
             '--slug', job.repo_slug,
-            '--use-queue',
             str(job.revision),
             pwd
         ])
@@ -67,6 +67,7 @@ def wall_e_launcher():
                           datetime.now() - job.start_time,
                           job.repo_slug, job.revision)
             DONE.appendleft(job)
+            wall_e.STATUS.pop('current job')
 
 
 def check_auth(username, password):
@@ -102,11 +103,11 @@ def display_queue():
 
     merged_prs = wall_e.STATUS.get('merged PRs', None)
     merge_queue = wall_e.STATUS.get('merge_queue', None)
-    current_job = wall_e.STATUS.get('current job', None)
+    cur_job = wall_e.STATUS.get('current job', None)
 
     tasks = FIFO.queue
-    if current_job is not None:
-        output.append('Current job: [{3}] {0}/{1} - {2}\n'.format(current_job))
+    if cur_job is not None:
+        output.append('Current job: [{3}] {0}/{1} - {2}\n'.format(*cur_job))
 
     if merged_prs:
         output.append('Recently merged Pull Requests:')
