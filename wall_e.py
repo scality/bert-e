@@ -2312,7 +2312,7 @@ def main():
 
     walle = WallE(args, options, commands)
     try:
-        walle.handler()
+        return walle.handler()
     finally:
         walle.repo.delete()
 
