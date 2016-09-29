@@ -43,6 +43,7 @@ def wall_e_launcher():
     while True:
         job = FIFO.get()
         sys.argv[:] = []
+        wall_e.STATUS['current job'] = job
         sys.argv.extend([
             'wall_e',
             '-v',
@@ -67,6 +68,7 @@ def wall_e_launcher():
                           datetime.now() - job.start_time,
                           job.repo_slug, job.revision)
             DONE.appendleft(job)
+            wall_e.STATUS.pop('current job')
 
 
 def check_auth(username, password):
