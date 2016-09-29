@@ -185,8 +185,7 @@ def handle_repo_event(event, json_data):
         commit_sha1 = commit_url.split('/')[-1]
 
         # If we don't have a successful build for this sha1, update the cache
-        if (BUILD_STATUS_CACHE[key].get(commit_sha1, 'SUCCESSFUL') !=
-                'SUCCESSFUL'):
+        if BUILD_STATUS_CACHE[key].get(commit_sha1, None) != 'SUCCESSFUL':
             BUILD_STATUS_CACHE[key].set(commit_sha1, build_status)
 
         # Ignore notifications that the build started
