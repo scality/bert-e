@@ -1100,11 +1100,12 @@ class WallE:
         cascade = BranchCascade()
         cascade.build(self.repo)
         qc = self._validate_queues(cascade)
-        if not qc.mergeable_prs:
-            raise NothingToDo()
 
         # Update the queue status
         update_queue_status(qc)
+
+        if not qc.mergeable_prs:
+            raise NothingToDo()
 
         self._merge_queues(qc.mergeable_queues)
 
@@ -2046,8 +2047,7 @@ class WallE:
             self._pr.source_branch)
 
         if self.use_queue and self._already_in_queue(integration_branches):
-            # Nothing to do, just wait for the queue to be handled :)
-            raise NothingToDo()
+            self.handle_merge_queues()
 
         in_sync = self._check_in_sync(integration_branches)
 

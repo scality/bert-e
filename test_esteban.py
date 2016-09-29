@@ -1,14 +1,17 @@
+import base64
+import json
+import os
 import unittest
 
-import esteban
-import json
 from test_esteban_data import COMMENT_CREATED, COMMIT_STATUS_CREATED
 from copy import deepcopy
+from collections import OrderedDict
 
 import bitbucket_api
 import bitbucket_api_mock
-import os
-import base64
+
+import esteban
+import wall_e
 
 bitbucket_api.Client = bitbucket_api_mock.Client
 bitbucket_api.Repository = bitbucket_api_mock.Repository
@@ -59,6 +62,40 @@ class TestWebhookListener(unittest.TestCase):
         # consume job
         esteban.FIFO.get()
         esteban.FIFO.task_done()
+
+    def test_walle_status(self):
+        wall_e.STATUS['merge queue'] = OrderedDict([
+            ('10', [('4.3', '0033deadbeef'), ('6.0', '13370badf00d')])
+        ])
+
+        wall_e.STATUS['merged PRs'] = [1, 2, 3]
+
+        app = esteban.APP.test_client()
+        res = app.get('/')
+
+        # Check merged Pull Requests and merge queue status appear in monitor
+        # view
+        assert 'Recently merged Pull Requests:' in res.data
+        assert '* #1\n* #2\n* #3' in res.data
+        assert 'Merge queue status:' in res.data
+        assert '* #10\t4.3: INPROGRESS     6.0: INPROGRESS' in res.data
+
+        # Update cache with a successful and a failed build
+        bitbucket_api.BUILD_STATUS_CACHE['pre-merge'].set('0033deadbeef',
+                                                          'FAILED')
+        bitbucket_api.BUILD_STATUS_CACHE['pre-merge'].set('13370badf00d',
+                                                          'SUCCESS')
+
+        res = app.get('/')
+        assert '* #10\t4.3: FAILED         6.0: SUCCESS' in res.data
+
+        # Everything is merged, the queue status shouldn't appear anymore
+        wall_e.STATUS['merged PRs'].append(10)
+        res = app.get('/')
+
+        # PR #10 should appear as merged
+        assert '* #10\n' in res.data
+        assert 'Merge queue status:' not in res.data
 
 
 if __name__ == '__main__':
