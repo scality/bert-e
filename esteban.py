@@ -102,7 +102,7 @@ def display_queue():
     output = []
 
     merged_prs = wall_e.STATUS.get('merged PRs', [])
-    merge_queue = wall_e.STATUS.get('merge_queue', None)
+    merge_queue = wall_e.STATUS.get('merge queue', None)
     cur_job = wall_e.STATUS.get('current job', None)
 
     tasks = FIFO.queue
@@ -112,7 +112,7 @@ def display_queue():
     if merged_prs:
         output.append('Recently merged Pull Requests:')
         output.extend('* #{}'.format(pr_id) for pr_id in merged_prs)
-        output.append('\n')
+        output.append('')
 
     if merge_queue:
         output.append('Merge queue status:')
@@ -121,6 +121,7 @@ def display_queue():
                 continue
             build_status = []
             for version, sha1 in queued_commits:
+                print sha1
                 build = BUILD_STATUS_CACHE['pre-merge'].get(sha1, 'INPROGRESS')
                 build_status.append('{}: {}'.format(version, build))
 
@@ -129,7 +130,10 @@ def display_queue():
                     '{:<20}'.format(b) for b in build_status
                 ))
             )
-        output.append('\n')
+        if output[-1] == 'Merge queue status:':
+            output.pop()
+        else:
+            output.append('')
 
     output.append('{0} pending jobs:'.format(len(tasks)))
     output.extend('* [{3}] {0}/{1} - {2}'.format(*job) for job in tasks)

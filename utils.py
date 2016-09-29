@@ -49,12 +49,12 @@ class LRUCache(object):
         try:
             # Key is in cache. Move it to top.
             self._keys.remove(key)
-            self._keys.appendleft(key)
         except ValueError:
             # Key is not in cache. Make room for it.
             while len(self._keys) > self._size - 1:
                 self._dict.pop(self._keys.pop())
         self._dict[key] = val
+        self._keys.appendleft(key)
         return val
 
     @property
