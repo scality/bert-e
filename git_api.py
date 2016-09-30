@@ -57,9 +57,6 @@ class Repository(object):
         self.cmd_directory = os.path.join(self.tmp_directory, repo_slug)
 
     def fetch_all_branches(self):
-        for remote in self.cmd("git branch -r").split('\n')[:-1]:
-            local = remote.replace('origin/', '').split()[-1]
-            self.cmd("git branch --track %s %s || exit 0", local, remote)
         self.cmd('git fetch --all')
         self.cmd('git pull --all || exit 0')
 
