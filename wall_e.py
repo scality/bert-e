@@ -846,6 +846,7 @@ class BranchCascade(object):
         if not branch.can_be_destination:
             logging.debug("Discard non destination branch: %s", branch)
             return
+        branch.reset()
         (major, minor) = branch.major, branch.minor
         if (major, minor) not in self._cascade.keys():
             self._cascade[(major, minor)] = {
