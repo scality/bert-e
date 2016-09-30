@@ -432,13 +432,14 @@ class QueueInconsistentPullRequestsOrder(QueueValidationError):
         super(QueueInconsistentPullRequestsOrder, self).__init__(msg)
 
 
-class QueueIncomplete(QueueValidationError):
+class IncompleteQueue(QueueValidationError):
     code = 'Q009'
     auto_recovery = False
 
-    def __init__(self):
-        msg = 'An integration queue is missing'
-        super(QueueIncomplete, self).__init__(msg)
+    def __init__(self, masterq, intq):
+        msg = 'Integration queue {intq} is missing ' \
+              'compared to master queue {masterq}'.format(**locals())
+        super(IncompleteQueue, self).__init__(msg)
 
 
 # silent exceptions

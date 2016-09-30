@@ -57,14 +57,14 @@ from wall_e_exceptions import (AfterPullRequest,
                                VersionMismatch,
                                WallE_SilentException,
                                WallE_TemplateException)
-from wall_e_exceptions import (MasterQueueDiverged,
+from wall_e_exceptions import (IncompleteQueue,
+                               MasterQueueDiverged,
                                MasterQueueLateVsDev,
                                MasterQueueLateVsInt,
                                MasterQueueMissing,
                                MasterQueueNotInSync,
                                MasterQueueYoungerThanInt,
                                QueueInclusionIssue,
-                               QueueIncomplete,
                                QueueInconsistentPullRequestsOrder)
 
 WALL_E_USERNAME = wall_e.WALL_E_USERNAME
@@ -2109,6 +2109,7 @@ class TestQueueing(RepositoryTests):
 
     def feed_queue_collection(self, qbranches):
         qc = wall_e.QueueCollection(
+            self.gitrepo,
             self.bbrepo_wall_e,
             'pipeline',
             merge_paths=[  # see initialize_git_repo
@@ -2466,14 +2467,13 @@ class TestQueueing(RepositoryTests):
                                        QueueInclusionIssue])
 
     def test_validation_with_missing_first_intq(self):
-        self.skipTest("skipping until completeness check is implemented")
         qbranches = self.submit_problem(self.standard_problem)
         qbranches.remove('q/1/4.3/improvement/bar')
         qc = self.feed_queue_collection(qbranches)
         qc.finalize()
         with self.assertRaises(IncoherentQueues) as excp:
             qc.validate()
-        self.assert_error_codes(excp, [QueueIncomplete])
+        self.assert_error_codes(excp, [IncompleteQueue])
 
     def test_validation_with_missing_middle_intq(self):
         qbranches = self.submit_problem(self.standard_problem)
@@ -2717,7 +2717,6 @@ class TestQueueing(RepositoryTests):
         return sha1
 
     def test_delete_all_integration_queues_of_one_pull_request(self):
-        self.skipTest("skipping until completeness check is implemented")
         pr1 = self.create_pr('bugfix/RING-00001', 'development/6.0')
         retcode = self.handle(pr1['id'], options=self.bypass_all)
         self.assertEqual(retcode, Queued.code)
@@ -2738,10 +2737,12 @@ class TestQueueing(RepositoryTests):
         sha1 = self.set_build_status_on_branch_tip(
                 'q/3/6.0/bugfix/RING-00002', 'SUCCESSFUL')
 
-        with self.assertRaises(IncoherentQueues):
+        with self.assertRaises(IncoherentQueues) as excp:
             self.handle(sha1,
                         options=self.bypass_all,
                         backtrace=True)
+
+        self.assert_error_codes(excp, [IncompleteQueue])
 
         # check the content of pr1 is not merged
         dev.checkout()

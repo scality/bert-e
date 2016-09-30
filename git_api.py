@@ -190,13 +190,15 @@ class Branch(object):
     def push(self):
         self.repo.push(self.name)
 
-    def create(self, source_branch):
+    def create(self, source_branch, do_push=False):
         self.repo.checkout(source_branch.name)
         try:
             self.repo.cmd('git checkout -b %s', self.name)
         except CommandError:
             msg = "branch:%s source:%s" % (self.name, source_branch.name)
             raise BranchCreationFailedException(msg)
+        if not do_push:
+            return
         self.push()
 
     def remove(self, do_push=False):
@@ -212,6 +214,27 @@ class Branch(object):
             self.repo.push(':' + self.name)
         except PushFailedException:
             raise RemoveFailedException()
+
+    def revert_up_to(self, sha1, merge_line=1):
+        #parents = self.repo.cmd('git log --pretty=%%P -n 1 %s', sha1)
+        #parents_cnt = len(parents.split(' '))
+
+        self.repo.cmd('git reset --hard %s', sha1)
+        self.repo.cmd('git reset --soft HEAD@{1}')
+        self.repo.cmd('git commit --allow-empty -m "reverted all up to %s"', sha1)
+
+        #if (parents_cnt > 1):
+        #    # revert merge commit and keep selected line (mainline by default)
+        #    self.repo.cmd('git revert --no-edit -m %s %s', merge_line, sha1)
+        #else:
+        #    self.repo.cmd('git revert --no-edit %s', sha1)
+
+    def diff(self, other_branch):
+        self.repo.checkout(other_branch.name)
+        log = self.repo.cmd('git diff %s %s',
+                            other_branch.name, self.name,
+                            universal_newlines=True)
+        return log
 
     def __repr__(self):
         return self.name

@@ -73,7 +73,8 @@ from wall_e_exceptions import (AfterPullRequest,
                                VersionMismatch,
                                WallE_SilentException,
                                WallE_TemplateException)
-from wall_e_exceptions import (MasterQueueDiverged,
+from wall_e_exceptions import (IncompleteQueue,
+                               MasterQueueDiverged,
                                MasterQueueLateVsDev,
                                MasterQueueLateVsInt,
                                MasterQueueMissing,
@@ -419,7 +420,8 @@ def branch_factory(repo, branch_name):
 class QueueCollection(object):
     """Manipulate and analyse all active queues in the repository."""
 
-    def __init__(self, bbrepo, build_key, merge_paths):
+    def __init__(self, repo, bbrepo, build_key, merge_paths):
+        self.repo = repo
         self.bbrepo = bbrepo
         self.build_key = build_key
         self.merge_paths = merge_paths
@@ -428,15 +430,15 @@ class QueueCollection(object):
         self._mergeable_prs = []
         self._validated = False
 
-    def build(self, repo):
+    def build(self):
         """Collect q branches from repository, add them to the collection."""
         cmd = 'git branch -r --list origin/q/*'
-        for branch in repo.cmd(cmd).split('\n')[:-1]:
+        for branch in self.repo.cmd(cmd).split('\n')[:-1]:
             match_ = re.match('\s*origin/(?P<name>.*)', branch)
             if not match_:
                 continue
             try:
-                branch = branch_factory(repo, match_.group('name'))
+                branch = branch_factory(self.repo, match_.group('name'))
             except UnrecognizedBranchPattern:
                 continue
             self._add_branch(branch)
@@ -535,16 +537,39 @@ class QueueCollection(object):
                             masterq, greatest_intq))
 
             # check each integration queue contains the previous one
+
+            # make copy of masterq to check completeness
+            masterq.checkout()
+            tmp = Branch(self.repo, 'q/tmp/completeness')
+            tmp.create(masterq)
+
             nextq = masterq
             for intq in self._queues[version][QueueIntegrationBranch]:
+                diff_1 = tmp.diff(intq)
+                diff_2 = nextq.diff(intq)
+                if diff_1 != diff_2:
+                    errors.append(IncompleteQueue(masterq, intq))
                 if not nextq.includes_commit(intq):
                     errors.append(QueueInclusionIssue(nextq, intq))
                 nextq = intq
+                tmp.checkout()
+                try:
+                    tmp.revert_up_to(intq.get_latest_commit())
+                except:
+                    # cannot revert if commit not on branch
+                    errors.append(MasterQueueDiverged(
+                        masterq, greatest_intq))
+            diff_1 = tmp.diff(masterq.destination_branch)
+            diff_2 = nextq.diff(masterq.destination_branch)
+            if diff_1 != diff_2:
+                errors.append(IncompleteQueue(masterq, nextq))
             if not nextq.includes_commit(masterq.destination_branch):
                 errors.append(QueueInclusionIssue(
                     nextq,
                     masterq.destination_branch
                 ))
+            masterq.checkout()
+            tmp.remove()
         return errors
 
     def _vertical_validation(self, stack, versions):
@@ -1950,11 +1975,12 @@ class WallE:
 
     def _validate_queues(self, cascade):
         qc = QueueCollection(
+            self.repo,
             self.bbrepo,
             self.settings['build_key'],
             cascade.get_merge_paths()
         )
-        qc.build(self.repo)
+        qc.build()
         # extract destination branches from cascade
         qc.validate()
         return qc
