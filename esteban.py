@@ -53,12 +53,13 @@ def wall_e_launcher():
             pwd
         ])
         try:
-            wall_e.main()
+            ret = wall_e.main()
+            logging.info("Wall-E finished with code %d", ret)
         except Exception as err:
             if SENTRY:
                 SENTRY.captureException()
             else:
-                logging.error("Wall-e job %s finished with an error: %s",
+                logging.error("Wall-E job %s finished with an error: %s",
                               job, err)
         finally:
             FIFO.task_done()
