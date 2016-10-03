@@ -7,6 +7,7 @@ import logging
 from collections import OrderedDict, deque
 from copy import deepcopy
 from functools import total_ordering
+from os.path import exists
 
 import bitbucket_api
 import jira_api
@@ -1019,6 +1020,7 @@ class WallE:
         self.use_queue = not args.disable_queues
         self.username = args.username
         self.repo = self._clone_git_repo()
+        self.tmpdir = self.repo.tmp_directory
 
     def test_sha1_in_queue(self, sha1):
         cmd = 'git branch -r --contains %s "origin/q/*"'
@@ -2315,6 +2317,8 @@ def main():
         return walle.handler()
     finally:
         walle.repo.delete()
+        assert not exists(walle.tmpdir), (
+            "temporary workdir '%s' wasn't deleted!" % walle.tmpdir)
 
 
 if __name__ == '__main__':
