@@ -38,9 +38,9 @@ Here are the steps to resolve this conflict:
 #!bash
  $ git fetch
  $ git checkout {{ wbranch.name }}
- $ git merge origin/{{ wbranch.destination_branch.name }}
- $ # <intense conflict resolution>
  $ git merge origin/{{ source.name }}
+ $ # <intense conflict resolution>
+ $ git merge origin/{{ wbranch.destination_branch.name }}
  $ # <intense conflict resolution>
  $ git push origin HEAD:{{ wbranch.name }}
 ```

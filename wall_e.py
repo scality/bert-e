@@ -1675,7 +1675,7 @@ class WallE:
 
     def _update(self, wbranch, source, origin=False):
         try:
-            wbranch.merge(wbranch.destination_branch, source)
+            wbranch.merge(source, wbranch.destination_branch)
         except MergeFailedException:
             raise Conflict(source=source,
                            wbranch=wbranch,
@@ -2076,8 +2076,7 @@ class WallE:
                 for branch in integration_branches:
                     branch.reset()
         finally:
-            if not self.use_queue or not in_sync:
-                self._push()
+            self._push(integration_branches)
 
         child_prs = self._create_pull_requests(integration_branches)
 
