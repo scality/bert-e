@@ -8,8 +8,12 @@ from template_loader import render
 NEVER_REPEAT = None
 
 
+class WallE_Exception(Exception):
+    code = -1
+
+
 # base exceptions
-class WallE_TemplateException(Exception):
+class WallE_TemplateException(WallE_Exception):
     code = 0
     template = None
     # whether to re-publish if the message is already in the history
@@ -25,11 +29,11 @@ class WallE_TemplateException(Exception):
         super(WallE_TemplateException, self).__init__(self.msg)
 
 
-class WallE_InternalException(Exception):
+class WallE_InternalException(WallE_Exception):
     code = 1
 
 
-class WallE_SilentException(Exception):
+class WallE_SilentException(WallE_Exception):
     code = 2
 
 

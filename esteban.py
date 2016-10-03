@@ -44,9 +44,7 @@ for name in dir(wall_e_exceptions):
     obj = getattr(wall_e_exceptions, name)
     if not isinstance(obj, type):
         continue
-    if not issubclass(obj, Exception):
-        continue
-    if not hasattr(obj, 'code'):
+    if not issubclass(obj, wall_e_exceptions.WallE_Exception):
         continue
     CODE_NAMES[obj.code] = name
 
@@ -68,7 +66,7 @@ def wall_e_launcher():
         ])
         try:
             retcode = wall_e.main()
-            retcode = CODE_NAMES.get(retcode, 'XXX')
+            status = CODE_NAMES.get(retcode, 'Unknown status: %s' % retcode)
         except Exception as err:
             if SENTRY:
                 SENTRY.captureException()
@@ -76,14 +74,14 @@ def wall_e_launcher():
                 logging.error("Wall-e job %s finished with an error: %s",
                               job, err)
             retcode = getattr(err, 'code', None)
-            retcode = CODE_NAMES.get(retcode, type(err).__name__)
+            status = CODE_NAMES.get(retcode, type(err).__name__)
         finally:
             FIFO.task_done()
 
             logging.debug("It took Esteban %s to handle job %s:%s",
                           datetime.now() - job.start_time,
                           job.repo_slug, job.revision)
-            DONE.appendleft((job, retcode))
+            DONE.appendleft((job, status))
             wall_e.STATUS.pop('current job')
 
 
@@ -138,7 +136,7 @@ def display_queue():
             for version, _ in queued_commits:
                 versions.add(version)
 
-        versions = list(sorted(versions))[::-1]
+        versions = sorted(versions, reverse=True)
         header = (' ' * 10) + ''.join('{:^15}'.format(v) for v in versions)
 
         output.append(header)
@@ -168,8 +166,8 @@ def display_queue():
     output.append('{0} pending jobs:'.format(len(tasks)))
     output.extend('* [{3}] {0}/{1} - {2}'.format(*job) for job in tasks)
     output.append('\nCompleted jobs:')
-    output.extend('* [{4}] {1}/{2} - {3} -> {0}'.format(code, *job)
-                  for job, code in DONE)
+    output.extend('* [{4}] {1}/{2} - {3} -> {0}'.format(status, *job)
+                  for job, status in DONE)
     return Response('\n'.join(output), mimetype='text/plain')
 
 

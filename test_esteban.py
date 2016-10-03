@@ -132,20 +132,17 @@ class TestWebhookListener(unittest.TestCase):
             'Merge queue status:',
             '                6.4           6.3.0           6.3            6.2',
             '  #4472     SUCCESSFUL                    SUCCESSFUL'
-              '     INPROGRESS',
+            '     INPROGRESS',
             '  #5773       FAILED',
             '  #6050     SUCCESSFUL',
             '  #6086       FAILED       SUCCESSFUL     SUCCESSFUL',
             '  #5095     SUCCESSFUL'
         )
 
-
         app = esteban.APP.test_client()
         res = app.get('/')
         for exp in expected:
             assert exp in res.data
-
-
 
 
 if __name__ == '__main__':
