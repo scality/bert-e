@@ -1892,6 +1892,7 @@ class WallE:
         qbranches = [self._get_queue_branch(w.destination_branch)
                      for w in integration_branches]
 
+        to_push = list(qbranches)
         qbranch, qbranches = qbranches[0], qbranches[1:]
         wbranch, wbranches = integration_branches[0], integration_branches[1:]
 
@@ -1899,19 +1900,19 @@ class WallE:
             qbranch.merge(wbranch)
             qint = self._get_queue_integration_branch(
                 self._pr.bb_pr['id'], wbranch)
-            qint.create(qbranch)
-            qint_branches = [qint]
+            qint.create(qbranch, do_push=False)
+            to_push.append(qint)
             for qbranch, wbranch in zip(qbranches, wbranches):
                 qbranch.merge(qint, wbranch)  # octopus merge
                 qint = self._get_queue_integration_branch(
                     self._pr.bb_pr['id'], wbranch)
-                qint.create(qbranch)
-                qint_branches.append(qint)
+                qint.create(qbranch, do_push=False)
+                to_push.append(qint)
         except MergeFailedException:
             raise QueueConflict(
                     active_options=self._get_active_options())
 
-        self._push()
+        self._push(to_push)
 
     def _already_in_queue(self, integration_branches):
         qint_branches = [self._get_queue_integration_branch(
@@ -1961,15 +1962,25 @@ class WallE:
         qc.validate()
         return qc
 
-    def _push(self, prune=False):
+    def _push(self, branches=(), prune=False):
         retry = RetryHandler(30, logging)
-        with retry:
-            retry.run(
-                self.repo.push_all,
-                prune=prune,
-                catch=PushFailedException,
-                fail_msg="Failed to push changes"
-            )
+        names = ''
+        if branches:
+            names = ' '.join("'{0}'".format(b.name) for b in branches)
+            with retry:
+                retry.run(
+                    self.repo.push, names,
+                    catch=PushFailedException,
+                    fail_msg="Failed to push changes"
+                )
+        else:
+            with retry:
+                retry.run(
+                    self.repo.push_all,
+                    prune=prune,
+                    catch=PushFailedException,
+                    fail_msg="Failed to push changes"
+                )
 
     def _close_queued_pull_request(self, pr_id, cascade):
         self._pr = WallEPullRequest(self.bbrepo, self.username, pr_id)
@@ -2065,7 +2076,8 @@ class WallE:
                 for branch in integration_branches:
                     branch.reset()
         finally:
-            self._push()
+            if not self.use_queue or not in_sync:
+                self._push()
 
         child_prs = self._create_pull_requests(integration_branches)
 

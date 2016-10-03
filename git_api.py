@@ -190,14 +190,15 @@ class Branch(object):
     def push(self):
         self.repo.push(self.name)
 
-    def create(self, source_branch):
+    def create(self, source_branch, do_push=True):
         self.repo.checkout(source_branch.name)
         try:
             self.repo.cmd('git checkout -b %s', self.name)
         except CommandError:
             msg = "branch:%s source:%s" % (self.name, source_branch.name)
             raise BranchCreationFailedException(msg)
-        self.push()
+        if do_push:
+            self.push()
 
     def remove(self, do_push=False):
         # hardcode a security since wall-e is all-powerful
