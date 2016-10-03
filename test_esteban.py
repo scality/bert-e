@@ -78,7 +78,8 @@ class TestWebhookListener(unittest.TestCase):
         assert 'Recently merged Pull Requests:' in res.data
         assert '* #1\n* #2\n* #3' in res.data
         assert 'Merge queue status:' in res.data
-        assert '* #10\t4.3: INPROGRESS     6.0: INPROGRESS' in res.data
+        assert '{:^10}{:^15}{:^15}'.format(
+            '#10', 'INPROGRESS', 'INPROGRESS') in res.data
 
         # Update cache with a successful and a failed build
         bitbucket_api.BUILD_STATUS_CACHE['pre-merge'].set('0033deadbeef',
@@ -87,7 +88,8 @@ class TestWebhookListener(unittest.TestCase):
                                                           'SUCCESS')
 
         res = app.get('/')
-        assert '* #10\t4.3: FAILED         6.0: SUCCESS' in res.data
+        assert '{:^10}{:^15}{:^15}'.format(
+            '#10', 'SUCCESS', 'FAILED') in res.data
 
         # Everything is merged, the queue status shouldn't appear anymore
         wall_e.STATUS['merged PRs'].append(10)
@@ -96,6 +98,54 @@ class TestWebhookListener(unittest.TestCase):
         # PR #10 should appear as merged
         assert '* #10\n' in res.data
         assert 'Merge queue status:' not in res.data
+
+    def test_pr_print(self):
+        wall_e.STATUS['merge queue'] = OrderedDict([
+            ('4472', [
+                ('6.4', '4472/6.4'),
+                ('6.3', '4472/6.3'),
+                ('6.2', '4472/6.2')]),
+            ('5773', [
+                ('6.4', '5773/6.4')]),
+            ('6050', [
+                ('6.4', '6050/6.4')]),
+            ('6086', [
+                ('6.4', '6086/6.4'),
+                ('6.3.0', '6086/6.3.0'),
+                ('6.3', '6086/6.3')]),
+            ('5095', [
+                ('6.4', '5095/6.4')]),
+        ])
+
+        cache = bitbucket_api.BUILD_STATUS_CACHE['pre-merge']
+        cache.set('4472/6.4', 'SUCCESSFUL')
+        cache.set('4472/6.3', 'SUCCESSFUL')
+        cache.set('4472/6.2', 'INPROGRESS')
+        cache.set('5773/6.4', 'FAILED')
+        cache.set('6050/6.4', 'SUCCESSFUL')
+        cache.set('6086/6.4', 'FAILED')
+        cache.set('6086/6.3.0', 'SUCCESSFUL')
+        cache.set('6086/6.3', 'SUCCESSFUL')
+        cache.set('5095/6.4', 'SUCCESSFUL')
+
+        expected = (
+            'Merge queue status:',
+            '                6.4           6.3.0           6.3            6.2',
+            '  #4472     SUCCESSFUL                    SUCCESSFUL'
+              '     INPROGRESS',
+            '  #5773       FAILED',
+            '  #6050     SUCCESSFUL',
+            '  #6086       FAILED       SUCCESSFUL     SUCCESSFUL',
+            '  #5095     SUCCESSFUL'
+        )
+
+
+        app = esteban.APP.test_client()
+        res = app.get('/')
+        for exp in expected:
+            assert exp in res.data
+
+
 
 
 if __name__ == '__main__':

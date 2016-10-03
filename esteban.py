@@ -18,6 +18,8 @@ from raven.contrib.flask import Sentry
 from bitbucket_api import BUILD_STATUS_CACHE
 
 import wall_e
+import wall_e_exceptions
+
 if sys.version_info.major < 3:
     import Queue as queue
 else:
@@ -27,6 +29,7 @@ else:
 APP = Flask(__name__)
 FIFO = queue.Queue()
 DONE = deque(maxlen=1000)
+CODE_NAMES = {}
 
 try:
     SENTRY = Sentry(APP, logging=True, level=logging.INFO,
@@ -35,6 +38,17 @@ except KeyError:
     SENTRY = None
 
 Job = namedtuple('Job', ('repo_owner', 'repo_slug', 'revision', 'start_time'))
+
+# Populate code names.
+for name in dir(wall_e_exceptions):
+    obj = getattr(wall_e_exceptions, name)
+    if not isinstance(obj, type):
+        continue
+    if not issubclass(obj, Exception):
+        continue
+    if not hasattr(obj, 'code'):
+        continue
+    CODE_NAMES[obj.code] = name
 
 
 def wall_e_launcher():
@@ -53,20 +67,23 @@ def wall_e_launcher():
             pwd
         ])
         try:
-            wall_e.main()
+            retcode = wall_e.main()
+            retcode = CODE_NAMES.get(retcode, 'XXX')
         except Exception as err:
             if SENTRY:
                 SENTRY.captureException()
             else:
                 logging.error("Wall-e job %s finished with an error: %s",
                               job, err)
+            retcode = getattr(err, 'code', None)
+            retcode = CODE_NAMES.get(retcode, type(err).__name__)
         finally:
             FIFO.task_done()
 
             logging.debug("It took Esteban %s to handle job %s:%s",
                           datetime.now() - job.start_time,
                           job.repo_slug, job.revision)
-            DONE.appendleft(job)
+            DONE.appendleft((job, retcode))
             wall_e.STATUS.pop('current job')
 
 
@@ -116,20 +133,34 @@ def display_queue():
 
     if merge_queue:
         output.append('Merge queue status:')
+        versions = set()
+        for queued_commits in merge_queue.values():
+            for version, _ in queued_commits:
+                versions.add(version)
+
+        versions = list(sorted(versions))[::-1]
+        header = (' ' * 10) + ''.join('{:^15}'.format(v) for v in versions)
+
+        output.append(header)
         for pr_id, queued_commits in merge_queue.items():
             if int(pr_id) in merged_prs:
                 continue
-            build_status = []
+            build_status = {}
             for version, sha1 in queued_commits:
                 build = BUILD_STATUS_CACHE['pre-merge'].get(sha1, 'INPROGRESS')
-                build_status.append('{}: {}'.format(version, build))
+                build_status[version] = build
 
             output.append(
-                '* #{}\t{}'.format(pr_id, ''.join(
-                    '{:<20}'.format(b) for b in build_status
-                ))
+                '{:^10}{}'.format(
+                    '#{}'.format(pr_id),
+                    ''.join(
+                        '{:^15}'.format(build_status.get(v, ''))
+                        for v in versions
+                    )
+                )
             )
-        if output[-1] == 'Merge queue status:':
+        if output[-1] == header:
+            output.pop()
             output.pop()
         else:
             output.append('')
@@ -137,7 +168,8 @@ def display_queue():
     output.append('{0} pending jobs:'.format(len(tasks)))
     output.extend('* [{3}] {0}/{1} - {2}'.format(*job) for job in tasks)
     output.append('\nCompleted jobs:')
-    output.extend('* [{3}] {0}/{1} - {2}'.format(*job) for job in DONE)
+    output.extend('* [{4}] {1}/{2} - {3} -> {0}'.format(code, *job)
+                  for job, code in DONE)
     return Response('\n'.join(output), mimetype='text/plain')
 
 
