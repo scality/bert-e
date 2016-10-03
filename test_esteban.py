@@ -99,7 +99,7 @@ class TestWebhookListener(unittest.TestCase):
         assert '* #10\n' in res.data
         assert 'Merge queue status:' not in res.data
 
-    def test_pr_print(self):
+    def test_merge_queue_print(self):
         wall_e.STATUS['merge queue'] = OrderedDict([
             ('4472', [
                 ('6.4', '4472/6.4'),
