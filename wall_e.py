@@ -1746,11 +1746,8 @@ class WallE:
 
             raise PullRequestSkewDetected(pr['id'], branch_sha1, pr_sha1)
 
-    def _check_approvals(self, child_prs):
+    def _check_approvals(self):
         """Check approval of a PR by author, tester and peer.
-
-        Args:
-            - child_prs (json): all the child PRs
 
         Raises:
             - AuthorApprovalRequired
@@ -2081,7 +2078,7 @@ class WallE:
         child_prs = self._create_pull_requests(integration_branches)
 
         self._check_pull_request_skew(integration_branches, child_prs)
-        self._check_approvals(child_prs)
+        self._check_approvals()
         self._check_build_status(child_prs)
 
         if self.interactive and not confirm('Do you want to merge/queue?'):
