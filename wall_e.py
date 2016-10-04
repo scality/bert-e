@@ -1064,7 +1064,7 @@ class WallE:
 
         except WallE_SilentException as excp:
             if self.backtrace:
-                raise excp
+                raise
 
             logging.info('Exception raised: %d', excp.code)
             if not self.quiet:

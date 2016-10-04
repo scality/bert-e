@@ -14,7 +14,7 @@ class WallE_Exception(Exception):
 
 # base exceptions
 class WallE_TemplateException(WallE_Exception):
-    code = 0
+    code = -2
     template = None
     # whether to re-publish if the message is already in the history
     dont_repeat_if_in_history = -1

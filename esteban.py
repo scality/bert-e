@@ -59,6 +59,7 @@ def wall_e_launcher():
         sys.argv.extend([
             'wall_e',
             '-v',
+            '--backtrace',
             '--owner', job.repo_owner,
             '--slug', job.repo_slug,
             str(job.revision),
