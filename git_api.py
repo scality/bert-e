@@ -183,8 +183,9 @@ class Branch(object):
     def checkout(self):
         self.repo.checkout(self.name)
 
-    def reset(self):
-        self.repo.cmd('git checkout %s', self.name)
+    def reset(self, do_checkout=True):
+        if do_checkout:
+            self.repo.cmd('git checkout %s', self.name)
         self.repo.cmd('git reset --hard origin/%s', self.name)
 
     def push(self):
