@@ -1,0 +1,49 @@
+# build_key:
+#   The label of the key to look for in bitbucket commit statuses.
+#
+#   default value: pre-merge
+#
+build_key: pre-merge
+
+
+# required_peer_approvals:
+#   Number of approvals required in the pull-request in addition to author.
+#
+#   values: 0 or more
+#   default value: 2
+#
+required_peer_approvals: 2
+
+
+# jira_keys:
+#   The list of accepted Jira keys for this project.
+#
+#   values: list of accepted keys
+#   default value: empty
+#   empty: the key is not checked.
+#
+jira_keys:
+  - KEY
+
+
+# prefixes:
+#   The dictionnary of expected match between the Jira issue type
+#   and branch prefix.
+#
+#   default value: empty
+#   empty: the branch prefix is not checked.
+#
+prefixes:
+  Epic: project
+  Story: feature
+  Bug: bugfix
+  Improvement: improvement
+
+
+# admins:
+#   The list of bitbucket accounts allowed to post
+#   privileged messages to the bot
+#
+admins:
+  - login_username_1
+  - login_username_2

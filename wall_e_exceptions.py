@@ -343,6 +343,22 @@ class UnsupportedTokenType(WallE_InternalException):
         super(UnsupportedTokenType, self).__init__(msg)
 
 
+class SettingsFileNotFound(WallE_InternalException):
+    code = 218
+
+    def __init__(self, filename):
+        msg = "Cannot find the settings file at %r." % filename
+        super(SettingsFileNotFound, self).__init__(msg)
+
+
+class IncorrectSettingsFile(WallE_InternalException):
+    code = 219
+
+    def __init__(self, filename):
+        msg = "Cannot parse the settings file at %r." % filename
+        super(IncorrectSettingsFile, self).__init__(msg)
+
+
 class QueueValidationError(Exception):
     """Extend simple string class with an error code and recovery potential."""
     code = 'Q000'

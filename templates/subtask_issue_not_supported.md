@@ -5,14 +5,17 @@ Cannot merge a subtask
 {% endblock %}
 
 {% block message %}
-The Jira issue {{ issue.key }} is a subtask. I can only merge
-the following issue types into development branches:
+The Jira issue {{ issue.key }} is a subtask and cannot be used to reference a branch.
+
+{% if pairs %}
+I can only merge the following issue types into development branches:
 
 Jira issue type  |  corresponding branch prefix
 -----------------|------------------
 {% for pair in pairs -%}
 `{{ pair }}` | `{{ pairs[pair] }}`
 {% endfor %}
+{% endif %}
 
 To fix this problem:
 

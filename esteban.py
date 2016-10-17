@@ -37,7 +37,8 @@ try:
 except KeyError:
     SENTRY = None
 
-Job = namedtuple('Job', ('repo_owner', 'repo_slug', 'revision', 'start_time'))
+Job = namedtuple('Job', ('repo_owner', 'repo_slug',
+                         'revision', 'start_time', 'repo_settings'))
 
 # Populate code names.
 for name in dir(wall_e_exceptions):
@@ -61,7 +62,13 @@ def wall_e_launcher():
             '-v',
             '--backtrace',
             '--owner', job.repo_owner,
-            '--slug', job.repo_slug,
+            '--slug', job.repo_slug
+        ])
+        if job.repo_settings:
+            sys.argv.extend([
+                '--settings', job.repo_settings,
+            ])
+        sys.argv.extend([
             str(job.revision),
             pwd
         ])
@@ -165,10 +172,15 @@ def display_queue():
             output.append('')
 
     output.append('{0} pending jobs:'.format(len(tasks)))
-    output.extend('* [{3}] {0}/{1} - {2}'.format(*job) for job in tasks)
+    output.extend('* [{start_time}] {repo_owner}/{repo_slug} - '
+                  '{revision}'.format(**job._asdict()) for job in tasks)
     output.append('\nCompleted jobs:')
-    output.extend('* [{4}] {1}/{2} - {3} -> {0}'.format(status, *job)
-                  for job, status in DONE)
+    output.extend('* [{start_time}] {repo_owner}/{repo_slug} - '
+                  '{revision} -> {status}'.format(
+                      status=status,
+                      **job._asdict()
+                  ) for job, status in DONE)
+
     return Response('\n'.join(output), mimetype='text/plain')
 
 
@@ -182,6 +194,10 @@ def parse_bitbucket_webhook():
     json_data = json.loads(request.data)
     repo_owner = json_data['repository']['owner']['username']
     repo_slug = json_data['repository']['name']
+    settings_dir = APP.config.get('SETTINGS_DIR')
+    repo_settings = ''
+    if settings_dir:
+        repo_settings = settings_dir + '/' + repo_owner + '/' + repo_slug
     revision = None
     if entity == 'repo':
         revision = handle_repo_event(event, json_data)
@@ -192,7 +208,7 @@ def parse_bitbucket_webhook():
         logging.debug('Nothing to do')
         return Response('OK', 200)
 
-    job = Job(repo_owner, repo_slug, revision, datetime.now())
+    job = Job(repo_owner, repo_slug, revision, datetime.now(), repo_settings)
 
     if any(filter(lambda j: j[:3] == job[:3], FIFO.queue)):
         logging.info('%s/%s:%s already in queue. Skipping.', *(job[:3]))
@@ -252,6 +268,9 @@ def main():
                         help='server host (defaults to 0.0.0.0)')
     parser.add_argument('--port', '-p', type=int, default=5000,
                         help='server port (defaults to 5000)')
+    parser.add_argument('--settings-dir', '-d', action='store', default='',
+                        help='directory where settings files are stored '
+                             '(no settings by default)')
     parser.add_argument('--verbose', '-v', action='store_true', default=False,
                         help='verbose mode')
 
@@ -261,6 +280,7 @@ def main():
     worker = Thread(target=wall_e_launcher)
     worker.daemon = True
     worker.start()
+    APP.config['SETTINGS_DIR'] = args.settings_dir
     APP.run(host=args.host, port=args.port, debug=args.verbose)
 
 

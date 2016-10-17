@@ -40,6 +40,7 @@ class TestWebhookListener(unittest.TestCase):
         job = esteban.FIFO.get()
         self.assertEqual(job.repo_owner, u'scality')
         self.assertEqual(job.repo_slug, u'test_repo')
+        self.assertEqual(job.repo_settings, u'')
         self.assertEqual(job.revision, '1')
 
         esteban.FIFO.task_done()

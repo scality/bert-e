@@ -8,3 +8,4 @@ Flask==0.11.1
 raven[flask]==5.23.0
 Jinja2==2.7.1
 subprocess32==3.2.7
+pyyaml==3.12

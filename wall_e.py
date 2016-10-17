@@ -13,6 +13,7 @@ import bitbucket_api
 import jira_api
 import re
 import six
+import yaml
 from git_api import (Repository as GitRepository,
                      Branch,
                      MergeFailedException,
@@ -41,6 +42,7 @@ from wall_e_exceptions import (AfterPullRequest,
                                IncompatibleSourceBranchPrefix,
                                IncorrectFixVersion,
                                IncorrectJiraProject,
+                               IncorrectSettingsFile,
                                InitMessage,
                                IntegrationPullRequestsCreated,
                                InvalidQueueBranch,
@@ -63,6 +65,7 @@ from wall_e_exceptions import (AfterPullRequest,
                                QueueConflict,
                                QueuesNotValidated,
                                QueueOutOfOrder,
+                               SettingsFileNotFound,
                                StatusReport,
                                SuccessMessage,
                                TesterApprovalRequired,
@@ -87,70 +90,19 @@ if six.PY3:
     raw_input = input
     unicode = six.text_type
 
-WALL_E_USERNAME = 'scality_wall-e'
-WALL_E_EMAIL = 'wall_e@scality.com'
-JENKINS_USERNAME = 'scality_jenkins'
-
 SHA1_LENGHT = [12, 40]
 
-SETTINGS = {
-    'ring': {
-        'jira_keys': ['RING'],
-        'build_key': 'pre-merge',
-        'required_peer_approvals': 2,
-        'testers': [
-        ],
-        'admins': [
-            WALL_E_USERNAME,  # we need this for test purposes
-            'jonathan_gramain',
-            'benoit_a',
-            'flavienlebarbe',
-            'jienhua',
-            'jm_saffroy_scality',
-            'nicolast_scality',
-            'quentin_jacquemart',
-            'xavier_roche',
-            # RELENG below
-            'akim_sadaoui',
-            'anneharper',
-            'bertrand_demiddelaer_scality',
-            'mcolzi',
-            'nohar',
-            'rayene_benrayana',
-            'sylvain_killian'
-        ]
-    },
-    'wall-e-demo': {
-        'jira_keys': ['DEMOWALLE'],
-        'build_key': 'pre-merge',
-        'required_peer_approvals': 2,
-        'testers': [
-        ],
-        'admins': [
-            'rayene_benrayana',
-            'sylvain_killian',
-        ]
-    },
-    'default': {
-        'jira_keys': ['RELENG'],
-        'build_key': 'pre-merge',
-        'required_peer_approvals': 2,
-        'testers': [
-        ],
-        'admins': [
-            'rayene_benrayana',
-            'sylvain_killian',
-        ]
-    }
-}
+WALL_E_USERNAME = 'scality_wall-e'
+WALL_E_EMAIL = 'wall_e@scality.com'
 
-JIRA_ISSUE_BRANCH_PREFIX = {
-    'Epic': 'project',
-    'Story': 'feature',
-    'Bug': 'bugfix',
-    'Improvement': 'improvement'
+DEFAULT_SETTINGS = {
+    'build_key': 'pre-merge',
+    'required_peer_approvals': 2,
+    'jira_keys': [],
+    'prefixes': {},
+    'testers': [],
+    'admins': []
 }
-
 
 # This variable is used to get an introspectable status that Esteban can
 # display.
@@ -1002,14 +954,13 @@ class BranchCascade(object):
 
 
 class WallE:
-    def __init__(self, args, options, commands):
+    def __init__(self, args, options, commands, settings):
         self._bbconn = bitbucket_api.Client(
             args.username, args.password, args.email)
         self.bbrepo = bitbucket_api.Repository(
             self._bbconn, owner=args.owner, repo_slug=args.slug)
         self.options = options
         self.commands = commands
-        self.settings = SETTINGS[args.settings]
         self.backtrace = args.backtrace
         self.email = args.email
         self.interactive = args.interactive
@@ -1021,6 +972,7 @@ class WallE:
         self.username = args.username
         self.repo = self._clone_git_repo()
         self.tmpdir = self.repo.tmp_directory
+        self.settings = settings
 
     def test_sha1_in_queue(self, sha1):
         cmd = 'git branch -r --contains %s "origin/q/*"'
@@ -1533,13 +1485,18 @@ class WallE:
     def _jira_check_issue_type(self, issue):
         issuetype = issue.fields.issuetype.name
 
+        prefixes = self.settings.get('prefixes')
         if issuetype == 'Sub-task':
             raise SubtaskIssueNotSupported(
                 issue=issue,
-                pairs=JIRA_ISSUE_BRANCH_PREFIX,
+                pairs=prefixes,
                 active_options=self._get_active_options())
 
-        expected_prefix = JIRA_ISSUE_BRANCH_PREFIX.get(issuetype)
+        if not prefixes:
+            # no settings specified, accept all
+            return
+
+        expected_prefix = prefixes.get(issuetype)
         if expected_prefix is None:
             raise JiraUnknownIssueType(issuetype)
 
@@ -1547,7 +1504,7 @@ class WallE:
             raise MismatchPrefixIssueType(
                 prefix=self._pr.source_branch.prefix,
                 expected=issuetype,
-                pairs=JIRA_ISSUE_BRANCH_PREFIX,
+                pairs=prefixes,
                 issue=issue,
                 active_options=self._get_active_options())
 
@@ -1788,9 +1745,8 @@ class WallE:
         # 'participants'
         for participant in self._pr.bb_pr['participants']:
             if not participant['approved']:
-                # Exclude WALL_E and SCALITY_JENKINS
-                if (not participant['user']['username'] in [self.username,
-                                                            JENKINS_USERNAME]):
+                # Exclude WALL_E from consideration
+                if participant['user']['username'] != self.username:
                     is_unanimous = False
                 continue
             if participant['user']['username'] == self._pr.author:
@@ -2189,7 +2145,7 @@ def setup_parser():
     parser.add_argument(
         '--reference-git-repo', default='',
         help="Reference to a local git repo to improve cloning delay. "
-        "If empty, a local clone will be created")
+             "If empty, a local clone will be created")
     parser.add_argument(
         '--owner', default='scality',
         help="The owner of the repo (default: scality)")
@@ -2197,8 +2153,8 @@ def setup_parser():
         '--slug', default='ring',
         help="The repo's slug (default: ring)")
     parser.add_argument(
-        '--settings', default='',
-        help="The settings to use (default to repository slug)")
+        '--settings',
+        help="Path to project settings file")
     parser.add_argument(
         '--interactive', action='store_true', default=False,
         help="Ask before merging or sending comments")
@@ -2301,6 +2257,29 @@ def setup_commands():
     return commands
 
 
+def setup_settings(settings_file):
+    settings = dict(DEFAULT_SETTINGS)
+
+    if not settings_file:
+        # allow running without a settings file,
+        return settings
+
+    if not exists(settings_file):
+        raise SettingsFileNotFound(settings_file)
+
+    with open(settings_file, 'r') as f:
+        try:
+            new_settings = yaml.safe_load(f)
+        except Exception:
+            raise IncorrectSettingsFile(settings_file)
+
+    # replace default data by provided data
+    for key in new_settings:
+        settings[key] = new_settings[key]
+
+    return settings
+
+
 def main():
     parser = setup_parser()
     args = parser.parse_args()
@@ -2316,16 +2295,11 @@ def main():
         requests_log.setLevel(logging.WARNING)
         requests_log.propagate = True
 
-    if not args.settings:
-        args.settings = args.slug
-
-    if args.settings not in SETTINGS:
-        args.settings = 'default'
-
     options = setup_options(args)
     commands = setup_commands()
+    settings = setup_settings(args.settings)
 
-    walle = WallE(args, options, commands)
+    walle = WallE(args, options, commands, settings)
     try:
         return walle.handler()
     finally:

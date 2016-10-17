@@ -35,6 +35,7 @@ from wall_e_exceptions import (AfterPullRequest,
                                HelpMessage,
                                IncoherentQueues,
                                IncorrectJiraProject,
+                               IncorrectSettingsFile,
                                Merged,
                                MissingJiraId,
                                NotEnoughCredentials,
@@ -68,10 +69,25 @@ from wall_e_exceptions import (MasterQueueDiverged,
                                QueueIncomplete,
                                QueueInconsistentPullRequestsOrder)
 
-WALL_E_USERNAME = wall_e.WALL_E_USERNAME
-WALL_E_EMAIL = wall_e.WALL_E_EMAIL
+WALL_E_USERNAME = 'scality_wall-e'
+WALL_E_EMAIL = 'wall_e@scality.com'
 EVA_USERNAME = 'scality_eva'
 EVA_EMAIL = 'eva.scality@gmail.com'
+
+DEFAULT_SETTINGS = """
+build_key: pre-merge
+required_peer_approvals: 2
+prefixes:
+  Epic: project
+  Story: feature
+  Bug: bugfix
+  Improvement: improvement
+jira_keys:
+  - RING
+admins:
+  - scality_wall-e
+  - {your_login}
+"""
 
 
 def initialize_git_repo(repo, username, usermail):
@@ -552,7 +568,6 @@ class RepositoryTests(unittest.TestCase):
     def setUp(self):
         # repo creator and reviewer
         self.creator = self.args.your_login
-        assert self.args.your_login in wall_e.SETTINGS['ring']['admins']
         client = bitbucket_api.Client(
             self.args.your_login,
             self.args.your_password,
@@ -575,7 +590,6 @@ class RepositoryTests(unittest.TestCase):
         self.bbrepo.create()
 
         # Use Eva as our unprivileged user
-        assert EVA_USERNAME not in wall_e.SETTINGS['ring']['admins']
         client_eva = bitbucket_api.Client(
             EVA_USERNAME,
             self.args.eva_password,
@@ -703,7 +717,8 @@ class RepositoryTests(unittest.TestCase):
                reference_git_repo='',
                no_comment=False,
                interactive=False,
-               backtrace=False):
+               backtrace=False,
+               settings=DEFAULT_SETTINGS):
         sys.argv = ["wall-e.py"]
         for option in options:
             sys.argv.append('-o')
@@ -715,10 +730,14 @@ class RepositoryTests(unittest.TestCase):
         if backtrace:
             sys.argv.append('--backtrace')
         sys.argv.append('--quiet')
-        sys.argv.append('--settings')
-        sys.argv.append('ring')
         sys.argv.append('--slug')
         sys.argv.append(self.bbrepo['repo_slug'])
+        if settings:
+            data = settings.format(your_login=self.args.your_login)
+            with open('test_settings.yml', 'w') as settings_file:
+                settings_file.write(data)
+            sys.argv.append('--settings')
+            sys.argv.append('test_settings.yml')
         if self.args.disable_queues:
             sys.argv.append('--disable-queues')
         else:
@@ -2070,6 +2089,77 @@ class TestWallE(RepositoryTests):
         self.assertEqual(retcode, SuccessMessage.code)
 
         retcode = self.handle(pr3['id'], options=self.bypass_all)
+
+    def test_settings(self):
+        # test with no settings provided
+        pr = self.create_pr('bugfix/RING-00001', 'development/4.3')
+        with self.assertRaises(BuildNotStarted):
+            self.handle(
+                pr['id'],
+                options=[
+                    'bypass_author_approval',
+                    'bypass_peer_approval',
+                ],
+                backtrace=True,
+                settings=None)
+
+        # test with no peer approvals set to 0
+        pr = self.create_pr('bugfix/RING-00002', 'development/4.3')
+        settings = """
+build_key: pre-merge
+required_peer_approvals: 0
+admins:
+  - scality_wall-e
+  - {your_login}
+"""
+        with self.assertRaises(BuildNotStarted):
+            self.handle(
+                pr['id'],
+                options=[
+                    'bypass_author_approval',
+                ],
+                backtrace=True,
+                settings=settings)
+
+        # test with incorrect settings file
+        pr = self.create_pr('bugfix/RING-00003', 'development/4.3')
+        settings = """
+build_key
+required_peer_approvals: 0
+"""
+        with self.assertRaises(IncorrectSettingsFile):
+            self.handle(
+                pr['id'],
+                options=[
+                    'bypass_author_approval',
+                ],
+                backtrace=True,
+                settings=settings)
+
+        # test with different build key
+        pr = self.create_pr('bugfix/RING-00004', 'development/6.0')
+        settings = """
+build_key: toto
+# comment
+required_peer_approvals: 0
+admins:
+  - scality_wall-e
+  - {your_login}
+"""
+        self.set_build_status_on_pr_id(pr['id'], 'SUCCESSFUL')
+        with self.assertRaises(BuildNotStarted):
+            self.handle(
+                pr['id'],
+                options=[
+                    'bypass_author_approval',
+                ],
+                backtrace=True,
+                settings=settings)
+        self.set_build_status_on_pr_id(pr['id'], 'SUCCESSFUL',
+                                       key='toto')
+        retcode = self.handle(pr['id'],
+                              options=['bypass_author_approval'],
+                              settings=settings)
         self.assertEqual(retcode, SuccessMessage.code)
 
 
@@ -3210,12 +3300,6 @@ def main():
 
     if RepositoryTests.args.your_login == EVA_USERNAME:
         print('Cannot use Eva as the tester, please use another login.')
-        sys.exit(1)
-
-    if (RepositoryTests.args.your_login not in
-            wall_e.SETTINGS['ring']['admins']):
-        print('Cannot use %s as the tester, it does not belong to '
-              'admins.' % RepositoryTests.args.your_login)
         sys.exit(1)
 
     if not RepositoryTests.args.disable_mock:

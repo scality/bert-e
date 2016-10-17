@@ -46,7 +46,7 @@ optional arguments:
                         delay. If empty, a local clone will be created
   --owner OWNER         The owner of the repo (default: scality)
   --slug SLUG           The repo's slug (default: ring)
-  --settings SETTINGS   The settings to use (default to repository slug)
+  --settings SETTINGS   Path to project settings file
   --interactive         Ask before merging or sending comments
   --no-comment          Do not add any comment to the pull request page
   -v                    Verbose mode
