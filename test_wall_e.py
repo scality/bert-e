@@ -2020,6 +2020,53 @@ class TestWallE(RepositoryTests):
         with self.assertRaises(UnsupportedTokenType):
             self.handle('/development/4.3')
 
+    def test_conflict_due_to_update_order(self):
+        """Reproduce the case where a conflict coming from another Pull-Request
+        (and ultimately fixed in the other Pull Request) triggers a conflict
+        during the update of integration branches.
+
+        """
+        pr1 = self.create_pr('bugfix/RING-0006', 'development/5.1',
+                             file_='toto.txt')
+        pr2 = self.create_pr('bugfix/RING-0006-other', 'development/4.3',
+                             file_='toto.txt')
+        pr3 = self.create_pr('bugfix/RING-0007-unrelated', 'development/4.3')
+
+        self.handle(pr2['id'],
+                    options=self.bypass_all_but(['bypass_author_approval']))
+
+        # Merge the first Pull Request
+        retcode = self.handle(pr1['id'], options=self.bypass_all)
+        self.assertEqual(retcode, SuccessMessage.code)
+
+        self.handle(pr3['id'],
+                    options=self.bypass_all_but(['bypass_author_approval']))
+
+        # Conflict on branch 'w/5.1/bugfix/RING-0006-other'
+        try:
+            self.handle(pr2['id'], options=self.bypass_all, backtrace=True)
+        except Conflict as err:
+            self.assertIn('`w/5.1/bugfix/RING-0006-other` with', err.msg)
+        else:
+            self.fail('No conflict detected')
+
+        # Resolve conflict
+        self.gitrepo.cmd('git fetch --all')
+        self.gitrepo.cmd('git checkout w/5.1/bugfix/RING-0006-other')
+        self.gitrepo.cmd('git merge origin/w/4.3/bugfix/RING-0006-other')
+        self.gitrepo.cmd('echo bugfix/RING-0006 > toto.txt')
+        self.gitrepo.cmd('git add toto.txt')
+        self.gitrepo.cmd('git commit -m "fix conflict"')
+        self.gitrepo.cmd('git merge origin/development/5.1')
+        self.gitrepo.push('w/5.1/bugfix/RING-0006-other')
+
+        # Conflict should be resolved and PR merged
+        retcode = self.handle(pr2['id'], options=self.bypass_all)
+        self.assertEqual(retcode, SuccessMessage.code)
+
+        retcode = self.handle(pr3['id'], options=self.bypass_all)
+        self.assertEqual(retcode, SuccessMessage.code)
+
 
 class TestQueueing(RepositoryTests):
     """Tests which validate all things related to the merge queue.
