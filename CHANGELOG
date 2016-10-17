@@ -1,9 +1,10 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
-## [3.0.2] - 2017-02-09
+## [3.0.2] - 2017-02-13
 # Changed
 - Bitbucket API HTTP calls were optimized to avoid full-scan (and throttling by Bitbucket)
+- Made approval messages less verbose
 # Added
 - The abstract Git HOST API allows for filtering when listing pull requests
 # Fixed

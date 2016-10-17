@@ -404,10 +404,7 @@ def check_approvals(job):
     """Check approval of a pull request by author, tester and peer.
 
     Raises:
-        - AuthorApprovalRequired
-        - PeerApprovalRequired
-        - TesterApprovalRequired
-
+        - ApprovalRequired
     """
     required_peer_approvals = job.settings.required_peer_approvals
     current_peer_approvals = 0
@@ -453,42 +450,14 @@ def check_approvals(job):
     missing_peer_approvals = (
         required_peer_approvals - current_peer_approvals)
 
-    if not approved_by_author:
-        raise messages.AuthorApprovalRequired(
+    if not approved_by_author or \
+            (testers and not approved_by_tester) or \
+            missing_peer_approvals > 0 or \
+            (requires_unanimity and not is_unanimous):
+        raise messages.ApprovalRequired(
             pr=job.pull_request,
-            author_approval=approved_by_author,
-            missing_peer_approvals=missing_peer_approvals,
-            tester_approval=approved_by_tester,
-            requires_unanimity=requires_unanimity,
-            active_options=get_active_options(job)
-        )
-
-    if missing_peer_approvals > 0:
-        raise messages.PeerApprovalRequired(
-            pr=job.pull_request,
-            author_approval=approved_by_author,
-            missing_peer_approvals=missing_peer_approvals,
-            tester_approval=approved_by_tester,
-            requires_unanimity=requires_unanimity,
-            active_options=get_active_options(job)
-        )
-
-    if testers and not approved_by_tester:
-        raise messages.TesterApprovalRequired(
-            pr=job.pull_request,
-            author_approval=approved_by_author,
-            missing_peer_approvals=missing_peer_approvals,
-            tester_approval=approved_by_tester,
-            requires_unanimity=requires_unanimity,
-            active_options=get_active_options(job)
-        )
-
-    if requires_unanimity and not is_unanimous:
-        raise messages.UnanimityApprovalRequired(
-            pr=job.pull_request,
-            author_approval=approved_by_author,
-            missing_peer_approvals=missing_peer_approvals,
-            tester_approval=approved_by_tester,
+            required_peer_approvals=required_peer_approvals,
+            requires_tester_approval=bool(testers),
             requires_unanimity=requires_unanimity,
             active_options=get_active_options(job)
         )

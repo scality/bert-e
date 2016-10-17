@@ -127,29 +127,14 @@ class Conflict(TemplateException):
     template = 'conflict.md'
 
 
-class AuthorApprovalRequired(TemplateException):
+class ApprovalRequired(TemplateException):
     code = 115
-    template = 'need_approval.md'
-
-
-class PeerApprovalRequired(TemplateException):
-    code = 116
-    template = 'need_approval.md'
-
-
-class TesterApprovalRequired(TemplateException):
-    code = 117
     template = 'need_approval.md'
 
 
 class BuildFailed(TemplateException):
     code = 118
     template = 'build_failed.md'
-
-
-class UnanimityApprovalRequired(TemplateException):
-    code = 119
-    template = 'need_approval.md'
 
 
 class AfterPullRequest(TemplateException):

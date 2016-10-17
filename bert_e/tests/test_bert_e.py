@@ -793,13 +793,12 @@ class TestBertE(RepositoryTests):
         """
         pr = self.create_pr('bugfix/TEST-0001', 'development/4.3')
         retcode = self.handle(pr['id'], options=['bypass_jira_check'])
-        self.assertEqual(retcode, AuthorApprovalRequired.code)
+        self.assertEqual(retcode, ApprovalRequired.code)
         # check backtrace mode on the same error, and check same error happens
-        with self.assertRaises(AuthorApprovalRequired):
+        with self.assertRaises(ApprovalRequired):
             self.handle(pr['id'],
                         options=['bypass_jira_check'],
                         backtrace=True)
-        self.assertEqual(retcode, AuthorApprovalRequired.code)
         # check success mode
         retcode = self.handle(pr['id'], options=self.bypass_all)
         self.assertEqual(retcode, SuccessMessage.code)
@@ -952,35 +951,59 @@ class TestBertE(RepositoryTests):
 
         pr = self.create_pr(feature_branch, dst_branch)
 
-        retcode = self.handle(pr['id'], options=['bypass_jira_check'])
-        self.assertEqual(retcode, AuthorApprovalRequired.code)
+        with self.assertRaises(ApprovalRequired) as raised:
+            self.handle(pr['id'], options=['bypass_jira_check'],
+                        backtrace=True)
+        self.assertIn('the author', raised.exception.msg)
+        self.assertIn('2 peers', raised.exception.msg)
 
         # test approval on sub pr has not effect
         pr_child = self.admin_bb.get_pull_request(pull_request_id=pr['id'] + 1)
         pr_child.approve()
-        retcode = self.handle(pr['id'] + 1, options=['bypass_jira_check'])
-        self.assertEqual(retcode, AuthorApprovalRequired.code)
+        with self.assertRaises(ApprovalRequired) as raised:
+            self.handle(pr['id'] + 1, options=['bypass_jira_check'],
+                        backtrace=True)
+        self.assertIn('the author', raised.exception.msg)
+        self.assertIn('2 peers', raised.exception.msg)
 
-        # Author adds approval
-        pr.approve()
-        retcode = self.handle(pr['id'], options=['bypass_jira_check'])
-        self.assertEqual(retcode, PeerApprovalRequired.code)
+        # test message with a single peer approval required
+        settings = """
+repository_owner: {owner}
+repository_slug: {slug}
+robot_username: {robot}
+robot_email: nobody@nowhere.com
+pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
+commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
+build_key: pre-merge
+required_peer_approvals: 1
+admins:
+  - {admin}
+""" # noqa
+        with self.assertRaises(ApprovalRequired) as raised:
+            self.handle(pr['id'], options=['bypass_jira_check'],
+                        settings=settings, backtrace=True)
+        self.assertIn('the author', raised.exception.msg)
+        self.assertIn('one peer', raised.exception.msg)
+        self.assertNotIn('2 peers', raised.exception.msg)
 
-        # 1st reviewer adds approval
-        pr_peer1 = self.admin_bb.get_pull_request(
-            pull_request_id=pr['id'])
-        pr_peer1.approve()
-        retcode = self.handle(pr['id'], options=['bypass_jira_check'])
-        self.assertEqual(retcode, PeerApprovalRequired.code)
-
-        # 2nd reviewer adds approval
-        pr_peer2 = self.robot_bb.get_pull_request(
-            pull_request_id=pr['id'])
-        pr_peer2.approve()
-        retcode = self.handle(pr['id'], options=[
-                              'bypass_jira_check',
-                              'bypass_build_status'])
-        self.assertEqual(retcode, SuccessMessage.code)
+        # test message with no peer approval required
+        settings = """
+repository_owner: {owner}
+repository_slug: {slug}
+robot_username: {robot}
+robot_email: nobody@nowhere.com
+pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
+commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
+build_key: pre-merge
+required_peer_approvals: 0
+admins:
+  - {admin}
+""" # noqa
+        with self.assertRaises(ApprovalRequired) as raised:
+            self.handle(pr['id'], options=['bypass_jira_check'],
+                        settings=settings, backtrace=True)
+        self.assertIn('the author', raised.exception.msg)
+        self.assertNotIn('peer', raised.exception.msg)
 
     def test_branches_creation_main_pr_not_approved(self):
         """Test if Bert-e creates integration pull-requests when the main
@@ -995,7 +1018,7 @@ class TestBertE(RepositoryTests):
             dst_branch = 'stabilization/4.3.18'
             pr = self.create_pr(feature_branch, dst_branch)
             retcode = self.handle(pr['id'], options=['bypass_jira_check'])
-            self.assertEqual(retcode, AuthorApprovalRequired.code)
+            self.assertEqual(retcode, ApprovalRequired.code)
 
             # check existence of integration branches
             for version in ['4.3', '5.1', '6.0']:
@@ -1071,7 +1094,7 @@ class TestBertE(RepositoryTests):
         # create integration PRs first:
         pr = self.create_pr('bugfix/TEST-00066', 'development/4.3')
         retcode = self.handle(pr['id'], options=['bypass_jira_check'])
-        self.assertEqual(retcode, AuthorApprovalRequired.code)
+        self.assertEqual(retcode, ApprovalRequired.code)
         # simulate a child pr update
         retcode = self.handle(pr['id'] + 1,
                               options=self.bypass_all)
@@ -1138,7 +1161,7 @@ class TestBertE(RepositoryTests):
         try:
             self.handle(
                 pr['id'], options=['bypass_jira_check'], backtrace=True)
-        except AuthorApprovalRequired as ret:
+        except ApprovalRequired as ret:
             author_msg = md5(ret.msg.encode()).digest()
 
         last_comment = get_last_comment(pr)
@@ -1220,7 +1243,7 @@ class TestBertE(RepositoryTests):
             pull_request_id=pr['id'])
         pr_bert_e.add_comment('this is my help already')
         retcode = self.handle(pr['id'], options=['bypass_jira_check'])
-        self.assertEqual(retcode, AuthorApprovalRequired.code)
+        self.assertEqual(retcode, ApprovalRequired.code)
 
         # test unknown command
         comment = pr.add_comment('@%s helpp' % self.args.robot_username)
@@ -1242,7 +1265,7 @@ class TestBertE(RepositoryTests):
                        ' bypass_build_status'
                        ' bypass_jira_check')
         retcode = self.handle(pr['id'], options=['bypass_jira_check'])
-        self.assertEqual(retcode, AuthorApprovalRequired.code)
+        self.assertEqual(retcode, ApprovalRequired.code)
 
         # test options set through deleted comment(self):
         comment = pr.add_comment(
@@ -1255,7 +1278,7 @@ class TestBertE(RepositoryTests):
         )
         comment.delete()
         retcode = self.handle(pr['id'], options=['bypass_jira_check'])
-        self.assertEqual(retcode, AuthorApprovalRequired.code)
+        self.assertEqual(retcode, ApprovalRequired.code)
 
         # test no effect sub pr options
         sub_pr_admin = self.admin_bb.get_pull_request(
@@ -1267,7 +1290,7 @@ class TestBertE(RepositoryTests):
                                  ' bypass_jira_check' %
                                  self.args.robot_username)
         retcode = self.handle(pr['id'], options=['bypass_jira_check'])
-        self.assertEqual(retcode, AuthorApprovalRequired.code)
+        self.assertEqual(retcode, ApprovalRequired.code)
         # test RELENG-1335: BertE unvalid status command
 
         feature_branch = 'bugfix/TEST-007'
@@ -1275,7 +1298,7 @@ class TestBertE(RepositoryTests):
 
         pr = self.create_pr(feature_branch, dst_branch)
         retcode = self.handle(pr['id'], options=['bypass_jira_check'])
-        self.assertEqual(retcode, AuthorApprovalRequired.code)
+        self.assertEqual(retcode, ApprovalRequired.code)
         pr.add_comment('@%s status?' % self.args.robot_username)
         retcode = self.handle(pr['id'], options=[
             'bypass_jira_check',
@@ -1901,9 +1924,13 @@ class TestBertE(RepositoryTests):
 
         pr = self.create_pr(feature_branch, dst_branch,
                             reviewers=reviewers)
-        retcode = self.handle(pr['id'],
-                              options=self.bypass_all + ['unanimity'])
-        self.assertEqual(retcode, UnanimityApprovalRequired.code)
+        with self.assertRaises(ApprovalRequired) as raised:
+            self.handle(pr['id'],
+                        options=self.bypass_all + ['unanimity'],
+                        backtrace=True)
+        self.assertIn('author', raised.exception.msg)
+        self.assertIn('peer', raised.exception.msg)
+        self.assertIn('unanimity', raised.exception.msg)
 
     def test_unanimity_required_all_approval(self):
         """Test unanimity with all approval required"""
@@ -1915,27 +1942,38 @@ class TestBertE(RepositoryTests):
 
         pr.add_comment('@%s unanimity' % self.args.robot_username)
 
-        retcode = self.handle(pr['id'], options=['bypass_jira_check'])
-        self.assertEqual(retcode, AuthorApprovalRequired.code)
+        with self.assertRaises(ApprovalRequired) as raised:
+            self.handle(pr['id'],
+                        options=['bypass_jira_check'],
+                        backtrace=True)
+        self.assertIn('unanimity', raised.exception.msg)
 
         # Author adds approval
         pr.approve()
-        retcode = self.handle(pr['id'], options=['bypass_jira_check'])
-        self.assertEqual(retcode, PeerApprovalRequired.code)
+        with self.assertRaises(ApprovalRequired) as raised:
+            self.handle(pr['id'],
+                        options=['bypass_jira_check'],
+                        backtrace=True)
+        self.assertIn('unanimity', raised.exception.msg)
 
         # 1st reviewer adds approval
         pr_peer = self.admin_bb.get_pull_request(pull_request_id=pr['id'])
         pr_peer.approve()
-        retcode = self.handle(pr['id'], options=['bypass_jira_check'])
-        self.assertEqual(retcode, PeerApprovalRequired.code)
+        with self.assertRaises(ApprovalRequired) as raised:
+            self.handle(pr['id'],
+                        options=['bypass_jira_check'],
+                        backtrace=True)
+        self.assertIn('unanimity', raised.exception.msg)
 
         # 2nd reviewer adds approval
         pr_peer = self.robot_bb.get_pull_request(
             pull_request_id=pr['id'])
         pr_peer.approve()
-        retcode = self.handle(pr['id'], options=[
-                              'bypass_jira_check',
-                              'bypass_build_status'])
+        with self.assertRaises(SuccessMessage) as raised:
+            self.handle(pr['id'],
+                        options=['bypass_jira_check',
+                                 'bypass_build_status'],
+                        backtrace=True)
 
     def test_after_pull_request(self):
         pr_opened = self.create_pr('bugfix/TEST-00001', 'development/4.3')
@@ -1967,8 +2005,10 @@ class TestBertE(RepositoryTests):
         if RepositoryTests.args.disable_mock:
             # take bitbucket laggyness into account
             time.sleep(10)
-        retcode = self.handle(blocked_pr['id'], options=self.bypass_all)
-        self.assertEqual(retcode, UnanimityApprovalRequired.code)
+        with self.assertRaises(ApprovalRequired) as raised:
+            self.handle(blocked_pr['id'], options=self.bypass_all,
+                        backtrace=True)
+        self.assertIn('unanimity', raised.exception.msg)
 
     def test_bitbucket_lag_on_pr_status(self):
         """Bitbucket can be a bit long to update a merged PR's status.
