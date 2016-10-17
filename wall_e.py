@@ -1676,14 +1676,18 @@ class WallE:
 
     def _update(self, wbranch, source, origin=False):
         try:
-            wbranch.merge(source, wbranch.destination_branch)
+            wbranch.merge(wbranch.destination_branch, source)
         except MergeFailedException:
-            raise Conflict(source=source,
-                           wbranch=wbranch,
-                           active_options=self._get_active_options(),
-                           origin=origin,
-                           feature_branch=self._pr.source_branch,
-                           dev_branch=self.destination_branch)
+            wbranch.reset(False)
+            try:
+                wbranch.merge(source, wbranch.destination_branch)
+            except MergeFailedException:
+                raise Conflict(source=source,
+                               wbranch=wbranch,
+                               active_options=self._get_active_options(),
+                               origin=origin,
+                               feature_branch=self._pr.source_branch,
+                               dev_branch=self.destination_branch)
 
     def _update_integration(self, integration_branches):
         prev, children = integration_branches[0], integration_branches[1:]
