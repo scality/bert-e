@@ -95,7 +95,7 @@ SHA1_LENGHT = [12, 40]
 
 SETTINGS = {
     'ring': {
-        'jira_key': 'RING',
+        'jira_keys': ['RING'],
         'build_key': 'pre-merge',
         'required_peer_approvals': 2,
         'testers': [
@@ -121,7 +121,7 @@ SETTINGS = {
         ]
     },
     'wall-e-demo': {
-        'jira_key': 'DEMOWALLE',
+        'jira_keys': ['DEMOWALLE'],
         'build_key': 'pre-merge',
         'required_peer_approvals': 2,
         'testers': [
@@ -132,7 +132,7 @@ SETTINGS = {
         ]
     },
     'default': {
-        'jira_key': 'RELENG',
+        'jira_keys': ['RELENG'],
         'build_key': 'pre-merge',
         'required_peer_approvals': 2,
         'testers': [
@@ -1521,10 +1521,11 @@ class WallE:
 
     def _jira_check_project(self, issue):
         # check the project
-        if (self._pr.source_branch.jira_project !=
-                self.settings['jira_key']):
+        if (self._pr.source_branch.jira_project not in
+                self.settings['jira_keys']):
+            expected = ', '.join(self.settings['jira_keys'])
             raise IncorrectJiraProject(
-                expected_project=self.settings['jira_key'],
+                expected_project=expected,
                 issue=issue,
                 active_options=self._get_active_options()
             )
@@ -1571,7 +1572,7 @@ class WallE:
         if self.option_is_set('bypass_jira_check'):
             return
 
-        if not self.settings['jira_key']:
+        if not self.settings['jira_keys']:
             return
 
         if self._jira_check_reference():

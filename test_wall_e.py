@@ -34,6 +34,7 @@ from wall_e_exceptions import (AfterPullRequest,
                                DeprecatedStabilizationBranch,
                                HelpMessage,
                                IncoherentQueues,
+                               IncorrectJiraProject,
                                Merged,
                                MissingJiraId,
                                NotEnoughCredentials,
@@ -1023,6 +1024,10 @@ class TestWallE(RepositoryTests):
         pr = self.create_pr('bugfix/free_text2', 'stabilization/6.0.0')
         retcode = self.handle(pr['id'])
         self.assertEqual(retcode, MissingJiraId.code)
+
+        pr = self.create_pr('bugfix/RONG-0001', 'development/6.0')
+        retcode = self.handle(pr['id'])
+        self.assertEqual(retcode, IncorrectJiraProject.code)
 
     def test_to_unrecognized_destination_branch(self):
         create_branch(self.gitrepo, 'master2',
