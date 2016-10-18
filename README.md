@@ -96,6 +96,28 @@ optional arguments:
   --disable-mock        Disables the bitbucket mock (slower tests)
 ```
 
+### How do I launch the standalone webhook listener (esteban) ?
+
+First you have to export the following environment variables:
+
+* `WALL_E_PWD` Wall-E's password on Bitbucket.
+* `WEBHOOK_LOGIN`, `WEBHOOK_PWD` The HTTP BasicAuth credentials used to
+  authenticate the requests sent to Esteban by Bitbucket.
+
+
+Then simply run:
+
+```
+$ python esteban.py --host 0.0.0.0 --port 8080
+```
+
+Esteban is now listening for webhooks on
+`http://<webhook_login>:<webhook_pwd>@localhost:8080/bitbucket/`.
+
+You can access the monitoring page without authentication on
+`http://localhost:8080/`.
+
+
 ### How to Launch Static Checker File?
 
 ```
