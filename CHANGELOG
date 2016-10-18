@@ -1,6 +1,15 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [2.0.1] - 2016-10-18
+# Added
+- allow multiple ticket keys for projects
+- show return status in Esteban's monitoring view
+
+# Fixed
+- avoid raising trivial conflicts due to branch update order
+- selective git transactions (push only modified branches)
+
 ## [2.0.0] - 2016-09-29
 # Added
 - new queueing system
