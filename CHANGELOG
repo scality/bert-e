@@ -1,6 +1,12 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [2.0.2] - 2016-10-19
+# Added
+- externalise settings to yaml files
+- add a sample settings file
+- allow multiple Jira issue keys per project
+
 ## [2.0.1] - 2016-10-18
 # Added
 - allow multiple ticket keys for projects
