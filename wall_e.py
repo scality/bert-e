@@ -1861,7 +1861,12 @@ class WallE:
             qint.create(qbranch, do_push=False)
             to_push.append(qint)
             for qbranch, wbranch in zip(qbranches, wbranches):
-                qbranch.merge(qint, wbranch)  # octopus merge
+                try:
+                    qbranch.merge(wbranch, qint)  # octopus merge
+                except MergeFailedException:
+                    qbranch.reset(False)
+                    qbranch.merge(qint, wbranch)
+
                 qint = self._get_queue_integration_branch(
                     self._pr.bb_pr['id'], wbranch)
                 qint.create(qbranch, do_push=False)
