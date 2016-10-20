@@ -1,6 +1,10 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [2.0.3] - 2016-10-20
+# Fixed
+- improve robustness against QueueConflict exceptions
+
 ## [2.0.2] - 2016-10-19
 # Added
 - externalise settings to yaml files
