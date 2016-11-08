@@ -1,4 +1,45 @@
-# build_key:
+# repository_owner [MANDATORY]:
+#   The name of the owner of the Bitbucket repository to work on
+#
+#   (a.k.a. Bitbucket team)
+#
+repository_owner: scality
+
+
+# repository_slug [MANDATORY]:
+#   The slug of the Bitbucket repository to work on
+#
+repository_slug: ring
+
+
+# username [MANDATORY]:
+#   The Bitbucket account to use for interactions with pull requests
+#
+#   This user will act as the robot and will:
+#   - comment pull requests to indicate the progress of the merge,
+#   - merge feature branches to development/* branches.
+#
+#   The user must have the correct permissions in Bitbucket
+#   to allow those operations (it is typically the only user allowed
+#   to merge to development/* branches).
+#
+#   The same user is used for Bitbucket and Jira access.
+#
+#   The password associated to the account is passed on the command line.
+#
+robot_username: scality_wall-e
+
+
+# robot_email [MANDATORY]:
+#   The email address of the robot
+#
+#   This email will be referenced in the Git merge commits created
+#   by the robot.
+#
+robot_email: nobody@nowhere.com
+
+
+# build_key [OPTIONAL]:
 #   The label of the key to look for in bitbucket commit statuses.
 #
 #   default value: pre-merge
@@ -6,7 +47,7 @@
 build_key: pre-merge
 
 
-# required_peer_approvals:
+# required_peer_approvals [OPTIONAL]:
 #   Number of approvals required in the pull-request in addition to author.
 #
 #   values: 0 or more
@@ -15,7 +56,7 @@ build_key: pre-merge
 required_peer_approvals: 2
 
 
-# jira_keys:
+# jira_keys [OPTIONAL]:
 #   The list of accepted Jira keys for this project.
 #
 #   values: list of accepted keys
@@ -26,7 +67,7 @@ jira_keys:
   - KEY
 
 
-# prefixes:
+# prefixes [OPTIONAL]:
 #   The dictionnary of expected match between the Jira issue type
 #   and branch prefix.
 #
@@ -40,9 +81,12 @@ prefixes:
   Improvement: improvement
 
 
-# admins:
-#   The list of bitbucket accounts allowed to post
-#   privileged messages to the bot
+# admins [OPTIONAL]:
+#   The list of bitbucket accounts allowed to post privileged messages
+#   to the bot
+#
+#   default value: empty
+#   empty: no one can post privileged messages
 #
 admins:
   - login_username_1

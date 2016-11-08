@@ -27,21 +27,25 @@ stages:
                      -v
                      --repo-prefix _test_wall_e_eve
                      --disable-queues
-                     foo
-                     bar
-                     sylvain_killian
-                     foo
-                     sylvain.killian@scality.com
+                     mock_owner
+                     mock_robot_username
+                     mock_robot_password
+                     mock_user_username
+                     mock_user_password
+                     mock_admin_username
+                     mock_admin_password
       - ShellCommand:
           name: Wall-E tests with queue support
           command: coverage run -a test_wall_e.py
                      -v
                      --repo-prefix _test_wall_e_eve
-                     foo
-                     bar
-                     sylvain_killian
-                     foo
-                     sylvain.killian@scality.com
+                     mock_owner
+                     mock_robot_username
+                     mock_robot_password
+                     mock_user_username
+                     mock_user_password
+                     mock_admin_username
+                     mock_admin_password
       - ShellCommand:
           name: Coverage report
           command: coverage report *.py

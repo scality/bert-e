@@ -51,6 +51,7 @@ from wall_e_exceptions import (AfterPullRequest,
                                Merged,
                                MismatchPrefixIssueType,
                                MissingJiraId,
+                               MissingMandatorySetting,
                                NotASingleDevBranch,
                                NothingToDo,
                                NotEnoughCredentials,
@@ -92,10 +93,7 @@ if six.PY3:
 
 SHA1_LENGHT = [12, 40]
 
-WALL_E_USERNAME = 'scality_wall-e'
-WALL_E_EMAIL = 'wall_e@scality.com'
-
-DEFAULT_SETTINGS = {
+DEFAULT_OPTIONAL_SETTINGS = {
     'build_key': 'pre-merge',
     'required_peer_approvals': 2,
     'jira_keys': [],
@@ -956,23 +954,27 @@ class BranchCascade(object):
 class WallE:
     def __init__(self, args, options, commands, settings):
         self._bbconn = bitbucket_api.Client(
-            args.username, args.password, args.email)
+            settings['robot_username'],
+            args.password,
+            settings['robot_email']
+        )
         self.bbrepo = bitbucket_api.Repository(
-            self._bbconn, owner=args.owner, repo_slug=args.slug)
+            self._bbconn,
+            owner=settings['repository_owner'],
+            repo_slug=settings['repository_slug']
+        )
         self.options = options
         self.commands = commands
+        self.settings = settings
         self.backtrace = args.backtrace
-        self.email = args.email
         self.interactive = args.interactive
         self.no_comment = args.no_comment
         self.quiet = args.quiet
         self.ref_git_repo = args.reference_git_repo
         self.token = args.token.strip()
         self.use_queue = not args.disable_queues
-        self.username = args.username
         self.repo = self._clone_git_repo()
         self.tmpdir = self.repo.tmp_directory
-        self.settings = settings
 
     def test_sha1_in_queue(self, sha1):
         cmd = 'git branch -r --contains %s "origin/q/*"'
@@ -1025,7 +1027,11 @@ class WallE:
 
     def handle_pull_request(self, pr_id):
         """Entry point to handle a pull request id."""
-        self._pr = WallEPullRequest(self.bbrepo, self.username, pr_id)
+        self._pr = WallEPullRequest(
+            self.bbrepo,
+            self.settings['robot_username'],
+            pr_id
+        )
         self._cascade = BranchCascade()
 
         try:
@@ -1153,7 +1159,8 @@ class WallE:
         # Apply no-repeat strategy
         if dont_repeat_if_in_history:
             if self.find_bitbucket_comment(
-                    username=self.username, startswith=msg,
+                    username=self.settings['robot_username'],
+                    startswith=msg,
                     max_history=dont_repeat_if_in_history):
                 raise CommentAlreadyExists(
                     'The same comment has already been posted '
@@ -1186,8 +1193,8 @@ class WallE:
         repo = GitRepository(self.bbrepo.get_git_url())
         repo.clone(self.ref_git_repo)
         repo.fetch_all_branches()
-        repo.config('user.email', self.email)
-        repo.config('user.name', self.username)
+        repo.config('user.email', self.settings['robot_email'])
+        repo.config('user.name', self.settings['robot_username'])
         repo.config('merge.renameLimit', '999999')
         return repo
 
@@ -1222,7 +1229,8 @@ class WallE:
     def _send_greetings(self):
         """Display a welcome message if conditions are met."""
         # Skip if Wall-E has already posted a comment on this PR
-        if self.find_bitbucket_comment(username=self.username):
+        if self.find_bitbucket_comment(
+                username=self.settings['robot_username']):
             return
 
         self.send_msg_and_continue(InitMessage(
@@ -1278,13 +1286,14 @@ class WallE:
 
     def _get_options(self, pr_author):
         """Load settings from pull-request comments."""
+        username = self.settings['robot_username']
         for comment in self._pr.comments:
             raw = comment['content']['raw']
-            if not raw.strip().startswith('@%s' % self.username):
+            if not raw.strip().startswith('@%s' % username):
                 continue
 
             logging.debug('Found a keyword comment: %s', raw)
-            raw_cleaned = raw.strip()[len(self.username) + 1:]
+            raw_cleaned = raw.strip()[len(username) + 1:]
 
             author = comment['user']['username']
             if isinstance(author, list):
@@ -1344,6 +1353,7 @@ class WallE:
 
     def _handle_commands(self):
         """Detect the last command in pull-request comments and act on it."""
+        username = self.settings['robot_username']
         for comment in reversed(self._pr.comments):
             author = comment['user']['username']
             if isinstance(author, list):
@@ -1355,18 +1365,18 @@ class WallE:
             # if Wall-E is the author of this comment, any previous command
             # has been treated or is outdated, since Wall-E replies to all
             # commands. The search is over.
-            if author == self.username:
+            if author == username:
                 return
 
             raw = comment['content']['raw']
-            if not raw.strip().startswith('@%s' % self.username):
+            if not raw.strip().startswith('@%s' % username):
                 continue
 
             logging.debug('Found a potential command comment: %s', raw)
 
             # accept all commands in the form:
             # @scality_wall-e command arg1 arg2 ...
-            regexp = "@%s[\s:]*" % self.username
+            regexp = "@%s[\s:]*" % username
             raw_cleaned = re.sub(regexp, '', raw.strip())
             regexp = r"(?P<command>[A-Za-z_]+[^= ,])(?P<args>.*)$"
             match_ = re.match(regexp, raw_cleaned)
@@ -1666,7 +1676,7 @@ class WallE:
         ))
         if any(created):
             self.send_msg_and_continue(IntegrationPullRequestsCreated(
-                wall_e=self.username,
+                wall_e=self.settings['robot_username'],
                 pr=self._pr.bb_pr, child_prs=prs,
                 ignored=self._cascade.ignored_branches,
                 active_options=self._get_active_options()
@@ -1743,10 +1753,11 @@ class WallE:
 
         # NB: when author hasn't approved the PR, author isn't listed in
         # 'participants'
+        username = self.settings['robot_username']
         for participant in self._pr.bb_pr['participants']:
             if not participant['approved']:
                 # Exclude WALL_E from consideration
-                if participant['user']['username'] != self.username:
+                if participant['user']['username'] != username:
                     is_unanimous = False
                 continue
             if participant['user']['username'] == self._pr.author:
@@ -1946,7 +1957,8 @@ class WallE:
                 )
 
     def _close_queued_pull_request(self, pr_id, cascade):
-        self._pr = WallEPullRequest(self.bbrepo, self.username, pr_id)
+        self._pr = WallEPullRequest(
+            self.bbrepo, self.settings['robot_username'], pr_id)
         self._cascade = cascade
         src_branch = branch_factory(
             self.repo,
@@ -2129,37 +2141,25 @@ def setup_parser():
                                      description='Merges bitbucket '
                                                  'pull requests.')
     parser.add_argument(
+        'settings',
+        help="Path to project settings file")
+    parser.add_argument(
+        'password',
+        help="Wall-E's password [for Jira and Bitbucket]")
+    parser.add_argument(
+        'token', type=str,
+        help="The ID of the pull request or sha1 (%s characters) "
+             "to analyse" % SHA1_LENGHT)
+    parser.add_argument(
         '--disable-queues', action='store_true', default=False,
         help="Deactivate optimistic merge queue (legacy mode)")
     parser.add_argument(
         '--option', '-o', action='append', type=str, dest='cmd_line_options',
         help="Activate additional options")
     parser.add_argument(
-        'token', type=str,
-        help="The ID of the pull request or sha1 (%s characters) "
-             "to analyse" % SHA1_LENGHT)
-    parser.add_argument(
-        'password',
-        help="Wall-E's password [for Jira and Bitbucket]")
-    parser.add_argument(
-        '--username', default=WALL_E_USERNAME,
-        help="Wall-E's username [for Jira and Bitbucket]")
-    parser.add_argument(
-        '--email', default=WALL_E_EMAIL,
-        help="Wall-E's email [for Jira and Bitbucket]")
-    parser.add_argument(
         '--reference-git-repo', default='',
         help="Reference to a local git repo to improve cloning delay. "
              "If empty, a local clone will be created")
-    parser.add_argument(
-        '--owner', default='scality',
-        help="The owner of the repo (default: scality)")
-    parser.add_argument(
-        '--slug', default='ring',
-        help="The repo's slug (default: ring)")
-    parser.add_argument(
-        '--settings',
-        help="Path to project settings file")
     parser.add_argument(
         '--interactive', action='store_true', default=False,
         help="Ask before merging or sending comments")
@@ -2263,11 +2263,7 @@ def setup_commands():
 
 
 def setup_settings(settings_file):
-    settings = dict(DEFAULT_SETTINGS)
-
-    if not settings_file:
-        # allow running without a settings file,
-        return settings
+    settings = dict(DEFAULT_OPTIONAL_SETTINGS)
 
     if not exists(settings_file):
         raise SettingsFileNotFound(settings_file)
@@ -2281,6 +2277,27 @@ def setup_settings(settings_file):
     # replace default data by provided data
     for key in new_settings:
         settings[key] = new_settings[key]
+
+    # check settings type and presence
+    for setting_ in ['repository_owner', 'repository_slug',
+                     'robot_username', 'robot_email', 'build_key']:
+        if setting_ not in settings:
+            raise MissingMandatorySetting(settings_file)
+
+        if not isinstance(settings[setting_], str):
+            raise IncorrectSettingsFile(settings_file)
+
+    for setting_ in ['required_peer_approvals']:
+        if not isinstance(settings[setting_], int):
+            raise IncorrectSettingsFile(settings_file)
+
+    for setting_ in ['prefixes']:
+        if not isinstance(settings[setting_], dict):
+            raise IncorrectSettingsFile(settings_file)
+
+    for setting_ in ['jira_keys', 'admins']:
+        if not isinstance(settings[setting_], list):
+            raise IncorrectSettingsFile(settings_file)
 
     return settings
 

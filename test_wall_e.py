@@ -38,6 +38,7 @@ from wall_e_exceptions import (AfterPullRequest,
                                IncorrectSettingsFile,
                                Merged,
                                MissingJiraId,
+                               MissingMandatorySetting,
                                NotEnoughCredentials,
                                NothingToDo,
                                NotMyJob,
@@ -69,12 +70,12 @@ from wall_e_exceptions import (MasterQueueDiverged,
                                QueueIncomplete,
                                QueueInconsistentPullRequestsOrder)
 
-WALL_E_USERNAME = 'scality_wall-e'
-WALL_E_EMAIL = 'wall_e@scality.com'
-EVA_USERNAME = 'scality_eva'
-EVA_EMAIL = 'eva.scality@gmail.com'
 
 DEFAULT_SETTINGS = """
+repository_owner: {owner}
+repository_slug: {slug}
+robot_username: {robot}
+robot_email: nobody@nowhere.com
 build_key: pre-merge
 required_peer_approvals: 2
 prefixes:
@@ -85,7 +86,6 @@ prefixes:
 jira_keys:
   - RING
 admins:
-  - scality_wall-e
   - {your_login}
 """
 
@@ -571,10 +571,10 @@ class RepositoryTests(unittest.TestCase):
         client = bitbucket_api.Client(
             self.args.your_login,
             self.args.your_password,
-            self.args.your_mail)
+            "nobody@nowhere.com")
         self.bbrepo = bitbucket_api.Repository(
             client,
-            owner='scality',
+            owner=self.args.owner,
             repo_slug=('%s_%s' % (self.args.repo_prefix,
                                   self.args.your_login)),
             is_private=True,
@@ -591,30 +591,30 @@ class RepositoryTests(unittest.TestCase):
 
         # Use Eva as our unprivileged user
         client_eva = bitbucket_api.Client(
-            EVA_USERNAME,
+            self.args.eva_username,
             self.args.eva_password,
-            EVA_EMAIL)
+            "nobody@nowhere.com")
         self.bbrepo_eva = bitbucket_api.Repository(
             client_eva,
-            owner='scality',
+            owner=self.args.owner,
             repo_slug=('%s_%s' % (self.args.repo_prefix,
                                   self.args.your_login)),
         )
         # Wall-E may want to comment manually too
         client_wall_e = bitbucket_api.Client(
-            WALL_E_USERNAME,
+            self.args.wall_e_username,
             self.args.wall_e_password,
-            WALL_E_EMAIL)
+            "nobody@nowhere.com")
         self.bbrepo_wall_e = bitbucket_api.Repository(
             client_wall_e,
-            owner='scality',
+            owner=self.args.owner,
             repo_slug=('%s_%s' % (self.args.repo_prefix,
                                   self.args.your_login)),
         )
         self.gitrepo = GitRepository(self.bbrepo.get_git_url())
         initialize_git_repo(self.gitrepo,
                             self.args.your_login,
-                            self.args.your_mail)
+                            "nobody@nowhere.com")
 
     def tearDown(self):
         if RepositoryTests.args.disable_mock:
@@ -656,8 +656,9 @@ class RepositoryTests(unittest.TestCase):
         if not backtrace:
             sys.argv.append('--backtrace')
         argv_copy = list(sys.argv)
-        sys.argv.append(str(token))
+        sys.argv.append('test_settings.yml')
         sys.argv.append(self.args.wall_e_password)
+        sys.argv.append(str(token))
         try:
             wall_e.main()
         except Queued as queued_excp:
@@ -694,8 +695,9 @@ class RepositoryTests(unittest.TestCase):
             self.set_build_status(sha1, 'SUCCESSFUL')
         sys.argv = argv_copy
         token = sha1
-        sys.argv.append(str(token))
+        sys.argv.append('test_settings.yml')
         sys.argv.append(self.args.wall_e_password)
+        sys.argv.append(str(token))
         try:
             wall_e.main()
         except Merged:
@@ -730,28 +732,29 @@ class RepositoryTests(unittest.TestCase):
         if backtrace:
             sys.argv.append('--backtrace')
         sys.argv.append('--quiet')
-        sys.argv.append('--slug')
-        sys.argv.append(self.bbrepo['repo_slug'])
-        if settings:
-            data = settings.format(your_login=self.args.your_login)
-            with open('test_settings.yml', 'w') as settings_file:
-                settings_file.write(data)
-            sys.argv.append('--settings')
-            sys.argv.append('test_settings.yml')
+        data = settings.format(
+            your_login=self.args.your_login,
+            robot=self.args.wall_e_username,
+            owner=self.args.owner,
+            slug='%s_%s' % (self.args.repo_prefix, self.args.your_login)
+        )
+        with open('test_settings.yml', 'w') as settings_file:
+            settings_file.write(data)
         if self.args.disable_queues:
             sys.argv.append('--disable-queues')
         else:
             if self.__class__ == TestWallE:
                 return self.handle_legacy(token, backtrace)
 
-        sys.argv.append(str(token))
+        sys.argv.append('test_settings.yml')
         sys.argv.append(self.args.wall_e_password)
+        sys.argv.append(str(token))
         return wall_e.main()
 
     def set_build_status(self, sha1, state,
                          key='pre-merge',
                          name='Test build status',
-                         url='http://www.scality.com'):
+                         url='http://www.testurl.com'):
         self.bbrepo_wall_e.set_build_status(
             revision=sha1,
             key=key,
@@ -773,7 +776,7 @@ class RepositoryTests(unittest.TestCase):
     def set_build_status_on_pr_id(self, pr_id, state,
                                   key='pre-merge',
                                   name='Test build status',
-                                  url='http://www.scality.com'):
+                                  url='http://www.testurl.com'):
         pr = self.bbrepo_wall_e.get_pull_request(pull_request_id=pr_id)
 
         self.set_build_status(pr['source']['commit']['hash'],
@@ -1084,7 +1087,7 @@ class TestWallE(RepositoryTests):
             source={'branch': {'name': 'w/bugfix/RING-00069'}},
             destination={'branch': {'name': 'development/4.3'}},
             close_source_branch=True,
-            reviewers=[{'username': EVA_USERNAME}],
+            reviewers=[{'username': self.args.eva_username}],
             description=''
         )
         with self.assertRaises(ParentPullRequestNotFound):
@@ -1106,7 +1109,7 @@ class TestWallE(RepositoryTests):
 
         # The help message should be displayed every time the user requests it
         help_msg = ''
-        pr.add_comment('@%s help' % WALL_E_USERNAME)
+        pr.add_comment('@%s help' % self.args.wall_e_username)
         try:
             self.handle(pr['id'], backtrace=True)
         except HelpMessage as ret:
@@ -1121,7 +1124,7 @@ class TestWallE(RepositoryTests):
         self.assertNotEqual(last_comment, help_msg,
                             "Eva's message wasn't recorded.")
 
-        pr.add_comment('@%s help' % WALL_E_USERNAME)
+        pr.add_comment('@%s help' % self.args.wall_e_username)
         self.handle(pr['id'])
         last_comment = get_last_comment(pr)
         self.assertEqual(last_comment, help_msg,
@@ -1167,45 +1170,45 @@ class TestWallE(RepositoryTests):
         pr = self.create_pr('bugfix/RING-00001', 'development/4.3')
 
         # option: wait
-        comment = pr.add_comment('@%s wait' % WALL_E_USERNAME)
+        comment = pr.add_comment('@%s wait' % self.args.wall_e_username)
         with self.assertRaises(NothingToDo):
             self.handle(pr['id'], backtrace=True)
         comment.delete()
 
         # command: build
-        pr.add_comment('@%s build' % WALL_E_USERNAME)
+        pr.add_comment('@%s build' % self.args.wall_e_username)
         retcode = self.handle(pr['id'])
         self.assertEqual(retcode, CommandNotImplemented.code)
 
         # command: clear
-        pr.add_comment('@%s clear' % WALL_E_USERNAME)
+        pr.add_comment('@%s clear' % self.args.wall_e_username)
         retcode = self.handle(pr['id'])
         self.assertEqual(retcode, CommandNotImplemented.code)
 
         # command: status
-        pr.add_comment('@%s status' % WALL_E_USERNAME)
+        pr.add_comment('@%s status' % self.args.wall_e_username)
         retcode = self.handle(pr['id'])
         self.assertEqual(retcode, StatusReport.code)
 
         # mix of option and command
-        pr.add_comment('@%s unanimity' % WALL_E_USERNAME)
-        pr.add_comment('@%s status' % WALL_E_USERNAME)
+        pr.add_comment('@%s unanimity' % self.args.wall_e_username)
+        pr.add_comment('@%s status' % self.args.wall_e_username)
         retcode = self.handle(pr['id'])
         self.assertEqual(retcode, StatusReport.code)
 
         # test_help command
-        pr.add_comment('@%s help' % WALL_E_USERNAME)
+        pr.add_comment('@%s help' % self.args.wall_e_username)
         retcode = self.handle(pr['id'])
         self.assertEqual(retcode, HelpMessage.code)
 
         # test help command with inter comment
-        pr.add_comment('@%s: help' % WALL_E_USERNAME)
+        pr.add_comment('@%s: help' % self.args.wall_e_username)
         pr.add_comment('an irrelevant comment')
         retcode = self.handle(pr['id'])
         self.assertEqual(retcode, HelpMessage.code)
 
         # test help command with inter comment from wall-e
-        pr.add_comment('@%s help' % WALL_E_USERNAME)
+        pr.add_comment('@%s help' % self.args.wall_e_username)
         pr_wall_e = self.bbrepo_wall_e.get_pull_request(
             pull_request_id=pr['id'])
         pr_wall_e.add_comment('this is my help already')
@@ -1213,13 +1216,14 @@ class TestWallE(RepositoryTests):
         self.assertEqual(retcode, AuthorApprovalRequired.code)
 
         # test unknown command
-        comment = pr.add_comment('@%s helpp' % WALL_E_USERNAME)
+        comment = pr.add_comment('@%s helpp' % self.args.wall_e_username)
         retcode = self.handle(pr['id'], options=['bypass_jira_check'])
         self.assertEqual(retcode, UnknownCommand.code)
         comment.delete()
 
         # test command args
-        pr.add_comment('@%s help some arguments --hehe' % WALL_E_USERNAME)
+        pr.add_comment('@%s help some arguments --hehe' %
+                       self.args.wall_e_username)
         retcode = self.handle(pr['id'])
         self.assertEqual(retcode, HelpMessage.code)
 
@@ -1240,7 +1244,7 @@ class TestWallE(RepositoryTests):
             ' bypass_peer_approval'
             ' bypass_tester_approval'
             ' bypass_build_status'
-            ' bypass_jira_check' % WALL_E_USERNAME
+            ' bypass_jira_check' % self.args.wall_e_username
         )
         comment.delete()
         retcode = self.handle(pr['id'], options=['bypass_jira_check'])
@@ -1252,7 +1256,8 @@ class TestWallE(RepositoryTests):
                                  ' bypass_author_approval'
                                  ' bypass_peer_approval'
                                  ' bypass_build_status'
-                                 ' bypass_jira_check' % WALL_E_USERNAME)
+                                 ' bypass_jira_check' %
+                                 self.args.wall_e_username)
         retcode = self.handle(pr['id'], options=['bypass_jira_check'])
         self.assertEqual(retcode, AuthorApprovalRequired.code)
         # test RELENG-1335: WallE unvalid status command
@@ -1263,7 +1268,7 @@ class TestWallE(RepositoryTests):
         pr = self.create_pr(feature_branch, dst_branch)
         retcode = self.handle(pr['id'], options=['bypass_jira_check'])
         self.assertEqual(retcode, AuthorApprovalRequired.code)
-        pr.add_comment('@%s status?' % WALL_E_USERNAME)
+        pr.add_comment('@%s status?' % self.args.wall_e_username)
         retcode = self.handle(pr['id'], options=[
             'bypass_jira_check',
             'bypass_author_approval',
@@ -1281,7 +1286,7 @@ class TestWallE(RepositoryTests):
             ' bypass_peer_approval'
             ' bypass_tester_approval'
             ' bypass_build_status'
-            ' bypass_jira_check' % WALL_E_USERNAME
+            ' bypass_jira_check' % self.args.wall_e_username
         )
         retcode = self.handle(pr['id'], options=['bypass_jira_check'])
         self.assertEqual(retcode, UnknownCommand.code)
@@ -1294,7 +1299,7 @@ class TestWallE(RepositoryTests):
             ' bypass_peer_approval'
             ' bypass_tester_approval'
             ' bypass_build_status'
-            ' bypass_jira_check' % WALL_E_USERNAME
+            ' bypass_jira_check' % self.args.wall_e_username
         )
         retcode = self.handle(pr['id'], options=['bypass_jira_check'])
         self.assertEqual(retcode, NotEnoughCredentials.code)
@@ -1308,7 +1313,7 @@ class TestWallE(RepositoryTests):
             ' bypass_tester_approval'
             ' bypass_build_status'
             ' mmm_never_seen_that_before'  # this is unknown
-            ' bypass_jira_check' % WALL_E_USERNAME
+            ' bypass_jira_check' % self.args.wall_e_username
         )
         retcode = self.handle(pr['id'], options=['bypass_jira_check'])
         self.assertEqual(retcode, UnknownCommand.code)
@@ -1320,7 +1325,7 @@ class TestWallE(RepositoryTests):
                              ' bypass_peer_approval'
                              ' bypass_tester_approval'
                              ' bypass_build_status'
-                             ' bypass_jira_check' % WALL_E_USERNAME)
+                             ' bypass_jira_check' % self.args.wall_e_username)
         retcode = self.handle(pr['id'])
         self.assertEqual(retcode, SuccessMessage.code)
 
@@ -1332,18 +1337,24 @@ class TestWallE(RepositoryTests):
                              '     bypass_peer_approval   '
                              ' bypass_tester_approval'
                              '  bypass_build_status'
-                             '   bypass_jira_check' % WALL_E_USERNAME)
+                             '   bypass_jira_check' %
+                             self.args.wall_e_username)
         retcode = self.handle(pr['id'])
         self.assertEqual(retcode, SuccessMessage.code)
 
         # test bypass all approvals through many comments
         pr = self.create_pr('bugfix/RING-00003', 'development/4.3')
         pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id'])
-        pr_admin.add_comment('@%s bypass_author_approval' % WALL_E_USERNAME)
-        pr_admin.add_comment('@%s bypass_peer_approval' % WALL_E_USERNAME)
-        pr_admin.add_comment('@%s bypass_tester_approval' % WALL_E_USERNAME)
-        pr_admin.add_comment('@%s bypass_build_status' % WALL_E_USERNAME)
-        pr_admin.add_comment('@%s bypass_jira_check' % WALL_E_USERNAME)
+        pr_admin.add_comment('@%s bypass_author_approval' %
+                             self.args.wall_e_username)
+        pr_admin.add_comment('@%s bypass_peer_approval' %
+                             self.args.wall_e_username)
+        pr_admin.add_comment('@%s bypass_tester_approval' %
+                             self.args.wall_e_username)
+        pr_admin.add_comment('@%s bypass_build_status' %
+                             self.args.wall_e_username)
+        pr_admin.add_comment('@%s bypass_jira_check' %
+                             self.args.wall_e_username)
         retcode = self.handle(pr['id'])
         self.assertEqual(retcode, SuccessMessage.code)
 
@@ -1353,7 +1364,8 @@ class TestWallE(RepositoryTests):
         pr_admin.add_comment('@%s'
                              ' bypass_author_approval'
                              ' bypass_peer_approval'
-                             ' bypass_tester_approval' % WALL_E_USERNAME)
+                             ' bypass_tester_approval' %
+                             self.args.wall_e_username)
         retcode = self.handle(pr['id'], options=['bypass_build_status',
                                                  'bypass_jira_check'])
         self.assertEqual(retcode, SuccessMessage.code)
@@ -1362,7 +1374,8 @@ class TestWallE(RepositoryTests):
         pr = self.create_pr('bugfix/RING-00005', 'development/4.3')
         pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id'])
         pr_admin.add_comment('@%s'
-                             ' bypass_author_approval' % WALL_E_USERNAME)
+                             ' bypass_author_approval' %
+                             self.args.wall_e_username)
         retcode = self.handle(
             pr['id'],
             options=self.bypass_all_but(['bypass_author_approval']))
@@ -1372,7 +1385,8 @@ class TestWallE(RepositoryTests):
         pr = self.create_pr('bugfix/RING-00006', 'development/4.3')
         pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id'])
         pr_admin.add_comment('@%s'
-                             ' bypass_peer_approval' % WALL_E_USERNAME)
+                             ' bypass_peer_approval' %
+                             self.args.wall_e_username)
         retcode = self.handle(pr['id'],
                               options=['bypass_author_approval',
                                        'bypass_tester_approval',
@@ -1384,7 +1398,8 @@ class TestWallE(RepositoryTests):
         pr = self.create_pr('bugfix/RING-00007', 'development/4.3')
         pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id'])
         pr_admin.add_comment('@%s'
-                             ' bypass_jira_check' % WALL_E_USERNAME)
+                             ' bypass_jira_check' %
+                             self.args.wall_e_username)
         retcode = self.handle(pr['id'], options=['bypass_author_approval',
                                                  'bypass_tester_approval',
                                                  'bypass_peer_approval',
@@ -1395,7 +1410,8 @@ class TestWallE(RepositoryTests):
         pr = self.create_pr('bugfix/RING-00009', 'development/4.3')
         pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id'])
         pr_admin.add_comment('@%s'
-                             ' bypass_build_status' % WALL_E_USERNAME)
+                             ' bypass_build_status' %
+                             self.args.wall_e_username)
         retcode = self.handle(
             pr['id'],
             options=self.bypass_all_but(['bypass_build_status']))
@@ -1406,21 +1422,26 @@ class TestWallE(RepositoryTests):
         pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id'])
         for i in range(5):
             pr.add_comment('random comment %s' % i)
-        pr_admin.add_comment('@%s bypass_author_approval' % WALL_E_USERNAME)
+        pr_admin.add_comment('@%s bypass_author_approval' %
+                             self.args.wall_e_username)
         for i in range(6):
             pr.add_comment('random comment %s' % i)
-        pr_admin.add_comment('@%s bypass_peer_approval' % WALL_E_USERNAME)
+        pr_admin.add_comment('@%s bypass_peer_approval' %
+                             self.args.wall_e_username)
         for i in range(3):
             pr.add_comment('random comment %s' % i)
-        pr_admin.add_comment('@%s bypass_build_status' % WALL_E_USERNAME)
+        pr_admin.add_comment('@%s bypass_build_status' %
+                             self.args.wall_e_username)
         for i in range(22):
             pr.add_comment('random comment %s' % i)
-        pr_admin.add_comment('@%s bypass_jira_check' % WALL_E_USERNAME)
+        pr_admin.add_comment('@%s bypass_jira_check' %
+                             self.args.wall_e_username)
         for i in range(10):
             pr.add_comment('random comment %s' % i)
         for i in range(10):
             pr.add_comment('@%s bypass_tester_approval' % i)
-        pr_admin.add_comment('@%s bypass_tester_approval' % WALL_E_USERNAME)
+        pr_admin.add_comment('@%s bypass_tester_approval' %
+                             self.args.wall_e_username)
 
         retcode = self.handle(pr['id'])
         self.assertEqual(retcode, SuccessMessage.code)
@@ -1433,15 +1454,15 @@ class TestWallE(RepositoryTests):
                              '     bypass_peer_approval,,   '
                              ' bypass_tester_approval'
                              '  bypass_build_status-bypass_jira_check' %
-                             WALL_E_USERNAME)
+                             self.args.wall_e_username)
         retcode = self.handle(pr['id'])
         self.assertEqual(retcode, SuccessMessage.code)
 
         # test bypass branch prefix through comment
         pr = self.create_pr('feature/RING-00012', 'development/4.3')
         pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id'])
-        pr_admin.add_comment('@%s'
-                             ' bypass_incompatible_branch' % WALL_E_USERNAME)
+        pr_admin.add_comment('@%s bypass_incompatible_branch' %
+                             self.args.wall_e_username)
         retcode = self.handle(
             pr['id'],
             options=self.bypass_all_but(['bypass_incompatible_branch']))
@@ -1664,7 +1685,8 @@ class TestWallE(RepositoryTests):
         # test bypass tester approval through comment
         pr = self.create_pr('bugfix/RING-00078', 'development/4.3')
         pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id'])
-        pr_admin.add_comment('@%s bypass_tester_approval' % WALL_E_USERNAME)
+        pr_admin.add_comment('@%s bypass_tester_approval' %
+                             self.args.wall_e_username)
 
         retcode = self.handle(pr['id'], options=[
                               'bypass_author_approval',
@@ -1880,7 +1902,7 @@ class TestWallE(RepositoryTests):
 
         pr = self.create_pr(feature_branch, dst_branch)
 
-        pr.add_comment('@%s unanimity' % WALL_E_USERNAME)
+        pr.add_comment('@%s unanimity' % self.args.wall_e_username)
 
         retcode = self.handle(pr['id'], options=['bypass_jira_check'])
         self.assertEqual(retcode, AuthorApprovalRequired.code)
@@ -1912,13 +1934,14 @@ class TestWallE(RepositoryTests):
 
         comment_declined = blocked_pr.add_comment(
             '@%s after_pull_request=%s' % (
-                WALL_E_USERNAME, pr_declined['id']))
+                self.args.wall_e_username,
+                pr_declined['id']))
 
         retcode = self.handle(blocked_pr['id'], options=self.bypass_all)
         self.assertEqual(retcode, AfterPullRequest.code)
 
         blocked_pr.add_comment('@%s unanimity after_pull_request=%s' % (
-            WALL_E_USERNAME, pr_opened['id']))
+            self.args.wall_e_username, pr_opened['id']))
 
         retcode = self.handle(blocked_pr['id'], options=self.bypass_all)
         self.assertEqual(retcode, AfterPullRequest.code)
@@ -2091,25 +2114,16 @@ class TestWallE(RepositoryTests):
         retcode = self.handle(pr3['id'], options=self.bypass_all)
 
     def test_settings(self):
-        # test with no settings provided
-        pr = self.create_pr('bugfix/RING-00001', 'development/4.3')
-        with self.assertRaises(BuildNotStarted):
-            self.handle(
-                pr['id'],
-                options=[
-                    'bypass_author_approval',
-                    'bypass_peer_approval',
-                ],
-                backtrace=True,
-                settings=None)
-
         # test with no peer approvals set to 0
         pr = self.create_pr('bugfix/RING-00002', 'development/4.3')
         settings = """
+repository_owner: {owner}
+repository_slug: {slug}
+robot_username: {robot}
+robot_email: nobody@nowhere.com
 build_key: pre-merge
 required_peer_approvals: 0
 admins:
-  - scality_wall-e
   - {your_login}
 """
         with self.assertRaises(BuildNotStarted):
@@ -2124,6 +2138,10 @@ admins:
         # test with incorrect settings file
         pr = self.create_pr('bugfix/RING-00003', 'development/4.3')
         settings = """
+repository_owner: {owner}
+repository_slug: {slug}
+robot_username: {robot}
+robot_email: nobody@nowhere.com
 build_key
 required_peer_approvals: 0
 """
@@ -2139,11 +2157,14 @@ required_peer_approvals: 0
         # test with different build key
         pr = self.create_pr('bugfix/RING-00004', 'development/6.0')
         settings = """
+repository_owner: {owner}
+repository_slug: {slug}
+robot_username: {robot}
+robot_email: nobody@nowhere.com
 build_key: toto
 # comment
 required_peer_approvals: 0
 admins:
-  - scality_wall-e
   - {your_login}
 """
         self.set_build_status_on_pr_id(pr['id'], 'SUCCESSFUL')
@@ -2161,6 +2182,26 @@ admins:
                               options=['bypass_author_approval'],
                               settings=settings)
         self.assertEqual(retcode, SuccessMessage.code)
+
+        # test missing mandatory setting
+        pr = self.create_pr('bugfix/RING-00005', 'development/4.3')
+        settings = """
+repository_slug: {slug}
+robot_username: {robot}
+robot_email: nobody@nowhere.com
+build_key: pre-merge
+required_peer_approvals: 2
+admins:
+  - {your_login}
+"""
+        with self.assertRaises(MissingMandatorySetting):
+            self.handle(
+                pr['id'],
+                options=[
+                    'bypass_author_approval',
+                ],
+                backtrace=True,
+                settings=settings)
 
 
 class TestQueueing(RepositoryTests):
@@ -3271,16 +3312,20 @@ class TestQueueing(RepositoryTests):
 
 def main():
     parser = argparse.ArgumentParser(description='Launches Wall-E tests.')
+    parser.add_argument('owner',
+                        help='Owner of test repository (aka Bitbucket team)')
+    parser.add_argument('wall_e_username',
+                        help='Wall-E\'s username [for Jira and Bitbucket]')
     parser.add_argument('wall_e_password',
                         help='Wall-E\'s password [for Jira and Bitbucket]')
+    parser.add_argument('eva_username',
+                        help='Eva\'s username [for Bitbucket]')
     parser.add_argument('eva_password',
-                        help='Eva\'s password [for Jira and Bitbucket]')
+                        help='Eva\'s password [for Bitbucket]')
     parser.add_argument('your_login',
                         help='Your Bitbucket login')
     parser.add_argument('your_password',
                         help='Your Bitbucket password')
-    parser.add_argument('your_mail',
-                        help='Your Bitbucket email address')
     parser.add_argument('tests', nargs='*', help='run only these tests')
     parser.add_argument('--repo-prefix', default="_test_wall_e",
                         help='Prefix of the test repository')
@@ -3294,12 +3339,22 @@ def main():
                         help='deactivate queue feature during tests')
     RepositoryTests.args = parser.parse_args()
 
-    if RepositoryTests.args.your_login == WALL_E_USERNAME:
-        print('Cannot use Wall-e as the tester, please use another login.')
+    if (RepositoryTests.args.your_login ==
+            RepositoryTests.args.wall_e_username):
+        print('Cannot use the same login for robot and superuser, '
+              'please specify another login.')
         sys.exit(1)
 
-    if RepositoryTests.args.your_login == EVA_USERNAME:
-        print('Cannot use Eva as the tester, please use another login.')
+    if (RepositoryTests.args.your_login ==
+            RepositoryTests.args.eva_username):
+        print('Cannot use the same login for superuser and user, '
+              'please specify another login.')
+        sys.exit(1)
+
+    if (RepositoryTests.args.wall_e_username ==
+            RepositoryTests.args.eva_username):
+        print('Cannot use the same login for normal user and robot, '
+              'please specify another login.')
         sys.exit(1)
 
     if not RepositoryTests.args.disable_mock:

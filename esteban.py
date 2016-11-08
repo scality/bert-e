@@ -60,17 +60,12 @@ def wall_e_launcher():
         sys.argv.extend([
             'wall_e',
             '-v',
-            '--backtrace',
-            '--owner', job.repo_owner,
-            '--slug', job.repo_slug
+            '--backtrace'
         ])
-        if job.repo_settings:
-            sys.argv.extend([
-                '--settings', job.repo_settings,
-            ])
         sys.argv.extend([
-            str(job.revision),
-            pwd
+            job.repo_settings,
+            pwd,
+            str(job.revision)
         ])
         try:
             retcode = wall_e.main()
@@ -195,9 +190,7 @@ def parse_bitbucket_webhook():
     repo_owner = json_data['repository']['owner']['username']
     repo_slug = json_data['repository']['name']
     settings_dir = APP.config.get('SETTINGS_DIR')
-    repo_settings = ''
-    if settings_dir:
-        repo_settings = settings_dir + '/' + repo_owner + '/' + repo_slug
+    repo_settings = settings_dir + '/' + repo_owner + '/' + repo_slug
     revision = None
     if entity == 'repo':
         revision = handle_repo_event(event, json_data)
@@ -268,9 +261,10 @@ def main():
                         help='server host (defaults to 0.0.0.0)')
     parser.add_argument('--port', '-p', type=int, default=5000,
                         help='server port (defaults to 5000)')
-    parser.add_argument('--settings-dir', '-d', action='store', default='',
+    parser.add_argument('--settings-dir', '-d', action='store',
+                        default='/etc/wall-e/projects',
                         help='directory where settings files are stored '
-                             '(no settings by default)')
+                             '(defaults to /etc/wall-e/projects)')
     parser.add_argument('--verbose', '-v', action='store_true', default=False,
                         help='verbose mode')
 

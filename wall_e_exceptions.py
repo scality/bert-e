@@ -359,6 +359,15 @@ class IncorrectSettingsFile(WallE_InternalException):
         super(IncorrectSettingsFile, self).__init__(msg)
 
 
+class MissingMandatorySetting(WallE_InternalException):
+    code = 220
+
+    def __init__(self, filename):
+        msg = "One or more of the mandatory settings are " \
+              "missing in %r" % filename
+        super(MissingMandatorySetting, self).__init__(msg)
+
+
 class QueueValidationError(Exception):
     """Extend simple string class with an error code and recovery potential."""
     code = 'Q000'
