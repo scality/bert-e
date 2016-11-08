@@ -23,6 +23,7 @@ class TestWebhookListener(unittest.TestCase):
         os.environ['WEBHOOK_LOGIN'] = 'dummy'
         os.environ['WEBHOOK_PWD'] = 'dummy'
 
+        esteban.APP.config['SETTINGS_DIR'] = '/bert-e'
         app = esteban.APP.test_client()
         basic_auth = 'Basic ' + base64.b64encode(bytes(
             os.environ['WEBHOOK_LOGIN'] + ":" +
@@ -40,7 +41,7 @@ class TestWebhookListener(unittest.TestCase):
         job = esteban.FIFO.get()
         self.assertEqual(job.repo_owner, u'scality')
         self.assertEqual(job.repo_slug, u'test_repo')
-        self.assertEqual(job.repo_settings, u'')
+        self.assertEqual(job.repo_settings, u'/bert-e/scality/test_repo')
         self.assertEqual(job.revision, '1')
 
         esteban.FIFO.task_done()
