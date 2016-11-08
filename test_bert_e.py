@@ -16,11 +16,11 @@ import bitbucket_api_mock
 import jira_api
 import jira_api_mock
 import requests
-import wall_e
+import bert_e
 from git_api import Repository as GitRepository, Branch
 from simplecmd import cmd, CommandError
 from utils import RetryHandler
-from wall_e_exceptions import (AfterPullRequest,
+from bert_e_exceptions import (AfterPullRequest,
                                AuthorApprovalRequired,
                                BranchHistoryMismatch,
                                BranchNameInvalid,
@@ -58,9 +58,9 @@ from wall_e_exceptions import (AfterPullRequest,
                                UnsupportedMultipleStabBranches,
                                UnsupportedTokenType,
                                VersionMismatch,
-                               WallE_SilentException,
-                               WallE_TemplateException)
-from wall_e_exceptions import (MasterQueueDiverged,
+                               SilentException,
+                               TemplateException)
+from bert_e_exceptions import (MasterQueueDiverged,
                                MasterQueueLateVsDev,
                                MasterQueueLateVsInt,
                                MasterQueueMissing,
@@ -147,7 +147,7 @@ class QuickTest(unittest.TestCase):
     """Tests which don't need to interact with an external web services"""
 
     def feature_branch(self, name):
-        return wall_e.FeatureBranch(None, name)
+        return bert_e.FeatureBranch(None, name)
 
     def test_feature_branch_names(self):
         with self.assertRaises(BranchNameInvalid):
@@ -197,30 +197,30 @@ class QuickTest(unittest.TestCase):
     def test_destination_branch_names(self):
 
         with self.assertRaises(BranchNameInvalid):
-            wall_e.DevelopmentBranch(
+            bert_e.DevelopmentBranch(
                 repo=None,
                 name='feature-RING-0005')
 
         # valid names
-        wall_e.DevelopmentBranch(
+        bert_e.DevelopmentBranch(
             repo=None,
             name='development/4.3')
-        wall_e.DevelopmentBranch(
+        bert_e.DevelopmentBranch(
             repo=None,
             name='development/5.1')
-        wall_e.DevelopmentBranch(
+        bert_e.DevelopmentBranch(
             repo=None,
             name='development/6.0')
 
     def finalize_cascade(self, branches, tags, destination,
                          fixver, merge_paths=None):
-        c = wall_e.BranchCascade()
+        c = bert_e.BranchCascade()
 
         all_branches = [
-            wall_e.branch_factory(FakeGitRepo(), branch['name'])
+            bert_e.branch_factory(FakeGitRepo(), branch['name'])
             for branch in branches.values()]
         expected_dest = [
-            wall_e.branch_factory(FakeGitRepo(), branch['name'])
+            bert_e.branch_factory(FakeGitRepo(), branch['name'])
             for branch in branches.values() if not branch['ignore']]
         expected_ignored = [
             branch['name']
@@ -242,7 +242,7 @@ class QuickTest(unittest.TestCase):
                 for exp_branch, branch in zip(exp_path, path):
                     self.assertEqual(exp_branch, branch.name)
 
-        c.finalize(wall_e.branch_factory(FakeGitRepo(), destination))
+        c.finalize(bert_e.branch_factory(FakeGitRepo(), destination))
 
         self.assertEqual(c.destination_branches, expected_dest)
         self.assertEqual(c.ignored_branches, expected_ignored)
@@ -472,9 +472,9 @@ class QuickTest(unittest.TestCase):
         fixver = ['6.1.5']
         c = self.finalize_cascade(branches, tags, destination, fixver)
         self.assertEqual(
-            c._cascade[(6, 1)][wall_e.DevelopmentBranch].micro, 6)
+            c._cascade[(6, 1)][bert_e.DevelopmentBranch].micro, 6)
         self.assertEqual(
-            c._cascade[(6, 1)][wall_e.StabilizationBranch].micro, 5)
+            c._cascade[(6, 1)][bert_e.StabilizationBranch].micro, 5)
 
         tags = ['6.1.5']
         fixver = []
@@ -600,13 +600,13 @@ class RepositoryTests(unittest.TestCase):
             repo_slug=('%s_%s' % (self.args.repo_prefix,
                                   self.args.your_login)),
         )
-        # Wall-E may want to comment manually too
-        client_wall_e = bitbucket_api.Client(
-            self.args.wall_e_username,
-            self.args.wall_e_password,
+        # Bert-E may want to comment manually too
+        client_bert_e = bitbucket_api.Client(
+            self.args.bert_e_username,
+            self.args.bert_e_password,
             "nobody@nowhere.com")
-        self.bbrepo_wall_e = bitbucket_api.Repository(
-            client_wall_e,
+        self.bbrepo_bert_e = bitbucket_api.Repository(
+            client_bert_e,
             owner=self.args.owner,
             repo_slug=('%s_%s' % (self.args.repo_prefix,
                                   self.args.your_login)),
@@ -648,38 +648,38 @@ class RepositoryTests(unittest.TestCase):
         """Allow the legacy tests (tests dating back before
         the queueing system) to continue working without modification.
 
-        Basically run a first instance of Wall-E, and in
+        Basically run a first instance of Bert-E, and in
         case the result is Queued, merge the PR immediately
-        with a second call to Wall-E
+        with a second call to Bert-E
 
         """
         if not backtrace:
             sys.argv.append('--backtrace')
         argv_copy = list(sys.argv)
         sys.argv.append('test_settings.yml')
-        sys.argv.append(self.args.wall_e_password)
+        sys.argv.append(self.args.bert_e_password)
         sys.argv.append(str(token))
         try:
-            wall_e.main()
+            bert_e.main()
         except Queued as queued_excp:
             pass
-        except WallE_SilentException as excp:
+        except SilentException as excp:
             if backtrace:
                 raise
             else:
                 return 0
-        except WallE_TemplateException as excp:
+        except TemplateException as excp:
             if backtrace:
                 raise
             else:
                 return excp.code
-        # set build status on q/* and wall-e again
+        # set build status on q/* and Bert-E again
         self.gitrepo.cmd('git fetch --prune')
         try:
             int(token)
             # token is a PR id, use its tip to filter on content
             # (caution: not necessarily the id of the main pr)
-            pr = self.bbrepo_wall_e.get_pull_request(pull_request_id=token)
+            pr = self.bbrepo_bert_e.get_pull_request(pull_request_id=token)
             sha1 = pr['source']['commit']['hash']
         except ValueError:
             # token is a sha1, use it to filter on content
@@ -689,17 +689,17 @@ class RepositoryTests(unittest.TestCase):
                         .replace(" ", "") \
                         .replace("origin/", "") \
                         .split('\n')[:-1]:
-            branch = wall_e.branch_factory(self.gitrepo, qint)
+            branch = bert_e.branch_factory(self.gitrepo, qint)
             branch.checkout()
             sha1 = branch.get_latest_commit()
             self.set_build_status(sha1, 'SUCCESSFUL')
         sys.argv = argv_copy
         token = sha1
         sys.argv.append('test_settings.yml')
-        sys.argv.append(self.args.wall_e_password)
+        sys.argv.append(self.args.bert_e_password)
         sys.argv.append(str(token))
         try:
-            wall_e.main()
+            bert_e.main()
         except Merged:
             if backtrace:
                 raise SuccessMessage(
@@ -721,7 +721,7 @@ class RepositoryTests(unittest.TestCase):
                interactive=False,
                backtrace=False,
                settings=DEFAULT_SETTINGS):
-        sys.argv = ["wall-e.py"]
+        sys.argv = ["bert_e.py"]
         for option in options:
             sys.argv.append('-o')
             sys.argv.append(option)
@@ -734,7 +734,7 @@ class RepositoryTests(unittest.TestCase):
         sys.argv.append('--quiet')
         data = settings.format(
             your_login=self.args.your_login,
-            robot=self.args.wall_e_username,
+            robot=self.args.bert_e_username,
             owner=self.args.owner,
             slug='%s_%s' % (self.args.repo_prefix, self.args.your_login)
         )
@@ -743,19 +743,19 @@ class RepositoryTests(unittest.TestCase):
         if self.args.disable_queues:
             sys.argv.append('--disable-queues')
         else:
-            if self.__class__ == TestWallE:
+            if self.__class__ == TestBertE:
                 return self.handle_legacy(token, backtrace)
 
         sys.argv.append('test_settings.yml')
-        sys.argv.append(self.args.wall_e_password)
+        sys.argv.append(self.args.bert_e_password)
         sys.argv.append(str(token))
-        return wall_e.main()
+        return bert_e.main()
 
     def set_build_status(self, sha1, state,
                          key='pre-merge',
                          name='Test build status',
                          url='http://www.testurl.com'):
-        self.bbrepo_wall_e.set_build_status(
+        self.bbrepo_bert_e.set_build_status(
             revision=sha1,
             key=key,
             state=state,
@@ -765,7 +765,7 @@ class RepositoryTests(unittest.TestCase):
 
     def get_build_status(self, sha1, key='pipeline'):
         try:
-            status = self.bbrepo_wall_e.get_build_status(
+            status = self.bbrepo_bert_e.get_build_status(
                 revision=sha1,
                 key=key,
             )
@@ -777,12 +777,12 @@ class RepositoryTests(unittest.TestCase):
                                   key='pre-merge',
                                   name='Test build status',
                                   url='http://www.testurl.com'):
-        pr = self.bbrepo_wall_e.get_pull_request(pull_request_id=pr_id)
+        pr = self.bbrepo_bert_e.get_pull_request(pull_request_id=pr_id)
 
         self.set_build_status(pr['source']['commit']['hash'],
                               state, key, name, url)
         # workaround laggy bitbucket
-        if TestWallE.args.disable_mock:
+        if TestBertE.args.disable_mock:
             for _ in range(20):
                 time.sleep(5)
                 if self.get_build_status_on_pr_id(pr_id, key=key) != state:
@@ -791,11 +791,11 @@ class RepositoryTests(unittest.TestCase):
             self.fail('Laggy Bitbucket detected.')
 
     def get_build_status_on_pr_id(self, pr_id, key='pipeline'):
-        pr = self.bbrepo_wall_e.get_pull_request(pull_request_id=pr_id)
+        pr = self.bbrepo_bert_e.get_pull_request(pull_request_id=pr_id)
         return self.get_build_status(pr['source']['commit']['hash'], key)
 
 
-class TestWallE(RepositoryTests):
+class TestBertE(RepositoryTests):
     def test_full_merge_manual(self):
         """Test the following conditions:
 
@@ -831,7 +831,7 @@ class TestWallE(RepositoryTests):
         retcode = self.handle(pr['id'])
         self.assertEqual(retcode, 0)
 
-        assert pr['id'] in wall_e.STATUS.get('merged PRs', [])
+        assert pr['id'] in bert_e.STATUS.get('merged PRs', [])
 
     def test_not_my_job_cases(self):
         feature_branch = 'feature/RING-00002'
@@ -897,7 +897,7 @@ class TestWallE(RepositoryTests):
                 "`w/5.1/bugfix/RING-0006-other` with\ncontents from "
                 "`bugfix/RING-0006-other` and `development/5.1`",
                 e.msg)
-            # Wall-E shouldn't instruct the user to modify the integration
+            # Bert-E shouldn't instruct the user to modify the integration
             # branch with the same target as the original PR
             self.assertIn('on **the feature branch** '
                           '(`bugfix/RING-0006-other`', e.msg)
@@ -913,7 +913,7 @@ class TestWallE(RepositoryTests):
                 "`w/5.1/improvement/RING-0006` with\ncontents from "
                 "`improvement/RING-0006` and `development/5.1`",
                 e.msg)
-            # Wall-E shouldn't instruct the user to modify the integration
+            # Bert-E shouldn't instruct the user to modify the integration
             # branch with the same target as the original PR
             self.assertIn('on **the feature branch** (`improvement/RING-0006`',
                           e.msg)
@@ -931,7 +931,7 @@ class TestWallE(RepositoryTests):
                 "`w/4.3/improvement/RING-0006-other` and "
                 "`development/5.1`",
                 e.msg)
-            # Wall-E MUST instruct the user to modify the integration
+            # Bert-E MUST instruct the user to modify the integration
             # branch with the same target as the original PR
             self.assertIn(
                 "git checkout w/5.1/improvement/RING-0006",
@@ -974,7 +974,7 @@ class TestWallE(RepositoryTests):
         self.assertEqual(retcode, PeerApprovalRequired.code)
 
         # 2nd reviewer adds approval
-        pr_peer2 = self.bbrepo_wall_e.get_pull_request(
+        pr_peer2 = self.bbrepo_bert_e.get_pull_request(
             pull_request_id=pr['id'])
         pr_peer2.approve()
         retcode = self.handle(pr['id'], options=[
@@ -983,11 +983,11 @@ class TestWallE(RepositoryTests):
         self.assertEqual(retcode, SuccessMessage.code)
 
     def test_branches_creation_main_pr_not_approved(self):
-        """Test if Wall-e creates integration pull-requests when the main
+        """Test if Bert-e creates integration pull-requests when the main
         pull-request isn't approved.
 
         1. Create feature branch and create an unapproved pull request
-        2. Run wall-e on the pull request
+        2. Run Bert-E on the pull request
         3. Check existence of integration branches
 
         """
@@ -1078,10 +1078,10 @@ class TestWallE(RepositoryTests):
         self.assertEqual(retcode, SuccessMessage.code)
 
     def test_child_pr_without_parent(self):
-        # simulate creation of an integration branch with Wall-E
+        # simulate creation of an integration branch with Bert-E
         create_branch(self.gitrepo, 'w/bugfix/RING-00069',
                       from_branch='development/4.3', file_=True)
-        pr = self.bbrepo_wall_e.create_pull_request(
+        pr = self.bbrepo_bert_e.create_pull_request(
             title='title',
             name='name',
             source={'branch': {'name': 'w/bugfix/RING-00069'}},
@@ -1109,7 +1109,7 @@ class TestWallE(RepositoryTests):
 
         # The help message should be displayed every time the user requests it
         help_msg = ''
-        pr.add_comment('@%s help' % self.args.wall_e_username)
+        pr.add_comment('@%s help' % self.args.bert_e_username)
         try:
             self.handle(pr['id'], backtrace=True)
         except HelpMessage as ret:
@@ -1117,20 +1117,20 @@ class TestWallE(RepositoryTests):
 
         last_comment = get_last_comment(pr)
         self.assertEqual(last_comment, help_msg,
-                         "Wall-e didn't post the first help message.")
+                         "Bert-e didn't post the first help message.")
 
         pr.add_comment("Ok, ok")
         last_comment = get_last_comment(pr)
         self.assertNotEqual(last_comment, help_msg,
                             "Eva's message wasn't recorded.")
 
-        pr.add_comment('@%s help' % self.args.wall_e_username)
+        pr.add_comment('@%s help' % self.args.bert_e_username)
         self.handle(pr['id'])
         last_comment = get_last_comment(pr)
         self.assertEqual(last_comment, help_msg,
-                         "Wall-E didn't post a second help message.")
+                         "Bert-E didn't post a second help message.")
 
-        # Let's have Wall-E yield an actual AuthorApproval error message
+        # Let's have Bert-E yield an actual AuthorApproval error message
         author_msg = ''
         try:
             self.handle(
@@ -1140,95 +1140,95 @@ class TestWallE(RepositoryTests):
 
         last_comment = get_last_comment(pr)
         self.assertEqual(last_comment, author_msg,
-                         "Wall-E didn't post his first error message.")
+                         "Bert-E didn't post his first error message.")
 
         pr.add_comment("OK, I Fixed it")
         last_comment = get_last_comment(pr)
         self.assertNotEqual(last_comment, author_msg,
                             "Eva's message wasn't recorded.")
 
-        # Wall-E should not repeat itself if the error is not fixed
+        # Bert-E should not repeat itself if the error is not fixed
         self.handle(pr['id'], options=['bypass_jira_check'])
         last_comment = get_last_comment(pr)
         self.assertNotEqual(last_comment, author_msg,
-                            "Wall-E repeated an error message when he "
+                            "Bert-E repeated an error message when he "
                             "shouldn't have.")
 
-        # Confront Wall-E to a different error (PeerApproval)
+        # Confront Bert-E to a different error (PeerApproval)
         self.handle(pr['id'],
                     options=['bypass_jira_check', 'bypass_author_approval'])
 
-        # Re-produce the AuthorApproval error, Wall-E should re-send the
+        # Re-produce the AuthorApproval error, Bert-E should re-send the
         # AuthorApproval message
         self.handle(pr['id'], options=['bypass_jira_check'])
         last_comment = get_last_comment(pr)
         self.assertEqual(last_comment, author_msg,
-                         "Wall-E didn't respond to second occurrence of the "
+                         "Bert-E didn't respond to second occurrence of the "
                          "error.")
 
     def test_options_and_commands(self):
         pr = self.create_pr('bugfix/RING-00001', 'development/4.3')
 
         # option: wait
-        comment = pr.add_comment('@%s wait' % self.args.wall_e_username)
+        comment = pr.add_comment('@%s wait' % self.args.bert_e_username)
         with self.assertRaises(NothingToDo):
             self.handle(pr['id'], backtrace=True)
         comment.delete()
 
         # command: build
-        pr.add_comment('@%s build' % self.args.wall_e_username)
+        pr.add_comment('@%s build' % self.args.bert_e_username)
         retcode = self.handle(pr['id'])
         self.assertEqual(retcode, CommandNotImplemented.code)
 
         # command: clear
-        pr.add_comment('@%s clear' % self.args.wall_e_username)
+        pr.add_comment('@%s clear' % self.args.bert_e_username)
         retcode = self.handle(pr['id'])
         self.assertEqual(retcode, CommandNotImplemented.code)
 
         # command: status
-        pr.add_comment('@%s status' % self.args.wall_e_username)
+        pr.add_comment('@%s status' % self.args.bert_e_username)
         retcode = self.handle(pr['id'])
         self.assertEqual(retcode, StatusReport.code)
 
         # mix of option and command
-        pr.add_comment('@%s unanimity' % self.args.wall_e_username)
-        pr.add_comment('@%s status' % self.args.wall_e_username)
+        pr.add_comment('@%s unanimity' % self.args.bert_e_username)
+        pr.add_comment('@%s status' % self.args.bert_e_username)
         retcode = self.handle(pr['id'])
         self.assertEqual(retcode, StatusReport.code)
 
         # test_help command
-        pr.add_comment('@%s help' % self.args.wall_e_username)
+        pr.add_comment('@%s help' % self.args.bert_e_username)
         retcode = self.handle(pr['id'])
         self.assertEqual(retcode, HelpMessage.code)
 
         # test help command with inter comment
-        pr.add_comment('@%s: help' % self.args.wall_e_username)
+        pr.add_comment('@%s: help' % self.args.bert_e_username)
         pr.add_comment('an irrelevant comment')
         retcode = self.handle(pr['id'])
         self.assertEqual(retcode, HelpMessage.code)
 
-        # test help command with inter comment from wall-e
-        pr.add_comment('@%s help' % self.args.wall_e_username)
-        pr_wall_e = self.bbrepo_wall_e.get_pull_request(
+        # test help command with inter comment from Bert-E
+        pr.add_comment('@%s help' % self.args.bert_e_username)
+        pr_bert_e = self.bbrepo_bert_e.get_pull_request(
             pull_request_id=pr['id'])
-        pr_wall_e.add_comment('this is my help already')
+        pr_bert_e.add_comment('this is my help already')
         retcode = self.handle(pr['id'], options=['bypass_jira_check'])
         self.assertEqual(retcode, AuthorApprovalRequired.code)
 
         # test unknown command
-        comment = pr.add_comment('@%s helpp' % self.args.wall_e_username)
+        comment = pr.add_comment('@%s helpp' % self.args.bert_e_username)
         retcode = self.handle(pr['id'], options=['bypass_jira_check'])
         self.assertEqual(retcode, UnknownCommand.code)
         comment.delete()
 
         # test command args
         pr.add_comment('@%s help some arguments --hehe' %
-                       self.args.wall_e_username)
+                       self.args.bert_e_username)
         retcode = self.handle(pr['id'])
         self.assertEqual(retcode, HelpMessage.code)
 
         # test incorrect address when setting options through comments
-        pr.add_comment('@toto'  # toto is not Wall-E
+        pr.add_comment('@toto'  # toto is not Bert-E
                        ' bypass_author_approval'
                        ' bypass_peer_approval'
                        ' bypass_tester_approval'
@@ -1244,7 +1244,7 @@ class TestWallE(RepositoryTests):
             ' bypass_peer_approval'
             ' bypass_tester_approval'
             ' bypass_build_status'
-            ' bypass_jira_check' % self.args.wall_e_username
+            ' bypass_jira_check' % self.args.bert_e_username
         )
         comment.delete()
         retcode = self.handle(pr['id'], options=['bypass_jira_check'])
@@ -1257,10 +1257,10 @@ class TestWallE(RepositoryTests):
                                  ' bypass_peer_approval'
                                  ' bypass_build_status'
                                  ' bypass_jira_check' %
-                                 self.args.wall_e_username)
+                                 self.args.bert_e_username)
         retcode = self.handle(pr['id'], options=['bypass_jira_check'])
         self.assertEqual(retcode, AuthorApprovalRequired.code)
-        # test RELENG-1335: WallE unvalid status command
+        # test RELENG-1335: BertE unvalid status command
 
         feature_branch = 'bugfix/RING-007'
         dst_branch = 'development/4.3'
@@ -1268,7 +1268,7 @@ class TestWallE(RepositoryTests):
         pr = self.create_pr(feature_branch, dst_branch)
         retcode = self.handle(pr['id'], options=['bypass_jira_check'])
         self.assertEqual(retcode, AuthorApprovalRequired.code)
-        pr.add_comment('@%s status?' % self.args.wall_e_username)
+        pr.add_comment('@%s status?' % self.args.bert_e_username)
         retcode = self.handle(pr['id'], options=[
             'bypass_jira_check',
             'bypass_author_approval',
@@ -1286,7 +1286,7 @@ class TestWallE(RepositoryTests):
             ' bypass_peer_approval'
             ' bypass_tester_approval'
             ' bypass_build_status'
-            ' bypass_jira_check' % self.args.wall_e_username
+            ' bypass_jira_check' % self.args.bert_e_username
         )
         retcode = self.handle(pr['id'], options=['bypass_jira_check'])
         self.assertEqual(retcode, UnknownCommand.code)
@@ -1299,7 +1299,7 @@ class TestWallE(RepositoryTests):
             ' bypass_peer_approval'
             ' bypass_tester_approval'
             ' bypass_build_status'
-            ' bypass_jira_check' % self.args.wall_e_username
+            ' bypass_jira_check' % self.args.bert_e_username
         )
         retcode = self.handle(pr['id'], options=['bypass_jira_check'])
         self.assertEqual(retcode, NotEnoughCredentials.code)
@@ -1313,7 +1313,7 @@ class TestWallE(RepositoryTests):
             ' bypass_tester_approval'
             ' bypass_build_status'
             ' mmm_never_seen_that_before'  # this is unknown
-            ' bypass_jira_check' % self.args.wall_e_username
+            ' bypass_jira_check' % self.args.bert_e_username
         )
         retcode = self.handle(pr['id'], options=['bypass_jira_check'])
         self.assertEqual(retcode, UnknownCommand.code)
@@ -1325,7 +1325,7 @@ class TestWallE(RepositoryTests):
                              ' bypass_peer_approval'
                              ' bypass_tester_approval'
                              ' bypass_build_status'
-                             ' bypass_jira_check' % self.args.wall_e_username)
+                             ' bypass_jira_check' % self.args.bert_e_username)
         retcode = self.handle(pr['id'])
         self.assertEqual(retcode, SuccessMessage.code)
 
@@ -1338,7 +1338,7 @@ class TestWallE(RepositoryTests):
                              ' bypass_tester_approval'
                              '  bypass_build_status'
                              '   bypass_jira_check' %
-                             self.args.wall_e_username)
+                             self.args.bert_e_username)
         retcode = self.handle(pr['id'])
         self.assertEqual(retcode, SuccessMessage.code)
 
@@ -1346,15 +1346,15 @@ class TestWallE(RepositoryTests):
         pr = self.create_pr('bugfix/RING-00003', 'development/4.3')
         pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id'])
         pr_admin.add_comment('@%s bypass_author_approval' %
-                             self.args.wall_e_username)
+                             self.args.bert_e_username)
         pr_admin.add_comment('@%s bypass_peer_approval' %
-                             self.args.wall_e_username)
+                             self.args.bert_e_username)
         pr_admin.add_comment('@%s bypass_tester_approval' %
-                             self.args.wall_e_username)
+                             self.args.bert_e_username)
         pr_admin.add_comment('@%s bypass_build_status' %
-                             self.args.wall_e_username)
+                             self.args.bert_e_username)
         pr_admin.add_comment('@%s bypass_jira_check' %
-                             self.args.wall_e_username)
+                             self.args.bert_e_username)
         retcode = self.handle(pr['id'])
         self.assertEqual(retcode, SuccessMessage.code)
 
@@ -1365,7 +1365,7 @@ class TestWallE(RepositoryTests):
                              ' bypass_author_approval'
                              ' bypass_peer_approval'
                              ' bypass_tester_approval' %
-                             self.args.wall_e_username)
+                             self.args.bert_e_username)
         retcode = self.handle(pr['id'], options=['bypass_build_status',
                                                  'bypass_jira_check'])
         self.assertEqual(retcode, SuccessMessage.code)
@@ -1375,7 +1375,7 @@ class TestWallE(RepositoryTests):
         pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id'])
         pr_admin.add_comment('@%s'
                              ' bypass_author_approval' %
-                             self.args.wall_e_username)
+                             self.args.bert_e_username)
         retcode = self.handle(
             pr['id'],
             options=self.bypass_all_but(['bypass_author_approval']))
@@ -1386,7 +1386,7 @@ class TestWallE(RepositoryTests):
         pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id'])
         pr_admin.add_comment('@%s'
                              ' bypass_peer_approval' %
-                             self.args.wall_e_username)
+                             self.args.bert_e_username)
         retcode = self.handle(pr['id'],
                               options=['bypass_author_approval',
                                        'bypass_tester_approval',
@@ -1399,7 +1399,7 @@ class TestWallE(RepositoryTests):
         pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id'])
         pr_admin.add_comment('@%s'
                              ' bypass_jira_check' %
-                             self.args.wall_e_username)
+                             self.args.bert_e_username)
         retcode = self.handle(pr['id'], options=['bypass_author_approval',
                                                  'bypass_tester_approval',
                                                  'bypass_peer_approval',
@@ -1411,7 +1411,7 @@ class TestWallE(RepositoryTests):
         pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id'])
         pr_admin.add_comment('@%s'
                              ' bypass_build_status' %
-                             self.args.wall_e_username)
+                             self.args.bert_e_username)
         retcode = self.handle(
             pr['id'],
             options=self.bypass_all_but(['bypass_build_status']))
@@ -1423,25 +1423,25 @@ class TestWallE(RepositoryTests):
         for i in range(5):
             pr.add_comment('random comment %s' % i)
         pr_admin.add_comment('@%s bypass_author_approval' %
-                             self.args.wall_e_username)
+                             self.args.bert_e_username)
         for i in range(6):
             pr.add_comment('random comment %s' % i)
         pr_admin.add_comment('@%s bypass_peer_approval' %
-                             self.args.wall_e_username)
+                             self.args.bert_e_username)
         for i in range(3):
             pr.add_comment('random comment %s' % i)
         pr_admin.add_comment('@%s bypass_build_status' %
-                             self.args.wall_e_username)
+                             self.args.bert_e_username)
         for i in range(22):
             pr.add_comment('random comment %s' % i)
         pr_admin.add_comment('@%s bypass_jira_check' %
-                             self.args.wall_e_username)
+                             self.args.bert_e_username)
         for i in range(10):
             pr.add_comment('random comment %s' % i)
         for i in range(10):
             pr.add_comment('@%s bypass_tester_approval' % i)
         pr_admin.add_comment('@%s bypass_tester_approval' %
-                             self.args.wall_e_username)
+                             self.args.bert_e_username)
 
         retcode = self.handle(pr['id'])
         self.assertEqual(retcode, SuccessMessage.code)
@@ -1454,7 +1454,7 @@ class TestWallE(RepositoryTests):
                              '     bypass_peer_approval,,   '
                              ' bypass_tester_approval'
                              '  bypass_build_status-bypass_jira_check' %
-                             self.args.wall_e_username)
+                             self.args.bert_e_username)
         retcode = self.handle(pr['id'])
         self.assertEqual(retcode, SuccessMessage.code)
 
@@ -1462,7 +1462,7 @@ class TestWallE(RepositoryTests):
         pr = self.create_pr('feature/RING-00012', 'development/4.3')
         pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id'])
         pr_admin.add_comment('@%s bypass_incompatible_branch' %
-                             self.args.wall_e_username)
+                             self.args.bert_e_username)
         retcode = self.handle(
             pr['id'],
             options=self.bypass_all_but(['bypass_incompatible_branch']))
@@ -1509,7 +1509,7 @@ class TestWallE(RepositoryTests):
 
         pr = self.create_pr(feature_branch, dst_branch)
         add_file_to_branch(self.gitrepo, 'development/4.3',
-                           'file_pushed_without_wall-e.txt', do_push=True)
+                           'file_pushed_without_bert-e.txt', do_push=True)
 
         with self.assertRaises(DevBranchesNotSelfContained):
             self.handle(pr['id'], options=self.bypass_all)
@@ -1528,7 +1528,7 @@ class TestWallE(RepositoryTests):
     def test_pr_skew_with_lagging_pull_request_data(self):
         # create hook
         try:
-            real = wall_e.WallE._create_pull_requests
+            real = bert_e.BertE._create_pull_requests
             global local_child_prs
             local_child_prs = []
 
@@ -1538,7 +1538,7 @@ class TestWallE(RepositoryTests):
                 local_child_prs = child_prs
                 return child_prs
 
-            wall_e.WallE._create_pull_requests = _create_pull_requests
+            bert_e.BertE._create_pull_requests = _create_pull_requests
 
             pr = self.create_pr('bugfix/RING-00081', 'development/6.0')
             # Create integration branch and child pr
@@ -1563,9 +1563,9 @@ class TestWallE(RepositoryTests):
                 global local_child_prs
                 return local_child_prs
 
-            wall_e.WallE._create_pull_requests = _create_pull_requests2
+            bert_e.BertE._create_pull_requests = _create_pull_requests2
 
-            # Run Wall-E
+            # Run Bert-E
             with self.assertRaises(BuildNotStarted):
                 self.handle(pr['id'],
                             options=self.bypass_all_but(
@@ -1573,7 +1573,7 @@ class TestWallE(RepositoryTests):
                             backtrace=True)
 
         finally:
-            wall_e.WallE._create_pull_requests = real
+            bert_e.BertE._create_pull_requests = real
 
     def test_pr_skew_with_new_external_commit(self):
         pr = self.create_pr('bugfix/RING-00081', 'development/6.0')
@@ -1588,12 +1588,12 @@ class TestWallE(RepositoryTests):
 
         # create hook
         try:
-            real = wall_e.WallE._create_pull_requests
+            real = bert_e.BertE._create_pull_requests
 
             def _create_pull_requests(*args, **kwargs):
                 # simulate the update of the integration PR (by addition
                 # of a commit) by another process, (typically a user),
-                # in between the start of Wall-E and his decision to merge
+                # in between the start of Bert-E and his decision to merge
                 self.gitrepo.cmd('git fetch')
                 self.gitrepo.cmd('git checkout w/6.0/bugfix/RING-00081')
                 self.gitrepo.cmd('touch abc')
@@ -1604,14 +1604,14 @@ class TestWallE(RepositoryTests):
                     'git rev-parse w/6.0/bugfix/RING-00081')
 
                 child_prs = real(*args, **kwargs)
-                if TestWallE.args.disable_mock:
+                if TestBertE.args.disable_mock:
                     # make 100% sure the PR is up-to-date (since BB lags):
                     child_prs[0]['source']['commit']['hash'] = sha1
                 return child_prs
 
-            wall_e.WallE._create_pull_requests = _create_pull_requests
+            bert_e.BertE._create_pull_requests = _create_pull_requests
 
-            # Run Wall-E
+            # Run Bert-E
             with self.assertRaises(PullRequestSkewDetected):
                 self.handle(pr['id'],
                             options=self.bypass_all_but(
@@ -1619,7 +1619,7 @@ class TestWallE(RepositoryTests):
                             backtrace=True)
 
         finally:
-            wall_e.WallE._create_pull_requests = real
+            bert_e.BertE._create_pull_requests = real
 
     def test_build_key_on_main_pr_has_no_effect(self):
         pr = self.create_pr('bugfix/RING-00078', 'development/4.3')
@@ -1686,7 +1686,7 @@ class TestWallE(RepositoryTests):
         pr = self.create_pr('bugfix/RING-00078', 'development/4.3')
         pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id'])
         pr_admin.add_comment('@%s bypass_tester_approval' %
-                             self.args.wall_e_username)
+                             self.args.bert_e_username)
 
         retcode = self.handle(pr['id'], options=[
                               'bypass_author_approval',
@@ -1704,7 +1704,7 @@ class TestWallE(RepositoryTests):
         self.set_build_status_on_pr_id(pr['id'] + 1, 'FAILED')
         self.set_build_status_on_pr_id(pr['id'] + 2, 'SUCCESSFUL')
 
-        childpr = self.bbrepo_wall_e.get_pull_request(
+        childpr = self.bbrepo_bert_e.get_pull_request(
             pull_request_id=pr['id'] + 1)
 
         retcode = self.handle(childpr['source']['commit']['hash'],
@@ -1883,7 +1883,7 @@ class TestWallE(RepositoryTests):
             self.assertIn('* `development/4.3`', e.msg)
 
     def test_unanimity_option(self):
-        """Test unanimity by passing option to wall_e"""
+        """Test unanimity by passing option to bert-e"""
         feature_branch = 'bugfix/RING-0076'
         dst_branch = 'development/4.3'
         reviewers = [self.creator]
@@ -1902,7 +1902,7 @@ class TestWallE(RepositoryTests):
 
         pr = self.create_pr(feature_branch, dst_branch)
 
-        pr.add_comment('@%s unanimity' % self.args.wall_e_username)
+        pr.add_comment('@%s unanimity' % self.args.bert_e_username)
 
         retcode = self.handle(pr['id'], options=['bypass_jira_check'])
         self.assertEqual(retcode, AuthorApprovalRequired.code)
@@ -1919,7 +1919,7 @@ class TestWallE(RepositoryTests):
         self.assertEqual(retcode, PeerApprovalRequired.code)
 
         # 2nd reviewer adds approval
-        pr_peer = self.bbrepo_wall_e.get_pull_request(
+        pr_peer = self.bbrepo_bert_e.get_pull_request(
             pull_request_id=pr['id'])
         pr_peer.approve()
         retcode = self.handle(pr['id'], options=[
@@ -1934,14 +1934,14 @@ class TestWallE(RepositoryTests):
 
         comment_declined = blocked_pr.add_comment(
             '@%s after_pull_request=%s' % (
-                self.args.wall_e_username,
+                self.args.bert_e_username,
                 pr_declined['id']))
 
         retcode = self.handle(blocked_pr['id'], options=self.bypass_all)
         self.assertEqual(retcode, AfterPullRequest.code)
 
         blocked_pr.add_comment('@%s unanimity after_pull_request=%s' % (
-            self.args.wall_e_username, pr_opened['id']))
+            self.args.bert_e_username, pr_opened['id']))
 
         retcode = self.handle(blocked_pr['id'], options=self.bypass_all)
         self.assertEqual(retcode, AfterPullRequest.code)
@@ -1959,24 +1959,24 @@ class TestWallE(RepositoryTests):
     def test_bitbucket_lag_on_pr_status(self):
         """Bitbucket can be a bit long to update a merged PR's status.
 
-        Check that Wall-E handles this case nicely and returns before creating
+        Check that Bert-E handles this case nicely and returns before creating
         integration PRs.
 
         """
         try:
-            real = wall_e.WallE._check_pr_state
+            real = bert_e.BertE._check_pr_state
 
             pr = self.create_pr('bugfix/RING-00081', 'development/6.0')
             retcode = self.handle(pr['id'], self.bypass_all)
             self.assertEqual(retcode, SuccessMessage.code)
 
-            wall_e.WallE._check_pr_state = lambda *args, **kwargs: None
+            bert_e.BertE._check_pr_state = lambda *args, **kwargs: None
 
             with self.assertRaises(NothingToDo):
                 self.handle(pr['id'], self.bypass_all, backtrace=True)
 
         finally:
-            self.bbrepo_wall_e.get_pull_request = real
+            self.bbrepo_bert_e.get_pull_request = real
 
     def test_pr_title_too_long(self):
         create_branch(self.gitrepo, 'bugfix/RING-00001',
@@ -2219,10 +2219,10 @@ class TestQueueing(RepositoryTests):
         super(TestQueueing, self).setUp()
 
     def queue_branch(self, name):
-        return wall_e.QueueBranch(self.gitrepo, name)
+        return bert_e.QueueBranch(self.gitrepo, name)
 
     def qint_branch(self, name):
-        return wall_e.QueueIntegrationBranch(self.gitrepo, name)
+        return bert_e.QueueIntegrationBranch(self.gitrepo, name)
 
     def submit_problem(self, problem, build_key='pipeline'):
         """Create a repository with dev, int and q branches ready."""
@@ -2230,7 +2230,7 @@ class TestQueueing(RepositoryTests):
         for pr in problem.keys():
             pr_ = self.create_pr(problem[pr]['src'], problem[pr]['dst'])
 
-            # run wall-e until creation of q branches
+            # run Bert-E until creation of q branches
             retcode = self.handle(pr_['id'], options=self.bypass_all)
             self.assertEqual(retcode, Queued.code)
 
@@ -2291,36 +2291,36 @@ class TestQueueing(RepositoryTests):
                     .split('\n')[:-1])
 
     def feed_queue_collection(self, qbranches):
-        qc = wall_e.QueueCollection(
-            self.bbrepo_wall_e,
+        qc = bert_e.QueueCollection(
+            self.bbrepo_bert_e,
             'pipeline',
             merge_paths=[  # see initialize_git_repo
-                [wall_e.branch_factory(FakeGitRepo(), 'development/4.3'),
-                 wall_e.branch_factory(FakeGitRepo(), 'development/5.1'),
-                 wall_e.branch_factory(FakeGitRepo(), 'development/6.0')],
+                [bert_e.branch_factory(FakeGitRepo(), 'development/4.3'),
+                 bert_e.branch_factory(FakeGitRepo(), 'development/5.1'),
+                 bert_e.branch_factory(FakeGitRepo(), 'development/6.0')],
 
-                [wall_e.branch_factory(FakeGitRepo(), 'stabilization/4.3.18'),
-                 wall_e.branch_factory(FakeGitRepo(), 'development/4.3'),
-                 wall_e.branch_factory(FakeGitRepo(), 'development/5.1'),
-                 wall_e.branch_factory(FakeGitRepo(), 'development/6.0')],
+                [bert_e.branch_factory(FakeGitRepo(), 'stabilization/4.3.18'),
+                 bert_e.branch_factory(FakeGitRepo(), 'development/4.3'),
+                 bert_e.branch_factory(FakeGitRepo(), 'development/5.1'),
+                 bert_e.branch_factory(FakeGitRepo(), 'development/6.0')],
 
-                [wall_e.branch_factory(FakeGitRepo(), 'stabilization/5.1.4'),
-                 wall_e.branch_factory(FakeGitRepo(), 'development/5.1'),
-                 wall_e.branch_factory(FakeGitRepo(), 'development/6.0')],
+                [bert_e.branch_factory(FakeGitRepo(), 'stabilization/5.1.4'),
+                 bert_e.branch_factory(FakeGitRepo(), 'development/5.1'),
+                 bert_e.branch_factory(FakeGitRepo(), 'development/6.0')],
 
-                [wall_e.branch_factory(FakeGitRepo(), 'stabilization/6.0.0'),
-                 wall_e.branch_factory(FakeGitRepo(), 'development/6.0')],
+                [bert_e.branch_factory(FakeGitRepo(), 'stabilization/6.0.0'),
+                 bert_e.branch_factory(FakeGitRepo(), 'development/6.0')],
             ])
         for qbranch in qbranches:
-            qc._add_branch(wall_e.branch_factory(self.gitrepo, qbranch))
+            qc._add_branch(bert_e.branch_factory(self.gitrepo, qbranch))
         return qc
 
     def test_queue_branch(self):
         with self.assertRaises(BranchNameInvalid):
             self.queue_branch("q/4.3/feature/RELENG-001-plop")
 
-        qbranch = wall_e.branch_factory(FakeGitRepo(), "q/5.1")
-        self.assertEqual(type(qbranch), wall_e.QueueBranch)
+        qbranch = bert_e.branch_factory(FakeGitRepo(), "q/5.1")
+        self.assertEqual(type(qbranch), bert_e.QueueBranch)
         self.assertEqual(qbranch.version, "5.1")
         self.assertEqual(qbranch.major, 5)
         self.assertEqual(qbranch.minor, 1)
@@ -2332,9 +2332,9 @@ class TestQueueing(RepositoryTests):
         with self.assertRaises(BranchNameInvalid):
             self.qint_branch("q/6.2/feature/RELENG-001-plop")
 
-        qint_branch = wall_e.branch_factory(FakeGitRepo(),
+        qint_branch = bert_e.branch_factory(FakeGitRepo(),
                                             "q/10/6.2/feature/RELENG-001-plop")
-        self.assertEqual(type(qint_branch), wall_e.QueueIntegrationBranch)
+        self.assertEqual(type(qint_branch), bert_e.QueueIntegrationBranch)
         self.assertEqual(qint_branch.version, "6.2")
         self.assertEqual(qint_branch.pr_id, 10)
         self.assertEqual(qint_branch.major, 6)
@@ -2372,16 +2372,16 @@ class TestQueueing(RepositoryTests):
         """This is the solution when nothing can be merged."""
         return OrderedDict([
             ('4.3', {
-                wall_e.QueueBranch: self.queue_branch('q/4.3'),
-                wall_e.QueueIntegrationBranch: []
+                bert_e.QueueBranch: self.queue_branch('q/4.3'),
+                bert_e.QueueIntegrationBranch: []
             }),
             ('5.1', {
-                wall_e.QueueBranch: self.queue_branch('q/5.1'),
-                wall_e.QueueIntegrationBranch: []
+                bert_e.QueueBranch: self.queue_branch('q/5.1'),
+                bert_e.QueueIntegrationBranch: []
             }),
             ('6.0', {
-                wall_e.QueueBranch: self.queue_branch('q/6.0'),
-                wall_e.QueueIntegrationBranch: []
+                bert_e.QueueBranch: self.queue_branch('q/6.0'),
+                bert_e.QueueIntegrationBranch: []
             }),
         ])
 
@@ -2390,23 +2390,23 @@ class TestQueueing(RepositoryTests):
         """This is the solution to the standard problem."""
         return OrderedDict([
             ('4.3', {
-                wall_e.QueueBranch: self.queue_branch('q/4.3'),
-                wall_e.QueueIntegrationBranch: [
+                bert_e.QueueBranch: self.queue_branch('q/4.3'),
+                bert_e.QueueIntegrationBranch: [
                     self.qint_branch('q/10/4.3/improvement/bar2'),
                     self.qint_branch('q/1/4.3/improvement/bar')
                 ]
             }),
             ('5.1', {
-                wall_e.QueueBranch: self.queue_branch('q/5.1'),
-                wall_e.QueueIntegrationBranch: [
+                bert_e.QueueBranch: self.queue_branch('q/5.1'),
+                bert_e.QueueIntegrationBranch: [
                     self.qint_branch('q/10/5.1/improvement/bar2'),
                     self.qint_branch('q/7/5.1/bugfix/bar'),
                     self.qint_branch('q/1/5.1/improvement/bar')
                 ]
             }),
             ('6.0', {
-                wall_e.QueueBranch: self.queue_branch('q/6.0'),
-                wall_e.QueueIntegrationBranch: [
+                bert_e.QueueBranch: self.queue_branch('q/6.0'),
+                bert_e.QueueIntegrationBranch: [
                     self.qint_branch('q/10/6.0/improvement/bar2'),
                     self.qint_branch('q/7/6.0/bugfix/bar'),
                     self.qint_branch('q/5/6.0/feature/foo'),
@@ -2437,9 +2437,9 @@ class TestQueueing(RepositoryTests):
         problem = deepcopy(self.standard_problem)
         problem[4]['status'][2] = {}
         solution = deepcopy(self.standard_solution)
-        solution['4.3'][wall_e.QueueIntegrationBranch].pop(0)
-        solution['5.1'][wall_e.QueueIntegrationBranch].pop(0)
-        solution['6.0'][wall_e.QueueIntegrationBranch].pop(0)
+        solution['4.3'][bert_e.QueueIntegrationBranch].pop(0)
+        solution['5.1'][bert_e.QueueIntegrationBranch].pop(0)
+        solution['6.0'][bert_e.QueueIntegrationBranch].pop(0)
         qbranches = self.submit_problem(problem)
         qc = self.feed_queue_collection(qbranches)
         qc.finalize()
@@ -2452,9 +2452,9 @@ class TestQueueing(RepositoryTests):
         problem = deepcopy(self.standard_problem)
         problem[4]['status'][2] = {'pipeline': 'FAILED'}
         solution = deepcopy(self.standard_solution)
-        solution['4.3'][wall_e.QueueIntegrationBranch].pop(0)
-        solution['5.1'][wall_e.QueueIntegrationBranch].pop(0)
-        solution['6.0'][wall_e.QueueIntegrationBranch].pop(0)
+        solution['4.3'][bert_e.QueueIntegrationBranch].pop(0)
+        solution['5.1'][bert_e.QueueIntegrationBranch].pop(0)
+        solution['6.0'][bert_e.QueueIntegrationBranch].pop(0)
         qbranches = self.submit_problem(problem)
         qc = self.feed_queue_collection(qbranches)
         qc.finalize()
@@ -2467,9 +2467,9 @@ class TestQueueing(RepositoryTests):
         problem = deepcopy(self.standard_problem)
         problem[4]['status'][2] = {'other': 'SUCCESSFUL'}
         solution = deepcopy(self.standard_solution)
-        solution['4.3'][wall_e.QueueIntegrationBranch].pop(0)
-        solution['5.1'][wall_e.QueueIntegrationBranch].pop(0)
-        solution['6.0'][wall_e.QueueIntegrationBranch].pop(0)
+        solution['4.3'][bert_e.QueueIntegrationBranch].pop(0)
+        solution['5.1'][bert_e.QueueIntegrationBranch].pop(0)
+        solution['6.0'][bert_e.QueueIntegrationBranch].pop(0)
         qbranches = self.submit_problem(problem)
         qc = self.feed_queue_collection(qbranches)
         qc.finalize()
@@ -2575,7 +2575,7 @@ class TestQueueing(RepositoryTests):
     def test_validation_updated_dev(self):
         qbranches = self.submit_problem(self.standard_problem)
         add_file_to_branch(self.gitrepo, 'development/4.3',
-                           'file_pushed_without_wall-e.txt', do_push=True)
+                           'file_pushed_without_bert-e.txt', do_push=True)
         qc = self.feed_queue_collection(qbranches)
         qc.finalize()
         with self.assertRaises(IncoherentQueues) as excp:
@@ -2617,7 +2617,7 @@ class TestQueueing(RepositoryTests):
     def test_validation_masterq_younger(self):
         qbranches = self.submit_problem(self.standard_problem)
         add_file_to_branch(self.gitrepo, 'q/4.3',
-                           'file_pushed_without_wall-e.txt', do_push=True)
+                           'file_pushed_without_bert-e.txt', do_push=True)
         qc = self.feed_queue_collection(qbranches)
         qc.finalize()
         with self.assertRaises(IncoherentQueues) as excp:
@@ -2629,7 +2629,7 @@ class TestQueueing(RepositoryTests):
         self.gitrepo.cmd('git checkout q/5.1')
         self.gitrepo.cmd('git reset --hard HEAD~')
         add_file_to_branch(self.gitrepo, 'q/5.1',
-                           'file_pushed_without_wall-e.txt', do_push=False)
+                           'file_pushed_without_bert-e.txt', do_push=False)
         qc = self.feed_queue_collection(qbranches)
         qc.finalize()
         with self.assertRaises(IncoherentQueues) as excp:
@@ -2640,7 +2640,7 @@ class TestQueueing(RepositoryTests):
     def test_validation_vertical_inclusion(self):
         qbranches = self.submit_problem(self.standard_problem)
         add_file_to_branch(self.gitrepo, 'q/10/5.1/improvement/bar2',
-                           'file_pushed_without_wall-e.txt', do_push=True)
+                           'file_pushed_without_bert-e.txt', do_push=True)
         qc = self.feed_queue_collection(qbranches)
         qc.finalize()
         with self.assertRaises(IncoherentQueues) as excp:
@@ -2681,28 +2681,28 @@ class TestQueueing(RepositoryTests):
         })
         solution = OrderedDict([
             ('4.3', {
-                wall_e.QueueBranch: self.queue_branch('q/4.3'),
-                wall_e.QueueIntegrationBranch: [
+                bert_e.QueueBranch: self.queue_branch('q/4.3'),
+                bert_e.QueueIntegrationBranch: [
                     self.qint_branch('q/10/4.3/bugfix/last')
                 ]
             }),
             ('5.1', {
-                wall_e.QueueBranch: self.queue_branch('q/5.1'),
-                wall_e.QueueIntegrationBranch: [
+                bert_e.QueueBranch: self.queue_branch('q/5.1'),
+                bert_e.QueueIntegrationBranch: [
                     self.qint_branch('q/10/5.1/bugfix/last'),
                     self.qint_branch('q/6/5.1/bugfix/foo'),
                     self.qint_branch('q/1/5.1/bugfix/bar')
                 ]
             }),
             ('5.1.4', {
-                wall_e.QueueBranch: self.queue_branch('q/5.1.4'),
-                wall_e.QueueIntegrationBranch: [
+                bert_e.QueueBranch: self.queue_branch('q/5.1.4'),
+                bert_e.QueueIntegrationBranch: [
                     self.qint_branch('q/6/5.1.4/bugfix/foo')
                 ]
             }),
             ('6.0', {
-                wall_e.QueueBranch: self.queue_branch('q/6.0'),
-                wall_e.QueueIntegrationBranch: [
+                bert_e.QueueBranch: self.queue_branch('q/6.0'),
+                bert_e.QueueIntegrationBranch: [
                     self.qint_branch('q/10/6.0/bugfix/last'),
                     self.qint_branch('q/6/6.0/bugfix/foo'),
                     self.qint_branch('q/4/6.0/feature/foo'),
@@ -2776,7 +2776,7 @@ class TestQueueing(RepositoryTests):
                         options=self.bypass_all,
                         backtrace=True)
 
-        status = wall_e.STATUS.get('merge queue', OrderedDict())
+        status = bert_e.STATUS.get('merge queue', OrderedDict())
         assert 1 in status
         assert len(status[1]) == 3
         versions = tuple(version for version, _ in status[1])
@@ -2787,7 +2787,7 @@ class TestQueueing(RepositoryTests):
         for branch in expected_branches:
             assert not self.gitrepo.remote_branch_exists(branch)
         for dev in ['development/4.3', 'development/5.1', 'development/6.0']:
-            branch = wall_e.branch_factory(self.gitrepo, dev)
+            branch = bert_e.branch_factory(self.gitrepo, dev)
             branch.checkout()
             self.gitrepo.cmd('git pull origin %s', dev)
             assert branch.includes_commit(pr['source']['commit']['hash'])
@@ -2799,7 +2799,7 @@ class TestQueueing(RepositoryTests):
 
         last_comment = list(pr.get_comments())[-1]['content']['raw']
         assert 'I have successfully merged' in last_comment
-        assert 1 in wall_e.STATUS.get('merged PRs', [])
+        assert 1 in bert_e.STATUS.get('merged PRs', [])
 
     def test_system_missing_integration_queue_before_in_queue(self):
         pr1 = self.create_pr('bugfix/RING-00001', 'development/4.3')
@@ -2839,10 +2839,10 @@ class TestQueueing(RepositoryTests):
 
         # delete all q branches
         self.gitrepo.cmd('git fetch')
-        dev = wall_e.branch_factory(self.gitrepo, 'development/4.3')
+        dev = bert_e.branch_factory(self.gitrepo, 'development/4.3')
         dev.checkout()
         for qbranch in self.get_qbranches():
-            branch = wall_e.branch_factory(self.gitrepo, qbranch)
+            branch = bert_e.branch_factory(self.gitrepo, qbranch)
             branch.checkout()  # get locally
             dev.checkout()  # move away
             branch.remove(do_push=True)
@@ -2879,8 +2879,8 @@ class TestQueueing(RepositoryTests):
 
         # delete integration branch
         self.gitrepo.cmd('git fetch')
-        dev = wall_e.branch_factory(self.gitrepo, 'development/6.0')
-        intb = wall_e.branch_factory(self.gitrepo, 'w/6.0/bugfix/RING-00001')
+        dev = bert_e.branch_factory(self.gitrepo, 'development/6.0')
+        intb = bert_e.branch_factory(self.gitrepo, 'w/6.0/bugfix/RING-00001')
         intb.destination_branch = dev
         intb.checkout()
         intb.remove(do_push=True)
@@ -2893,7 +2893,7 @@ class TestQueueing(RepositoryTests):
 
     def set_build_status_on_branch_tip(self, branch_name, status):
         self.gitrepo.cmd('git fetch')
-        branch = wall_e.branch_factory(self.gitrepo, branch_name)
+        branch = bert_e.branch_factory(self.gitrepo, branch_name)
         branch.checkout()
         sha1 = branch.get_latest_commit()
         self.set_build_status(sha1, status)
@@ -2911,8 +2911,8 @@ class TestQueueing(RepositoryTests):
 
         # delete integration queues of pr1
         self.gitrepo.cmd('git fetch')
-        dev = wall_e.branch_factory(self.gitrepo, 'development/6.0')
-        intq1 = wall_e.branch_factory(self.gitrepo,
+        dev = bert_e.branch_factory(self.gitrepo, 'development/6.0')
+        intq1 = bert_e.branch_factory(self.gitrepo,
                                       'q/1/6.0/bugfix/RING-00001')
         intq1.checkout()
         dev.checkout()
@@ -2938,8 +2938,8 @@ class TestQueueing(RepositoryTests):
 
         # delete main queue branch
         self.gitrepo.cmd('git fetch')
-        dev = wall_e.branch_factory(self.gitrepo, 'development/6.0')
-        intq1 = wall_e.branch_factory(self.gitrepo, 'q/6.0')
+        dev = bert_e.branch_factory(self.gitrepo, 'development/6.0')
+        intq1 = bert_e.branch_factory(self.gitrepo, 'q/6.0')
         intq1.checkout()
         dev.checkout()
         intq1.remove(do_push=True)
@@ -3311,13 +3311,13 @@ class TestQueueing(RepositoryTests):
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Launches Wall-E tests.')
+    parser = argparse.ArgumentParser(description='Launches Bert-E tests.')
     parser.add_argument('owner',
                         help='Owner of test repository (aka Bitbucket team)')
-    parser.add_argument('wall_e_username',
-                        help='Wall-E\'s username [for Jira and Bitbucket]')
-    parser.add_argument('wall_e_password',
-                        help='Wall-E\'s password [for Jira and Bitbucket]')
+    parser.add_argument('bert_e_username',
+                        help='Bert-E\'s username [for Jira and Bitbucket]')
+    parser.add_argument('bert_e_password',
+                        help='Bert-E\'s password [for Jira and Bitbucket]')
     parser.add_argument('eva_username',
                         help='Eva\'s username [for Bitbucket]')
     parser.add_argument('eva_password',
@@ -3327,7 +3327,7 @@ def main():
     parser.add_argument('your_password',
                         help='Your Bitbucket password')
     parser.add_argument('tests', nargs='*', help='run only these tests')
-    parser.add_argument('--repo-prefix', default="_test_wall_e",
+    parser.add_argument('--repo-prefix', default="_test_bert_e",
                         help='Prefix of the test repository')
     parser.add_argument('-v', action='store_true', dest='verbose',
                         help='Verbose mode')
@@ -3340,7 +3340,7 @@ def main():
     RepositoryTests.args = parser.parse_args()
 
     if (RepositoryTests.args.your_login ==
-            RepositoryTests.args.wall_e_username):
+            RepositoryTests.args.bert_e_username):
         print('Cannot use the same login for robot and superuser, '
               'please specify another login.')
         sys.exit(1)
@@ -3351,7 +3351,7 @@ def main():
               'please specify another login.')
         sys.exit(1)
 
-    if (RepositoryTests.args.wall_e_username ==
+    if (RepositoryTests.args.bert_e_username ==
             RepositoryTests.args.eva_username):
         print('Cannot use the same login for normal user and robot, '
               'please specify another login.')
@@ -3365,7 +3365,7 @@ def main():
     if RepositoryTests.args.verbose:
         logging.basicConfig(level=logging.DEBUG)
     else:
-        # it is expected that wall-e issues some warning
+        # it is expected that Bert-E issues some warning
         # during the tests, only report critical stuff
         logging.basicConfig(level=logging.CRITICAL)
 

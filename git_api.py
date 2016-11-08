@@ -33,13 +33,13 @@ class Repository(object):
             * reference: use given local repository as a reference.
             * create_mirror: if set to True (default), then in the absence of a
                 reference argument, create a git mirror of the repository under
-                the ``$HOME/.wall-e`` tree.
+                the ``$HOME/.bert-e`` tree.
 
         """
         repo_slug = self._url.split('/')[-1].replace('.git', '')
 
         if not reference and create_mirror:
-            top = os.path.expanduser('~/.wall-e/')
+            top = os.path.expanduser('~/.bert-e/')
             try:
                 os.mkdir(top)
             except OSError:
@@ -202,7 +202,7 @@ class Branch(object):
             self.push()
 
     def remove(self, do_push=False):
-        # hardcode a security since wall-e is all-powerful
+        # security check since Bert-E is all-powerful on the repository
         if not (self.name.startswith('w/') or self.name.startswith('q/')):
             raise ForbiddenOperation('cannot delete branch %s' %
                                      self.name)

@@ -14,7 +14,7 @@ class TestBitbucketApi(unittest.TestCase):
         client = Client('<your login here>',
                         '<your pass here>', '<your mail here>')
         self.bbrepo = BitBucketRepository(client, owner='scality',
-                                          repo_slug='test_wall_e')
+                                          repo_slug='test_bert_e')
         self.bbrepo.delete()
         self.bbrepo.create()
         self.gitrepo = GitRepository(self.bbrepo.get_git_url())

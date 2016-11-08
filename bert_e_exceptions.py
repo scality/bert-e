@@ -3,17 +3,17 @@
 from template_loader import render
 
 
-# When dont_repeat_if_in_history is None, Wall-E will look for the message
+# When dont_repeat_if_in_history is None, Bert-E will look for the message
 # in the whole list of comments.
 NEVER_REPEAT = None
 
 
-class WallE_Exception(Exception):
+class BertE_Exception(Exception):
     code = -1
 
 
 # base exceptions
-class WallE_TemplateException(WallE_Exception):
+class TemplateException(BertE_Exception):
     code = -2
     template = None
     # whether to re-publish if the message is already in the history
@@ -26,147 +26,147 @@ class WallE_TemplateException(WallE_Exception):
         norepeat = self.dont_repeat_if_in_history
         assert norepeat is None or norepeat >= -1
         self.msg = render(self.template, code=self.code, **kwargs)
-        super(WallE_TemplateException, self).__init__(self.msg)
+        super(TemplateException, self).__init__(self.msg)
 
 
-class WallE_InternalException(WallE_Exception):
+class InternalException(BertE_Exception):
     code = 1
 
 
-class WallE_SilentException(WallE_Exception):
+class SilentException(BertE_Exception):
     code = 2
 
 
 # template for informative exceptions
-class WallE_InformationException(WallE_TemplateException):
+class InformationException(TemplateException):
     dont_repeat_if_in_history = NEVER_REPEAT
 
 
 # template exceptions
-class InitMessage(WallE_InformationException):
+class InitMessage(InformationException):
     code = 100
     template = 'init.md'
 
 
-class HelpMessage(WallE_TemplateException):
+class HelpMessage(TemplateException):
     code = 101
     template = 'help.md'
     dont_repeat_if_in_history = 0  # allow repeating if requested by user
 
 
-class SuccessMessage(WallE_TemplateException):
+class SuccessMessage(TemplateException):
     code = 102
     template = 'successful_merge.md'
 
 
-class CommandNotImplemented(WallE_TemplateException):
+class CommandNotImplemented(TemplateException):
     code = 103
     template = 'not_implemented.md'
     dont_repeat_if_in_history = 0  # allow repeating if requested by user
 
 
-class StatusReport(WallE_TemplateException):
+class StatusReport(TemplateException):
     code = 104
     template = 'status.md'
     dont_repeat_if_in_history = 0  # allow repeating if requested by user
 
 
-class IncompatibleSourceBranchPrefix(WallE_TemplateException):
+class IncompatibleSourceBranchPrefix(TemplateException):
     code = 106
     template = 'incompatible_source_branch_prefix.md'
 
 
-class MissingJiraId(WallE_TemplateException):
+class MissingJiraId(TemplateException):
     code = 107
     template = 'missing_jira_id.md'
 
 
-class JiraIssueNotFound(WallE_TemplateException):
+class JiraIssueNotFound(TemplateException):
     code = 108
     template = 'jira_issue_not_found.md'
 
 
-class SubtaskIssueNotSupported(WallE_TemplateException):
+class SubtaskIssueNotSupported(TemplateException):
     code = 109
     template = 'subtask_issue_not_supported.md'
 
 
-class IncorrectJiraProject(WallE_TemplateException):
+class IncorrectJiraProject(TemplateException):
     code = 110
     template = 'incorrect_jira_project.md'
 
 
-class MismatchPrefixIssueType(WallE_TemplateException):
+class MismatchPrefixIssueType(TemplateException):
     code = 111
     template = 'mismatch_prefix_issue_type.md'
 
 
-class IncorrectFixVersion(WallE_TemplateException):
+class IncorrectFixVersion(TemplateException):
     code = 112
     template = 'incorrect_fix_version.md'
 
 
-class BranchHistoryMismatch(WallE_TemplateException):
+class BranchHistoryMismatch(TemplateException):
     code = 113
     template = 'history_mismatch.md'
 
 
-class Conflict(WallE_TemplateException):
+class Conflict(TemplateException):
     code = 114
     template = 'conflict.md'
 
 
-class AuthorApprovalRequired(WallE_TemplateException):
+class AuthorApprovalRequired(TemplateException):
     code = 115
     template = 'need_approval.md'
 
 
-class PeerApprovalRequired(WallE_TemplateException):
+class PeerApprovalRequired(TemplateException):
     code = 116
     template = 'need_approval.md'
 
 
-class TesterApprovalRequired(WallE_TemplateException):
+class TesterApprovalRequired(TemplateException):
     code = 117
     template = 'need_approval.md'
 
 
-class BuildFailed(WallE_TemplateException):
+class BuildFailed(TemplateException):
     code = 118
     template = 'build_failed.md'
 
 
-class UnanimityApprovalRequired(WallE_TemplateException):
+class UnanimityApprovalRequired(TemplateException):
     code = 119
     template = 'need_approval.md'
 
 
-class AfterPullRequest(WallE_TemplateException):
+class AfterPullRequest(TemplateException):
     code = 120
     template = 'after_pull_request.md'
 
 
-class IntegrationPullRequestsCreated(WallE_InformationException):
+class IntegrationPullRequestsCreated(InformationException):
     code = 121
     template = 'integration_pull_requests.md'
 
 
-class UnknownCommand(WallE_TemplateException):
+class UnknownCommand(TemplateException):
     code = 122
     template = 'unknown_command.md'
 
 
-class NotEnoughCredentials(WallE_TemplateException):
+class NotEnoughCredentials(TemplateException):
     code = 123
     template = "not_enough_credentials.md"
 
 
-class QueueConflict(WallE_TemplateException):
+class QueueConflict(TemplateException):
     code = 124
     template = "queue_conflict.md"
 
 
-class Queued(WallE_TemplateException):
+class Queued(TemplateException):
     code = 125
     template = 'queued.md'
 
@@ -186,27 +186,27 @@ class Queued(WallE_TemplateException):
         )
 
 
-class PartialMerge(WallE_TemplateException):
+class PartialMerge(TemplateException):
     code = 126
     template = 'partial_merge.md'
     dont_repeat_if_in_history = 0  # allow repeating as many times as it occurs
 
 
-class QueueOutOfOrder(WallE_TemplateException):
+class QueueOutOfOrder(TemplateException):
     code = 127
     template = "queue_out_of_order.md"
 
 
 # internal exceptions
-class UnableToSendEmail(WallE_InternalException):
+class UnableToSendEmail(InternalException):
     code = 201
 
 
-class ImproperEmailFormat(WallE_InternalException):
+class ImproperEmailFormat(InternalException):
     code = 202
 
 
-class BranchNameInvalid(WallE_InternalException):
+class BranchNameInvalid(InternalException):
     code = 203
 
     def __init__(self, name):
@@ -214,7 +214,7 @@ class BranchNameInvalid(WallE_InternalException):
         super(BranchNameInvalid, self).__init__(msg)
 
 
-class UnsupportedMultipleStabBranches(WallE_InternalException):
+class UnsupportedMultipleStabBranches(InternalException):
     code = 204
 
     def __init__(self, branch, other_branch):
@@ -224,7 +224,7 @@ class UnsupportedMultipleStabBranches(WallE_InternalException):
         super(UnsupportedMultipleStabBranches, self).__init__(msg)
 
 
-class DeprecatedStabilizationBranch(WallE_InternalException):
+class DeprecatedStabilizationBranch(InternalException):
     code = 205
 
     def __init__(self, branch, tag):
@@ -233,7 +233,7 @@ class DeprecatedStabilizationBranch(WallE_InternalException):
         super(DeprecatedStabilizationBranch, self).__init__(msg)
 
 
-class VersionMismatch(WallE_InternalException):
+class VersionMismatch(InternalException):
     code = 206
 
     def __init__(self, dev_branch, stabilization_branch):
@@ -244,11 +244,11 @@ class VersionMismatch(WallE_InternalException):
         super(VersionMismatch, self).__init__(msg)
 
 
-class UnrecognizedBranchPattern(WallE_InternalException):
+class UnrecognizedBranchPattern(InternalException):
     code = 207
 
 
-class ParentPullRequestNotFound(WallE_InternalException):
+class ParentPullRequestNotFound(InternalException):
     code = 208
 
     def __init__(self, pr_id):
@@ -257,7 +257,7 @@ class ParentPullRequestNotFound(WallE_InternalException):
         super(ParentPullRequestNotFound, self).__init__(msg)
 
 
-class JiraUnknownIssueType(WallE_InternalException):
+class JiraUnknownIssueType(InternalException):
     code = 209
 
     def __init__(self, issue_type):
@@ -265,7 +265,7 @@ class JiraUnknownIssueType(WallE_InternalException):
         super(JiraUnknownIssueType, self).__init__(msg)
 
 
-class DevBranchesNotSelfContained(WallE_InternalException):
+class DevBranchesNotSelfContained(InternalException):
     code = 210
 
     def __init__(self, upstream_branch, downstream_branch):
@@ -275,7 +275,7 @@ class DevBranchesNotSelfContained(WallE_InternalException):
         super(DevBranchesNotSelfContained, self).__init__(msg)
 
 
-class DevBranchDoesNotExist(WallE_InternalException):
+class DevBranchDoesNotExist(InternalException):
     code = 211
 
     def __init__(self, branch):
@@ -284,7 +284,7 @@ class DevBranchDoesNotExist(WallE_InternalException):
         super(DevBranchDoesNotExist, self).__init__(msg)
 
 
-class NotASingleDevBranch(WallE_InternalException):
+class NotASingleDevBranch(InternalException):
     code = 212
 
     def __init__(self):
@@ -293,7 +293,7 @@ class NotASingleDevBranch(WallE_InternalException):
         super(NotASingleDevBranch, self).__init__(msg)
 
 
-class PullRequestSkewDetected(WallE_InternalException):
+class PullRequestSkewDetected(InternalException):
     code = 213
 
     def __init__(self, pr_id, local_sha1, pr_sha1):
@@ -303,7 +303,7 @@ class PullRequestSkewDetected(WallE_InternalException):
         super(PullRequestSkewDetected, self).__init__(msg)
 
 
-class IncoherentQueues(WallE_InternalException):
+class IncoherentQueues(InternalException):
     code = 214
 
     def __init__(self, errors):
@@ -318,7 +318,7 @@ class IncoherentQueues(WallE_InternalException):
         super(IncoherentQueues, self).__init__(msg)
 
 
-class InvalidQueueBranch(WallE_InternalException):
+class InvalidQueueBranch(InternalException):
     code = 215
 
     def __init__(self, branch):
@@ -327,7 +327,7 @@ class InvalidQueueBranch(WallE_InternalException):
         super(InvalidQueueBranch, self).__init__(msg)
 
 
-class QueuesNotValidated(WallE_InternalException):
+class QueuesNotValidated(InternalException):
     code = 216
 
     def __init__(self):
@@ -335,7 +335,7 @@ class QueuesNotValidated(WallE_InternalException):
         super(QueuesNotValidated, self).__init__(msg)
 
 
-class UnsupportedTokenType(WallE_InternalException):
+class UnsupportedTokenType(InternalException):
     code = 217
 
     def __init__(self, token):
@@ -343,7 +343,7 @@ class UnsupportedTokenType(WallE_InternalException):
         super(UnsupportedTokenType, self).__init__(msg)
 
 
-class SettingsFileNotFound(WallE_InternalException):
+class SettingsFileNotFound(InternalException):
     code = 218
 
     def __init__(self, filename):
@@ -351,7 +351,7 @@ class SettingsFileNotFound(WallE_InternalException):
         super(SettingsFileNotFound, self).__init__(msg)
 
 
-class IncorrectSettingsFile(WallE_InternalException):
+class IncorrectSettingsFile(InternalException):
     code = 219
 
     def __init__(self, filename):
@@ -359,7 +359,7 @@ class IncorrectSettingsFile(WallE_InternalException):
         super(IncorrectSettingsFile, self).__init__(msg)
 
 
-class MissingMandatorySetting(WallE_InternalException):
+class MissingMandatorySetting(InternalException):
     code = 220
 
     def __init__(self, filename):
@@ -371,7 +371,7 @@ class MissingMandatorySetting(WallE_InternalException):
 class QueueValidationError(Exception):
     """Extend simple string class with an error code and recovery potential."""
     code = 'Q000'
-    auto_recovery = False  # set to True to let wall-e fix the problem alone
+    auto_recovery = False  # set to True to let Bert-E fix the problem alone
 
     def __init__(self, msg):
         self.msg = msg
@@ -471,29 +471,29 @@ class QueueIncomplete(QueueValidationError):
 
 
 # silent exceptions
-class CommentAlreadyExists(WallE_SilentException):
+class CommentAlreadyExists(SilentException):
     code = 300
 
 
-class NotMyJob(WallE_SilentException):
+class NotMyJob(SilentException):
     code = 301
 
 
-class NothingToDo(WallE_SilentException):
+class NothingToDo(SilentException):
     code = 302
 
 
-class BuildInProgress(WallE_SilentException):
+class BuildInProgress(SilentException):
     code = 303
 
 
-class BuildNotStarted(WallE_SilentException):
+class BuildNotStarted(SilentException):
     code = 304
 
 
-class PullRequestDeclined(WallE_SilentException):
+class PullRequestDeclined(SilentException):
     code = 305
 
 
-class Merged(WallE_SilentException):
+class Merged(SilentException):
     code = 306

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """A python daemon that listens for webhooks coming from bitbucket and
-launches, Wall-E accordingly.
+launches, Bert-E accordingly.
 """
 import argparse
 import json
@@ -17,8 +17,8 @@ from raven.contrib.flask import Sentry
 
 from bitbucket_api import BUILD_STATUS_CACHE
 
-import wall_e
-import wall_e_exceptions
+import bert_e
+import bert_e_exceptions
 
 if sys.version_info.major < 3:
     import Queue as queue
@@ -41,24 +41,24 @@ Job = namedtuple('Job', ('repo_owner', 'repo_slug',
                          'revision', 'start_time', 'repo_settings'))
 
 # Populate code names.
-for name in dir(wall_e_exceptions):
-    obj = getattr(wall_e_exceptions, name)
+for name in dir(bert_e_exceptions):
+    obj = getattr(bert_e_exceptions, name)
     if not isinstance(obj, type):
         continue
-    if not issubclass(obj, wall_e_exceptions.WallE_Exception):
+    if not issubclass(obj, bert_e_exceptions.BertE_Exception):
         continue
     CODE_NAMES[obj.code] = name
 
 
-def wall_e_launcher():
-    """Basic worker loop that waits for wall_e jobs and launches them."""
-    pwd = os.environ['WALL_E_PWD']
+def bert_e_launcher():
+    """Basic worker loop that waits for Bert-E jobs and launches them."""
+    pwd = os.environ['BERT_E_PWD']
     while True:
         job = FIFO.get()
         sys.argv[:] = []
-        wall_e.STATUS['current job'] = job
+        bert_e.STATUS['current job'] = job
         sys.argv.extend([
-            'wall_e',
+            'bert_e',
             '-v',
             '--backtrace'
         ])
@@ -68,13 +68,13 @@ def wall_e_launcher():
             str(job.revision)
         ])
         try:
-            retcode = wall_e.main()
+            retcode = bert_e.main()
             status = CODE_NAMES.get(retcode, 'Unknown status: %s' % retcode)
         except Exception as err:
             if SENTRY:
                 SENTRY.captureException()
             else:
-                logging.error("Wall-e job %s finished with an error: %s",
+                logging.error("Bert-E job %s finished with an error: %s",
                               job, err)
             retcode = getattr(err, 'code', None)
             status = CODE_NAMES.get(retcode, type(err).__name__)
@@ -85,7 +85,7 @@ def wall_e_launcher():
                           datetime.now() - job.start_time,
                           job.repo_slug, job.revision)
             DONE.appendleft((job, status))
-            wall_e.STATUS.pop('current job')
+            bert_e.STATUS.pop('current job')
 
 
 def check_auth(username, password):
@@ -119,9 +119,9 @@ def requires_auth(func):
 def display_queue():
     output = []
 
-    merged_prs = wall_e.STATUS.get('merged PRs', [])
-    merge_queue = wall_e.STATUS.get('merge queue', None)
-    cur_job = wall_e.STATUS.get('current job', None)
+    merged_prs = bert_e.STATUS.get('merged PRs', [])
+    merge_queue = bert_e.STATUS.get('merge queue', None)
+    cur_job = bert_e.STATUS.get('current job', None)
 
     tasks = FIFO.queue
     if cur_job is not None:
@@ -262,16 +262,16 @@ def main():
     parser.add_argument('--port', '-p', type=int, default=5000,
                         help='server port (defaults to 5000)')
     parser.add_argument('--settings-dir', '-d', action='store',
-                        default='/etc/wall-e/projects',
+                        default='/etc/bert-e/projects',
                         help='directory where settings files are stored '
-                             '(defaults to /etc/wall-e/projects)')
+                             '(defaults to /etc/bert-e/projects)')
     parser.add_argument('--verbose', '-v', action='store_true', default=False,
                         help='verbose mode')
 
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.DEBUG if args.verbose else logging.INFO)
-    worker = Thread(target=wall_e_launcher)
+    worker = Thread(target=bert_e_launcher)
     worker.daemon = True
     worker.start()
     APP.config['SETTINGS_DIR'] = args.settings_dir

@@ -28,8 +28,7 @@ USER eve
 WORKDIR /home/eve
 
 ENV LANG=C.UTF-8 \
-    BUILD_DISTRO=trusty \
-    JOB_NAME=walle_trusty_docker
+    BUILD_DISTRO=trusty
 
 CMD buildbot-worker create-worker . "$BUILDMASTER:$BUILDMASTER_PORT" "$WORKERNAME" "$WORKERPASS" \
     && buildbot-worker start --nodaemon

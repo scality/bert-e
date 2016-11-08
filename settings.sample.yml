@@ -3,13 +3,13 @@
 #
 #   (a.k.a. Bitbucket team)
 #
-repository_owner: scality
+repository_owner: my_company
 
 
 # repository_slug [MANDATORY]:
 #   The slug of the Bitbucket repository to work on
 #
-repository_slug: ring
+repository_slug: my_repository
 
 
 # username [MANDATORY]:
@@ -27,7 +27,7 @@ repository_slug: ring
 #
 #   The password associated to the account is passed on the command line.
 #
-robot_username: scality_wall-e
+robot_username: robot_username
 
 
 # robot_email [MANDATORY]:
@@ -64,7 +64,7 @@ required_peer_approvals: 2
 #   empty: the key is not checked.
 #
 jira_keys:
-  - KEY
+  - MYJIRAPROJECTKEY
 
 
 # prefixes [OPTIONAL]:
@@ -75,7 +75,6 @@ jira_keys:
 #   empty: the branch prefix is not checked.
 #
 prefixes:
-  Epic: project
   Story: feature
   Bug: bugfix
   Improvement: improvement
@@ -89,5 +88,5 @@ prefixes:
 #   empty: no one can post privileged messages
 #
 admins:
-  - login_username_1
-  - login_username_2
+  - username_admin_1
+  - username_admin_2

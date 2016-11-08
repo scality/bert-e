@@ -24,7 +24,7 @@ from jira.exceptions import JIRAError
 from simplecmd import CommandError
 from template_loader import render
 from utils import RetryHandler
-from wall_e_exceptions import (AfterPullRequest,
+from bert_e_exceptions import (AfterPullRequest,
                                AuthorApprovalRequired,
                                BranchHistoryMismatch,
                                BranchNameInvalid,
@@ -76,9 +76,9 @@ from wall_e_exceptions import (AfterPullRequest,
                                UnsupportedMultipleStabBranches,
                                UnsupportedTokenType,
                                VersionMismatch,
-                               WallE_SilentException,
-                               WallE_TemplateException)
-from wall_e_exceptions import (MasterQueueDiverged,
+                               SilentException,
+                               TemplateException)
+from bert_e_exceptions import (MasterQueueDiverged,
                                MasterQueueLateVsDev,
                                MasterQueueLateVsInt,
                                MasterQueueMissing,
@@ -108,14 +108,14 @@ STATUS = {}
 
 
 class Option(object):
-    """Wall-E options implementation.
+    """Bert-E options implementation.
 
-    Wall-E uses options to activate additional functionality
+    Bert-E uses options to activate additional functionality
     or alter the behaviour of existing functionality.
 
     An option is always set to False by default.
 
-    It is activated either on the command line of wall_e.py,
+    It is activated either on the command line of bert_e.py,
     or by the users of a pull-request, by adding a special
     comment in the pull-request. The options then remain
     active until this comment is deleted.
@@ -138,9 +138,9 @@ class Option(object):
 
 
 class Command(object):
-    """Wall-E commands implementation.
+    """Bert-E commands implementation.
 
-    Wall-E uses commands to operate one-time actions.
+    Bert-E uses commands to operate one-time actions.
 
     Commands are triggered by adding a comment in the
     pull-request.
@@ -161,8 +161,8 @@ def confirm(question):
     return input_ == "yes" or input_ == "y"
 
 
-class WallEPullRequest():
-    def __init__(self, bbrepo, wall_e_username, pr_id):
+class BertEPullRequest():
+    def __init__(self, bbrepo, bert_e_username, pr_id):
         pull_request_id = int(pr_id)
 
         self.bbrepo = bbrepo
@@ -170,7 +170,7 @@ class WallEPullRequest():
             pull_request_id=pull_request_id)
         self.author = self.bb_pr['author']['username']
         self.author_display_name = self.bb_pr['author']['display_name']
-        if wall_e_username == self.author:
+        if bert_e_username == self.author:
             res = re.search('(?P<pr_id>\d+)',
                             self.bb_pr['description'])
             if not res:
@@ -189,7 +189,7 @@ class WallEPullRequest():
         self.destination_branch = None
 
 
-class WallEBranch(Branch):
+class BertEBranch(Branch):
     pattern = '(?P<prefix>[a-z]+)/(?P<label>.+)'
     major = 0
     minor = 0
@@ -200,7 +200,7 @@ class WallEBranch(Branch):
     allow_ticketless_pr = False
 
     def __init__(self, repo, name):
-        super(WallEBranch, self).__init__(repo, name)
+        super(BertEBranch, self).__init__(repo, name)
         match = re.match(self.pattern, name)
         if not match:
             raise BranchNameInvalid(name)
@@ -217,20 +217,20 @@ class WallEBranch(Branch):
         return self.name
 
 
-class HotfixBranch(WallEBranch):
+class HotfixBranch(BertEBranch):
     pattern = '^hotfix/(?P<label>.+)$'
 
 
-class UserBranch(WallEBranch):
+class UserBranch(BertEBranch):
     pattern = '^user/(?P<label>.+)$'
 
 
-class ReleaseBranch(WallEBranch):
+class ReleaseBranch(BertEBranch):
     pattern = '^release/' \
               '(?P<version>(?P<major>\d+)\.(?P<minor>\d+))$'
 
 
-class FeatureBranch(WallEBranch):
+class FeatureBranch(BertEBranch):
     all_prefixes = ('improvement', 'bugfix', 'feature', 'project')
     jira_issue_pattern = '(?P<jira_project>[A-Z0-9_]+)-[0-9]+'
     prefixes = '(?P<prefix>(%s))' % '|'.join(all_prefixes)
@@ -239,7 +239,7 @@ class FeatureBranch(WallEBranch):
     cascade_producer = True
 
 
-class DevelopmentBranch(WallEBranch):
+class DevelopmentBranch(BertEBranch):
     pattern = '^development/(?P<version>(?P<major>\d+)\.(?P<minor>\d+))$'
     cascade_producer = True
     cascade_consumer = True
@@ -262,7 +262,7 @@ class StabilizationBranch(DevelopmentBranch):
             self.micro == other.micro
 
 
-class IntegrationBranch(WallEBranch):
+class IntegrationBranch(BertEBranch):
     pattern = '^w/(?P<version>(?P<major>\d+)\.(?P<minor>\d+)' \
               '(\.(?P<micro>\d+))?)/' + FeatureBranch.pattern[1:]
     destination_branch = ''
@@ -296,7 +296,7 @@ class IntegrationBranch(WallEBranch):
 
         # WARNING potential infinite loop:
         # creating a child pr will trigger a 'pr update' webhook
-        # wall-e will analyse it, retrieve the main pr, then
+        # Bert-E will analyse it, retrieve the main pr, then
         # re-enter here and recreate the children pr.
         # solution: do not create the pr if it already exists
         pr = self.get_pull_request_from_list(open_prs)
@@ -323,7 +323,7 @@ class IntegrationBranch(WallEBranch):
         super(IntegrationBranch, self).remove(do_push)
 
 
-class QueueBranch(WallEBranch):
+class QueueBranch(BertEBranch):
     pattern = '^q/(?P<version>(?P<major>\d+)\.(?P<minor>\d+)' \
               '(\.(?P<micro>\d+))?)$'
     destination_branch = ''
@@ -342,7 +342,7 @@ class QueueBranch(WallEBranch):
 
 
 @total_ordering
-class QueueIntegrationBranch(WallEBranch):
+class QueueIntegrationBranch(BertEBranch):
     pattern = '^q/(?P<pr_id>\d+)/' + IntegrationBranch.pattern[3:]
 
     def __eq__(self, other):
@@ -655,7 +655,7 @@ class QueueCollection(object):
         This is obtained by reading pr ids from the greatest
         development queue branch, so assumes that this branch
         contains a reference to all pull requests in queues (this
-        is normally the case if everything was queued by Wall-E.
+        is normally the case if everything was queued by Bert-E.
 
         Return (list):
             pull request ids in provided queue set (in the order
@@ -951,7 +951,7 @@ class BranchCascade(object):
         self.ignored_branches.sort()
 
 
-class WallE:
+class BertE:
     def __init__(self, args, options, commands, settings):
         self._bbconn = bitbucket_api.Client(
             settings['robot_username'],
@@ -994,7 +994,7 @@ class WallE:
                only if the sha1 belongs to a queue
 
         Returns:
-            - a wall-e return code
+            - a Bert-E return code
 
         """
         try:
@@ -1016,7 +1016,7 @@ class WallE:
 
             raise UnsupportedTokenType(self.token)
 
-        except WallE_SilentException as excp:
+        except SilentException as excp:
             if self.backtrace:
                 raise
 
@@ -1027,7 +1027,7 @@ class WallE:
 
     def handle_pull_request(self, pr_id):
         """Entry point to handle a pull request id."""
-        self._pr = WallEPullRequest(
+        self._pr = BertEPullRequest(
             self.bbrepo,
             self.settings['robot_username'],
             pr_id
@@ -1036,7 +1036,7 @@ class WallE:
 
         try:
             self._handle_pull_request()
-        except WallE_TemplateException as excp:
+        except TemplateException as excp:
             self.send_msg_and_continue(excp)
 
             if self.backtrace:
@@ -1164,7 +1164,7 @@ class WallE:
                     max_history=dont_repeat_if_in_history):
                 raise CommentAlreadyExists(
                     'The same comment has already been posted '
-                    'by Wall-E in the past. Nothing to do here!'
+                    'by Bert-E in the past. Nothing to do here!'
                 )
 
         if self.interactive:
@@ -1228,12 +1228,13 @@ class WallE:
 
     def _send_greetings(self):
         """Display a welcome message if conditions are met."""
-        # Skip if Wall-E has already posted a comment on this PR
+        # Skip if Bert-E has already posted a comment on this PR
         if self.find_bitbucket_comment(
                 username=self.settings['robot_username']):
             return
 
         self.send_msg_and_continue(InitMessage(
+            bert_e=self.settings['robot_username'],
             author=self._pr.author_display_name,
             status=self.get_status_report(),
             active_options=self._get_active_options()
@@ -1303,9 +1304,9 @@ class WallE:
                 author = author[0]
 
             # accept all options in the form:
-            # @scality_wall-e option1 option2...
-            # @scality_wall-e option1, option2, ...
-            # @scality_wall-e: option1 - option2 - ...
+            # @{bert_e_username} option1 option2...
+            # @{bert_e_username} option1, option2, ...
+            # @{bert_e_username}: option1 - option2 - ...
             raw_cleaned = re.sub(r'[,.\-/:;|+]', ' ', raw_cleaned)
             regexp = r"\s*(?P<keywords>(\s+[\w=]+)+)\s*$"
             match_ = re.match(regexp, raw_cleaned)
@@ -1362,8 +1363,8 @@ class WallE:
                     continue
                 author = author[0]
 
-            # if Wall-E is the author of this comment, any previous command
-            # has been treated or is outdated, since Wall-E replies to all
+            # if Bert-E is the author of this comment, any previous command
+            # has been treated or is outdated, since Bert-E replies to all
             # commands. The search is over.
             if author == username:
                 return
@@ -1375,7 +1376,7 @@ class WallE:
             logging.debug('Found a potential command comment: %s', raw)
 
             # accept all commands in the form:
-            # @scality_wall-e command arg1 arg2 ...
+            # @{bert_e_username} command arg1 arg2 ...
             regexp = "@%s[\s:]*" % username
             raw_cleaned = re.sub(regexp, '', raw.strip())
             regexp = r"(?P<command>[A-Za-z_]+[^= ,])(?P<args>.*)$"
@@ -1676,7 +1677,7 @@ class WallE:
         ))
         if any(created):
             self.send_msg_and_continue(IntegrationPullRequestsCreated(
-                wall_e=self.settings['robot_username'],
+                bert_e=self.settings['robot_username'],
                 pr=self._pr.bb_pr, child_prs=prs,
                 ignored=self._cascade.ignored_branches,
                 active_options=self._get_active_options()
@@ -1690,7 +1691,7 @@ class WallE:
         - the local commit and the commit we obtained in the PR
           object are identical; nothing to do
 
-        - the local commit, that has just been pushed by Wall-E,
+        - the local commit, that has just been pushed by Bert-E,
           does not reflect yet in the PR object we obtained from
           bitbucket (the cache mechanism from BB mean the PR is still
           pointing to a previous commit); the solution is to update
@@ -1698,7 +1699,7 @@ class WallE:
 
         - the local commit is outdated, someone else has pushed new
           commits on the integration branch, and it reflects in the PR
-          object; in this case we abort the process, Wall-E will be
+          object; in this case we abort the process, Bert-E will be
           called again on the new commits.
 
         """
@@ -1756,7 +1757,7 @@ class WallE:
         username = self.settings['robot_username']
         for participant in self._pr.bb_pr['participants']:
             if not participant['approved']:
-                # Exclude WALL_E from consideration
+                # Exclude Bert-E from consideration
                 if participant['user']['username'] != username:
                     is_unanimous = False
                 continue
@@ -1957,7 +1958,7 @@ class WallE:
                 )
 
     def _close_queued_pull_request(self, pr_id, cascade):
-        self._pr = WallEPullRequest(
+        self._pr = BertEPullRequest(
             self.bbrepo, self.settings['robot_username'], pr_id)
         self._cascade = cascade
         src_branch = branch_factory(
@@ -1981,7 +1982,7 @@ class WallE:
 
         else:
             # Frown at the author for adding posterior changes. This
-            # message will wake wall-e up on the Pull Request, and the queues
+            # message will wake Bert-E up on the Pull Request, and the queues
             # have disappeared, so the normal pre-queuing workflow will restart
             # naturally.
             commits = src_branch.get_commit_diff(dst_branch)
@@ -1990,7 +1991,7 @@ class WallE:
                 branches=self._cascade.destination_branches,
                 active_options=[]))
 
-        # Remove integration branches (potentially let wall-e rebuild them if
+        # Remove integration branches (potentially let Bert-E rebuild them if
         # the merge was partial)
         wbranches = self._create_integration_branches(src_branch)
 
@@ -2145,7 +2146,7 @@ def setup_parser():
         help="Path to project settings file")
     parser.add_argument(
         'password',
-        help="Wall-E's password [for Jira and Bitbucket]")
+        help="Bert-E's password [for Jira and Bitbucket]")
     parser.add_argument(
         'token', type=str,
         help="The ID of the pull request or sha1 (%s characters) "
@@ -2223,7 +2224,7 @@ def setup_options(args):
         'wait':
             Option(privileged=False,
                    value='wait' in args.cmd_line_options,
-                   help="Instruct Wall-E not to run until further notice")
+                   help="Instruct Bert-E not to run until further notice")
     }
     return options
 
@@ -2233,11 +2234,11 @@ def setup_commands():
         'help':
             Command(privileged=False,
                     handler='print_help',
-                    help='print Wall-E\'s manual in the pull-request'),
+                    help='print Bert-E\'s manual in the pull-request'),
         'status':
             Command(privileged=False,
                     handler='publish_status_report',
-                    help='print Wall-E\'s current status in '
+                    help='print Bert-E\'s current status in '
                          'the pull-request ```TBA```'),
         'build':
             Command(privileged=False,
@@ -2250,7 +2251,7 @@ def setup_commands():
         'clear':
             Command(privileged=False,
                     handler='command_not_implemented',
-                    help='remove all comments from Wall-E from the '
+                    help='remove all comments from Bert-E from the '
                          'history ```TBA```'),
         'reset':
             Command(privileged=False,
@@ -2321,13 +2322,13 @@ def main():
     commands = setup_commands()
     settings = setup_settings(args.settings)
 
-    walle = WallE(args, options, commands, settings)
+    bert_e = BertE(args, options, commands, settings)
     try:
-        return walle.handler()
+        return bert_e.handler()
     finally:
-        walle.repo.delete()
-        assert not exists(walle.tmpdir), (
-            "temporary workdir '%s' wasn't deleted!" % walle.tmpdir)
+        bert_e.repo.delete()
+        assert not exists(bert_e.tmpdir), (
+            "temporary workdir '%s' wasn't deleted!" % bert_e.tmpdir)
 
 
 if __name__ == '__main__':

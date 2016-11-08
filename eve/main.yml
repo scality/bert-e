@@ -19,13 +19,13 @@ stages:
           name: flake8
           command: flake8 *.py
       - ShellCommand:
-          name: Esteban tests
-          command: coverage run -a test_esteban.py
+          name: Bert-E server tests
+          command: coverage run -a test_server.py
       - ShellCommand:
-          name: Wall-E tests (no queue support)
-          command: coverage run -a test_wall_e.py
+          name: Bert-E tests (no queue support)
+          command: coverage run -a test_bert_e.py
                      -v
-                     --repo-prefix _test_wall_e_eve
+                     --repo-prefix _test_bert_e_eve
                      --disable-queues
                      mock_owner
                      mock_robot_username
@@ -35,10 +35,10 @@ stages:
                      mock_admin_username
                      mock_admin_password
       - ShellCommand:
-          name: Wall-E tests with queue support
-          command: coverage run -a test_wall_e.py
+          name: Bert-E tests (with queue support)
+          command: coverage run -a test_bert_e.py
                      -v
-                     --repo-prefix _test_wall_e_eve
+                     --repo-prefix _test_bert_e_eve
                      mock_owner
                      mock_robot_username
                      mock_robot_password

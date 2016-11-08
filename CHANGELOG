@@ -14,7 +14,7 @@ All notable changes to this project will be documented in this file.
 ## [2.0.1] - 2016-10-18
 # Added
 - allow multiple ticket keys for projects
-- show return status in Esteban's monitoring view
+- show return status in server's monitoring view
 
 # Fixed
 - avoid raising trivial conflicts due to branch update order
@@ -23,11 +23,11 @@ All notable changes to this project will be documented in this file.
 ## [2.0.0] - 2016-09-29
 # Added
 - new queueing system
-- more information on Esteban's monitoring view
+- more information on server's monitoring view
 
 ## [1.0.14] - 2016-09-23
 # Added
-- new standalone webhook listener&parser (esteban)
+- new standalone webhook listener&parser (server.py)
 - (experimental) react to commit sha1 instead of pull-request ID
 - add a timeout to all system commands
 - improve reactivity by not reacting to 'build started' events
@@ -44,11 +44,11 @@ All notable changes to this project will be documented in this file.
 ### Fixed
 - only use long sha1 where possible for safety
 - fix recognition of incorrect commands
-- fix over-long wall-e instances when target branch has diverged a lot
+- fix over-long Bert-E instances when target branch has diverged a lot
 ### Changed
 - do not add author as a reviewer on integration PR, to reduce email traffic (opt-in)
 - more comprehensive conflict resolution message
-- informative messages are now sent in the same session of Wall-E
+- informative messages are now sent in the same session of Bert-E
 ### Added
 - clean integration data when the original PR is declined
 

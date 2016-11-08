@@ -112,15 +112,15 @@ PULL_REQUEST = {u'author': {u'display_name': u'Johanna Doe',
                                   {u'approved': False,
                                    u'role': u'PARTICIPANT',
                                    u'type': u'participant',
-                                   u'user': {u'display_name': u'Wall-E Scality',
+                                   u'user': {u'display_name': u'Bert-E Scality',
                                              u'links': {u'avatar': {
-                                                 u'href': u'https://bitbucket.org/account/scality_wall-e/avatar/32/'},
+                                                 u'href': u'https://bitbucket.org/account/test_user/avatar/32/'},
                                                         u'html': {
-                                                            u'href': u'https://bitbucket.org/scality_wall-e/'},
+                                                            u'href': u'https://bitbucket.org/test_user/'},
                                                         u'self': {
-                                                            u'href': u'https://api.bitbucket.org/2.0/users/scality_wall-e'}},
+                                                            u'href': u'https://api.bitbucket.org/2.0/users/test_user'}},
                                              u'type': u'user',
-                                             u'username': u'scality_wall-e',
+                                             u'username': u'test_user',
                                              u'uuid': u'{267dd264-e12c-47de-87e2-2fb726f4667e}'}},
                                   {u'approved': True,
                                    u'role': u'PARTICIPANT',
@@ -254,53 +254,53 @@ COMMENT_CREATED = {u'actor': ACTOR,
 
 COMMIT_STATUS_CREATED = {
   u'commit_status': {
-    u'description': u'in progress...[repository: wall-e][branch: feature/RELENG-1560-git-transactions]',
+    u'description': u'in progress...[repository: bert-e][branch: feature/RELENG-1560-git-transactions]',
     u'links': {
       u'commit': {
-        u'href': u'https://api.bitbucket.org/2.0/repositories/scality/wall-e/commit/b97b433b41405f157c51ca1336c21583413b87f3'
+        u'href': u'https://api.bitbucket.org/2.0/repositories/scality/bert-e/commit/b97b433b41405f157c51ca1336c21583413b87f3'
       },
       u'self': {
-        u'href': u'https://api.bitbucket.org/2.0/repositories/scality/wall-e/commit/b97b433b41405f157c51ca1336c21583413b87f3/statuses/build/pre-merge'
+        u'href': u'https://api.bitbucket.org/2.0/repositories/scality/bert-e/commit/b97b433b41405f157c51ca1336c21583413b87f3/statuses/build/pre-merge'
       }
     },
-    u'url': u'https://eve.devsca.com/wall-e/#builders/14/builds/1',
+    u'url': u'https://eve.devsca.com/bert-e/#builders/14/builds/1',
     u'created_on': u'2016-09-20T08:38:05.255626+00:00',
     u'repository': {
       u'links': {
         u'self': {
-          u'href': u'https://api.bitbucket.org/2.0/repositories/scality/wall-e'
+          u'href': u'https://api.bitbucket.org/2.0/repositories/scality/bert-e'
         },
         u'html': {
-          u'href': u'https://bitbucket.org/scality/wall-e'
+          u'href': u'https://bitbucket.org/scality/bert-e'
         },
         u'avatar': {
-          u'href': u'https://bitbucket.org/scality/wall-e/avatar/32/'
+          u'href': u'https://bitbucket.org/scality/bert-e/avatar/32/'
         }
       },
       u'type': u'repository',
-      u'name': u'wall-e',
-      u'full_name': u'scality/wall-e',
+      u'name': u'bert-e',
+      u'full_name': u'scality/bert-e',
       u'uuid': u'{5ff810b5-328e-4b7e-a003-9e822fa87b58}'
     },
     u'state': u'INPROGRESS',
     u'key': u'pre-merge',
     u'updated_on': u'2016-09-20T08:38:05.255666+00:00',
     u'type': u'build',
-    u'name': u'(starting) build #154 on wall-e:feature/RELENG-1560-git-transactions '
+    u'name': u'(starting) build #154 on bert-e:feature/RELENG-1560-git-transactions '
   },
   u'repository': {
     u'scm': u'git',
     u'website': u'',
-    u'name': u'wall-e',
+    u'name': u'bert-e',
     u'links': {
       u'self': {
-        u'href': u'https://api.bitbucket.org/2.0/repositories/scality/wall-e'
+        u'href': u'https://api.bitbucket.org/2.0/repositories/scality/bert-e'
       },
       u'html': {
-        u'href': u'https://bitbucket.org/scality/wall-e'
+        u'href': u'https://bitbucket.org/scality/bert-e'
       },
       u'avatar': {
-        u'href': u'https://bitbucket.org/scality/wall-e/avatar/32/'
+        u'href': u'https://bitbucket.org/scality/bert-e/avatar/32/'
       }
     },
     u'project': {
@@ -320,7 +320,7 @@ COMMIT_STATUS_CREATED = {
       u'key': u'RELENG',
       u'uuid': u'{b7f2f3a1-e702-4c66-bd54-9fcb060982b9}'
     },
-    u'full_name': u'scality/wall-e',
+    u'full_name': u'scality/bert-e',
     u'owner': {
       u'username': u'scality',
       u'type': u'team',

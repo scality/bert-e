@@ -3,15 +3,15 @@ import json
 import os
 import unittest
 
-from test_esteban_data import COMMENT_CREATED, COMMIT_STATUS_CREATED
+from test_server_data import COMMENT_CREATED, COMMIT_STATUS_CREATED
 from copy import deepcopy
 from collections import OrderedDict
 
 import bitbucket_api
 import bitbucket_api_mock
 
-import esteban
-import wall_e
+import server
+import bert_e
 
 bitbucket_api.Client = bitbucket_api_mock.Client
 bitbucket_api.Repository = bitbucket_api_mock.Repository
@@ -19,12 +19,12 @@ bitbucket_api.Repository = bitbucket_api_mock.Repository
 
 class TestWebhookListener(unittest.TestCase):
     def handle_post(self, event_type, data):
-        os.environ['WALL_E_PWD'] = 'dummy'
+        os.environ['BERT_E_PWD'] = 'dummy'
         os.environ['WEBHOOK_LOGIN'] = 'dummy'
         os.environ['WEBHOOK_PWD'] = 'dummy'
 
-        esteban.APP.config['SETTINGS_DIR'] = '/bert-e'
-        app = esteban.APP.test_client()
+        server.APP.config['SETTINGS_DIR'] = '/bert-e'
+        app = server.APP.test_client()
         basic_auth = 'Basic ' + base64.b64encode(bytes(
             os.environ['WEBHOOK_LOGIN'] + ":" +
             os.environ['WEBHOOK_PWD'])).decode('ascii')
@@ -36,16 +36,16 @@ class TestWebhookListener(unittest.TestCase):
     def test_comment_added(self):
         resp = self.handle_post('pullrequest:comment_created', COMMENT_CREATED)
         self.assertEqual(200, resp.status_code)
-        self.assertEqual(esteban.FIFO.unfinished_tasks, 1)
+        self.assertEqual(server.FIFO.unfinished_tasks, 1)
 
-        job = esteban.FIFO.get()
+        job = server.FIFO.get()
         self.assertEqual(job.repo_owner, u'scality')
         self.assertEqual(job.repo_slug, u'test_repo')
         self.assertEqual(job.repo_settings, u'/bert-e/scality/test_repo')
         self.assertEqual(job.revision, '1')
 
-        esteban.FIFO.task_done()
-        self.assertEqual(esteban.FIFO.unfinished_tasks, 0)
+        server.FIFO.task_done()
+        self.assertEqual(server.FIFO.unfinished_tasks, 0)
 
     def test_build_status_filtered(self):
         data = deepcopy(COMMIT_STATUS_CREATED)
@@ -54,25 +54,25 @@ class TestWebhookListener(unittest.TestCase):
                                 data)
 
         self.assertEqual(200, resp.status_code)
-        self.assertEqual(esteban.FIFO.unfinished_tasks, 0)
+        self.assertEqual(server.FIFO.unfinished_tasks, 0)
 
         data[b'commit_status'][b'state'] = b'SUCCESS'
         resp = self.handle_post('repo:commit_status_created',
                                 data)
-        self.assertEqual(esteban.FIFO.unfinished_tasks, 1)
+        self.assertEqual(server.FIFO.unfinished_tasks, 1)
 
         # consume job
-        esteban.FIFO.get()
-        esteban.FIFO.task_done()
+        server.FIFO.get()
+        server.FIFO.task_done()
 
-    def test_walle_status(self):
-        wall_e.STATUS['merge queue'] = OrderedDict([
+    def test_bert_e_status(self):
+        bert_e.STATUS['merge queue'] = OrderedDict([
             ('10', [('4.3', '0033deadbeef'), ('6.0', '13370badf00d')])
         ])
 
-        wall_e.STATUS['merged PRs'] = [1, 2, 3]
+        bert_e.STATUS['merged PRs'] = [1, 2, 3]
 
-        app = esteban.APP.test_client()
+        app = server.APP.test_client()
         res = app.get('/')
 
         # Check merged Pull Requests and merge queue status appear in monitor
@@ -94,7 +94,7 @@ class TestWebhookListener(unittest.TestCase):
             '#10', 'SUCCESS', 'FAILED') in res.data
 
         # Everything is merged, the queue status shouldn't appear anymore
-        wall_e.STATUS['merged PRs'].append(10)
+        bert_e.STATUS['merged PRs'].append(10)
         res = app.get('/')
 
         # PR #10 should appear as merged
@@ -102,7 +102,7 @@ class TestWebhookListener(unittest.TestCase):
         assert 'Merge queue status:' not in res.data
 
     def test_merge_queue_print(self):
-        wall_e.STATUS['merge queue'] = OrderedDict([
+        bert_e.STATUS['merge queue'] = OrderedDict([
             ('4472', [
                 ('6.4', '4472/6.4'),
                 ('6.3', '4472/6.3'),
@@ -141,7 +141,7 @@ class TestWebhookListener(unittest.TestCase):
             '  #5095     SUCCESSFUL'
         )
 
-        app = esteban.APP.test_client()
+        app = server.APP.test_client()
         res = app.get('/')
         for exp in expected:
             assert exp in res.data
