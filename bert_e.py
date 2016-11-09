@@ -110,7 +110,7 @@ STATUS = {}
 
 
 class Option(object):
-    """Bert-E options implementation.
+    """Options implementation.
 
     Bert-E uses options to activate additional functionality
     or alter the behaviour of existing functionality.
@@ -140,7 +140,7 @@ class Option(object):
 
 
 class Command(object):
-    """Bert-E commands implementation.
+    """Commands implementation.
 
     Bert-E uses commands to operate one-time actions.
 
@@ -164,7 +164,7 @@ def confirm(question):
 
 
 class BertEPullRequest():
-    def __init__(self, bbrepo, bert_e_username, pr_id):
+    def __init__(self, bbrepo, robot_username, pr_id):
         pull_request_id = int(pr_id)
 
         self.bbrepo = bbrepo
@@ -172,7 +172,7 @@ class BertEPullRequest():
             pull_request_id=pull_request_id)
         self.author = self.bb_pr['author']['username']
         self.author_display_name = self.bb_pr['author']['display_name']
-        if bert_e_username == self.author:
+        if robot_username == self.author:
             res = re.search('(?P<pr_id>\d+)',
                             self.bb_pr['description'])
             if not res:
@@ -1167,7 +1167,7 @@ class BertE:
                     max_history=dont_repeat_if_in_history):
                 raise CommentAlreadyExists(
                     'The same comment has already been posted '
-                    'by Bert-E in the past. Nothing to do here!'
+                    'in the past. Nothing to do here!'
                 )
 
         if self.interactive:
@@ -1231,7 +1231,7 @@ class BertE:
 
     def _send_greetings(self):
         """Display a welcome message if conditions are met."""
-        # Skip if Bert-E has already posted a comment on this PR
+        # Skip if the robot has already posted a comment on this PR
         if self.find_bitbucket_comment(
                 username=self.settings['robot_username']):
             return
@@ -1307,9 +1307,9 @@ class BertE:
                 author = author[0]
 
             # accept all options in the form:
-            # @{bert_e_username} option1 option2...
-            # @{bert_e_username} option1, option2, ...
-            # @{bert_e_username}: option1 - option2 - ...
+            # @{robot_username} option1 option2...
+            # @{robot_username} option1, option2, ...
+            # @{robot_username}: option1 - option2 - ...
             raw_cleaned = re.sub(r'[,.\-/:;|+]', ' ', raw_cleaned)
             regexp = r"\s*(?P<keywords>(\s+[\w=]+)+)\s*$"
             match_ = re.match(regexp, raw_cleaned)
@@ -1379,7 +1379,7 @@ class BertE:
             logging.debug('Found a potential command comment: %s', raw)
 
             # accept all commands in the form:
-            # @{bert_e_username} command arg1 arg2 ...
+            # @{robot_username} command arg1 arg2 ...
             regexp = "@%s[\s:]*" % username
             raw_cleaned = re.sub(regexp, '', raw.strip())
             regexp = r"(?P<command>[A-Za-z_]+[^= ,])(?P<args>.*)$"
@@ -2155,10 +2155,10 @@ def setup_parser():
         help="Path to project settings file")
     parser.add_argument(
         'bitbucket_password',
-        help="Bert-E's Bitbucket account password")
+        help="Robot Bitbucket password")
     parser.add_argument(
         'jira_password',
-        help="Bert-E's Jira account password")
+        help="Robot Jira password")
     parser.add_argument(
         'token', type=str,
         help="The ID of the pull request or sha1 (%s characters) "
