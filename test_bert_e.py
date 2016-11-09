@@ -88,7 +88,7 @@ jira_username: dummy
 jira_keys:
   - TEST
 admins:
-  - {your_login}
+  - {admin}
 """
 
 
@@ -569,59 +569,59 @@ class RepositoryTests(unittest.TestCase):
 
     def setUp(self):
         # repo creator and reviewer
-        self.creator = self.args.your_login
+        self.creator = self.args.admin_username
         client = bitbucket_api.Client(
-            self.args.your_login,
-            self.args.your_password,
+            self.args.admin_username,
+            self.args.admin_password,
             "nobody@nowhere.com")
-        self.bbrepo = bitbucket_api.Repository(
+        self.admin_bb = bitbucket_api.Repository(
             client,
             owner=self.args.owner,
             repo_slug=('%s_%s' % (self.args.repo_prefix,
-                                  self.args.your_login)),
+                                  self.args.admin_username)),
             is_private=True,
             scm='git')
         try:
             if RepositoryTests.args.disable_mock:
                 time.sleep(5)  # don't be too agressive on API
-            self.bbrepo.delete()
+            self.admin_bb.delete()
         except requests.exceptions.HTTPError as e:
             if e.response.status_code != 404:
                 raise
 
-        self.bbrepo.create()
+        self.admin_bb.create()
 
-        # Use Eva as our unprivileged user
-        client_eva = bitbucket_api.Client(
-            self.args.eva_username,
-            self.args.eva_password,
+        # unprivileged user connection
+        client = bitbucket_api.Client(
+            self.args.contributor_username,
+            self.args.contributor_password,
             "nobody@nowhere.com")
-        self.bbrepo_eva = bitbucket_api.Repository(
-            client_eva,
+        self.contributor_bb = bitbucket_api.Repository(
+            client,
             owner=self.args.owner,
             repo_slug=('%s_%s' % (self.args.repo_prefix,
-                                  self.args.your_login)),
+                                  self.args.admin_username)),
         )
         # Bert-E may want to comment manually too
-        client_bert_e = bitbucket_api.Client(
-            self.args.bert_e_username,
-            self.args.bert_e_password,
+        client = bitbucket_api.Client(
+            self.args.robot_username,
+            self.args.robot_password,
             "nobody@nowhere.com")
-        self.bbrepo_bert_e = bitbucket_api.Repository(
-            client_bert_e,
+        self.robot_bb = bitbucket_api.Repository(
+            client,
             owner=self.args.owner,
             repo_slug=('%s_%s' % (self.args.repo_prefix,
-                                  self.args.your_login)),
+                                  self.args.admin_username)),
         )
-        self.gitrepo = GitRepository(self.bbrepo.get_git_url())
+        self.gitrepo = GitRepository(self.admin_bb.get_git_url())
         initialize_git_repo(self.gitrepo,
-                            self.args.your_login,
+                            self.args.admin_username,
                             "nobody@nowhere.com")
 
     def tearDown(self):
         if RepositoryTests.args.disable_mock:
             time.sleep(5)  # don't be too agressive on API
-        self.bbrepo.delete()
+        self.admin_bb.delete()
         self.gitrepo.delete()
 
     def create_pr(
@@ -635,7 +635,7 @@ class RepositoryTests(unittest.TestCase):
             reviewers = [self.creator]
         create_branch(self.gitrepo, feature_branch, from_branch=from_branch,
                       file_=file_)
-        pr = self.bbrepo_eva.create_pull_request(
+        pr = self.contributor_bb.create_pull_request(
             title='title',
             name='name',
             source={'branch': {'name': feature_branch}},
@@ -659,7 +659,7 @@ class RepositoryTests(unittest.TestCase):
             sys.argv.append('--backtrace')
         argv_copy = list(sys.argv)
         sys.argv.append('test_settings.yml')
-        sys.argv.append(self.args.bert_e_password)
+        sys.argv.append(self.args.robot_password)
         sys.argv.append('dummy_jira_password')
         sys.argv.append(str(token))
         try:
@@ -682,7 +682,7 @@ class RepositoryTests(unittest.TestCase):
             int(token)
             # token is a PR id, use its tip to filter on content
             # (caution: not necessarily the id of the main pr)
-            pr = self.bbrepo_bert_e.get_pull_request(pull_request_id=token)
+            pr = self.robot_bb.get_pull_request(pull_request_id=token)
             sha1 = pr['source']['commit']['hash']
         except ValueError:
             # token is a sha1, use it to filter on content
@@ -699,7 +699,7 @@ class RepositoryTests(unittest.TestCase):
         sys.argv = argv_copy
         token = sha1
         sys.argv.append('test_settings.yml')
-        sys.argv.append(self.args.bert_e_password)
+        sys.argv.append(self.args.robot_password)
         sys.argv.append('dummy_jira_password')
         sys.argv.append(str(token))
         try:
@@ -737,10 +737,10 @@ class RepositoryTests(unittest.TestCase):
             sys.argv.append('--backtrace')
         sys.argv.append('--quiet')
         data = settings.format(
-            your_login=self.args.your_login,
-            robot=self.args.bert_e_username,
+            admin=self.args.admin_username,
+            robot=self.args.robot_username,
             owner=self.args.owner,
-            slug='%s_%s' % (self.args.repo_prefix, self.args.your_login)
+            slug='%s_%s' % (self.args.repo_prefix, self.args.admin_username)
         )
         with open('test_settings.yml', 'w') as settings_file:
             settings_file.write(data)
@@ -751,7 +751,7 @@ class RepositoryTests(unittest.TestCase):
                 return self.handle_legacy(token, backtrace)
 
         sys.argv.append('test_settings.yml')
-        sys.argv.append(self.args.bert_e_password)
+        sys.argv.append(self.args.robot_password)
         sys.argv.append('dummy_jira_password')
         sys.argv.append(str(token))
         return bert_e.main()
@@ -760,7 +760,7 @@ class RepositoryTests(unittest.TestCase):
                          key='pre-merge',
                          name='Test build status',
                          url='http://www.testurl.com'):
-        self.bbrepo_bert_e.set_build_status(
+        self.robot_bb.set_build_status(
             revision=sha1,
             key=key,
             state=state,
@@ -770,7 +770,7 @@ class RepositoryTests(unittest.TestCase):
 
     def get_build_status(self, sha1, key='pipeline'):
         try:
-            status = self.bbrepo_bert_e.get_build_status(
+            status = self.robot_bb.get_build_status(
                 revision=sha1,
                 key=key,
             )
@@ -782,7 +782,7 @@ class RepositoryTests(unittest.TestCase):
                                   key='pre-merge',
                                   name='Test build status',
                                   url='http://www.testurl.com'):
-        pr = self.bbrepo_bert_e.get_pull_request(pull_request_id=pr_id)
+        pr = self.robot_bb.get_pull_request(pull_request_id=pr_id)
 
         self.set_build_status(pr['source']['commit']['hash'],
                               state, key, name, url)
@@ -796,7 +796,7 @@ class RepositoryTests(unittest.TestCase):
             self.fail('Laggy Bitbucket detected.')
 
     def get_build_status_on_pr_id(self, pr_id, key='pipeline'):
-        pr = self.bbrepo_bert_e.get_pull_request(pull_request_id=pr_id)
+        pr = self.robot_bb.get_pull_request(pull_request_id=pr_id)
         return self.get_build_status(pr['source']['commit']['hash'], key)
 
 
@@ -843,7 +843,7 @@ class TestBertE(RepositoryTests):
         from_branch = 'development/6.0'
         create_branch(self.gitrepo, feature_branch, from_branch=from_branch,
                       file_=True)
-        pr = self.bbrepo_eva.create_pull_request(
+        pr = self.contributor_bb.create_pull_request(
             title='title',
             name='name',
             source={'branch': {'name': feature_branch}},
@@ -866,7 +866,7 @@ class TestBertE(RepositoryTests):
                             'hotfix/customer']:
             create_branch(self.gitrepo, destination,
                           from_branch='development/4.3', file_=True)
-            pr = self.bbrepo_eva.create_pull_request(
+            pr = self.contributor_bb.create_pull_request(
                 title='title',
                 name='name',
                 source={'branch': {'name': 'feature/TEST-00001'}},
@@ -961,7 +961,7 @@ class TestBertE(RepositoryTests):
         self.assertEqual(retcode, AuthorApprovalRequired.code)
 
         # test approval on sub pr has not effect
-        pr_child = self.bbrepo.get_pull_request(pull_request_id=pr['id']+1)
+        pr_child = self.admin_bb.get_pull_request(pull_request_id=pr['id']+1)
         pr_child.approve()
         retcode = self.handle(pr['id']+1, options=['bypass_jira_check'])
         self.assertEqual(retcode, AuthorApprovalRequired.code)
@@ -972,14 +972,14 @@ class TestBertE(RepositoryTests):
         self.assertEqual(retcode, PeerApprovalRequired.code)
 
         # 1st reviewer adds approval
-        pr_peer1 = self.bbrepo.get_pull_request(
+        pr_peer1 = self.admin_bb.get_pull_request(
             pull_request_id=pr['id'])
         pr_peer1.approve()
         retcode = self.handle(pr['id'], options=['bypass_jira_check'])
         self.assertEqual(retcode, PeerApprovalRequired.code)
 
         # 2nd reviewer adds approval
-        pr_peer2 = self.bbrepo_bert_e.get_pull_request(
+        pr_peer2 = self.robot_bb.get_pull_request(
             pull_request_id=pr['id'])
         pr_peer2.approve()
         retcode = self.handle(pr['id'], options=[
@@ -1020,7 +1020,7 @@ class TestBertE(RepositoryTests):
                        'feaure/TEST-12345']:
             create_branch(self.gitrepo, source,
                           from_branch='development/4.3', file_=True)
-            pr = self.bbrepo_eva.create_pull_request(
+            pr = self.contributor_bb.create_pull_request(
                 title='title',
                 name='name',
                 source={'branch': {'name': source}},
@@ -1061,7 +1061,7 @@ class TestBertE(RepositoryTests):
                       from_branch='development/4.3', file_=True)
         create_branch(self.gitrepo, 'bugfix/TEST-00001',
                       from_branch='development/4.3', file_=True)
-        pr = self.bbrepo_eva.create_pull_request(
+        pr = self.contributor_bb.create_pull_request(
             title='title',
             name='name',
             source={'branch': {'name': 'bugfix/TEST-00001'}},
@@ -1086,13 +1086,13 @@ class TestBertE(RepositoryTests):
         # simulate creation of an integration branch with Bert-E
         create_branch(self.gitrepo, 'w/bugfix/TEST-00069',
                       from_branch='development/4.3', file_=True)
-        pr = self.bbrepo_bert_e.create_pull_request(
+        pr = self.robot_bb.create_pull_request(
             title='title',
             name='name',
             source={'branch': {'name': 'w/bugfix/TEST-00069'}},
             destination={'branch': {'name': 'development/4.3'}},
             close_source_branch=True,
-            reviewers=[{'username': self.args.eva_username}],
+            reviewers=[{'username': self.args.contributor_username}],
             description=''
         )
         with self.assertRaises(ParentPullRequestNotFound):
@@ -1114,7 +1114,7 @@ class TestBertE(RepositoryTests):
 
         # The help message should be displayed every time the user requests it
         help_msg = ''
-        pr.add_comment('@%s help' % self.args.bert_e_username)
+        pr.add_comment('@%s help' % self.args.robot_username)
         try:
             self.handle(pr['id'], backtrace=True)
         except HelpMessage as ret:
@@ -1122,18 +1122,18 @@ class TestBertE(RepositoryTests):
 
         last_comment = get_last_comment(pr)
         self.assertEqual(last_comment, help_msg,
-                         "Bert-e didn't post the first help message.")
+                         "Robot didn't post the first help message.")
 
         pr.add_comment("Ok, ok")
         last_comment = get_last_comment(pr)
         self.assertNotEqual(last_comment, help_msg,
-                            "Eva's message wasn't recorded.")
+                            "message wasn't recorded.")
 
-        pr.add_comment('@%s help' % self.args.bert_e_username)
+        pr.add_comment('@%s help' % self.args.robot_username)
         self.handle(pr['id'])
         last_comment = get_last_comment(pr)
         self.assertEqual(last_comment, help_msg,
-                         "Bert-E didn't post a second help message.")
+                         "Robot didn't post a second help message.")
 
         # Let's have Bert-E yield an actual AuthorApproval error message
         author_msg = ''
@@ -1145,18 +1145,18 @@ class TestBertE(RepositoryTests):
 
         last_comment = get_last_comment(pr)
         self.assertEqual(last_comment, author_msg,
-                         "Bert-E didn't post his first error message.")
+                         "Robot didn't post his first error message.")
 
         pr.add_comment("OK, I Fixed it")
         last_comment = get_last_comment(pr)
         self.assertNotEqual(last_comment, author_msg,
-                            "Eva's message wasn't recorded.")
+                            "message wasn't recorded.")
 
         # Bert-E should not repeat itself if the error is not fixed
         self.handle(pr['id'], options=['bypass_jira_check'])
         last_comment = get_last_comment(pr)
         self.assertNotEqual(last_comment, author_msg,
-                            "Bert-E repeated an error message when he "
+                            "Robot repeated an error message when he "
                             "shouldn't have.")
 
         # Confront Bert-E to a different error (PeerApproval)
@@ -1168,67 +1168,67 @@ class TestBertE(RepositoryTests):
         self.handle(pr['id'], options=['bypass_jira_check'])
         last_comment = get_last_comment(pr)
         self.assertEqual(last_comment, author_msg,
-                         "Bert-E didn't respond to second occurrence of the "
+                         "Robot didn't respond to second occurrence of the "
                          "error.")
 
     def test_options_and_commands(self):
         pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
 
         # option: wait
-        comment = pr.add_comment('@%s wait' % self.args.bert_e_username)
+        comment = pr.add_comment('@%s wait' % self.args.robot_username)
         with self.assertRaises(NothingToDo):
             self.handle(pr['id'], backtrace=True)
         comment.delete()
 
         # command: build
-        pr.add_comment('@%s build' % self.args.bert_e_username)
+        pr.add_comment('@%s build' % self.args.robot_username)
         retcode = self.handle(pr['id'])
         self.assertEqual(retcode, CommandNotImplemented.code)
 
         # command: clear
-        pr.add_comment('@%s clear' % self.args.bert_e_username)
+        pr.add_comment('@%s clear' % self.args.robot_username)
         retcode = self.handle(pr['id'])
         self.assertEqual(retcode, CommandNotImplemented.code)
 
         # command: status
-        pr.add_comment('@%s status' % self.args.bert_e_username)
+        pr.add_comment('@%s status' % self.args.robot_username)
         retcode = self.handle(pr['id'])
         self.assertEqual(retcode, StatusReport.code)
 
         # mix of option and command
-        pr.add_comment('@%s unanimity' % self.args.bert_e_username)
-        pr.add_comment('@%s status' % self.args.bert_e_username)
+        pr.add_comment('@%s unanimity' % self.args.robot_username)
+        pr.add_comment('@%s status' % self.args.robot_username)
         retcode = self.handle(pr['id'])
         self.assertEqual(retcode, StatusReport.code)
 
         # test_help command
-        pr.add_comment('@%s help' % self.args.bert_e_username)
+        pr.add_comment('@%s help' % self.args.robot_username)
         retcode = self.handle(pr['id'])
         self.assertEqual(retcode, HelpMessage.code)
 
         # test help command with inter comment
-        pr.add_comment('@%s: help' % self.args.bert_e_username)
+        pr.add_comment('@%s: help' % self.args.robot_username)
         pr.add_comment('an irrelevant comment')
         retcode = self.handle(pr['id'])
         self.assertEqual(retcode, HelpMessage.code)
 
         # test help command with inter comment from Bert-E
-        pr.add_comment('@%s help' % self.args.bert_e_username)
-        pr_bert_e = self.bbrepo_bert_e.get_pull_request(
+        pr.add_comment('@%s help' % self.args.robot_username)
+        pr_bert_e = self.robot_bb.get_pull_request(
             pull_request_id=pr['id'])
         pr_bert_e.add_comment('this is my help already')
         retcode = self.handle(pr['id'], options=['bypass_jira_check'])
         self.assertEqual(retcode, AuthorApprovalRequired.code)
 
         # test unknown command
-        comment = pr.add_comment('@%s helpp' % self.args.bert_e_username)
+        comment = pr.add_comment('@%s helpp' % self.args.robot_username)
         retcode = self.handle(pr['id'], options=['bypass_jira_check'])
         self.assertEqual(retcode, UnknownCommand.code)
         comment.delete()
 
         # test command args
         pr.add_comment('@%s help some arguments --hehe' %
-                       self.args.bert_e_username)
+                       self.args.robot_username)
         retcode = self.handle(pr['id'])
         self.assertEqual(retcode, HelpMessage.code)
 
@@ -1249,20 +1249,21 @@ class TestBertE(RepositoryTests):
             ' bypass_peer_approval'
             ' bypass_tester_approval'
             ' bypass_build_status'
-            ' bypass_jira_check' % self.args.bert_e_username
+            ' bypass_jira_check' % self.args.robot_username
         )
         comment.delete()
         retcode = self.handle(pr['id'], options=['bypass_jira_check'])
         self.assertEqual(retcode, AuthorApprovalRequired.code)
 
         # test no effect sub pr options
-        sub_pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id']+1)
+        sub_pr_admin = self.admin_bb.get_pull_request(
+            pull_request_id=pr['id']+1)
         sub_pr_admin.add_comment('@%s'
                                  ' bypass_author_approval'
                                  ' bypass_peer_approval'
                                  ' bypass_build_status'
                                  ' bypass_jira_check' %
-                                 self.args.bert_e_username)
+                                 self.args.robot_username)
         retcode = self.handle(pr['id'], options=['bypass_jira_check'])
         self.assertEqual(retcode, AuthorApprovalRequired.code)
         # test RELENG-1335: BertE unvalid status command
@@ -1273,7 +1274,7 @@ class TestBertE(RepositoryTests):
         pr = self.create_pr(feature_branch, dst_branch)
         retcode = self.handle(pr['id'], options=['bypass_jira_check'])
         self.assertEqual(retcode, AuthorApprovalRequired.code)
-        pr.add_comment('@%s status?' % self.args.bert_e_username)
+        pr.add_comment('@%s status?' % self.args.robot_username)
         retcode = self.handle(pr['id'], options=[
             'bypass_jira_check',
             'bypass_author_approval',
@@ -1284,14 +1285,14 @@ class TestBertE(RepositoryTests):
     def test_bypass_options(self):
         # test bypass all approvals through an incorrect bitbucket comment
         pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
-        pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id'])
+        pr_admin = self.admin_bb.get_pull_request(pull_request_id=pr['id'])
         comment = pr_admin.add_comment(
             '@%s'
             ' bypass_author_aproval'  # a p is missing
             ' bypass_peer_approval'
             ' bypass_tester_approval'
             ' bypass_build_status'
-            ' bypass_jira_check' % self.args.bert_e_username
+            ' bypass_jira_check' % self.args.robot_username
         )
         retcode = self.handle(pr['id'], options=['bypass_jira_check'])
         self.assertEqual(retcode, UnknownCommand.code)
@@ -1299,12 +1300,12 @@ class TestBertE(RepositoryTests):
 
         # test bypass all approvals through unauthorized bitbucket comment
         comment = pr.add_comment(
-            '@%s'  # comment is made by unpriviledged Eva
+            '@%s'  # comment is made by unpriviledged user (robot itself)
             ' bypass_author_approval'
             ' bypass_peer_approval'
             ' bypass_tester_approval'
             ' bypass_build_status'
-            ' bypass_jira_check' % self.args.bert_e_username
+            ' bypass_jira_check' % self.args.robot_username
         )
         retcode = self.handle(pr['id'], options=['bypass_jira_check'])
         self.assertEqual(retcode, NotEnoughCredentials.code)
@@ -1318,7 +1319,7 @@ class TestBertE(RepositoryTests):
             ' bypass_tester_approval'
             ' bypass_build_status'
             ' mmm_never_seen_that_before'  # this is unknown
-            ' bypass_jira_check' % self.args.bert_e_username
+            ' bypass_jira_check' % self.args.robot_username
         )
         retcode = self.handle(pr['id'], options=['bypass_jira_check'])
         self.assertEqual(retcode, UnknownCommand.code)
@@ -1330,57 +1331,57 @@ class TestBertE(RepositoryTests):
                              ' bypass_peer_approval'
                              ' bypass_tester_approval'
                              ' bypass_build_status'
-                             ' bypass_jira_check' % self.args.bert_e_username)
+                             ' bypass_jira_check' % self.args.robot_username)
         retcode = self.handle(pr['id'])
         self.assertEqual(retcode, SuccessMessage.code)
 
         # test bypass all approvals through bitbucket comment extra spaces
         pr = self.create_pr('bugfix/TEST-00002', 'development/4.3')
-        pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id'])
+        pr_admin = self.admin_bb.get_pull_request(pull_request_id=pr['id'])
         pr_admin.add_comment('  @%s  '
                              '   bypass_author_approval  '
                              '     bypass_peer_approval   '
                              ' bypass_tester_approval'
                              '  bypass_build_status'
                              '   bypass_jira_check' %
-                             self.args.bert_e_username)
+                             self.args.robot_username)
         retcode = self.handle(pr['id'])
         self.assertEqual(retcode, SuccessMessage.code)
 
         # test bypass all approvals through many comments
         pr = self.create_pr('bugfix/TEST-00003', 'development/4.3')
-        pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id'])
+        pr_admin = self.admin_bb.get_pull_request(pull_request_id=pr['id'])
         pr_admin.add_comment('@%s bypass_author_approval' %
-                             self.args.bert_e_username)
+                             self.args.robot_username)
         pr_admin.add_comment('@%s bypass_peer_approval' %
-                             self.args.bert_e_username)
+                             self.args.robot_username)
         pr_admin.add_comment('@%s bypass_tester_approval' %
-                             self.args.bert_e_username)
+                             self.args.robot_username)
         pr_admin.add_comment('@%s bypass_build_status' %
-                             self.args.bert_e_username)
+                             self.args.robot_username)
         pr_admin.add_comment('@%s bypass_jira_check' %
-                             self.args.bert_e_username)
+                             self.args.robot_username)
         retcode = self.handle(pr['id'])
         self.assertEqual(retcode, SuccessMessage.code)
 
         # test bypass all approvals through mix comments and cmdline
         pr = self.create_pr('bugfix/TEST-00004', 'development/4.3')
-        pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id'])
+        pr_admin = self.admin_bb.get_pull_request(pull_request_id=pr['id'])
         pr_admin.add_comment('@%s'
                              ' bypass_author_approval'
                              ' bypass_peer_approval'
                              ' bypass_tester_approval' %
-                             self.args.bert_e_username)
+                             self.args.robot_username)
         retcode = self.handle(pr['id'], options=['bypass_build_status',
                                                  'bypass_jira_check'])
         self.assertEqual(retcode, SuccessMessage.code)
 
         # test bypass author approval through comment
         pr = self.create_pr('bugfix/TEST-00005', 'development/4.3')
-        pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id'])
+        pr_admin = self.admin_bb.get_pull_request(pull_request_id=pr['id'])
         pr_admin.add_comment('@%s'
                              ' bypass_author_approval' %
-                             self.args.bert_e_username)
+                             self.args.robot_username)
         retcode = self.handle(
             pr['id'],
             options=self.bypass_all_but(['bypass_author_approval']))
@@ -1388,10 +1389,10 @@ class TestBertE(RepositoryTests):
 
         # test bypass peer approval through comment
         pr = self.create_pr('bugfix/TEST-00006', 'development/4.3')
-        pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id'])
+        pr_admin = self.admin_bb.get_pull_request(pull_request_id=pr['id'])
         pr_admin.add_comment('@%s'
                              ' bypass_peer_approval' %
-                             self.args.bert_e_username)
+                             self.args.robot_username)
         retcode = self.handle(pr['id'],
                               options=['bypass_author_approval',
                                        'bypass_tester_approval',
@@ -1401,10 +1402,10 @@ class TestBertE(RepositoryTests):
 
         # test bypass jira check through comment
         pr = self.create_pr('bugfix/TEST-00007', 'development/4.3')
-        pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id'])
+        pr_admin = self.admin_bb.get_pull_request(pull_request_id=pr['id'])
         pr_admin.add_comment('@%s'
                              ' bypass_jira_check' %
-                             self.args.bert_e_username)
+                             self.args.robot_username)
         retcode = self.handle(pr['id'], options=['bypass_author_approval',
                                                  'bypass_tester_approval',
                                                  'bypass_peer_approval',
@@ -1413,10 +1414,10 @@ class TestBertE(RepositoryTests):
 
         # test bypass build status through comment
         pr = self.create_pr('bugfix/TEST-00009', 'development/4.3')
-        pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id'])
+        pr_admin = self.admin_bb.get_pull_request(pull_request_id=pr['id'])
         pr_admin.add_comment('@%s'
                              ' bypass_build_status' %
-                             self.args.bert_e_username)
+                             self.args.robot_username)
         retcode = self.handle(
             pr['id'],
             options=self.bypass_all_but(['bypass_build_status']))
@@ -1424,50 +1425,50 @@ class TestBertE(RepositoryTests):
 
         # test options lost in many comments
         pr = self.create_pr('bugfix/TEST-00010', 'development/4.3')
-        pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id'])
+        pr_admin = self.admin_bb.get_pull_request(pull_request_id=pr['id'])
         for i in range(5):
             pr.add_comment('random comment %s' % i)
         pr_admin.add_comment('@%s bypass_author_approval' %
-                             self.args.bert_e_username)
+                             self.args.robot_username)
         for i in range(6):
             pr.add_comment('random comment %s' % i)
         pr_admin.add_comment('@%s bypass_peer_approval' %
-                             self.args.bert_e_username)
+                             self.args.robot_username)
         for i in range(3):
             pr.add_comment('random comment %s' % i)
         pr_admin.add_comment('@%s bypass_build_status' %
-                             self.args.bert_e_username)
+                             self.args.robot_username)
         for i in range(22):
             pr.add_comment('random comment %s' % i)
         pr_admin.add_comment('@%s bypass_jira_check' %
-                             self.args.bert_e_username)
+                             self.args.robot_username)
         for i in range(10):
             pr.add_comment('random comment %s' % i)
         for i in range(10):
             pr.add_comment('@%s bypass_tester_approval' % i)
         pr_admin.add_comment('@%s bypass_tester_approval' %
-                             self.args.bert_e_username)
+                             self.args.robot_username)
 
         retcode = self.handle(pr['id'])
         self.assertEqual(retcode, SuccessMessage.code)
 
         # test bypass all approvals through bitbucket comment extra chars
         pr = self.create_pr('bugfix/TEST-00011', 'development/4.3')
-        pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id'])
+        pr_admin = self.admin_bb.get_pull_request(pull_request_id=pr['id'])
         pr_admin.add_comment('@%s:'
                              'bypass_author_approval,  '
                              '     bypass_peer_approval,,   '
                              ' bypass_tester_approval'
                              '  bypass_build_status-bypass_jira_check' %
-                             self.args.bert_e_username)
+                             self.args.robot_username)
         retcode = self.handle(pr['id'])
         self.assertEqual(retcode, SuccessMessage.code)
 
         # test bypass branch prefix through comment
         pr = self.create_pr('feature/TEST-00012', 'development/4.3')
-        pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id'])
+        pr_admin = self.admin_bb.get_pull_request(pull_request_id=pr['id'])
         pr_admin.add_comment('@%s bypass_incompatible_branch' %
-                             self.args.bert_e_username)
+                             self.args.robot_username)
         retcode = self.handle(
             pr['id'],
             options=self.bypass_all_but(['bypass_incompatible_branch']))
@@ -1689,9 +1690,9 @@ class TestBertE(RepositoryTests):
 
         # test bypass tester approval through comment
         pr = self.create_pr('bugfix/TEST-00078', 'development/4.3')
-        pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id'])
+        pr_admin = self.admin_bb.get_pull_request(pull_request_id=pr['id'])
         pr_admin.add_comment('@%s bypass_tester_approval' %
-                             self.args.bert_e_username)
+                             self.args.robot_username)
 
         retcode = self.handle(pr['id'], options=[
                               'bypass_author_approval',
@@ -1709,7 +1710,7 @@ class TestBertE(RepositoryTests):
         self.set_build_status_on_pr_id(pr['id'] + 1, 'FAILED')
         self.set_build_status_on_pr_id(pr['id'] + 2, 'SUCCESSFUL')
 
-        childpr = self.bbrepo_bert_e.get_pull_request(
+        childpr = self.robot_bb.get_pull_request(
             pull_request_id=pr['id'] + 1)
 
         retcode = self.handle(childpr['source']['commit']['hash'],
@@ -1907,7 +1908,7 @@ class TestBertE(RepositoryTests):
 
         pr = self.create_pr(feature_branch, dst_branch)
 
-        pr.add_comment('@%s unanimity' % self.args.bert_e_username)
+        pr.add_comment('@%s unanimity' % self.args.robot_username)
 
         retcode = self.handle(pr['id'], options=['bypass_jira_check'])
         self.assertEqual(retcode, AuthorApprovalRequired.code)
@@ -1918,13 +1919,13 @@ class TestBertE(RepositoryTests):
         self.assertEqual(retcode, PeerApprovalRequired.code)
 
         # 1st reviewer adds approval
-        pr_peer = self.bbrepo.get_pull_request(pull_request_id=pr['id'])
+        pr_peer = self.admin_bb.get_pull_request(pull_request_id=pr['id'])
         pr_peer.approve()
         retcode = self.handle(pr['id'], options=['bypass_jira_check'])
         self.assertEqual(retcode, PeerApprovalRequired.code)
 
         # 2nd reviewer adds approval
-        pr_peer = self.bbrepo_bert_e.get_pull_request(
+        pr_peer = self.robot_bb.get_pull_request(
             pull_request_id=pr['id'])
         pr_peer.approve()
         retcode = self.handle(pr['id'], options=[
@@ -1939,14 +1940,14 @@ class TestBertE(RepositoryTests):
 
         comment_declined = blocked_pr.add_comment(
             '@%s after_pull_request=%s' % (
-                self.args.bert_e_username,
+                self.args.robot_username,
                 pr_declined['id']))
 
         retcode = self.handle(blocked_pr['id'], options=self.bypass_all)
         self.assertEqual(retcode, AfterPullRequest.code)
 
         blocked_pr.add_comment('@%s unanimity after_pull_request=%s' % (
-            self.args.bert_e_username, pr_opened['id']))
+            self.args.robot_username, pr_opened['id']))
 
         retcode = self.handle(blocked_pr['id'], options=self.bypass_all)
         self.assertEqual(retcode, AfterPullRequest.code)
@@ -1981,12 +1982,12 @@ class TestBertE(RepositoryTests):
                 self.handle(pr['id'], self.bypass_all, backtrace=True)
 
         finally:
-            self.bbrepo_bert_e.get_pull_request = real
+            self.robot_bb.get_pull_request = real
 
     def test_pr_title_too_long(self):
         create_branch(self.gitrepo, 'bugfix/TEST-00001',
                       from_branch='development/4.3', file_=True)
-        pr = self.bbrepo_eva.create_pull_request(
+        pr = self.contributor_bb.create_pull_request(
             title='A' * (bitbucket_api.MAX_PR_TITLE_LEN - 10),
             name='name',
             source={'branch': {'name': 'bugfix/TEST-00001'}},
@@ -2015,11 +2016,11 @@ class TestBertE(RepositoryTests):
         branches = self.gitrepo.cmd(
             'git ls-remote origin w/*/bugfix/TEST-00001')
         assert len(branches)
-        pr_ = self.bbrepo.get_pull_request(pull_request_id=pr['id']+1)
+        pr_ = self.admin_bb.get_pull_request(pull_request_id=pr['id']+1)
         assert pr_['state'] == 'OPEN'
-        pr_ = self.bbrepo.get_pull_request(pull_request_id=pr['id']+2)
+        pr_ = self.admin_bb.get_pull_request(pull_request_id=pr['id']+2)
         assert pr_['state'] == 'OPEN'
-        pr_ = self.bbrepo.get_pull_request(pull_request_id=pr['id']+3)
+        pr_ = self.admin_bb.get_pull_request(pull_request_id=pr['id']+3)
         assert pr_['state'] == 'OPEN'
 
         pr.decline()
@@ -2033,11 +2034,11 @@ class TestBertE(RepositoryTests):
         branches = self.gitrepo.cmd(
             'git ls-remote origin w/*/bugfix/TEST-00001')
         assert branches == ''
-        pr_ = self.bbrepo.get_pull_request(pull_request_id=pr['id']+1)
+        pr_ = self.admin_bb.get_pull_request(pull_request_id=pr['id']+1)
         assert pr_['state'] == 'DECLINED'
-        pr_ = self.bbrepo.get_pull_request(pull_request_id=pr['id']+2)
+        pr_ = self.admin_bb.get_pull_request(pull_request_id=pr['id']+2)
         assert pr_['state'] == 'DECLINED'
-        pr_ = self.bbrepo.get_pull_request(pull_request_id=pr['id']+3)
+        pr_ = self.admin_bb.get_pull_request(pull_request_id=pr['id']+3)
         assert pr_['state'] == 'DECLINED'
 
         # check nothing bad happens if called again
@@ -2129,7 +2130,7 @@ robot_email: nobody@nowhere.com
 build_key: pre-merge
 required_peer_approvals: 0
 admins:
-  - {your_login}
+  - {admin}
 """
         with self.assertRaises(BuildNotStarted):
             self.handle(
@@ -2170,7 +2171,7 @@ build_key: toto
 # comment
 required_peer_approvals: 0
 admins:
-  - {your_login}
+  - {admin}
 """
         self.set_build_status_on_pr_id(pr['id'], 'SUCCESSFUL')
         with self.assertRaises(BuildNotStarted):
@@ -2197,7 +2198,7 @@ robot_email: nobody@nowhere.com
 build_key: pre-merge
 required_peer_approvals: 2
 admins:
-  - {your_login}
+  - {admin}
 """
         with self.assertRaises(MissingMandatorySetting):
             self.handle(
@@ -2231,7 +2232,7 @@ class TestQueueing(RepositoryTests):
 
     def submit_problem(self, problem, build_key='pipeline'):
         """Create a repository with dev, int and q branches ready."""
-        self.bbrepo.invalidate_build_status_cache()
+        self.admin_bb.invalidate_build_status_cache()
         for pr in problem.keys():
             pr_ = self.create_pr(problem[pr]['src'], problem[pr]['dst'])
 
@@ -2297,7 +2298,7 @@ class TestQueueing(RepositoryTests):
 
     def feed_queue_collection(self, qbranches):
         qc = bert_e.QueueCollection(
-            self.bbrepo_bert_e,
+            self.robot_bb,
             'pipeline',
             merge_paths=[  # see initialize_git_repo
                 [bert_e.branch_factory(FakeGitRepo(), 'development/4.3'),
@@ -3319,18 +3320,18 @@ def main():
     parser = argparse.ArgumentParser(description='Launches Bert-E tests.')
     parser.add_argument('owner',
                         help='Owner of test repository (aka Bitbucket team)')
-    parser.add_argument('bert_e_username',
-                        help='Bert-E\'s username [for Jira and Bitbucket]')
-    parser.add_argument('bert_e_password',
-                        help='Bert-E\'s password [for Jira and Bitbucket]')
-    parser.add_argument('eva_username',
-                        help='Eva\'s username [for Bitbucket]')
-    parser.add_argument('eva_password',
-                        help='Eva\'s password [for Bitbucket]')
-    parser.add_argument('your_login',
-                        help='Your Bitbucket login')
-    parser.add_argument('your_password',
-                        help='Your Bitbucket password')
+    parser.add_argument('robot_username',
+                        help='Robot Bitbucket username')
+    parser.add_argument('robot_password',
+                        help='Robot Bitbucket password')
+    parser.add_argument('contributor_username',
+                        help='Contributor Bitbucket username')
+    parser.add_argument('contributor_password',
+                        help='Contributor Bitbucket password')
+    parser.add_argument('admin_username',
+                        help='Privileged user Bitbucket username')
+    parser.add_argument('admin_password',
+                        help='Privileged user Bitbucket password')
     parser.add_argument('tests', nargs='*', help='run only these tests')
     parser.add_argument('--repo-prefix', default="_test_bert_e",
                         help='Prefix of the test repository')
@@ -3344,20 +3345,20 @@ def main():
                         help='deactivate queue feature during tests')
     RepositoryTests.args = parser.parse_args()
 
-    if (RepositoryTests.args.your_login ==
-            RepositoryTests.args.bert_e_username):
+    if (RepositoryTests.args.admin_username ==
+            RepositoryTests.args.robot_username):
         print('Cannot use the same login for robot and superuser, '
               'please specify another login.')
         sys.exit(1)
 
-    if (RepositoryTests.args.your_login ==
-            RepositoryTests.args.eva_username):
+    if (RepositoryTests.args.admin_username ==
+            RepositoryTests.args.contributor_username):
         print('Cannot use the same login for superuser and user, '
               'please specify another login.')
         sys.exit(1)
 
-    if (RepositoryTests.args.bert_e_username ==
-            RepositoryTests.args.eva_username):
+    if (RepositoryTests.args.robot_username ==
+            RepositoryTests.args.contributor_username):
         print('Cannot use the same login for normal user and robot, '
               'please specify another login.')
         sys.exit(1)
