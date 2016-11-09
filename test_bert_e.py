@@ -83,9 +83,10 @@ prefixes:
   Story: feature
   Bug: bugfix
   Improvement: improvement
+jira_account_url: dummy
 jira_username: dummy
 jira_keys:
-  - RING
+  - TEST
 admins:
   - {your_login}
 """
@@ -152,22 +153,22 @@ class QuickTest(unittest.TestCase):
 
     def test_feature_branch_names(self):
         with self.assertRaises(BranchNameInvalid):
-            self.feature_branch('user/4.3/RING-0005')
+            self.feature_branch('user/4.3/TEST-0005')
 
         with self.assertRaises(BranchNameInvalid):
-            self.feature_branch('RING-0001-my-fix')
+            self.feature_branch('TEST-0001-my-fix')
 
         with self.assertRaises(BranchNameInvalid):
             self.feature_branch('my-fix')
 
         with self.assertRaises(BranchNameInvalid):
-            self.feature_branch('origin/feature/RING-0001')
+            self.feature_branch('origin/feature/TEST-0001')
 
         with self.assertRaises(BranchNameInvalid):
-            self.feature_branch('/feature/RING-0001')
+            self.feature_branch('/feature/TEST-0001')
 
         with self.assertRaises(BranchNameInvalid):
-            self.feature_branch('toto/RING-0005')
+            self.feature_branch('toto/TEST-0005')
 
         with self.assertRaises(BranchNameInvalid):
             self.feature_branch('release/4.3')
@@ -179,13 +180,13 @@ class QuickTest(unittest.TestCase):
             self.feature_branch('feature/')
 
         # valid names
-        self.feature_branch('feature/RING-0005')
-        self.feature_branch('improvement/RING-1234')
-        self.feature_branch('bugfix/RING-1234')
+        self.feature_branch('feature/TEST-0005')
+        self.feature_branch('improvement/TEST-1234')
+        self.feature_branch('bugfix/TEST-1234')
 
-        src = self.feature_branch('project/RING-0005')
-        self.assertEqual(src.jira_issue_key, 'RING-0005')
-        self.assertEqual(src.jira_project, 'RING')
+        src = self.feature_branch('project/TEST-0005')
+        self.assertEqual(src.jira_issue_key, 'TEST-0005')
+        self.assertEqual(src.jira_project, 'TEST')
 
         src = self.feature_branch('feature/PROJECT-05-some-text_here')
         self.assertEqual(src.jira_issue_key, 'PROJECT-05')
@@ -200,7 +201,7 @@ class QuickTest(unittest.TestCase):
         with self.assertRaises(BranchNameInvalid):
             bert_e.DevelopmentBranch(
                 repo=None,
-                name='feature-RING-0005')
+                name='feature-TEST-0005')
 
         # valid names
         bert_e.DevelopmentBranch(
@@ -808,7 +809,7 @@ class TestBertE(RepositoryTests):
         - cannot merge a second time.
 
         """
-        pr = self.create_pr('bugfix/RING-0001', 'development/4.3')
+        pr = self.create_pr('bugfix/TEST-0001', 'development/4.3')
         retcode = self.handle(pr['id'], options=['bypass_jira_check'])
         self.assertEqual(retcode, AuthorApprovalRequired.code)
         # check backtrace mode on the same error, and check same error happens
@@ -823,7 +824,7 @@ class TestBertE(RepositoryTests):
 
         # check integration branches have been removed
         for version in ['4.3', '5.1', '6.0']:
-            remote = 'w/%s/%s' % (version, 'bugfix/RING-0001')
+            remote = 'w/%s/%s' % (version, 'bugfix/TEST-0001')
             ret = self.gitrepo.remote_branch_exists(remote)
             self.assertFalse(ret)
 
@@ -838,7 +839,7 @@ class TestBertE(RepositoryTests):
         assert pr['id'] in bert_e.STATUS.get('merged PRs', [])
 
     def test_not_my_job_cases(self):
-        feature_branch = 'feature/RING-00002'
+        feature_branch = 'feature/TEST-00002'
         from_branch = 'development/6.0'
         create_branch(self.gitrepo, feature_branch, from_branch=from_branch,
                       file_=True)
@@ -853,12 +854,12 @@ class TestBertE(RepositoryTests):
         with self.assertRaises(NotMyJob):
             self.handle(pr['id'], backtrace=True)
 
-        create_branch(self.gitrepo, 'feature/RING-00001',
+        create_branch(self.gitrepo, 'feature/TEST-00001',
                       from_branch='development/4.3', file_=True)
-        for destination in ['feature/RING-12345',
-                            'improvement/RING-12345',
-                            'project/RING-12345',
-                            'bugfix/RING-12345',
+        for destination in ['feature/TEST-12345',
+                            'improvement/TEST-12345',
+                            'project/TEST-12345',
+                            'bugfix/TEST-12345',
                             'user/my_own_branch',
                             'project/invalid',
                             'feature/invalid',
@@ -868,7 +869,7 @@ class TestBertE(RepositoryTests):
             pr = self.bbrepo_eva.create_pull_request(
                 title='title',
                 name='name',
-                source={'branch': {'name': 'feature/RING-00001'}},
+                source={'branch': {'name': 'feature/TEST-00001'}},
                 destination={'branch': {'name': destination}},
                 close_source_branch=True,
                 description=''
@@ -877,13 +878,13 @@ class TestBertE(RepositoryTests):
                 self.handle(pr['id'], backtrace=True)
 
     def test_conflict(self):
-        pr1 = self.create_pr('bugfix/RING-0006', 'development/5.1',
+        pr1 = self.create_pr('bugfix/TEST-0006', 'development/5.1',
                              file_='toto.txt')
-        pr2 = self.create_pr('bugfix/RING-0006-other', 'development/5.1',
+        pr2 = self.create_pr('bugfix/TEST-0006-other', 'development/5.1',
                              file_='toto.txt')
-        pr3 = self.create_pr('improvement/RING-0006', 'development/5.1',
+        pr3 = self.create_pr('improvement/TEST-0006', 'development/5.1',
                              file_='toto.txt')
-        pr4 = self.create_pr('improvement/RING-0006-other', 'development/4.3',
+        pr4 = self.create_pr('improvement/TEST-0006-other', 'development/4.3',
                              file_='toto.txt')
         # Start PR2 (create integration branches) first
 
@@ -898,14 +899,14 @@ class TestBertE(RepositoryTests):
             self.handle(pr2['id'], options=self.bypass_all, backtrace=True)
         except Conflict as e:
             self.assertIn(
-                "`w/5.1/bugfix/RING-0006-other` with\ncontents from "
-                "`bugfix/RING-0006-other` and `development/5.1`",
+                "`w/5.1/bugfix/TEST-0006-other` with\ncontents from "
+                "`bugfix/TEST-0006-other` and `development/5.1`",
                 e.msg)
             # Bert-E shouldn't instruct the user to modify the integration
             # branch with the same target as the original PR
             self.assertIn('on **the feature branch** '
-                          '(`bugfix/RING-0006-other`', e.msg)
-            self.assertNotIn("git checkout w/5.1/bugfix/RING-0006-other",
+                          '(`bugfix/TEST-0006-other`', e.msg)
+            self.assertNotIn("git checkout w/5.1/bugfix/TEST-0006-other",
                              e.msg)
         else:
             self.fail("No conflict detected.")
@@ -914,14 +915,14 @@ class TestBertE(RepositoryTests):
             self.handle(pr3['id'], options=self.bypass_all, backtrace=True)
         except Conflict as e:
             self.assertIn(
-                "`w/5.1/improvement/RING-0006` with\ncontents from "
-                "`improvement/RING-0006` and `development/5.1`",
+                "`w/5.1/improvement/TEST-0006` with\ncontents from "
+                "`improvement/TEST-0006` and `development/5.1`",
                 e.msg)
             # Bert-E shouldn't instruct the user to modify the integration
             # branch with the same target as the original PR
-            self.assertIn('on **the feature branch** (`improvement/RING-0006`',
+            self.assertIn('on **the feature branch** (`improvement/TEST-0006`',
                           e.msg)
-            self.assertNotIn("git checkout w/5.1/improvement/RING-0006", e.msg)
+            self.assertNotIn("git checkout w/5.1/improvement/TEST-0006", e.msg)
         else:
             self.fail("No conflict detected.")
 
@@ -931,27 +932,27 @@ class TestBertE(RepositoryTests):
                         backtrace=True)
         except Conflict as e:
             self.assertIn(
-                "`w/5.1/improvement/RING-0006-other` with\ncontents from "
-                "`w/4.3/improvement/RING-0006-other` and "
+                "`w/5.1/improvement/TEST-0006-other` with\ncontents from "
+                "`w/4.3/improvement/TEST-0006-other` and "
                 "`development/5.1`",
                 e.msg)
             # Bert-E MUST instruct the user to modify the integration
             # branch with the same target as the original PR
             self.assertIn(
-                "git checkout w/5.1/improvement/RING-0006",
+                "git checkout w/5.1/improvement/TEST-0006",
                 e.msg)
             self.assertIn(
-                "git merge origin/w/4.3/improvement/RING-0006",
+                "git merge origin/w/4.3/improvement/TEST-0006",
                 e.msg)
             self.assertIn(
-                "git push origin HEAD:w/5.1/improvement/RING-0006",
+                "git push origin HEAD:w/5.1/improvement/TEST-0006",
                 e.msg)
         else:
             self.fail("No conflict detected.")
 
     def test_approvals(self):
         """Test approvals of author, reviewer and tester."""
-        feature_branch = 'bugfix/RING-0007'
+        feature_branch = 'bugfix/TEST-0007'
         dst_branch = 'development/4.3'
 
         pr = self.create_pr(feature_branch, dst_branch)
@@ -995,7 +996,7 @@ class TestBertE(RepositoryTests):
         3. Check existence of integration branches
 
         """
-        for feature_branch in ['bugfix/RING-0008', 'bugfix/RING-0008-label']:
+        for feature_branch in ['bugfix/TEST-0008', 'bugfix/TEST-0008-label']:
             dst_branch = 'stabilization/4.3.18'
             pr = self.create_pr(feature_branch, dst_branch)
             retcode = self.handle(pr['id'], options=['bypass_jira_check'])
@@ -1016,7 +1017,7 @@ class TestBertE(RepositoryTests):
 
     def test_from_unrecognized_source_branch(self):
         for source in ['master2',
-                       'feaure/RING-12345']:
+                       'feaure/TEST-12345']:
             create_branch(self.gitrepo, source,
                           from_branch='development/4.3', file_=True)
             pr = self.bbrepo_eva.create_pull_request(
@@ -1058,12 +1059,12 @@ class TestBertE(RepositoryTests):
     def test_to_unrecognized_destination_branch(self):
         create_branch(self.gitrepo, 'master2',
                       from_branch='development/4.3', file_=True)
-        create_branch(self.gitrepo, 'bugfix/RING-00001',
+        create_branch(self.gitrepo, 'bugfix/TEST-00001',
                       from_branch='development/4.3', file_=True)
         pr = self.bbrepo_eva.create_pull_request(
             title='title',
             name='name',
-            source={'branch': {'name': 'bugfix/RING-00001'}},
+            source={'branch': {'name': 'bugfix/TEST-00001'}},
             destination={'branch': {'name': 'master2'}},
             close_source_branch=True,
             description=''
@@ -1073,7 +1074,7 @@ class TestBertE(RepositoryTests):
 
     def test_main_pr_retrieval(self):
         # create integration PRs first:
-        pr = self.create_pr('bugfix/RING-00066', 'development/4.3')
+        pr = self.create_pr('bugfix/TEST-00066', 'development/4.3')
         retcode = self.handle(pr['id'], options=['bypass_jira_check'])
         self.assertEqual(retcode, AuthorApprovalRequired.code)
         # simulate a child pr update
@@ -1083,12 +1084,12 @@ class TestBertE(RepositoryTests):
 
     def test_child_pr_without_parent(self):
         # simulate creation of an integration branch with Bert-E
-        create_branch(self.gitrepo, 'w/bugfix/RING-00069',
+        create_branch(self.gitrepo, 'w/bugfix/TEST-00069',
                       from_branch='development/4.3', file_=True)
         pr = self.bbrepo_bert_e.create_pull_request(
             title='title',
             name='name',
-            source={'branch': {'name': 'w/bugfix/RING-00069'}},
+            source={'branch': {'name': 'w/bugfix/TEST-00069'}},
             destination={'branch': {'name': 'development/4.3'}},
             close_source_branch=True,
             reviewers=[{'username': self.args.eva_username}],
@@ -1108,7 +1109,7 @@ class TestBertE(RepositoryTests):
                 list(pr.get_comments())[-1]['content']['raw']
             ).digest()
 
-        pr = self.create_pr('bugfix/RING-01334', 'development/4.3',
+        pr = self.create_pr('bugfix/TEST-01334', 'development/4.3',
                             file_='toto.txt')
 
         # The help message should be displayed every time the user requests it
@@ -1171,7 +1172,7 @@ class TestBertE(RepositoryTests):
                          "error.")
 
     def test_options_and_commands(self):
-        pr = self.create_pr('bugfix/RING-00001', 'development/4.3')
+        pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
 
         # option: wait
         comment = pr.add_comment('@%s wait' % self.args.bert_e_username)
@@ -1266,7 +1267,7 @@ class TestBertE(RepositoryTests):
         self.assertEqual(retcode, AuthorApprovalRequired.code)
         # test RELENG-1335: BertE unvalid status command
 
-        feature_branch = 'bugfix/RING-007'
+        feature_branch = 'bugfix/TEST-007'
         dst_branch = 'development/4.3'
 
         pr = self.create_pr(feature_branch, dst_branch)
@@ -1282,7 +1283,7 @@ class TestBertE(RepositoryTests):
 
     def test_bypass_options(self):
         # test bypass all approvals through an incorrect bitbucket comment
-        pr = self.create_pr('bugfix/RING-00001', 'development/4.3')
+        pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
         pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id'])
         comment = pr_admin.add_comment(
             '@%s'
@@ -1334,7 +1335,7 @@ class TestBertE(RepositoryTests):
         self.assertEqual(retcode, SuccessMessage.code)
 
         # test bypass all approvals through bitbucket comment extra spaces
-        pr = self.create_pr('bugfix/RING-00002', 'development/4.3')
+        pr = self.create_pr('bugfix/TEST-00002', 'development/4.3')
         pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id'])
         pr_admin.add_comment('  @%s  '
                              '   bypass_author_approval  '
@@ -1347,7 +1348,7 @@ class TestBertE(RepositoryTests):
         self.assertEqual(retcode, SuccessMessage.code)
 
         # test bypass all approvals through many comments
-        pr = self.create_pr('bugfix/RING-00003', 'development/4.3')
+        pr = self.create_pr('bugfix/TEST-00003', 'development/4.3')
         pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id'])
         pr_admin.add_comment('@%s bypass_author_approval' %
                              self.args.bert_e_username)
@@ -1363,7 +1364,7 @@ class TestBertE(RepositoryTests):
         self.assertEqual(retcode, SuccessMessage.code)
 
         # test bypass all approvals through mix comments and cmdline
-        pr = self.create_pr('bugfix/RING-00004', 'development/4.3')
+        pr = self.create_pr('bugfix/TEST-00004', 'development/4.3')
         pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id'])
         pr_admin.add_comment('@%s'
                              ' bypass_author_approval'
@@ -1375,7 +1376,7 @@ class TestBertE(RepositoryTests):
         self.assertEqual(retcode, SuccessMessage.code)
 
         # test bypass author approval through comment
-        pr = self.create_pr('bugfix/RING-00005', 'development/4.3')
+        pr = self.create_pr('bugfix/TEST-00005', 'development/4.3')
         pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id'])
         pr_admin.add_comment('@%s'
                              ' bypass_author_approval' %
@@ -1386,7 +1387,7 @@ class TestBertE(RepositoryTests):
         self.assertEqual(retcode, SuccessMessage.code)
 
         # test bypass peer approval through comment
-        pr = self.create_pr('bugfix/RING-00006', 'development/4.3')
+        pr = self.create_pr('bugfix/TEST-00006', 'development/4.3')
         pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id'])
         pr_admin.add_comment('@%s'
                              ' bypass_peer_approval' %
@@ -1399,7 +1400,7 @@ class TestBertE(RepositoryTests):
         self.assertEqual(retcode, SuccessMessage.code)
 
         # test bypass jira check through comment
-        pr = self.create_pr('bugfix/RING-00007', 'development/4.3')
+        pr = self.create_pr('bugfix/TEST-00007', 'development/4.3')
         pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id'])
         pr_admin.add_comment('@%s'
                              ' bypass_jira_check' %
@@ -1411,7 +1412,7 @@ class TestBertE(RepositoryTests):
         self.assertEqual(retcode, SuccessMessage.code)
 
         # test bypass build status through comment
-        pr = self.create_pr('bugfix/RING-00009', 'development/4.3')
+        pr = self.create_pr('bugfix/TEST-00009', 'development/4.3')
         pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id'])
         pr_admin.add_comment('@%s'
                              ' bypass_build_status' %
@@ -1422,7 +1423,7 @@ class TestBertE(RepositoryTests):
         self.assertEqual(retcode, SuccessMessage.code)
 
         # test options lost in many comments
-        pr = self.create_pr('bugfix/RING-00010', 'development/4.3')
+        pr = self.create_pr('bugfix/TEST-00010', 'development/4.3')
         pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id'])
         for i in range(5):
             pr.add_comment('random comment %s' % i)
@@ -1451,7 +1452,7 @@ class TestBertE(RepositoryTests):
         self.assertEqual(retcode, SuccessMessage.code)
 
         # test bypass all approvals through bitbucket comment extra chars
-        pr = self.create_pr('bugfix/RING-00011', 'development/4.3')
+        pr = self.create_pr('bugfix/TEST-00011', 'development/4.3')
         pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id'])
         pr_admin.add_comment('@%s:'
                              'bypass_author_approval,  '
@@ -1463,7 +1464,7 @@ class TestBertE(RepositoryTests):
         self.assertEqual(retcode, SuccessMessage.code)
 
         # test bypass branch prefix through comment
-        pr = self.create_pr('feature/RING-00012', 'development/4.3')
+        pr = self.create_pr('feature/TEST-00012', 'development/4.3')
         pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id'])
         pr_admin.add_comment('@%s bypass_incompatible_branch' %
                              self.args.bert_e_username)
@@ -1473,7 +1474,7 @@ class TestBertE(RepositoryTests):
         self.assertEqual(retcode, SuccessMessage.code)
 
     def test_rebased_feature_branch(self):
-        pr = self.create_pr('bugfix/RING-00074', 'development/4.3')
+        pr = self.create_pr('bugfix/TEST-00074', 'development/4.3')
         with self.assertRaises(BuildNotStarted):
             retcode = self.handle(
                 pr['id'],
@@ -1481,17 +1482,17 @@ class TestBertE(RepositoryTests):
                 backtrace=True)
 
         # create another PR and merge it entirely
-        pr2 = self.create_pr('bugfix/RING-00075', 'development/4.3')
+        pr2 = self.create_pr('bugfix/TEST-00075', 'development/4.3')
         retcode = self.handle(pr2['id'], options=self.bypass_all)
         self.assertEqual(retcode, SuccessMessage.code)
 
-        rebase_branch(self.gitrepo, 'bugfix/RING-00075', 'development/4.3')
+        rebase_branch(self.gitrepo, 'bugfix/TEST-00075', 'development/4.3')
         retcode = self.handle(pr['id'], options=self.bypass_all)
         self.assertEqual(retcode, SuccessMessage.code)
 
     def test_first_integration_branch_manually_updated(self):
-        feature_branch = 'bugfix/RING-0076'
-        first_integration_branch = 'w/4.3/bugfix/RING-0076'
+        feature_branch = 'bugfix/TEST-0076'
+        first_integration_branch = 'w/4.3/bugfix/TEST-0076'
         pr = self.create_pr(feature_branch, 'development/4.3')
         with self.assertRaises(BuildNotStarted):
             self.handle(pr['id'],
@@ -1508,7 +1509,7 @@ class TestBertE(RepositoryTests):
 
     def test_branches_not_self_contained(self):
         """Check that we can detect malformed git repositories."""
-        feature_branch = 'bugfix/RING-0077'
+        feature_branch = 'bugfix/TEST-0077'
         dst_branch = 'development/4.3'
 
         pr = self.create_pr(feature_branch, dst_branch)
@@ -1520,7 +1521,7 @@ class TestBertE(RepositoryTests):
 
     def test_missing_development_branch(self):
         """Check that we can detect malformed git repositories."""
-        feature_branch = 'bugfix/RING-0077'
+        feature_branch = 'bugfix/TEST-0077'
         dst_branch = 'development/4.3'
 
         pr = self.create_pr(feature_branch, dst_branch)
@@ -1544,7 +1545,7 @@ class TestBertE(RepositoryTests):
 
             bert_e.BertE._create_pull_requests = _create_pull_requests
 
-            pr = self.create_pr('bugfix/RING-00081', 'development/6.0')
+            pr = self.create_pr('bugfix/TEST-00081', 'development/6.0')
             # Create integration branch and child pr
             with self.assertRaises(BuildNotStarted):
                 self.handle(pr['id'],
@@ -1556,7 +1557,7 @@ class TestBertE(RepositoryTests):
             self.set_build_status_on_pr_id(pr['id']+1, 'SUCCESSFUL')
 
             # Add a new commit
-            self.gitrepo.cmd('git checkout bugfix/RING-00081')
+            self.gitrepo.cmd('git checkout bugfix/TEST-00081')
             self.gitrepo.cmd('touch abc')
             self.gitrepo.cmd('git add abc')
             self.gitrepo.cmd('git commit -m "add new file"')
@@ -1580,7 +1581,7 @@ class TestBertE(RepositoryTests):
             bert_e.BertE._create_pull_requests = real
 
     def test_pr_skew_with_new_external_commit(self):
-        pr = self.create_pr('bugfix/RING-00081', 'development/6.0')
+        pr = self.create_pr('bugfix/TEST-00081', 'development/6.0')
         # Create integration branch and child pr
         with self.assertRaises(BuildNotStarted):
             self.handle(pr['id'],
@@ -1599,13 +1600,13 @@ class TestBertE(RepositoryTests):
                 # of a commit) by another process, (typically a user),
                 # in between the start of Bert-E and his decision to merge
                 self.gitrepo.cmd('git fetch')
-                self.gitrepo.cmd('git checkout w/6.0/bugfix/RING-00081')
+                self.gitrepo.cmd('git checkout w/6.0/bugfix/TEST-00081')
                 self.gitrepo.cmd('touch abc')
                 self.gitrepo.cmd('git add abc')
                 self.gitrepo.cmd('git commit -m "add new file"')
                 self.gitrepo.cmd('git push origin')
                 sha1 = self.gitrepo.cmd(
-                    'git rev-parse w/6.0/bugfix/RING-00081')
+                    'git rev-parse w/6.0/bugfix/TEST-00081')
 
                 child_prs = real(*args, **kwargs)
                 if TestBertE.args.disable_mock:
@@ -1626,14 +1627,14 @@ class TestBertE(RepositoryTests):
             bert_e.BertE._create_pull_requests = real
 
     def test_build_key_on_main_pr_has_no_effect(self):
-        pr = self.create_pr('bugfix/RING-00078', 'development/4.3')
+        pr = self.create_pr('bugfix/TEST-00078', 'development/4.3')
         with self.assertRaises(BuildNotStarted):
             self.handle(pr['id'],
                         options=self.bypass_all_but(['bypass_build_status']),
                         backtrace=True)
         # create another PR, so that integration PR will have different
         # commits than source PR
-        pr2 = self.create_pr('bugfix/RING-00079', 'development/4.3')
+        pr2 = self.create_pr('bugfix/TEST-00079', 'development/4.3')
         retcode = self.handle(pr2['id'], options=self.bypass_all)
         self.assertEqual(retcode, SuccessMessage.code)
         # restart PR number 1 to update it with content of 2
@@ -1651,7 +1652,7 @@ class TestBertE(RepositoryTests):
         self.assertEqual(retcode, SuccessMessage.code)
 
     def test_build_status(self):
-        pr = self.create_pr('bugfix/RING-00081', 'development/4.3')
+        pr = self.create_pr('bugfix/TEST-00081', 'development/4.3')
 
         # test build not started
         with self.assertRaises(BuildNotStarted):
@@ -1687,7 +1688,7 @@ class TestBertE(RepositoryTests):
                         backtrace=True)
 
         # test bypass tester approval through comment
-        pr = self.create_pr('bugfix/RING-00078', 'development/4.3')
+        pr = self.create_pr('bugfix/TEST-00078', 'development/4.3')
         pr_admin = self.bbrepo.get_pull_request(pull_request_id=pr['id'])
         pr_admin.add_comment('@%s bypass_tester_approval' %
                              self.args.bert_e_username)
@@ -1700,7 +1701,7 @@ class TestBertE(RepositoryTests):
         self.assertEqual(retcode, SuccessMessage.code)
 
     def test_build_status_triggered_by_build_result(self):
-        pr = self.create_pr('bugfix/RING-00081', 'development/5.1')
+        pr = self.create_pr('bugfix/TEST-00081', 'development/5.1')
         with self.assertRaises(BuildNotStarted):
             self.handle(pr['id'],
                         options=self.bypass_all_but(['bypass_build_status']),
@@ -1724,21 +1725,21 @@ class TestBertE(RepositoryTests):
         self.assertEqual(retcode, SuccessMessage.code)
 
     def test_source_branch_history_changed(self):
-        pr = self.create_pr('bugfix/RING-00001', 'development/4.3')
+        pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
         with self.assertRaises(BuildNotStarted):
             self.handle(pr['id'],
                         options=self.bypass_all_but(['bypass_build_status']),
                         backtrace=True)
         # see what happens when the source branch is deleted
         self.gitrepo.cmd('git checkout development/4.3')
-        self.gitrepo.cmd('git push origin :bugfix/RING-00001')
-        self.gitrepo.cmd('git branch -D bugfix/RING-00001')
+        self.gitrepo.cmd('git push origin :bugfix/TEST-00001')
+        self.gitrepo.cmd('git branch -D bugfix/TEST-00001')
         with self.assertRaises(NothingToDo):
             self.handle(pr['id'],
                         options=self.bypass_all,
                         backtrace=True)
         # recreate branch with a different history
-        create_branch(self.gitrepo, 'bugfix/RING-00001',
+        create_branch(self.gitrepo, 'bugfix/TEST-00001',
                       from_branch='development/4.3', file_="a_new_file")
         retcode = self.handle(
             pr['id'],
@@ -1746,15 +1747,15 @@ class TestBertE(RepositoryTests):
         self.assertEqual(retcode, BranchHistoryMismatch.code)
 
     def test_source_branch_commit_added_and_target_updated(self):
-        pr = self.create_pr('bugfix/RING-00001', 'development/4.3')
-        pr2 = self.create_pr('bugfix/RING-00002', 'development/4.3')
+        pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
+        pr2 = self.create_pr('bugfix/TEST-00002', 'development/4.3')
         with self.assertRaises(BuildNotStarted):
             self.handle(pr['id'],
                         options=self.bypass_all_but(['bypass_build_status']),
                         backtrace=True)
 
         # Source branch is modified
-        add_file_to_branch(self.gitrepo, 'bugfix/RING-00001', 'some_file')
+        add_file_to_branch(self.gitrepo, 'bugfix/TEST-00001', 'some_file')
         # Another PR is merged
         retcode = self.handle(pr2['id'], options=self.bypass_all)
         self.assertEqual(retcode, SuccessMessage.code)
@@ -1764,84 +1765,84 @@ class TestBertE(RepositoryTests):
         self.assertEqual(retcode, SuccessMessage.code)
 
     def test_source_branch_commit_added(self):
-        pr = self.create_pr('bugfix/RING-00001', 'development/4.3')
+        pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
         with self.assertRaises(BuildNotStarted):
             self.handle(pr['id'],
                         options=self.bypass_all_but(['bypass_build_status']),
                         backtrace=True)
-        add_file_to_branch(self.gitrepo, 'bugfix/RING-00001',
+        add_file_to_branch(self.gitrepo, 'bugfix/TEST-00001',
                            'file_added_on_source_branch')
         retcode = self.handle(pr['id'],
                               options=self.bypass_all)
         self.assertEqual(retcode, SuccessMessage.code)
 
     def test_source_branch_forced_pushed(self):
-        pr = self.create_pr('bugfix/RING-00001', 'development/4.3')
+        pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
         with self.assertRaises(BuildNotStarted):
             self.handle(pr['id'],
                         options=self.bypass_all_but(['bypass_build_status']),
                         backtrace=True)
-        create_branch(self.gitrepo, 'bugfix/RING-00002',
+        create_branch(self.gitrepo, 'bugfix/TEST-00002',
                       from_branch='development/4.3',
                       file_="another_new_file", do_push=False)
         self.gitrepo.cmd(
-            'git push -u -f origin bugfix/RING-00002:bugfix/RING-00001')
+            'git push -u -f origin bugfix/TEST-00002:bugfix/TEST-00001')
         retcode = self.handle(pr['id'],
                               options=self.bypass_all)
         self.assertEqual(retcode, BranchHistoryMismatch.code)
 
     def test_integration_branch_and_source_branch_updated(self):
-        pr = self.create_pr('bugfix/RING-00001', 'development/4.3')
+        pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
         with self.assertRaises(BuildNotStarted):
             self.handle(
                 pr['id'],
                 options=self.bypass_all_but(['bypass_build_status']),
                 backtrace=True)
-        first_integration_branch = 'w/4.3/bugfix/RING-00001'
+        first_integration_branch = 'w/4.3/bugfix/TEST-00001'
         self.gitrepo.cmd('git pull')
         add_file_to_branch(self.gitrepo, first_integration_branch,
                            'file_added_on_int_branch')
-        add_file_to_branch(self.gitrepo, 'bugfix/RING-00001',
+        add_file_to_branch(self.gitrepo, 'bugfix/TEST-00001',
                            'file_added_on_source_branch')
         retcode = self.handle(pr['id'],
                               options=self.bypass_all)
         self.assertEqual(retcode, BranchHistoryMismatch.code)
 
     def test_integration_branch_and_source_branch_force_updated(self):
-        pr = self.create_pr('bugfix/RING-00001', 'development/4.3')
+        pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
         with self.assertRaises(BuildNotStarted):
             self.handle(
                 pr['id'],
                 options=self.bypass_all_but(['bypass_build_status']),
                 backtrace=True)
-        first_integration_branch = 'w/4.3/bugfix/RING-00001'
+        first_integration_branch = 'w/4.3/bugfix/TEST-00001'
         self.gitrepo.cmd('git pull')
         add_file_to_branch(self.gitrepo, first_integration_branch,
                            'file_added_on_int_branch')
-        create_branch(self.gitrepo, 'bugfix/RING-00002',
+        create_branch(self.gitrepo, 'bugfix/TEST-00002',
                       from_branch='development/4.3',
                       file_="another_new_file", do_push=False)
         self.gitrepo.cmd(
-            'git push -u -f origin bugfix/RING-00002:bugfix/RING-00001')
+            'git push -u -f origin bugfix/TEST-00002:bugfix/TEST-00001')
         retcode = self.handle(pr['id'],
                               options=self.bypass_all)
         self.assertEqual(retcode, BranchHistoryMismatch.code)
 
     def successful_merge_into_stabilization_branch(self, branch_name,
                                                    expected_dest_branches):
-        pr = self.create_pr('bugfix/RING-00001', branch_name)
+        pr = self.create_pr('bugfix/TEST-00001', branch_name)
         self.handle(pr['id'],
                     options=self.bypass_all)
         self.gitrepo.cmd('git pull -a --prune')
         expected_result = set(expected_dest_branches)
         result = set(self.gitrepo
-                     .cmd('git branch -r --contains origin/bugfix/RING-00001')
+                     .cmd('git branch -r --contains origin/bugfix/TEST-00001')
                      .replace(" ", "").split('\n')[:-1])
         self.assertEqual(expected_result, result)
 
     def test_successful_merge_into_stabilization_branch(self):
         dest = 'stabilization/4.3.18'
-        res = ["origin/bugfix/RING-00001",
+        res = ["origin/bugfix/TEST-00001",
                "origin/development/4.3",
                "origin/development/5.1",
                "origin/development/6.0",
@@ -1857,7 +1858,7 @@ class TestBertE(RepositoryTests):
 
     def test_successful_merge_into_stabilization_branch_middle_cascade(self):
         dest = 'stabilization/5.1.4'
-        res = ["origin/bugfix/RING-00001",
+        res = ["origin/bugfix/TEST-00001",
                "origin/development/5.1",
                "origin/development/6.0",
                "origin/stabilization/5.1.4"]
@@ -1870,7 +1871,7 @@ class TestBertE(RepositoryTests):
         self.successful_merge_into_stabilization_branch(dest, res)
 
     def test_success_message_content(self):
-        pr = self.create_pr('bugfix/RING-00001', 'stabilization/5.1.4')
+        pr = self.create_pr('bugfix/TEST-00001', 'stabilization/5.1.4')
         try:
             self.handle(pr['id'], options=[
                 'bypass_build_status',
@@ -1888,7 +1889,7 @@ class TestBertE(RepositoryTests):
 
     def test_unanimity_option(self):
         """Test unanimity by passing option to bert-e"""
-        feature_branch = 'bugfix/RING-0076'
+        feature_branch = 'bugfix/TEST-0076'
         dst_branch = 'development/4.3'
         reviewers = [self.creator]
 
@@ -1901,7 +1902,7 @@ class TestBertE(RepositoryTests):
     def test_unanimity_required_all_approval(self):
         """Test unanimity with all approval required"""
 
-        feature_branch = 'bugfix/RING-007'
+        feature_branch = 'bugfix/TEST-007'
         dst_branch = 'development/4.3'
 
         pr = self.create_pr(feature_branch, dst_branch)
@@ -1931,10 +1932,10 @@ class TestBertE(RepositoryTests):
                               'bypass_build_status'])
 
     def test_after_pull_request(self):
-        pr_opened = self.create_pr('bugfix/RING-00001', 'development/4.3')
-        pr_declined = self.create_pr('bugfix/RING-00002', 'development/4.3')
+        pr_opened = self.create_pr('bugfix/TEST-00001', 'development/4.3')
+        pr_declined = self.create_pr('bugfix/TEST-00002', 'development/4.3')
         pr_declined.decline()
-        blocked_pr = self.create_pr('bugfix/RING-00003', 'development/4.3')
+        blocked_pr = self.create_pr('bugfix/TEST-00003', 'development/4.3')
 
         comment_declined = blocked_pr.add_comment(
             '@%s after_pull_request=%s' % (
@@ -1970,7 +1971,7 @@ class TestBertE(RepositoryTests):
         try:
             real = bert_e.BertE._check_pr_state
 
-            pr = self.create_pr('bugfix/RING-00081', 'development/6.0')
+            pr = self.create_pr('bugfix/TEST-00081', 'development/6.0')
             retcode = self.handle(pr['id'], self.bypass_all)
             self.assertEqual(retcode, SuccessMessage.code)
 
@@ -1983,12 +1984,12 @@ class TestBertE(RepositoryTests):
             self.bbrepo_bert_e.get_pull_request = real
 
     def test_pr_title_too_long(self):
-        create_branch(self.gitrepo, 'bugfix/RING-00001',
+        create_branch(self.gitrepo, 'bugfix/TEST-00001',
                       from_branch='development/4.3', file_=True)
         pr = self.bbrepo_eva.create_pull_request(
             title='A' * (bitbucket_api.MAX_PR_TITLE_LEN - 10),
             name='name',
-            source={'branch': {'name': 'bugfix/RING-00001'}},
+            source={'branch': {'name': 'bugfix/TEST-00001'}},
             destination={'branch': {'name': 'development/4.3'}},
             close_source_branch=True,
             description=''
@@ -2003,7 +2004,7 @@ class TestBertE(RepositoryTests):
     def test_main_pr_declined(self):
         """Check integration data (PR+branches) is deleted when original
         PR is declined."""
-        pr = self.create_pr('bugfix/RING-00001', 'development/4.3')
+        pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
         with self.assertRaises(BuildNotStarted):
             self.handle(
                 pr['id'],
@@ -2012,7 +2013,7 @@ class TestBertE(RepositoryTests):
 
         # check integration data is there
         branches = self.gitrepo.cmd(
-            'git ls-remote origin w/*/bugfix/RING-00001')
+            'git ls-remote origin w/*/bugfix/TEST-00001')
         assert len(branches)
         pr_ = self.bbrepo.get_pull_request(pull_request_id=pr['id']+1)
         assert pr_['state'] == 'OPEN'
@@ -2030,7 +2031,7 @@ class TestBertE(RepositoryTests):
 
         # check integration data is gone
         branches = self.gitrepo.cmd(
-            'git ls-remote origin w/*/bugfix/RING-00001')
+            'git ls-remote origin w/*/bugfix/TEST-00001')
         assert branches == ''
         pr_ = self.bbrepo.get_pull_request(pull_request_id=pr['id']+1)
         assert pr_['state'] == 'DECLINED'
@@ -2051,7 +2052,7 @@ class TestBertE(RepositoryTests):
         special chars and doesn't interpret them in bash.
 
         """
-        unescaped = 'bugfix/dangerous-branch-name-${RING}'
+        unescaped = 'bugfix/dangerous-branch-name-${TEST}'
 
         # Bypass git-api to create the branch (explicit escape of the bad char)
         branch_name = unescaped.replace('$', '\$')
@@ -2077,11 +2078,11 @@ class TestBertE(RepositoryTests):
         during the update of integration branches.
 
         """
-        pr1 = self.create_pr('bugfix/RING-0006', 'development/5.1',
+        pr1 = self.create_pr('bugfix/TEST-0006', 'development/5.1',
                              file_='toto.txt')
-        pr2 = self.create_pr('bugfix/RING-0006-other', 'development/4.3',
+        pr2 = self.create_pr('bugfix/TEST-0006-other', 'development/4.3',
                              file_='toto.txt')
-        pr3 = self.create_pr('bugfix/RING-0007-unrelated', 'development/4.3')
+        pr3 = self.create_pr('bugfix/TEST-0007-unrelated', 'development/4.3')
 
         self.handle(pr2['id'],
                     options=self.bypass_all_but(['bypass_author_approval']))
@@ -2093,23 +2094,23 @@ class TestBertE(RepositoryTests):
         self.handle(pr3['id'],
                     options=self.bypass_all_but(['bypass_author_approval']))
 
-        # Conflict on branch 'w/5.1/bugfix/RING-0006-other'
+        # Conflict on branch 'w/5.1/bugfix/TEST-0006-other'
         try:
             self.handle(pr2['id'], options=self.bypass_all, backtrace=True)
         except Conflict as err:
-            self.assertIn('`w/5.1/bugfix/RING-0006-other` with', err.msg)
+            self.assertIn('`w/5.1/bugfix/TEST-0006-other` with', err.msg)
         else:
             self.fail('No conflict detected')
 
         # Resolve conflict
         self.gitrepo.cmd('git fetch --all')
-        self.gitrepo.cmd('git checkout w/5.1/bugfix/RING-0006-other')
-        self.gitrepo.cmd('git merge origin/w/4.3/bugfix/RING-0006-other')
-        self.gitrepo.cmd('echo bugfix/RING-0006 > toto.txt')
+        self.gitrepo.cmd('git checkout w/5.1/bugfix/TEST-0006-other')
+        self.gitrepo.cmd('git merge origin/w/4.3/bugfix/TEST-0006-other')
+        self.gitrepo.cmd('echo bugfix/TEST-0006 > toto.txt')
         self.gitrepo.cmd('git add toto.txt')
         self.gitrepo.cmd('git commit -m "fix conflict"')
         self.gitrepo.cmd('git merge origin/development/5.1')
-        self.gitrepo.push('w/5.1/bugfix/RING-0006-other')
+        self.gitrepo.push('w/5.1/bugfix/TEST-0006-other')
 
         # Conflict should be resolved and PR merged
         retcode = self.handle(pr2['id'], options=self.bypass_all)
@@ -2119,7 +2120,7 @@ class TestBertE(RepositoryTests):
 
     def test_settings(self):
         # test with no peer approvals set to 0
-        pr = self.create_pr('bugfix/RING-00002', 'development/4.3')
+        pr = self.create_pr('bugfix/TEST-00002', 'development/4.3')
         settings = """
 repository_owner: {owner}
 repository_slug: {slug}
@@ -2140,7 +2141,7 @@ admins:
                 settings=settings)
 
         # test with incorrect settings file
-        pr = self.create_pr('bugfix/RING-00003', 'development/4.3')
+        pr = self.create_pr('bugfix/TEST-00003', 'development/4.3')
         settings = """
 repository_owner: {owner}
 repository_slug: {slug}
@@ -2159,7 +2160,7 @@ required_peer_approvals: 0
                 settings=settings)
 
         # test with different build key
-        pr = self.create_pr('bugfix/RING-00004', 'development/6.0')
+        pr = self.create_pr('bugfix/TEST-00004', 'development/6.0')
         settings = """
 repository_owner: {owner}
 repository_slug: {slug}
@@ -2188,7 +2189,7 @@ admins:
         self.assertEqual(retcode, SuccessMessage.code)
 
         # test missing mandatory setting
-        pr = self.create_pr('bugfix/RING-00005', 'development/4.3')
+        pr = self.create_pr('bugfix/TEST-00005', 'development/4.3')
         settings = """
 repository_slug: {slug}
 robot_username: {robot}
@@ -2723,19 +2724,19 @@ class TestQueueing(RepositoryTests):
         assert qc.mergeable_queues == solution
 
     def test_system_nominal_case(self):
-        pr = self.create_pr('bugfix/RING-00001', 'development/4.3')
+        pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
         retcode = self.handle(pr['id'], options=self.bypass_all_but(
             ['bypass_build_status']))
 
         # add a commit to w/5.1 branch
         self.gitrepo.cmd('git fetch')
-        self.gitrepo.cmd('git checkout w/5.1/bugfix/RING-00001')
+        self.gitrepo.cmd('git checkout w/5.1/bugfix/TEST-00001')
         self.gitrepo.cmd('touch abc')
         self.gitrepo.cmd('git add abc')
         self.gitrepo.cmd('git commit -m "add new file"')
         self.gitrepo.cmd('git push origin')
         sha1_w_5_1 = self.gitrepo \
-                         .cmd('git rev-parse w/5.1/bugfix/RING-00001') \
+                         .cmd('git rev-parse w/5.1/bugfix/TEST-00001') \
                          .rstrip()
 
         retcode = self.handle(pr['id'], options=self.bypass_all)
@@ -2744,21 +2745,21 @@ class TestQueueing(RepositoryTests):
         # get the new sha1 on w/6.0 (set_build_status_on_pr_id won't detect the
         # new commit in mocked mode)
         self.gitrepo.cmd('git fetch')
-        self.gitrepo.cmd('git checkout w/6.0/bugfix/RING-00001')
+        self.gitrepo.cmd('git checkout w/6.0/bugfix/TEST-00001')
         self.gitrepo.cmd('git pull')
         sha1_w_6_0 = self.gitrepo \
-                         .cmd('git rev-parse w/6.0/bugfix/RING-00001') \
+                         .cmd('git rev-parse w/6.0/bugfix/TEST-00001') \
                          .rstrip()
 
         # check expected branches exist
         self.gitrepo.cmd('git fetch --prune')
         expected_branches = [
-            'q/1/4.3/bugfix/RING-00001',
-            'q/1/5.1/bugfix/RING-00001',
-            'q/1/6.0/bugfix/RING-00001',
-            'w/4.3/bugfix/RING-00001',
-            'w/5.1/bugfix/RING-00001',
-            'w/6.0/bugfix/RING-00001'
+            'q/1/4.3/bugfix/TEST-00001',
+            'q/1/5.1/bugfix/TEST-00001',
+            'q/1/6.0/bugfix/TEST-00001',
+            'w/4.3/bugfix/TEST-00001',
+            'w/5.1/bugfix/TEST-00001',
+            'w/6.0/bugfix/TEST-00001'
         ]
         for branch in expected_branches:
             assert self.gitrepo.remote_branch_exists(branch)
@@ -2806,13 +2807,13 @@ class TestQueueing(RepositoryTests):
         assert 1 in bert_e.STATUS.get('merged PRs', [])
 
     def test_system_missing_integration_queue_before_in_queue(self):
-        pr1 = self.create_pr('bugfix/RING-00001', 'development/4.3')
+        pr1 = self.create_pr('bugfix/TEST-00001', 'development/4.3')
         retcode = self.handle(pr1['id'], options=self.bypass_all)
         self.assertEqual(retcode, Queued.code)
 
-        pr2 = self.create_pr('bugfix/RING-00002', 'development/4.3')
+        pr2 = self.create_pr('bugfix/TEST-00002', 'development/4.3')
 
-        self.gitrepo.cmd('git push origin :q/1/5.1/bugfix/RING-00001')
+        self.gitrepo.cmd('git push origin :q/1/5.1/bugfix/TEST-00001')
 
         retcode = self.handle(pr2['id'], options=self.bypass_all)
         self.assertEqual(retcode, QueueOutOfOrder.code)
@@ -2830,11 +2831,11 @@ class TestQueueing(RepositoryTests):
         ])
 
     def test_reconstruction(self):
-        pr1 = self.create_pr('bugfix/RING-00001', 'development/4.3')
+        pr1 = self.create_pr('bugfix/TEST-00001', 'development/4.3')
         retcode = self.handle(pr1['id'], options=self.bypass_all)
         self.assertEqual(retcode, Queued.code)
 
-        pr2 = self.create_pr('bugfix/RING-00002', 'development/4.3')
+        pr2 = self.create_pr('bugfix/TEST-00002', 'development/4.3')
         retcode = self.handle(pr2['id'], options=self.bypass_all)
         self.assertEqual(retcode, Queued.code)
 
@@ -2858,7 +2859,7 @@ class TestQueueing(RepositoryTests):
         self.assertEqual(retcode, Queued.code)
 
     def test_decline_queued_pull_request(self):
-        pr = self.create_pr('bugfix/RING-00001', 'development/6.0')
+        pr = self.create_pr('bugfix/TEST-00001', 'development/6.0')
         retcode = self.handle(pr['id'], options=self.bypass_all)
         self.assertEqual(retcode, Queued.code)
 
@@ -2875,7 +2876,7 @@ class TestQueueing(RepositoryTests):
                         backtrace=True)
 
     def test_lose_integration_branches_after_queued(self):
-        pr = self.create_pr('bugfix/RING-00001', 'development/6.0')
+        pr = self.create_pr('bugfix/TEST-00001', 'development/6.0')
         retcode = self.handle(pr['id'], options=self.bypass_all)
         self.assertEqual(retcode, Queued.code)
 
@@ -2884,7 +2885,7 @@ class TestQueueing(RepositoryTests):
         # delete integration branch
         self.gitrepo.cmd('git fetch')
         dev = bert_e.branch_factory(self.gitrepo, 'development/6.0')
-        intb = bert_e.branch_factory(self.gitrepo, 'w/6.0/bugfix/RING-00001')
+        intb = bert_e.branch_factory(self.gitrepo, 'w/6.0/bugfix/TEST-00001')
         intb.destination_branch = dev
         intb.checkout()
         intb.remove(do_push=True)
@@ -2905,11 +2906,11 @@ class TestQueueing(RepositoryTests):
 
     def test_delete_all_integration_queues_of_one_pull_request(self):
         self.skipTest("skipping until completeness check is implemented")
-        pr1 = self.create_pr('bugfix/RING-00001', 'development/6.0')
+        pr1 = self.create_pr('bugfix/TEST-00001', 'development/6.0')
         retcode = self.handle(pr1['id'], options=self.bypass_all)
         self.assertEqual(retcode, Queued.code)
 
-        pr2 = self.create_pr('bugfix/RING-00002', 'development/6.0')
+        pr2 = self.create_pr('bugfix/TEST-00002', 'development/6.0')
         retcode = self.handle(pr2['id'], options=self.bypass_all)
         self.assertEqual(retcode, Queued.code)
 
@@ -2917,13 +2918,13 @@ class TestQueueing(RepositoryTests):
         self.gitrepo.cmd('git fetch')
         dev = bert_e.branch_factory(self.gitrepo, 'development/6.0')
         intq1 = bert_e.branch_factory(self.gitrepo,
-                                      'q/1/6.0/bugfix/RING-00001')
+                                      'q/1/6.0/bugfix/TEST-00001')
         intq1.checkout()
         dev.checkout()
         intq1.remove(do_push=True)
 
         sha1 = self.set_build_status_on_branch_tip(
-                'q/3/6.0/bugfix/RING-00002', 'SUCCESSFUL')
+                'q/3/6.0/bugfix/TEST-00002', 'SUCCESSFUL')
 
         with self.assertRaises(IncoherentQueues):
             self.handle(sha1,
@@ -2936,7 +2937,7 @@ class TestQueueing(RepositoryTests):
         assert not dev.includes_commit(pr1['source']['commit']['hash'])
 
     def test_delete_main_queues(self):
-        pr = self.create_pr('bugfix/RING-00001', 'development/6.0')
+        pr = self.create_pr('bugfix/TEST-00001', 'development/6.0')
         retcode = self.handle(pr['id'], options=self.bypass_all)
         self.assertEqual(retcode, Queued.code)
 
@@ -2954,7 +2955,7 @@ class TestQueueing(RepositoryTests):
                         backtrace=True)
 
     def test_feature_branch_augmented_after_queued(self):
-        pr = self.create_pr('bugfix/RING-00001', 'development/6.0')
+        pr = self.create_pr('bugfix/TEST-00001', 'development/6.0')
         retcode = self.handle(pr['id'], options=self.bypass_all)
         self.assertEqual(retcode, Queued.code)
 
@@ -2962,11 +2963,11 @@ class TestQueueing(RepositoryTests):
 
         # Add a new commit
         self.gitrepo.cmd('git fetch')
-        self.gitrepo.cmd('git checkout bugfix/RING-00001')
+        self.gitrepo.cmd('git checkout bugfix/TEST-00001')
         self.gitrepo.cmd('touch abc')
         self.gitrepo.cmd('git add abc')
         self.gitrepo.cmd('git commit -m "add new file"')
-        sha1 = Branch(self.gitrepo, 'bugfix/RING-00001').get_latest_commit()
+        sha1 = Branch(self.gitrepo, 'bugfix/TEST-00001').get_latest_commit()
         self.gitrepo.cmd('git push origin')
 
         with self.assertRaises(NothingToDo):
@@ -2988,7 +2989,7 @@ class TestQueueing(RepositoryTests):
 
         # check additional commit still here
         self.gitrepo.cmd('git fetch')
-        self.gitrepo.cmd('git checkout w/6.0/bugfix/RING-00001')
+        self.gitrepo.cmd('git checkout w/6.0/bugfix/TEST-00001')
         self.gitrepo.cmd('git pull')
         self.gitrepo.cmd('cat abc')
         self.gitrepo.cmd('git checkout q/6.0')
@@ -2996,7 +2997,7 @@ class TestQueueing(RepositoryTests):
         self.gitrepo.cmd('cat abc')
 
     def test_feature_branch_rewritten_after_queued(self):
-        pr = self.create_pr('bugfix/RING-00001', 'development/6.0')
+        pr = self.create_pr('bugfix/TEST-00001', 'development/6.0')
         retcode = self.handle(pr['id'], options=self.bypass_all)
         self.assertEqual(retcode, Queued.code)
 
@@ -3004,7 +3005,7 @@ class TestQueueing(RepositoryTests):
 
         # rewrite history of feature branch
         self.gitrepo.cmd('git fetch')
-        self.gitrepo.cmd('git checkout bugfix/RING-00001')
+        self.gitrepo.cmd('git checkout bugfix/TEST-00001')
         self.gitrepo.cmd('git commit --amend -m "rewritten log"')
         self.gitrepo.cmd('git push -f origin')
 
@@ -3025,7 +3026,7 @@ class TestQueueing(RepositoryTests):
         self.assertEqual(retcode, Queued.code)
 
     def test_integration_branch_augmented_after_queued(self):
-        pr = self.create_pr('bugfix/RING-00001', 'development/6.0')
+        pr = self.create_pr('bugfix/TEST-00001', 'development/6.0')
         retcode = self.handle(pr['id'], options=self.bypass_all)
         self.assertEqual(retcode, Queued.code)
 
@@ -3033,12 +3034,12 @@ class TestQueueing(RepositoryTests):
 
         # Add a new commit
         self.gitrepo.cmd('git fetch')
-        self.gitrepo.cmd('git checkout w/6.0/bugfix/RING-00001')
+        self.gitrepo.cmd('git checkout w/6.0/bugfix/TEST-00001')
         self.gitrepo.cmd('touch abc')
         self.gitrepo.cmd('git add abc')
         self.gitrepo.cmd('git commit -m "add new file"')
         sha1 = Branch(self.gitrepo,
-                      'w/6.0/bugfix/RING-00001').get_latest_commit()
+                      'w/6.0/bugfix/TEST-00001').get_latest_commit()
         self.gitrepo.cmd('git push origin')
 
         with self.assertRaises(Merged):
@@ -3053,7 +3054,7 @@ class TestQueueing(RepositoryTests):
             Branch(self.gitrepo, 'development/6.0').includes_commit(sha1))
 
     def test_integration_branches_dont_follow_dev(self):
-        pr1 = self.create_pr('bugfix/RING-00001', 'development/4.3')
+        pr1 = self.create_pr('bugfix/TEST-00001', 'development/4.3')
         # create integration branches but don't queue yet
         retcode = self.handle(pr1['id'], options=self.bypass_all_but(
             ['bypass_build_status']))
@@ -3062,14 +3063,14 @@ class TestQueueing(RepositoryTests):
         self.gitrepo.cmd('git fetch')
         sha1s = dict()
         for version in ['4.3', '5.1', '6.0']:
-            self.gitrepo.cmd('git checkout w/%s/bugfix/RING-00001', version)
+            self.gitrepo.cmd('git checkout w/%s/bugfix/TEST-00001', version)
             self.gitrepo.cmd('git pull')
             sha1s[version] = self.gitrepo \
-                .cmd('git rev-parse w/%s/bugfix/RING-00001', version) \
+                .cmd('git rev-parse w/%s/bugfix/TEST-00001', version) \
                 .rstrip()
 
         # merge some other work
-        pr2 = self.create_pr('bugfix/RING-00002', 'development/5.1')
+        pr2 = self.create_pr('bugfix/TEST-00002', 'development/5.1')
         retcode = self.handle(pr2['id'], options=self.bypass_all)
         self.assertEqual(retcode, Queued.code)
         self.set_build_status_on_pr_id(pr2['id']+1, 'SUCCESSFUL')
@@ -3086,16 +3087,16 @@ class TestQueueing(RepositoryTests):
         # verify
         self.gitrepo.cmd('git fetch')
         for version in ['4.3', '5.1', '6.0']:
-            self.gitrepo.cmd('git checkout w/%s/bugfix/RING-00001', version)
+            self.gitrepo.cmd('git checkout w/%s/bugfix/TEST-00001', version)
             self.gitrepo.cmd('git pull')
             self.assertEqual(
                 sha1s[version],
                 self.gitrepo
-                    .cmd('git rev-parse w/%s/bugfix/RING-00001', version)
+                    .cmd('git rev-parse w/%s/bugfix/TEST-00001', version)
                     .rstrip())
 
     def test_new_dev_branch_appears(self):
-        pr = self.create_pr('bugfix/RING-00001', 'stabilization/5.1.4')
+        pr = self.create_pr('bugfix/TEST-00001', 'stabilization/5.1.4')
         retcode = self.handle(pr['id'], options=self.bypass_all)
         self.assertEqual(retcode, Queued.code)
 
@@ -3115,7 +3116,7 @@ class TestQueueing(RepositoryTests):
                         backtrace=True)
 
     def test_dev_branch_decommissioned(self):
-        pr = self.create_pr('bugfix/RING-00001', 'development/4.3')
+        pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
         retcode = self.handle(pr['id'], options=self.bypass_all)
         self.assertEqual(retcode, Queued.code)
 
@@ -3146,7 +3147,7 @@ class TestQueueing(RepositoryTests):
         self.gitrepo.cmd('git checkout -b development/5.2')
         self.gitrepo.cmd('git push -u origin development/5.2')
 
-        pr = self.create_pr('bugfix/RING-00001', 'development/5.2')
+        pr = self.create_pr('bugfix/TEST-00001', 'development/5.2')
         retcode = self.handle(pr['id'], options=self.bypass_all)
         self.assertEqual(retcode, Queued.code)
 
@@ -3159,7 +3160,7 @@ class TestQueueing(RepositoryTests):
         self.gitrepo.cmd('git checkout -b stabilization/5.2.0')
         self.gitrepo.cmd('git push -u origin stabilization/5.2.0')
 
-        pr2 = self.create_pr('bugfix/RING-00002', 'stabilization/5.2.0')
+        pr2 = self.create_pr('bugfix/TEST-00002', 'stabilization/5.2.0')
         retcode = self.handle(pr2['id'], options=self.bypass_all)
         self.assertEqual(retcode, Queued.code)
 
@@ -3173,11 +3174,11 @@ class TestQueueing(RepositoryTests):
         assert self.prs_in_queue() == set([4])
 
         self.set_build_status_on_branch_tip(
-            'q/4/5.2.0/bugfix/RING-00002', 'SUCCESSFUL')
+            'q/4/5.2.0/bugfix/TEST-00002', 'SUCCESSFUL')
         self.set_build_status_on_branch_tip(
-            'q/4/5.2/bugfix/RING-00002', 'SUCCESSFUL')
+            'q/4/5.2/bugfix/TEST-00002', 'SUCCESSFUL')
         self.set_build_status_on_branch_tip(
-            'q/4/6.0/bugfix/RING-00002', 'SUCCESSFUL')
+            'q/4/6.0/bugfix/TEST-00002', 'SUCCESSFUL')
 
         with self.assertRaises(Merged):
             self.handle(pr2['source']['commit']['hash'],
@@ -3187,38 +3188,38 @@ class TestQueueing(RepositoryTests):
         assert self.prs_in_queue() == set([])
 
     def test_multi_branch_queues(self):
-        pr1 = self.create_pr('bugfix/RING-00001', 'development/4.3')
+        pr1 = self.create_pr('bugfix/TEST-00001', 'development/4.3')
         retcode = self.handle(pr1['id'], options=self.bypass_all)
         self.assertEqual(retcode, Queued.code)
 
-        pr5 = self.create_pr('bugfix/RING-00002', 'stabilization/5.1.4')
+        pr5 = self.create_pr('bugfix/TEST-00002', 'stabilization/5.1.4')
         retcode = self.handle(pr5['id'], options=self.bypass_all)
         self.assertEqual(retcode, Queued.code)
 
-        pr9 = self.create_pr('bugfix/RING-00003', 'development/4.3')
+        pr9 = self.create_pr('bugfix/TEST-00003', 'development/4.3')
         retcode = self.handle(pr9['id'], options=self.bypass_all)
         self.assertEqual(retcode, Queued.code)
 
         assert self.prs_in_queue() == set([1, 5, 9])
 
         self.set_build_status_on_branch_tip(
-            'q/1/4.3/bugfix/RING-00001', 'SUCCESSFUL')
+            'q/1/4.3/bugfix/TEST-00001', 'SUCCESSFUL')
         self.set_build_status_on_branch_tip(
-            'q/1/5.1/bugfix/RING-00001', 'SUCCESSFUL')
+            'q/1/5.1/bugfix/TEST-00001', 'SUCCESSFUL')
         self.set_build_status_on_branch_tip(
-            'q/1/6.0/bugfix/RING-00001', 'FAILED')
+            'q/1/6.0/bugfix/TEST-00001', 'FAILED')
         self.set_build_status_on_branch_tip(
-            'q/5/5.1.4/bugfix/RING-00002', 'FAILED')
+            'q/5/5.1.4/bugfix/TEST-00002', 'FAILED')
         self.set_build_status_on_branch_tip(
-            'q/5/5.1/bugfix/RING-00002', 'SUCCESSFUL')
+            'q/5/5.1/bugfix/TEST-00002', 'SUCCESSFUL')
         self.set_build_status_on_branch_tip(
-            'q/5/6.0/bugfix/RING-00002', 'SUCCESSFUL')
+            'q/5/6.0/bugfix/TEST-00002', 'SUCCESSFUL')
         self.set_build_status_on_branch_tip(
-            'q/9/4.3/bugfix/RING-00003', 'SUCCESSFUL')
+            'q/9/4.3/bugfix/TEST-00003', 'SUCCESSFUL')
         self.set_build_status_on_branch_tip(
-            'q/9/5.1/bugfix/RING-00003', 'SUCCESSFUL')
+            'q/9/5.1/bugfix/TEST-00003', 'SUCCESSFUL')
         sha1 = self.set_build_status_on_branch_tip(
-            'q/9/6.0/bugfix/RING-00003', 'SUCCESSFUL')
+            'q/9/6.0/bugfix/TEST-00003', 'SUCCESSFUL')
         with self.assertRaises(NothingToDo):
             self.handle(sha1,
                         options=self.bypass_all,
@@ -3226,14 +3227,14 @@ class TestQueueing(RepositoryTests):
         assert self.prs_in_queue() == set([1, 5, 9])
 
         self.set_build_status_on_branch_tip(
-            'q/1/6.0/bugfix/RING-00001', 'SUCCESSFUL')
+            'q/1/6.0/bugfix/TEST-00001', 'SUCCESSFUL')
         with self.assertRaises(Merged):
             self.handle(sha1,
                         options=self.bypass_all,
                         backtrace=True)
         assert self.prs_in_queue() == set([5, 9])
 
-        pr13 = self.create_pr('bugfix/RING-00004', 'stabilization/5.1.4')
+        pr13 = self.create_pr('bugfix/TEST-00004', 'stabilization/5.1.4')
         retcode = self.handle(pr13['id'], options=self.bypass_all)
         self.assertEqual(retcode, Queued.code)
         with self.assertRaises(NothingToDo):
@@ -3243,24 +3244,24 @@ class TestQueueing(RepositoryTests):
         assert self.prs_in_queue() == set([5, 9, 13])
 
         self.set_build_status_on_branch_tip(
-            'q/13/5.1.4/bugfix/RING-00004', 'SUCCESSFUL')
+            'q/13/5.1.4/bugfix/TEST-00004', 'SUCCESSFUL')
         self.set_build_status_on_branch_tip(
-            'q/13/5.1/bugfix/RING-00004', 'SUCCESSFUL')
+            'q/13/5.1/bugfix/TEST-00004', 'SUCCESSFUL')
         self.set_build_status_on_branch_tip(
-            'q/13/6.0/bugfix/RING-00004', 'FAIL')
+            'q/13/6.0/bugfix/TEST-00004', 'FAIL')
         with self.assertRaises(NothingToDo):
             self.handle(sha1,
                         options=self.bypass_all,
                         backtrace=True)
         assert self.prs_in_queue() == set([5, 9, 13])
 
-        pr17 = self.create_pr('bugfix/RING-00005', 'development/6.0')
+        pr17 = self.create_pr('bugfix/TEST-00005', 'development/6.0')
         retcode = self.handle(pr17['id'], options=self.bypass_all)
         self.assertEqual(retcode, Queued.code)
         assert self.prs_in_queue() == set([5, 9, 13, 17])
 
         self.set_build_status_on_branch_tip(
-            'q/17/6.0/bugfix/RING-00005', 'SUCCESSFUL')
+            'q/17/6.0/bugfix/TEST-00005', 'SUCCESSFUL')
 
         with self.assertRaises(Merged):
             self.handle(sha1,
@@ -3269,24 +3270,24 @@ class TestQueueing(RepositoryTests):
         assert self.prs_in_queue() == set([])
 
     def test_multi_branch_queues_2(self):
-        pr1 = self.create_pr('bugfix/RING-00001', 'development/4.3')
+        pr1 = self.create_pr('bugfix/TEST-00001', 'development/4.3')
         retcode = self.handle(pr1['id'], options=self.bypass_all)
         self.assertEqual(retcode, Queued.code)
 
-        pr5 = self.create_pr('bugfix/RING-00002', 'development/6.0')
+        pr5 = self.create_pr('bugfix/TEST-00002', 'development/6.0')
         retcode = self.handle(pr5['id'], options=self.bypass_all)
         self.assertEqual(retcode, Queued.code)
 
         assert self.prs_in_queue() == set([1, 5])
 
         self.set_build_status_on_branch_tip(
-            'q/1/4.3/bugfix/RING-00001', 'SUCCESSFUL')
+            'q/1/4.3/bugfix/TEST-00001', 'SUCCESSFUL')
         self.set_build_status_on_branch_tip(
-            'q/1/5.1/bugfix/RING-00001', 'SUCCESSFUL')
+            'q/1/5.1/bugfix/TEST-00001', 'SUCCESSFUL')
         self.set_build_status_on_branch_tip(
-            'q/1/6.0/bugfix/RING-00001', 'SUCCESSFUL')
+            'q/1/6.0/bugfix/TEST-00001', 'SUCCESSFUL')
         sha1 = self.set_build_status_on_branch_tip(
-            'q/5/6.0/bugfix/RING-00002', 'FAILED')
+            'q/5/6.0/bugfix/TEST-00002', 'FAILED')
         with self.assertRaises(Merged):
             self.handle(sha1,
                         options=self.bypass_all,
@@ -3294,12 +3295,12 @@ class TestQueueing(RepositoryTests):
         assert self.prs_in_queue() == set([5])
 
     def test_queue_conflict(self):
-        pr1 = self.create_pr('bugfix/RING-0006', 'development/6.0',
+        pr1 = self.create_pr('bugfix/TEST-0006', 'development/6.0',
                              file_='toto.txt')
         retcode = self.handle(pr1['id'], options=self.bypass_all)
         self.assertEqual(retcode, Queued.code)
 
-        pr2 = self.create_pr('bugfix/RING-0006-other', 'development/6.0',
+        pr2 = self.create_pr('bugfix/TEST-0006-other', 'development/6.0',
                              file_='toto.txt')
         with self.assertRaises(QueueConflict):
             self.handle(pr2['id'],

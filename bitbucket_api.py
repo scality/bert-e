@@ -106,13 +106,6 @@ class Repository(BitBucketObject):
     add_url = 'https://api.bitbucket.org/2.0/repositories/$owner/$repo_slug'
     get_url = add_url
 
-    def delete(self):
-        try:
-            assert self['slug'] != 'ring'  # This is a security, do not remove
-        except KeyError:
-            pass
-        BitBucketObject.delete(self)
-
     def get_git_url(self):
         return 'https://%s:%s@bitbucket.org/%s/%s.git' % (
             quote(self.client.auth.username),

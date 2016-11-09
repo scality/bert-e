@@ -96,6 +96,7 @@ SHA1_LENGHT = [12, 40]
 DEFAULT_OPTIONAL_SETTINGS = {
     'build_key': 'pre-merge',
     'required_peer_approvals': 2,
+    'jira_account_url': '',
     'jira_username': '',
     'jira_keys': [],
     'prefixes': {},
@@ -1472,6 +1473,7 @@ class BertE:
     def _jira_get_issue(self, issue_id):
         try:
             issue = jira_api.JiraIssue(
+                account_url=self.settings['jira_account_url'],
                 issue_id=issue_id,
                 login=self.settings['jira_username'],
                 passwd=self.jira_password)
@@ -1545,7 +1547,8 @@ class BertE:
             return
 
         if (not self.settings['jira_keys'] or
-                not self.settings['jira_username']):
+                not self.settings['jira_username'] or
+                not self.settings['jira_account_url']):
             # skip checks
             return
 
@@ -2291,7 +2294,7 @@ def setup_settings(settings_file):
     # check settings type and presence
     for setting_ in ['repository_owner', 'repository_slug',
                      'robot_username', 'robot_email', 'build_key',
-                     'jira_username']:
+                     'jira_account_url', 'jira_username']:
         if setting_ not in settings:
             raise MissingMandatorySetting(settings_file)
 

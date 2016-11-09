@@ -56,10 +56,18 @@ build_key: pre-merge
 required_peer_approvals: 2
 
 
-# jira_username [OPTIONAL]:
-#   The account to use to retrieve information from Jira.
+# jira_account_url [OPTIONAL]:
+#   The url of the Jira account.
 #
-#   empty: no Jira checks will be done.
+#   empty: no Jira checks will be performed.
+#
+jira_account_url: https://my_account.atlassian.net
+
+
+# jira_username [OPTIONAL]:
+#   The login to use to retrieve information from Jira.
+#
+#   empty: no Jira checks will be performed.
 #
 jira_username: my_jira_username
 
@@ -69,7 +77,7 @@ jira_username: my_jira_username
 #
 #   values: list of accepted keys
 #   default value: empty
-#   empty: no Jira checks will be done.
+#   empty: no Jira checks will be performed.
 #
 jira_keys:
   - MYJIRAPROJECTKEY
