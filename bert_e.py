@@ -96,6 +96,7 @@ SHA1_LENGHT = [12, 40]
 DEFAULT_OPTIONAL_SETTINGS = {
     'build_key': 'pre-merge',
     'required_peer_approvals': 2,
+    'jira_username': '',
     'jira_keys': [],
     'prefixes': {},
     'testers': [],
@@ -955,7 +956,7 @@ class BertE:
     def __init__(self, args, options, commands, settings):
         self._bbconn = bitbucket_api.Client(
             settings['robot_username'],
-            args.password,
+            args.bitbucket_password,
             settings['robot_email']
         )
         self.bbrepo = bitbucket_api.Repository(
@@ -966,6 +967,7 @@ class BertE:
         self.options = options
         self.commands = commands
         self.settings = settings
+        self.jira_password = args.jira_password
         self.backtrace = args.backtrace
         self.interactive = args.interactive
         self.no_comment = args.no_comment
@@ -1469,8 +1471,10 @@ class BertE:
 
     def _jira_get_issue(self, issue_id):
         try:
-            issue = jira_api.JiraIssue(issue_id=issue_id, login='wall_e',
-                                       passwd=self._bbconn.auth.password)
+            issue = jira_api.JiraIssue(
+                issue_id=issue_id,
+                login=self.settings['jira_username'],
+                passwd=self.jira_password)
         except JIRAError as e:
             if e.status_code == 404:
                 raise JiraIssueNotFound(
@@ -1540,7 +1544,9 @@ class BertE:
         if self.option_is_set('bypass_jira_check'):
             return
 
-        if not self.settings['jira_keys']:
+        if (not self.settings['jira_keys'] or
+                not self.settings['jira_username']):
+            # skip checks
             return
 
         if self._jira_check_reference():
@@ -2145,8 +2151,11 @@ def setup_parser():
         'settings',
         help="Path to project settings file")
     parser.add_argument(
-        'password',
-        help="Bert-E's password [for Jira and Bitbucket]")
+        'bitbucket_password',
+        help="Bert-E's Bitbucket account password")
+    parser.add_argument(
+        'jira_password',
+        help="Bert-E's Jira account password")
     parser.add_argument(
         'token', type=str,
         help="The ID of the pull request or sha1 (%s characters) "
@@ -2281,7 +2290,8 @@ def setup_settings(settings_file):
 
     # check settings type and presence
     for setting_ in ['repository_owner', 'repository_slug',
-                     'robot_username', 'robot_email', 'build_key']:
+                     'robot_username', 'robot_email', 'build_key',
+                     'jira_username']:
         if setting_ not in settings:
             raise MissingMandatorySetting(settings_file)
 

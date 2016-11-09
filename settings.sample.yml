@@ -12,7 +12,7 @@ repository_owner: my_company
 repository_slug: my_repository
 
 
-# username [MANDATORY]:
+# robot_username [MANDATORY]:
 #   The Bitbucket account to use for interactions with pull requests
 #
 #   This user will act as the robot and will:
@@ -56,12 +56,20 @@ build_key: pre-merge
 required_peer_approvals: 2
 
 
+# jira_username [OPTIONAL]:
+#   The account to use to retrieve information from Jira.
+#
+#   empty: no Jira checks will be done.
+#
+jira_username: my_jira_username
+
+
 # jira_keys [OPTIONAL]:
 #   The list of accepted Jira keys for this project.
 #
 #   values: list of accepted keys
 #   default value: empty
-#   empty: the key is not checked.
+#   empty: no Jira checks will be done.
 #
 jira_keys:
   - MYJIRAPROJECTKEY

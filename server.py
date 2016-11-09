@@ -52,7 +52,8 @@ for name in dir(bert_e_exceptions):
 
 def bert_e_launcher():
     """Basic worker loop that waits for Bert-E jobs and launches them."""
-    pwd = os.environ['BERT_E_PWD']
+    bb_pwd = os.environ['BERT_E_BB_PWD']
+    jira_pwd = os.environ['BERT_E_JIRA_PWD']
     while True:
         job = FIFO.get()
         sys.argv[:] = []
@@ -64,7 +65,8 @@ def bert_e_launcher():
         ])
         sys.argv.extend([
             job.repo_settings,
-            pwd,
+            bb_pwd,
+            jira_pwd,
             str(job.revision)
         ])
         try:

@@ -83,6 +83,7 @@ prefixes:
   Story: feature
   Bug: bugfix
   Improvement: improvement
+jira_username: dummy
 jira_keys:
   - RING
 admins:
@@ -658,6 +659,7 @@ class RepositoryTests(unittest.TestCase):
         argv_copy = list(sys.argv)
         sys.argv.append('test_settings.yml')
         sys.argv.append(self.args.bert_e_password)
+        sys.argv.append('dummy_jira_password')
         sys.argv.append(str(token))
         try:
             bert_e.main()
@@ -697,6 +699,7 @@ class RepositoryTests(unittest.TestCase):
         token = sha1
         sys.argv.append('test_settings.yml')
         sys.argv.append(self.args.bert_e_password)
+        sys.argv.append('dummy_jira_password')
         sys.argv.append(str(token))
         try:
             bert_e.main()
@@ -748,6 +751,7 @@ class RepositoryTests(unittest.TestCase):
 
         sys.argv.append('test_settings.yml')
         sys.argv.append(self.args.bert_e_password)
+        sys.argv.append('dummy_jira_password')
         sys.argv.append(str(token))
         return bert_e.main()
 
