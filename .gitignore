@@ -1,4 +1,5 @@
 *.pyc
 *.swp
 venv
+test_settings.yml
 __pycache__
