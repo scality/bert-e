@@ -2121,7 +2121,7 @@ class TestBertE(RepositoryTests):
 
     def test_settings(self):
         # test with no peer approvals set to 0
-        pr = self.create_pr('bugfix/TEST-00002', 'development/4.3')
+        pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
         settings = """
 repository_owner: {owner}
 repository_slug: {slug}
@@ -2142,7 +2142,7 @@ admins:
                 settings=settings)
 
         # test with incorrect settings file
-        pr = self.create_pr('bugfix/TEST-00003', 'development/4.3')
+        pr = self.create_pr('bugfix/TEST-00002', 'development/4.3')
         settings = """
 repository_owner: {owner}
 repository_slug: {slug}
@@ -2161,7 +2161,7 @@ required_peer_approvals: 0
                 settings=settings)
 
         # test with different build key
-        pr = self.create_pr('bugfix/TEST-00004', 'development/6.0')
+        pr = self.create_pr('bugfix/TEST-00003', 'development/6.0')
         settings = """
 repository_owner: {owner}
 repository_slug: {slug}
@@ -2190,7 +2190,7 @@ admins:
         self.assertEqual(retcode, SuccessMessage.code)
 
         # test missing mandatory setting
-        pr = self.create_pr('bugfix/TEST-00005', 'development/4.3')
+        pr = self.create_pr('bugfix/TEST-00004', 'development/4.3')
         settings = """
 repository_slug: {slug}
 robot_username: {robot}
@@ -3347,21 +3347,18 @@ def main():
 
     if (RepositoryTests.args.admin_username ==
             RepositoryTests.args.robot_username):
-        print('Cannot use the same login for robot and superuser, '
-              'please specify another login.')
-        sys.exit(1)
+        sys.exit('Cannot use the same login for robot and superuser, '
+                 'please specify another login.')
 
     if (RepositoryTests.args.admin_username ==
             RepositoryTests.args.contributor_username):
-        print('Cannot use the same login for superuser and user, '
-              'please specify another login.')
-        sys.exit(1)
+        sys.exit('Cannot use the same login for superuser and user, '
+                 'please specify another login.')
 
     if (RepositoryTests.args.robot_username ==
             RepositoryTests.args.contributor_username):
-        print('Cannot use the same login for normal user and robot, '
-              'please specify another login.')
-        sys.exit(1)
+        sys.exit('Cannot use the same login for normal user and robot, '
+                 'please specify another login.')
 
     if not RepositoryTests.args.disable_mock:
         bitbucket_api.Client = bitbucket_api_mock.Client
