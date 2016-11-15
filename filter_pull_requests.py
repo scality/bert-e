@@ -81,10 +81,10 @@ def main():
                         help='Your Bitbucket password')
     parser.add_argument('your_mail',
                         help='Your Bitbucket email address')
-    parser.add_argument('--owner', default='scality',
-                        help='The owner of the repo (default: scality)')
-    parser.add_argument('--slug', default='ring',
-                        help='The repo\'s slug (default: ring)')
+    parser.add_argument('owner',
+                        help='The owner of the repo')
+    parser.add_argument('slug',
+                        help='The repo\'s slug')
 
     args = vars(parser.parse_args())
     logging.info(filter_pr(**args))

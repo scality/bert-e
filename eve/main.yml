@@ -1,6 +1,6 @@
 ---
 branches:
-  feature/*, bugfix/*, improvement/*, w/*, q/*:
+  user/*, feature/*, improvement/*, bugfix/*, w/*, q/*:
     stage: tests
 
 stages:

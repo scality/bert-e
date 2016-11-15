@@ -7,7 +7,7 @@ from jinja2 import Environment, FileSystemLoader
 def generate_fake_child_pr(version):
     return {
         'id': 2,
-        'source': {'branch': {'name': 'w/%s/feature/RING-1234' % version}},
+        'source': {'branch': {'name': 'w/%s/feature/TEST-1234' % version}},
         'destination': {'branch': {'name': 'development/%s' % version}}
     }
 
@@ -16,7 +16,7 @@ def generate_fake_main_pr(version):
     return {
         'id': 1,
         'author': {'username': 'sam'},
-        'source': {'branch': {'name': '/feature/RING-1234'}},
+        'source': {'branch': {'name': '/feature/TEST-1234'}},
         'destination': {'branch': {'name': 'development/%s' % version}}
     }
 

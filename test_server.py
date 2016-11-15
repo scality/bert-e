@@ -39,9 +39,9 @@ class TestWebhookListener(unittest.TestCase):
         self.assertEqual(server.FIFO.unfinished_tasks, 1)
 
         job = server.FIFO.get()
-        self.assertEqual(job.repo_owner, u'scality')
+        self.assertEqual(job.repo_owner, u'test_owner')
         self.assertEqual(job.repo_slug, u'test_repo')
-        self.assertEqual(job.repo_settings, u'/bert-e/scality/test_repo')
+        self.assertEqual(job.repo_settings, u'/bert-e/test_owner/test_repo')
         self.assertEqual(job.revision, '1')
 
         server.FIFO.task_done()
