@@ -10,7 +10,7 @@ import bitbucket_api
 
 
 """
-TODOs: turn this script into a part of the Wall-E CLI.
+TODOs: turn this script into a part of the Bert-E CLI.
 This is for manual usage for now.
 """
 
