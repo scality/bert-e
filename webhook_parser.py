@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """A python script that parses the data sent by bitbucket in Json,
-and extracts the information required to launch Wall-E.
+and extracts the information required to launch Bert-E.
 
 The information is stored in a filename in the format key:value.
 

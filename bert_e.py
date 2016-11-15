@@ -103,7 +103,7 @@ DEFAULT_OPTIONAL_SETTINGS = {
     'admins': []
 }
 
-# This variable is used to get an introspectable status that Esteban can
+# This variable is used to get an introspectable status that the server can
 # display.
 STATUS = {}
 
