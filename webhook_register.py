@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-""" A simple script used to register the Bitbucket WebHook required by Wall-E.
+""" A simple script used to register the Bitbucket WebHook required by Bert-E.
 
     It needs credentials that have the permission to add/delete webhooks
 """
@@ -37,7 +37,7 @@ EVENTS = (
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Launches Wall-E tests.')
+    parser = argparse.ArgumentParser(description='Launches Bert-E tests.')
     parser.add_argument('repo_owner',
                         help='The repo owner')
     parser.add_argument('repo_slug',
@@ -55,14 +55,14 @@ def main():
         'url': args.url,
         'active': True,
         'events': EVENTS,
-        'description': 'Wall-E',
+        'description': 'Bert-E',
 
     }
     bbconn = bitbucket_api.Client(args.login, args.password, None)
     bbrepo = bitbucket_api.Repository(bbconn, owner=args.repo_owner,
                                       repo_slug=args.repo_slug)
 
-    bbrepo.delete_webhooks_with_title('Wall-E')
+    bbrepo.delete_webhooks_with_title('Bert-E')
     bbrepo.create_webhook(**request)
 
 

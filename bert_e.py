@@ -1469,7 +1469,7 @@ class BertE:
 
     def _jira_get_issue(self, issue_id):
         try:
-            issue = jira_api.JiraIssue(issue_id=issue_id, login='wall_e',
+            issue = jira_api.JiraIssue(issue_id=issue_id, login='bert_e',
                                        passwd=self._bbconn.auth.password)
         except JIRAError as e:
             if e.status_code == 404:

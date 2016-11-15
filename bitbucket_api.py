@@ -37,7 +37,7 @@ class Client(Session):
         Session.__init__(self)
         headers = {
             'Accept': 'application/json',
-            'User-Agent': 'Wall-E',
+            'User-Agent': 'Bert-E',
             'Content-type': 'application/json',
             'From': bitbucket_mail}
         self.mail = bitbucket_mail
