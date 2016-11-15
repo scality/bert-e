@@ -81,7 +81,7 @@ def bert_e_launcher():
         finally:
             FIFO.task_done()
 
-            logging.debug("It took Esteban %s to handle job %s:%s",
+            logging.debug("It took the server %s to handle job %s:%s",
                           datetime.now() - job.start_time,
                           job.repo_slug, job.revision)
             DONE.appendleft((job, status))
