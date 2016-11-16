@@ -1,6 +1,14 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [2.0.4] - 2016-11-16
+# Changed
+- moved settings to per-project files
+- renamed tools to Bert-E / server
+- update documentation files
+# Added
+- added user documentation
+
 ## [2.0.3] - 2016-10-20
 # Fixed
 - improve robustness against QueueConflict exceptions
