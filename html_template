@@ -1,0 +1,54 @@
+<html>
+<h2>Bert-E status</h2><p>
+
+{%- if cur_job is defined  and cur_job != [] %}
+<b>Current job:</b><br>
+&emsp;[{{ cur_job['start_time'] }}] {{ cur_job['repo_owner'] }}/{{ cur_job['repo_slug'] }} - {{ cur_job['revision'] }}<br>
+<p>
+{% endif %}
+
+{%- if merged_prs is defined and merged_prs != [] %}
+<b>Recently merged Pull Requests:</b><br>
+{%- for pr_id in merged_prs %}
+&emsp;* {{ pr_id }}<br>
+{%- endfor %}
+<p>
+{% endif %}
+
+{%- if merge_queue is defined and merge_queue|length > 1 %}
+<b>Merge queue status:</b><br>
+<table>
+<tr>
+<td>
+&emsp;
+</td>
+<td>
+<table border="1" cellpadding="10">
+{%- for line in merge_queue %}
+{%- set line_length=line|length %}
+{%- set line_format='<tr align="center">' + '<td>%s</td>'*line_length + '</tr>' %}
+{{ line_format|format(*line) }}
+{%- endfor %}
+</table>
+</td>
+</tr>
+</table>
+<p>
+{% endif %}
+
+{%- if pending_jobs is defined %}
+<b>{{ pending_jobs|length }} pending jobs:</b><br>
+{%- for job in pending_jobs %}
+&emsp;* [{{ job['start_time'] }}] {{ job['repo_owner'] }}/{{ job['repo_slug'] }} - {{ job['revision'] }}<br>
+{%- endfor %}
+<p>
+{% endif %}
+
+{%- if completed_jobs is defined and completed_jobs != [] %}
+<b>Completed jobs:</b><br>
+{%- for job in completed_jobs %}
+&emsp;* [{{ job[1]['start_time'] }}] {{ job[1]['repo_owner'] }}/{{ job[1]['repo_slug'] }} - {{ job[1]['revision'] }} -> {{ job[0] }}<br>
+{%- endfor %}
+<p>
+{% endif %}
+</html>

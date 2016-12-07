@@ -277,7 +277,7 @@ COMMIT_STATUS_CREATED = {
         u'href': u'https://api.bitbucket.org/2.0/repositories/test_owner/bert-e/commit/b97b433b41405f157c51ca1336c21583413b87f3/statuses/build/pre-merge'
       }
     },
-    u'url': u'https://eve.devsca.com/bert-e/#builders/14/builds/1',
+    u'url': u'https://pipeline.example.com/bert-e/#builders/14/builds/1',
     u'created_on': u'2016-09-20T08:38:05.255626+00:00',
     u'repository': {
       u'links': {

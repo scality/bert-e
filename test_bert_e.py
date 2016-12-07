@@ -90,6 +90,8 @@ repository_owner: {owner}
 repository_slug: {slug}
 robot_username: {robot}
 robot_email: nobody@nowhere.com
+pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
+commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
 build_key: pre-merge
 required_peer_approvals: 2
 prefixes:
@@ -2141,6 +2143,8 @@ repository_owner: {owner}
 repository_slug: {slug}
 robot_username: {robot}
 robot_email: nobody@nowhere.com
+pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
+commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
 build_key: pre-merge
 required_peer_approvals: 0
 admins:
@@ -2162,6 +2166,8 @@ repository_owner: {owner}
 repository_slug: {slug}
 robot_username: {robot}
 robot_email: nobody@nowhere.com
+pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
+commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
 build_key
 required_peer_approvals: 0
 """
@@ -2181,6 +2187,8 @@ repository_owner: {owner}
 repository_slug: {slug}
 robot_username: {robot}
 robot_email: nobody@nowhere.com
+pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
+commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
 build_key: toto
 # comment
 required_peer_approvals: 0
@@ -2209,6 +2217,8 @@ admins:
 repository_slug: {slug}
 robot_username: {robot}
 robot_email: nobody@nowhere.com
+pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
+commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
 build_key: pre-merge
 required_peer_approvals: 2
 admins:

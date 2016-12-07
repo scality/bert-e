@@ -100,7 +100,7 @@ optional arguments:
 ```
 #!bash
 usage: server.py [-h] [--host HOST] [--port PORT]
-                 [--settings-dir SETTINGS_DIR] [--verbose]
+                 [--settings-file SETTINGS_FILE] [--verbose]
 
 Handles webhook calls.
 
@@ -108,9 +108,8 @@ optional arguments:
   -h, --help            show this help message and exit
   --host HOST           server host (defaults to 0.0.0.0)
   --port PORT, -p PORT  server port (defaults to 5000)
-  --settings-dir SETTINGS_DIR, -d SETTINGS_DIR
-                        directory where settings files are stored (defaults to
-                        /etc/bert-e/projects)
+  --settings-file SETTINGS_FILE, -f SETTINGS_FILE
+                        settings-file location
   --verbose, -v         verbose mode
 ```
 
@@ -121,7 +120,7 @@ First you have to export the following environment variables:
 * `WEBHOOK_LOGIN`, `WEBHOOK_PWD` The HTTP BasicAuth credentials used to
   authenticate the requests sent to server.py by Bitbucket.
 
-Ensure settings-dir contains configuration files for the projects you want
+Ensure settings-file contains configuration for the project you want
 Bert-E to handle. A commented sample file is included (settings.sample.yml).
 Place the template in a file called:
 

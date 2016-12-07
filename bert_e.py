@@ -2308,7 +2308,8 @@ def setup_settings(settings_file):
     # check settings type and presence
     for setting_ in ['repository_owner', 'repository_slug',
                      'robot_username', 'robot_email', 'build_key',
-                     'jira_account_url', 'jira_username']:
+                     'jira_account_url', 'jira_username',
+                     'pull_request_base_url', 'commit_base_url']:
         if setting_ not in settings:
             raise MissingMandatorySetting(settings_file)
 

@@ -18,6 +18,7 @@
 launches, Bert-E accordingly.
 """
 import argparse
+import jinja2
 import json
 import logging
 import os
@@ -46,6 +47,9 @@ FIFO = queue.Queue()
 DONE = deque(maxlen=1000)
 CODE_NAMES = {}
 
+TXT_TEMPLATE = "txt_template"
+HTML_TEMPLATE = "html_template"
+
 try:
     SENTRY = Sentry(APP, logging=True, level=logging.INFO,
                     dsn=os.environ['SENTRY_DSN'])
@@ -63,6 +67,18 @@ for name in dir(bert_e_exceptions):
     if not issubclass(obj, bert_e_exceptions.BertE_Exception):
         continue
     CODE_NAMES[obj.code] = name
+
+
+def revision_link(revision):
+    # Hack to make the difference between git commit and pull request id
+    revision_length = len(revision)
+    if revision_length == 40 or revision_length == 12:
+        link = '<a href="%s">%s</a>' % (
+                APP.config['COMMIT_BASE_URL'].format(commit_id=revision), revision)
+    else:
+        link = '<a href="%s">%s</a>' % (
+                APP.config['PULL_REQUEST_BASE_URL'].format(pr_id=revision.replace('#', '')), revision)
+    return link
 
 
 def bert_e_launcher():
@@ -134,66 +150,96 @@ def requires_auth(func):
 
 @APP.route('/', methods=['GET'])
 def display_queue():
-    output = []
+    output_mode = request.args.get('output')
+    if output_mode is None:
+        output_mode = 'html'
 
     merged_prs = bert_e.STATUS.get('merged PRs', [])
     merge_queue = bert_e.STATUS.get('merge queue', None)
     cur_job = bert_e.STATUS.get('current job', None)
 
     tasks = FIFO.queue
+
+    output_vars = {}
+
     if cur_job is not None:
-        output.append('Current job: [{3}] {0}/{1} - {2}\n'.format(*cur_job))
+        if output_mode == 'html':
+            current_job = Job(cur_job.repo_owner, cur_job.repo_slug,
+                              revision_link(cur_job.revision),
+                              cur_job.start_time, cur_job.repo_settings)
+        else:
+            current_job = cur_job
+        output_vars['cur_job'] = current_job
 
     if merged_prs:
-        output.append('Recently merged Pull Requests:')
-        output.extend('* #{}'.format(pr_id) for pr_id in merged_prs)
-        output.append('')
+        output_vars['merged_prs'] = []
+        for i in merged_prs:
+            if output_mode == 'html':
+                output_vars['merged_prs'].append(revision_link('#%d' % i))
+            else:
+                output_vars['merged_prs'].append('#%d' % i)
 
     if merge_queue:
-        output.append('Merge queue status:')
         versions = set()
         for queued_commits in merge_queue.values():
             for version, _ in queued_commits:
                 versions.add(version)
 
         versions = sorted(versions, reverse=True)
-        header = (' ' * 10) + ''.join('{:^15}'.format(v) for v in versions)
 
-        output.append(header)
+        headers = [(' ' * 10)]
+        headers.extend('{:^15}'.format(v) for v in versions)
+        output_vars['merge_queue'] = [headers]
         for pr_id, queued_commits in merge_queue.items():
             if int(pr_id) in merged_prs:
                 continue
             build_status = {}
             for version, sha1 in queued_commits:
                 build = BUILD_STATUS_CACHE['pre-merge'].get(sha1, 'INPROGRESS')
-                build_status[version] = build
+                if output_mode == 'html':
+                    url = BUILD_STATUS_CACHE['pre-merge'].get('%s-build' %
+                                                              sha1, '')
+                    build_status[version] = '<a href="%s">%s</a>' % (url,
+                                                                     build)
+                else:
+                    build_status[version] = '{:^15}'.format(build)
 
-            output.append(
-                '{:^10}{}'.format(
-                    '#{}'.format(pr_id),
-                    ''.join(
-                        '{:^15}'.format(build_status.get(v, ''))
-                        for v in versions
-                    )
-                )
-            )
-        if output[-1] == header:
-            output.pop()
-            output.pop()
-        else:
-            output.append('')
+            if output_mode == 'html':
+                merge_queue_pr = [revision_link('#' + pr_id)]
+            else:
+                merge_queue_pr = ['{:^10}'.format('#' + pr_id)]
 
-    output.append('{0} pending jobs:'.format(len(tasks)))
-    output.extend('* [{start_time}] {repo_owner}/{repo_slug} - '
-                  '{revision}'.format(**job._asdict()) for job in tasks)
-    output.append('\nCompleted jobs:')
-    output.extend('* [{start_time}] {repo_owner}/{repo_slug} - '
-                  '{revision} -> {status}'.format(
-                      status=status,
-                      **job._asdict()
-                  ) for job, status in DONE)
+            merge_queue_pr.extend(build_status.get(v, ' ' * 15)
+                                  for v in versions)
 
-    return Response('\n'.join(output), mimetype='text/plain')
+            output_vars['merge_queue'].append(merge_queue_pr)
+
+    output_vars['pending_jobs'] = []
+    for i in tasks:
+        if output_mode == 'html':
+            i = Job(i.repo_owner, i.repo_slug, revision_link(i.revision),
+                    i.start_time, i.repo_settings)
+        output_vars['pending_jobs'].append(i._asdict())
+
+    output_vars['completed_jobs'] = []
+    for i, j in DONE:
+        if output_mode == 'html':
+            i = Job(i.repo_owner, i.repo_slug, revision_link(i.revision),
+                    i.start_time, i.repo_settings)
+        output_vars['completed_jobs'].append([j, i._asdict()])
+
+    if output_mode == 'txt':
+        output_mimetype = 'text/plain'
+        path_template, file_template = os.path.split(TXT_TEMPLATE)
+    else:
+        output_mimetype = 'text/html'
+        path_template, file_template = os.path.split(HTML_TEMPLATE)
+
+    output_render = jinja2.Environment(
+        loader=jinja2.FileSystemLoader(path_template or './')
+    ).get_template(file_template).render(output_vars)
+
+    return Response(output_render, mimetype=output_mimetype)
 
 
 @APP.route('/bitbucket', methods=['POST'])
@@ -206,8 +252,18 @@ def parse_bitbucket_webhook():
     json_data = json.loads(request.data)
     repo_owner = json_data['repository']['owner']['username']
     repo_slug = json_data['repository']['name']
-    settings_dir = APP.config.get('SETTINGS_DIR')
-    repo_settings = settings_dir + '/' + repo_owner + '/' + repo_slug
+
+    if repo_owner != APP.config['REPOSITORY_OWNER']:
+        logging.error('received repo_owner (%s) incompatible with settings' %
+                      repo_owner)
+        return Response('Internal Server Error', 500)
+
+    if repo_slug != APP.config['REPOSITORY_SLUG']:
+        logging.error('received repo_slug (%s) incompatible with settings' %
+                      repo_slug)
+        return Response('Internal Server Error', 500)
+
+    repo_settings = APP.config.get('SETTINGS_FILE')
     revision = None
     if entity == 'repo':
         revision = handle_repo_event(event, json_data)
@@ -241,12 +297,14 @@ def handle_repo_event(event, json_data):
     if event in ['commit_status_created', 'commit_status_updated']:
         build_status = json_data['commit_status']['state']
         key = json_data['commit_status']['key']
+        build_url = json_data['commit_status']['url']
         commit_url = json_data['commit_status']['links']['commit']['href']
         commit_sha1 = commit_url.split('/')[-1]
 
         # If we don't have a successful build for this sha1, update the cache
         if BUILD_STATUS_CACHE[key].get(commit_sha1, None) != 'SUCCESSFUL':
             BUILD_STATUS_CACHE[key].set(commit_sha1, build_status)
+            BUILD_STATUS_CACHE[key].set('%s-build' % commit_sha1, build_url)
 
         # Ignore notifications that the build started
         if build_status == 'INPROGRESS':
@@ -278,10 +336,8 @@ def main():
                         help='server host (defaults to 0.0.0.0)')
     parser.add_argument('--port', '-p', type=int, default=5000,
                         help='server port (defaults to 5000)')
-    parser.add_argument('--settings-dir', '-d', action='store',
-                        default='/etc/bert-e/projects',
-                        help='directory where settings files are stored '
-                             '(defaults to /etc/bert-e/projects)')
+    parser.add_argument('--settings-file', '-f', type=str, required=True,
+                        help='settings-file location')
     parser.add_argument('--verbose', '-v', action='store_true', default=False,
                         help='verbose mode')
 
@@ -291,7 +347,14 @@ def main():
     worker = Thread(target=bert_e_launcher)
     worker.daemon = True
     worker.start()
-    APP.config['SETTINGS_DIR'] = args.settings_dir
+
+    settings = bert_e.setup_settings(args.settings_file)
+
+    APP.config['SETTINGS_FILE'] = args.settings_file
+    APP.config['PULL_REQUEST_BASE_URL'] = settings['pull_request_base_url']
+    APP.config['COMMIT_BASE_URL'] = settings['commit_base_url']
+    APP.config['REPOSITORY_OWNER'] = settings['repository_owner']
+    APP.config['REPOSITORY_SLUG'] = settings['repository_slug']
     APP.run(host=args.host, port=args.port, debug=args.verbose)
 
 

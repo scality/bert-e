@@ -39,6 +39,18 @@ robot_username: robot_username
 robot_email: nobody@nowhere.com
 
 
+# pull_request_base_url [MANDATORY]:
+#   The PR base url to link in status page
+#
+pull_request_base_url: https://bitbucket.org/foo/bar/pull-requests/{pr_id}
+
+
+# commit_base_url [MANDATORY]:
+#   The commit base url to link in status page
+#
+commit_base_url: https://bitbucket.org/foo/bar/commits/{commit_id}
+
+
 # build_key [OPTIONAL]:
 #   The label of the key to look for in bitbucket commit statuses.
 #
