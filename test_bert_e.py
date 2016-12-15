@@ -105,7 +105,7 @@ jira_keys:
   - TEST
 admins:
   - {admin}
-"""
+""" # noqa
 
 
 def initialize_git_repo(repo, username, usermail):
@@ -2149,7 +2149,7 @@ build_key: pre-merge
 required_peer_approvals: 0
 admins:
   - {admin}
-"""
+""" # noqa
         with self.assertRaises(BuildNotStarted):
             self.handle(
                 pr['id'],
@@ -2170,7 +2170,7 @@ pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{
 commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
 build_key
 required_peer_approvals: 0
-"""
+""" # noqa
         with self.assertRaises(IncorrectSettingsFile):
             self.handle(
                 pr['id'],
@@ -2194,7 +2194,7 @@ build_key: toto
 required_peer_approvals: 0
 admins:
   - {admin}
-"""
+""" # noqa
         self.set_build_status_on_pr_id(pr['id'], 'SUCCESSFUL')
         with self.assertRaises(BuildNotStarted):
             self.handle(
@@ -2223,7 +2223,7 @@ build_key: pre-merge
 required_peer_approvals: 2
 admins:
   - {admin}
-"""
+""" # noqa
         with self.assertRaises(MissingMandatorySetting):
             self.handle(
                 pr['id'],

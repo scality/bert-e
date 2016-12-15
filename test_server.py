@@ -38,9 +38,12 @@ class TestWebhookListener(unittest.TestCase):
         os.environ['WEBHOOK_PWD'] = 'dummy'
 
         server.APP.config['SETTINGS_FILE'] = '/bert-e/test_owner/test_repo'
-        server.APP.config['PULL_REQUEST_BASE_URL'] = 'https://bitbucket.org/foo/bar/pull-requests/{pr_id}'
-        server.APP.config['COMMIT_BASE_URL'] = 'https://bitbucket.org/foo/bar/commits/{commit_id}'
-        server.APP.config['REPOSITORY_OWNER'] = data['repository']['owner']['username']
+        server.APP.config['PULL_REQUEST_BASE_URL'] = \
+            'https://bitbucket.org/foo/bar/pull-requests/{pr_id}'
+        server.APP.config['COMMIT_BASE_URL'] = \
+            'https://bitbucket.org/foo/bar/commits/{commit_id}'
+        server.APP.config['REPOSITORY_OWNER'] = \
+            data['repository']['owner']['username']
         server.APP.config['REPOSITORY_SLUG'] = data['repository']['name']
 
         app = server.APP.test_client()
@@ -167,24 +170,29 @@ class TestWebhookListener(unittest.TestCase):
             assert exp in res.data
 
     def test_current_job_print(self):
-        job = server.Job("scality", "example", "456deadbeef12345678901234567890123456789", "2016-12-08 14:54:20.655930", "/dev/null")
+        job = server.Job("scality", "example",
+                         "456deadbeef12345678901234567890123456789",
+                         "2016-12-08 14:54:20.655930", "/dev/null")
         bert_e.STATUS['current job'] = job
 
         app = server.APP.test_client()
         res = app.get('/?output=txt')
 
-        assert 'Current job: [2016-12-08 14:54:20.655930] scality/example - 456deadbeef12345678901234567890123456789' in res.data
+        assert 'Current job: [2016-12-08 14:54:20.655930] scality/example - 456deadbeef12345678901234567890123456789' in res.data # noqa
 
     def test_pending_jobs_print(self):
 
-        job = server.Job("scality", "example", "123deadbeef12345678901234567890123456789", "2016-12-08 14:54:18.655930", "/dev/null")
+        job = server.Job("scality", "example",
+                         "123deadbeef12345678901234567890123456789",
+                         "2016-12-08 14:54:18.655930", "/dev/null")
         server.FIFO.put(job)
-        job = server.Job("scality", "example", "666", "2016-12-08 14:54:19.655930", "/dev/null")
+        job = server.Job("scality", "example", "666",
+                         "2016-12-08 14:54:19.655930", "/dev/null")
         server.FIFO.put(job)
 
         expected = (
             '2 pending jobs:',
-            '* [2016-12-08 14:54:18.655930] scality/example - 123deadbeef12345678901234567890123456789',
+            '* [2016-12-08 14:54:18.655930] scality/example - 123deadbeef12345678901234567890123456789', # noqa
             '* [2016-12-08 14:54:19.655930] scality/example - 666'
         )
 
@@ -196,8 +204,8 @@ class TestWebhookListener(unittest.TestCase):
 
         expected = (
             '<b>2 pending jobs:</b><br>',
-            '* [2016-12-08 14:54:18.655930] scality/example - <a href="https://bitbucket.org/foo/bar/commits/123deadbeef12345678901234567890123456789">123deadbeef12345678901234567890123456789</a><br>',
-            '* [2016-12-08 14:54:19.655930] scality/example - <a href="https://bitbucket.org/foo/bar/pull-requests/666">666</a><br>'
+            '* [2016-12-08 14:54:18.655930] scality/example - <a href="https://bitbucket.org/foo/bar/commits/123deadbeef12345678901234567890123456789">123deadbeef12345678901234567890123456789</a><br>', # noqa
+            '* [2016-12-08 14:54:19.655930] scality/example - <a href="https://bitbucket.org/foo/bar/pull-requests/666">666</a><br>' # noqa
         )
 
         app = server.APP.test_client()
@@ -208,15 +216,18 @@ class TestWebhookListener(unittest.TestCase):
 
     def test_completed_jobs_print(self):
 
-        job = server.Job("scality", "example", "123deadbeef12345678901234567890123456789", "2016-12-08 14:54:18.655930", "/dev/null")
+        job = server.Job("scality", "example",
+                         "123deadbeef12345678901234567890123456789",
+                         "2016-12-08 14:54:18.655930", "/dev/null")
         server.DONE.appendleft((job, "NothingToDo"))
-        job = server.Job("scality", "example", "666", "2016-12-08 14:54:19.655930", "/dev/null")
+        job = server.Job("scality", "example", "666",
+                         "2016-12-08 14:54:19.655930", "/dev/null")
         server.DONE.appendleft((job, "NothingToDo"))
 
         expected = (
             'Completed jobs:',
-            '* [2016-12-08 14:54:19.655930] scality/example - 666 -> NothingToDo',
-            '* [2016-12-08 14:54:18.655930] scality/example - 123deadbeef12345678901234567890123456789 -> NothingToDo'
+            '* [2016-12-08 14:54:19.655930] scality/example - 666 -> NothingToDo', # noqa
+            '* [2016-12-08 14:54:18.655930] scality/example - 123deadbeef12345678901234567890123456789 -> NothingToDo' # noqa
         )
 
         app = server.APP.test_client()
@@ -227,8 +238,8 @@ class TestWebhookListener(unittest.TestCase):
 
         expected = (
             '<b>Completed jobs:</b><br>',
-            '* [2016-12-08 14:54:19.655930] scality/example - <a href="https://bitbucket.org/foo/bar/pull-requests/666">666</a> -> NothingToDo<br>',
-            '* [2016-12-08 14:54:18.655930] scality/example - <a href="https://bitbucket.org/foo/bar/commits/123deadbeef12345678901234567890123456789">123deadbeef12345678901234567890123456789</a> -> NothingToDo<br>'
+            '* [2016-12-08 14:54:19.655930] scality/example - <a href="https://bitbucket.org/foo/bar/pull-requests/666">666</a> -> NothingToDo<br>', # noqa
+            '* [2016-12-08 14:54:18.655930] scality/example - <a href="https://bitbucket.org/foo/bar/commits/123deadbeef12345678901234567890123456789">123deadbeef12345678901234567890123456789</a> -> NothingToDo<br>' # noqa
         )
 
         app = server.APP.test_client()

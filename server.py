@@ -73,11 +73,13 @@ def revision_link(revision):
     # Hack to make the difference between git commit and pull request id
     revision_length = len(revision)
     if revision_length == 40 or revision_length == 12:
+        url = APP.config['COMMIT_BASE_URL']
         link = '<a href="%s">%s</a>' % (
-                APP.config['COMMIT_BASE_URL'].format(commit_id=revision), revision)
+                url.format(commit_id=revision), revision)
     else:
+        url = APP.config['PULL_REQUEST_BASE_URL']
         link = '<a href="%s">%s</a>' % (
-                APP.config['PULL_REQUEST_BASE_URL'].format(pr_id=revision.replace('#', '')), revision)
+                url.format(pr_id=revision.replace('#', '')), revision)
     return link
 
 
