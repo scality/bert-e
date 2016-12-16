@@ -10,7 +10,7 @@ $ git clone git@bitbucket.org:scality/bert-e.git
 $ cd bert-e
 $ virtualenv venv
 $ source venv/bin/activate
-$ pip install flake8 jira==1.0.3 requests==2.9.1 six-1.10.0 Jinja2==2.7.1
+$ pip install -r requirements.txt
 ```
 
 ### How do I ask Bert-E to merge a pull request? ###
