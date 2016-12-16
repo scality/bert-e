@@ -21,8 +21,8 @@ import re
 
 import six
 
-from .bitbucket_api import Repository as BitBucketRepository
-from .bitbucket_api import Client
+from .api.bitbucket import Repository as BitBucketRepository
+from .api.bitbucket import Client
 
 if six.PY2:
     import sys

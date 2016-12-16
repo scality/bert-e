@@ -49,3 +49,4 @@ stages:
       - ShellCommand:
           name: Coverage report
           command: coverage report bert_e/*.py
+                                   bert_e/api/*.py

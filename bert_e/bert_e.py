@@ -28,11 +28,12 @@ import six
 import yaml
 from jira.exceptions import JIRAError
 
-from . import bitbucket_api, jira_api
-from .exceptions import *
-from .git_api import Repository as GitRepository
-from .git_api import (Branch, CheckoutFailedException, MergeFailedException,
+from .api import bitbucket as bitbucket_api
+from .api import jira as jira_api
+from .api.git import Repository as GitRepository
+from .api.git import (Branch, CheckoutFailedException, MergeFailedException,
                       PushFailedException, RemoveFailedException)
+from .exceptions import *
 from .template_loader import render
 from .utils import RetryHandler
 

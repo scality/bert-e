@@ -25,7 +25,7 @@ import six
 from requests import HTTPError, Session
 from requests.auth import HTTPBasicAuth
 
-from .utils import LRUCache
+from ..utils import LRUCache
 
 if six.PY3:
     quote = urllib.parse.quote

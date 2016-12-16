@@ -22,7 +22,7 @@ from tempfile import mkdtemp
 
 import six
 
-from .simplecmd import CommandError, cmd
+from ..simplecmd import CommandError, cmd
 
 
 class Repository(object):

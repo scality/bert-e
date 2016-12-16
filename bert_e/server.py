@@ -32,7 +32,7 @@ from flask import Flask, Response, request
 from raven.contrib.flask import Sentry
 
 from . import bert_e, exceptions
-from .bitbucket_api import BUILD_STATUS_CACHE
+from .api.bitbucket import BUILD_STATUS_CACHE
 
 if sys.version_info.major < 3:
     import Queue as queue
