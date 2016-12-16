@@ -31,7 +31,7 @@ import jinja2
 from flask import Flask, Response, request
 from raven.contrib.flask import Sentry
 
-from . import bert_e, bert_e_exceptions
+from . import bert_e, exceptions
 from .bitbucket_api import BUILD_STATUS_CACHE
 
 if sys.version_info.major < 3:
@@ -58,11 +58,11 @@ Job = namedtuple('Job', ('repo_owner', 'repo_slug',
                          'revision', 'start_time', 'repo_settings'))
 
 # Populate code names.
-for name in dir(bert_e_exceptions):
-    obj = getattr(bert_e_exceptions, name)
+for name in dir(exceptions):
+    obj = getattr(exceptions, name)
     if not isinstance(obj, type):
         continue
-    if not issubclass(obj, bert_e_exceptions.BertE_Exception):
+    if not issubclass(obj, exceptions.BertE_Exception):
         continue
     CODE_NAMES[obj.code] = name
 

@@ -29,7 +29,7 @@ import yaml
 from jira.exceptions import JIRAError
 
 from . import bitbucket_api, jira_api
-from .bert_e_exceptions import *
+from .exceptions import *
 from .git_api import Repository as GitRepository
 from .git_api import (Branch, CheckoutFailedException, MergeFailedException,
                       PushFailedException, RemoveFailedException)

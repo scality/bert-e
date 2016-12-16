@@ -29,7 +29,7 @@ import requests
 
 from . import (bert_e, bitbucket_api, bitbucket_api_mock, jira_api,
                jira_api_mock)
-from .bert_e_exceptions import *
+from .exceptions import *
 from .git_api import Repository as GitRepository
 from .git_api import Branch
 from .simplecmd import CommandError, cmd
