@@ -17,13 +17,13 @@ stages:
           haltOnFailure: True
       - ShellCommand:
           name: flake8
-          command: flake8 *.py
+          command: flake8 bert_e/
       - ShellCommand:
           name: Bert-E server tests
-          command: coverage run -a test_server.py
+          command: coverage run -a bert_e/test_server.py
       - ShellCommand:
           name: Bert-E tests (no queue support)
-          command: coverage run -a test_bert_e.py
+          command: coverage run -a bert_e/test_bert_e.py
                      -v
                      --repo-prefix _test_bert_e_eve
                      --disable-queues
@@ -36,7 +36,7 @@ stages:
                      mock_admin_password
       - ShellCommand:
           name: Bert-E tests (with queue support)
-          command: coverage run -a test_bert_e.py
+          command: coverage run -a bert_e/test_bert_e.py
                      -v
                      --repo-prefix _test_bert_e_eve
                      mock_owner
@@ -48,4 +48,4 @@ stages:
                      mock_admin_password
       - ShellCommand:
           name: Coverage report
-          command: coverage report *.py
+          command: coverage report bert_e/*.py

@@ -239,9 +239,10 @@ def display_queue():
     else:
         output_mimetype = 'text/html'
         path_template, file_template = os.path.split(HTML_TEMPLATE)
+    root_path = os.path.dirname(os.path.abspath(__file__))
 
     output_render = jinja2.Environment(
-        loader=jinja2.FileSystemLoader(path_template or './')
+        loader=jinja2.FileSystemLoader(os.path.join(root_path, path_template))
     ).get_template(file_template).render(output_vars)
 
     return Response(output_render, mimetype=output_mimetype)

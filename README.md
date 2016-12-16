@@ -7,7 +7,7 @@ Scality's automated branch merging tool. Version 2.0.
 ```
 #!bash
 $ git clone git@bitbucket.org:scality/bert-e.git
-$ cd bert-e
+$ cd bert-e/bert_e
 $ virtualenv venv
 $ source venv/bin/activate
 $ pip install -r requirements.txt
@@ -139,6 +139,6 @@ You can access the monitoring page without authentication on
 ### How to Launch Static Checker File?
 
 ```
-$ flake8 *.py
+$ flake8 bert-e/
 ```
 
