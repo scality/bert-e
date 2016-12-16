@@ -31,10 +31,10 @@ from threading import Thread
 from flask import Flask, request, Response
 from raven.contrib.flask import Sentry
 
-from bitbucket_api import BUILD_STATUS_CACHE
+from .bitbucket_api import BUILD_STATUS_CACHE
 
-import bert_e
-import bert_e_exceptions
+from . import bert_e
+from . import bert_e_exceptions
 
 if sys.version_info.major < 3:
     import Queue as queue

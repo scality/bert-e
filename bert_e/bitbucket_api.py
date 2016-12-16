@@ -22,7 +22,7 @@ import six
 import urllib
 import logging
 
-from utils import LRUCache
+from .utils import LRUCache
 from requests import Session, HTTPError
 from requests.auth import HTTPBasicAuth
 

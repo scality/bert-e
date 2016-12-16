@@ -20,8 +20,8 @@ import re
 import six
 import logging
 
-from bitbucket_api import (Repository as BitBucketRepository,
-                           Client)
+from .bitbucket_api import (Repository as BitBucketRepository,
+                            Client)
 
 if six.PY2:
     import sys

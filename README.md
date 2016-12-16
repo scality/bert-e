@@ -17,10 +17,10 @@ $ pip install -r requirements.txt
 
 ```
 #!bash
-usage: bert_e.py [-h] [--disable-queues] [--option CMD_LINE_OPTIONS]
-                 [--interactive] [--no-comment] [-v] [--backtrace] 
-                 [--quiet]
-                 settings bitbucket_password jira_password token
+usage: python -m bert_e.bert_e [-h] [--disable-queues] [--option CMD_LINE_OPTIONS]
+                               [--interactive] [--no-comment] [-v] [--backtrace]
+                               [--quiet]
+                               settings bitbucket_password jira_password token
 
 Merges bitbucket pull requests.
 
@@ -52,10 +52,10 @@ If the text input `Old password` doesn't appear here:
 
 ```
 #!bash
-$ python test_bert_e.py <owner> \
-                        <bert_e_username> <bert_e_password> \
-                        <eva_username> <eva_password> \
-                        <your_login> <your_password>
+$ python -m bert_e.test_bert_e <owner> \
+                               <bert_e_username> <bert_e_password> \
+                               <eva_username> <eva_password> \
+                               <your_login> <your_password>
 .............................................................s........
 ----------------------------------------------------------------------
 Ran 103 tests in 152.139s
@@ -63,12 +63,12 @@ Ran 103 tests in 152.139s
 OK (skipped=2)
 
 
-$ python test_bert_e.py --help
-usage: test_bert_e.py [-h] [--repo-prefix REPO_PREFIX] [-v] [--failfast]
-                      [--disable-mock] [--disable-queues]
-                      owner bert_e_username bert_e_password eva_username
-                      eva_password your_login your_password
-                      [tests [tests ...]]
+$ python -m bert_e.test_bert_e --help
+usage: test_bert_e [-h] [--repo-prefix REPO_PREFIX] [-v] [--failfast]
+                   [--disable-mock] [--disable-queues]
+                   owner bert_e_username bert_e_password eva_username
+                   eva_password your_login your_password
+                   [tests [tests ...]]
 
 Launches Bert-E tests.
 
@@ -96,8 +96,8 @@ optional arguments:
 
 ```
 #!bash
-usage: server.py [-h] [--host HOST] [--port PORT]
-                 [--settings-file SETTINGS_FILE] [--verbose]
+usage: server [-h] [--host HOST] [--port PORT]
+              [--settings-file SETTINGS_FILE] [--verbose]
 
 Handles webhook calls.
 
@@ -126,7 +126,7 @@ Place the template in a file called:
 Then simply run:
 
 ```
-$ python server.py --host 0.0.0.0 --port 8080
+$ python -m bert_e.server --host 0.0.0.0 --port 8080
 ```
 
 The server is now listening for webhooks on

@@ -17,9 +17,9 @@
 
 import unittest
 
-from bitbucket_api import (Client,
-                           Repository as BitBucketRepository)
-from git_api import Repository as GitRepository
+from .bitbucket_api import (Client,
+                            Repository as BitBucketRepository)
+from .git_api import Repository as GitRepository
 
 
 class TestBitbucketApi(unittest.TestCase):

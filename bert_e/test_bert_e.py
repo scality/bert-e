@@ -25,64 +25,64 @@ from collections import OrderedDict
 from copy import deepcopy
 from hashlib import md5
 
-import bitbucket_api
-import bitbucket_api_mock
-import jira_api
-import jira_api_mock
+from . import bitbucket_api
+from . import bitbucket_api_mock
+from . import jira_api
+from . import jira_api_mock
 import requests
-import bert_e
-from git_api import Repository as GitRepository, Branch
-from simplecmd import cmd, CommandError
-from utils import RetryHandler
-from bert_e_exceptions import (AfterPullRequest,
-                               AuthorApprovalRequired,
-                               BranchHistoryMismatch,
-                               BranchNameInvalid,
-                               BuildInProgress,
-                               BuildFailed,
-                               BuildNotStarted,
-                               CommandNotImplemented,
-                               Conflict,
-                               DevBranchDoesNotExist,
-                               DevBranchesNotSelfContained,
-                               DeprecatedStabilizationBranch,
-                               HelpMessage,
-                               IncoherentQueues,
-                               IncorrectJiraProject,
-                               IncorrectSettingsFile,
-                               Merged,
-                               MissingJiraId,
-                               MissingMandatorySetting,
-                               NotEnoughCredentials,
-                               NothingToDo,
-                               NotMyJob,
-                               ParentPullRequestNotFound,
-                               PeerApprovalRequired,
-                               PullRequestDeclined,
-                               PullRequestSkewDetected,
-                               QueueConflict,
-                               Queued,
-                               QueuesNotValidated,
-                               QueueOutOfOrder,
-                               StatusReport,
-                               SuccessMessage,
-                               UnanimityApprovalRequired,
-                               UnknownCommand,
-                               UnrecognizedBranchPattern,
-                               UnsupportedMultipleStabBranches,
-                               UnsupportedTokenType,
-                               VersionMismatch,
-                               SilentException,
-                               TemplateException)
-from bert_e_exceptions import (MasterQueueDiverged,
-                               MasterQueueLateVsDev,
-                               MasterQueueLateVsInt,
-                               MasterQueueMissing,
-                               MasterQueueNotInSync,
-                               MasterQueueYoungerThanInt,
-                               QueueInclusionIssue,
-                               QueueIncomplete,
-                               QueueInconsistentPullRequestsOrder)
+from . import bert_e
+from .git_api import Repository as GitRepository, Branch
+from .simplecmd import cmd, CommandError
+from .utils import RetryHandler
+from .bert_e_exceptions import (AfterPullRequest,
+                                AuthorApprovalRequired,
+                                BranchHistoryMismatch,
+                                BranchNameInvalid,
+                                BuildInProgress,
+                                BuildFailed,
+                                BuildNotStarted,
+                                CommandNotImplemented,
+                                Conflict,
+                                DevBranchDoesNotExist,
+                                DevBranchesNotSelfContained,
+                                DeprecatedStabilizationBranch,
+                                HelpMessage,
+                                IncoherentQueues,
+                                IncorrectJiraProject,
+                                IncorrectSettingsFile,
+                                Merged,
+                                MissingJiraId,
+                                MissingMandatorySetting,
+                                NotEnoughCredentials,
+                                NothingToDo,
+                                NotMyJob,
+                                ParentPullRequestNotFound,
+                                PeerApprovalRequired,
+                                PullRequestDeclined,
+                                PullRequestSkewDetected,
+                                QueueConflict,
+                                Queued,
+                                QueuesNotValidated,
+                                QueueOutOfOrder,
+                                StatusReport,
+                                SuccessMessage,
+                                UnanimityApprovalRequired,
+                                UnknownCommand,
+                                UnrecognizedBranchPattern,
+                                UnsupportedMultipleStabBranches,
+                                UnsupportedTokenType,
+                                VersionMismatch,
+                                SilentException,
+                                TemplateException)
+from .bert_e_exceptions import (MasterQueueDiverged,
+                                MasterQueueLateVsDev,
+                                MasterQueueLateVsInt,
+                                MasterQueueMissing,
+                                MasterQueueNotInSync,
+                                MasterQueueYoungerThanInt,
+                                QueueInclusionIssue,
+                                QueueIncomplete,
+                                QueueInconsistentPullRequestsOrder)
 
 
 DEFAULT_SETTINGS = """

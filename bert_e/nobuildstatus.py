@@ -5,7 +5,7 @@ from __future__ import print_function
 import argparse
 import datetime
 
-import bitbucket_api
+from . import bitbucket_api
 
 
 """

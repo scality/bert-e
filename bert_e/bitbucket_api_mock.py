@@ -16,7 +16,7 @@
 # limitations under the License.
 
 import requests
-from git_api import Repository as GitRepository, Branch as GitBranch
+from .git_api import Repository as GitRepository, Branch as GitBranch
 
 
 def fake_user_dict(username):

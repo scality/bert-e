@@ -18,7 +18,7 @@
 
     It needs credentials that have the permission to add/delete webhooks
 """
-import bitbucket_api
+from . import bitbucket_api
 import argparse
 
 EVENTS = (
