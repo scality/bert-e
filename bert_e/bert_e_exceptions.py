@@ -17,7 +17,6 @@
 
 from .template_loader import render
 
-
 # When dont_repeat_if_in_history is None, Bert-E will look for the message
 # in the whole list of comments.
 NEVER_REPEAT = None

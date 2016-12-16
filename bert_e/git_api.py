@@ -21,7 +21,8 @@ from shutil import rmtree
 from tempfile import mkdtemp
 
 import six
-from .simplecmd import cmd, CommandError
+
+from .simplecmd import CommandError, cmd
 
 
 class Repository(object):

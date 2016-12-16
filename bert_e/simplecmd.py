@@ -17,7 +17,6 @@
 
 import logging
 import os
-import os.path
 import signal
 import sys
 

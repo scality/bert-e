@@ -18,8 +18,10 @@
 
     It needs credentials that have the permission to add/delete webhooks
 """
-from . import bitbucket_api
+
 import argparse
+
+from . import bitbucket_api
 
 EVENTS = (
     # 'issue:created',

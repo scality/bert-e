@@ -22,8 +22,9 @@ The information is stored in a filename in the format key:value.
 The script returns 0 on success and something else in the case
 of failure.
 """
-import sys
+
 import json
+import sys
 
 if __name__ == '__main__':
 

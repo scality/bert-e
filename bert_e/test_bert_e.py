@@ -25,16 +25,15 @@ from collections import OrderedDict
 from copy import deepcopy
 from hashlib import md5
 
-from . import bitbucket_api
-from . import bitbucket_api_mock
-from . import jira_api
-from . import jira_api_mock
 import requests
-from . import bert_e
-from .git_api import Repository as GitRepository, Branch
-from .simplecmd import cmd, CommandError
-from .utils import RetryHandler
+
+from . import (bert_e, bitbucket_api, bitbucket_api_mock, jira_api,
+               jira_api_mock)
 from .bert_e_exceptions import *
+from .git_api import Repository as GitRepository
+from .git_api import Branch
+from .simplecmd import CommandError, cmd
+from .utils import RetryHandler
 
 
 DEFAULT_SETTINGS = """

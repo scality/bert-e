@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from time import sleep
 from collections import deque
+from time import sleep
 
 
 class LRUCache(object):

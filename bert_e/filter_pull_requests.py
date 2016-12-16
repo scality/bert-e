@@ -16,12 +16,13 @@
 # limitations under the License.
 
 import argparse
-import re
-import six
 import logging
+import re
 
-from .bitbucket_api import (Repository as BitBucketRepository,
-                            Client)
+import six
+
+from .bitbucket_api import Repository as BitBucketRepository
+from .bitbucket_api import Client
 
 if six.PY2:
     import sys

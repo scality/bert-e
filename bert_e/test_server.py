@@ -16,16 +16,11 @@ import base64
 import json
 import os
 import unittest
-
-from .test_server_data import COMMENT_CREATED, COMMIT_STATUS_CREATED
-from copy import deepcopy
 from collections import OrderedDict
+from copy import deepcopy
 
-from . import bitbucket_api
-from .import bitbucket_api_mock
-
-from . import server
-from . import bert_e
+from . import bert_e, bitbucket_api, bitbucket_api_mock, server
+from .test_server_data import COMMENT_CREATED, COMMIT_STATUS_CREATED
 
 bitbucket_api.Client = bitbucket_api_mock.Client
 bitbucket_api.Repository = bitbucket_api_mock.Repository

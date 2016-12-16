@@ -18,23 +18,21 @@
 launches, Bert-E accordingly.
 """
 import argparse
-import jinja2
 import json
 import logging
 import os
 import sys
-from collections import namedtuple, deque
+from collections import deque, namedtuple
 from datetime import datetime
 from functools import wraps
 from threading import Thread
 
-from flask import Flask, request, Response
+import jinja2
+from flask import Flask, Response, request
 from raven.contrib.flask import Sentry
 
+from . import bert_e, bert_e_exceptions
 from .bitbucket_api import BUILD_STATUS_CACHE
-
-from . import bert_e
-from . import bert_e_exceptions
 
 if sys.version_info.major < 3:
     import Queue as queue

@@ -15,16 +15,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import json
+import logging
+import urllib
 from collections import defaultdict
 from string import Template
-import json
+
 import six
-import urllib
-import logging
+from requests import HTTPError, Session
+from requests.auth import HTTPBasicAuth
 
 from .utils import LRUCache
-from requests import Session, HTTPError
-from requests.auth import HTTPBasicAuth
 
 if six.PY3:
     quote = urllib.parse.quote

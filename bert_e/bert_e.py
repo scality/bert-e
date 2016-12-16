@@ -18,27 +18,23 @@
 import argparse
 import itertools
 import logging
+import re
 from collections import OrderedDict, deque
 from copy import deepcopy
 from functools import total_ordering
 from os.path import exists
 
-from . import bitbucket_api
-from . import jira_api
-import re
 import six
 import yaml
-from .git_api import (Repository as GitRepository,
-                      Branch,
-                      MergeFailedException,
-                      CheckoutFailedException,
-                      RemoveFailedException,
-                      PushFailedException)
 from jira.exceptions import JIRAError
+
+from . import bitbucket_api, jira_api
+from .bert_e_exceptions import *
+from .git_api import Repository as GitRepository
+from .git_api import (Branch, CheckoutFailedException, MergeFailedException,
+                      PushFailedException, RemoveFailedException)
 from .template_loader import render
 from .utils import RetryHandler
-from .bert_e_exceptions import *
-
 
 if six.PY3:
     raw_input = input
