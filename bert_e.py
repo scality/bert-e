@@ -1009,7 +1009,9 @@ class BertE:
             if len(self.token) in SHA1_LENGHT:
                 branches = self.repo.get_branches_from_sha1(self.token)
                 for branch in branches:
-                    if self.use_queue and branch.startswith('q/'):
+                    if self.use_queue and isinstance(
+                            branch_factory(self.repo, branch),
+                            QueueIntegrationBranch):
                         return self.handle_merge_queues()   # queued
 
                 return self.handle_pull_request_from_sha1(self.token)
