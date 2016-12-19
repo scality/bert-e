@@ -328,8 +328,9 @@ class IncoherentQueues(InternalException):
         """
         msg = 'The queues are in an incoherent state, ' \
               'I will block until the following points are resolved:\n' + \
-              '\n'.join([" - [{code}] {label}".format(
-                   code=error.code, label=error.msg) for error in errors])
+              '\n'.join([" - [{code}] {label}".format(code=error.code,
+                                                      label=error.msg)
+                         for error in errors])
         super(IncoherentQueues, self).__init__(msg)
 
 

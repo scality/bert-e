@@ -1899,15 +1899,15 @@ class BertE:
                 qint.create(qbranch, do_push=False)
                 to_push.append(qint)
         except MergeFailedException:
-            raise QueueConflict(
-                    active_options=self._get_active_options())
+            raise QueueConflict(active_options=self._get_active_options())
 
         self._push(to_push)
 
     def _already_in_queue(self, integration_branches):
-        qint_branches = [self._get_queue_integration_branch(
-                             self._pr.bb_pr['id'], w)
-                         for w in integration_branches]
+        qint_branches = [
+            self._get_queue_integration_branch(self._pr.bb_pr['id'], w)
+            for w in integration_branches
+        ]
         exist = [q.exists() for q in qint_branches]
         return any(exist)
 

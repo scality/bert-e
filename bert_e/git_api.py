@@ -168,7 +168,7 @@ class Repository(object):
                             ' %s\n'
                             '[%s retry left]', command, retry)
             time.sleep(120)  # helps stabilize requests to bitbucket
-            ret = self.cmd(command, retry=retry-1, **kwargs)
+            ret = self.cmd(command, retry=retry - 1, **kwargs)
         return ret
 
 

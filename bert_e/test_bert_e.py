@@ -121,13 +121,14 @@ def initialize_git_repo(repo, username, usermail):
     for major, minor, micro in [(4, 3, 18), (5, 1, 4), (6, 0, 0)]:
         major_minor = "%s.%s" % (major, minor)
         full_version = "%s.%s.%s" % (major, minor, micro)
-        create_branch(repo, 'release/'+major_minor, do_push=False)
-        create_branch(repo, 'stabilization/'+full_version,
-                      'release/'+major_minor, file_=True, do_push=False)
-        create_branch(repo, 'development/'+major_minor,
-                      'stabilization/'+full_version, file_=True, do_push=False)
+        create_branch(repo, 'release/' + major_minor, do_push=False)
+        create_branch(repo, 'stabilization/' + full_version,
+                      'release/' + major_minor, file_=True, do_push=False)
+        create_branch(repo, 'development/' + major_minor,
+                      'stabilization/' + full_version, file_=True,
+                      do_push=False)
         if major != 6:
-            repo.cmd('git tag %s.%s.%s', major, minor, micro-1)
+            repo.cmd('git tag %s.%s.%s', major, minor, micro - 1)
 
     repo.cmd('git branch -d master')
     # the following command fail randomly on bitbucket, so retry
@@ -152,7 +153,7 @@ def add_file_to_branch(repo, branch_name, file_name, do_push=True):
     repo.cmd('git commit -m "adds %s file on %s"' % (file_name, branch_name))
     if do_push:
         repo.cmd('git pull || exit 0')
-        repo.cmd('git push --set-upstream origin '+branch_name)
+        repo.cmd('git push --set-upstream origin ' + branch_name)
 
 
 def rebase_branch(repo, branch_name, on_branch):
@@ -270,7 +271,7 @@ class QuickTest(unittest.TestCase):
     def test_branch_cascade_from_master(self):
         destination = 'master'
         branches = OrderedDict({
-            1: {'name': 'master',               'ignore': True}
+            1: {'name': 'master', 'ignore': True}
         })
         tags = []
         fixver = []
@@ -280,8 +281,8 @@ class QuickTest(unittest.TestCase):
     def test_branch_cascade_from_dev_with_master(self):
         destination = 'development/1.0'
         branches = OrderedDict({
-            1: {'name': 'master',               'ignore': True},
-            2: {'name': 'development/1.0',      'ignore': True}
+            1: {'name': 'master', 'ignore': True},
+            2: {'name': 'development/1.0', 'ignore': True}
         })
         tags = []
         fixver = []
@@ -292,10 +293,10 @@ class QuickTest(unittest.TestCase):
         destination = 'stabilization/4.3.18'
         branches = OrderedDict({
             1: {'name': 'stabilization/4.3.18', 'ignore': False},
-            2: {'name': 'development/4.3',      'ignore': False},
-            3: {'name': 'development/5.1',      'ignore': False},
-            4: {'name': 'stabilization/5.1.4',  'ignore': True},
-            5: {'name': 'development/6.0',      'ignore': False}
+            2: {'name': 'development/4.3', 'ignore': False},
+            3: {'name': 'development/5.1', 'ignore': False},
+            4: {'name': 'stabilization/5.1.4', 'ignore': True},
+            5: {'name': 'development/6.0', 'ignore': False}
         })
         tags = ['4.3.16', '4.3.17', '4.3.18_rc1', '5.1.3', '5.1.4_rc1']
         fixver = ['4.3.18', '5.1.5', '6.0.0']
@@ -311,10 +312,10 @@ class QuickTest(unittest.TestCase):
         destination = 'stabilization/5.1.4'
         branches = OrderedDict({
             1: {'name': 'stabilization/4.3.18', 'ignore': True},
-            2: {'name': 'development/4.3',      'ignore': True},
-            3: {'name': 'stabilization/5.1.4',  'ignore': False},
-            4: {'name': 'development/5.1',      'ignore': False},
-            5: {'name': 'development/6.0',      'ignore': False}
+            2: {'name': 'development/4.3', 'ignore': True},
+            3: {'name': 'stabilization/5.1.4', 'ignore': False},
+            4: {'name': 'development/5.1', 'ignore': False},
+            5: {'name': 'development/6.0', 'ignore': False}
         })
         tags = ['4.3.16', '4.3.17', '4.3.18_t', '5.1.3', '5.1.4_rc1', '6.0.0']
         fixver = ['5.1.4', '6.0.1']
@@ -324,10 +325,10 @@ class QuickTest(unittest.TestCase):
         destination = 'development/4.3'
         branches = OrderedDict({
             1: {'name': 'stabilization/4.3.18', 'ignore': True},
-            2: {'name': 'development/4.3',      'ignore': False},
-            3: {'name': 'stabilization/5.1.4',  'ignore': True},
-            4: {'name': 'development/5.1',      'ignore': False},
-            5: {'name': 'development/6.0',      'ignore': False}
+            2: {'name': 'development/4.3', 'ignore': False},
+            3: {'name': 'stabilization/5.1.4', 'ignore': True},
+            4: {'name': 'development/5.1', 'ignore': False},
+            5: {'name': 'development/6.0', 'ignore': False}
         })
         tags = ['4.3.18_rc1', '5.1.3', '5.1.4_rc1', '4.3.16', '4.3.17']
         fixver = ['4.3.19', '5.1.5', '6.0.0']
@@ -337,10 +338,10 @@ class QuickTest(unittest.TestCase):
         destination = 'development/5.1'
         branches = OrderedDict({
             1: {'name': 'stabilization/4.3.18', 'ignore': True},
-            2: {'name': 'development/4.3',      'ignore': True},
-            3: {'name': 'stabilization/5.1.4',  'ignore': True},
-            4: {'name': 'development/5.1',      'ignore': False},
-            5: {'name': 'development/6.0',      'ignore': False}
+            2: {'name': 'development/4.3', 'ignore': True},
+            3: {'name': 'stabilization/5.1.4', 'ignore': True},
+            4: {'name': 'development/5.1', 'ignore': False},
+            5: {'name': 'development/6.0', 'ignore': False}
         })
         tags = ['4.3.16', '4.3.17', '4.3.18_rc1', '5.1.3', '5.1.4_rc1']
         fixver = ['5.1.5', '6.0.0']
@@ -350,10 +351,10 @@ class QuickTest(unittest.TestCase):
         destination = 'development/6.0'
         branches = OrderedDict({
             1: {'name': 'stabilization/4.3.18', 'ignore': True},
-            2: {'name': 'development/4.3',      'ignore': True},
-            3: {'name': 'stabilization/5.1.4',  'ignore': True},
-            4: {'name': 'development/5.1',      'ignore': True},
-            5: {'name': 'development/6.0',      'ignore': False}
+            2: {'name': 'development/4.3', 'ignore': True},
+            3: {'name': 'stabilization/5.1.4', 'ignore': True},
+            4: {'name': 'development/5.1', 'ignore': True},
+            5: {'name': 'development/6.0', 'ignore': False}
         })
         tags = ['4.3.16', '4.3.17', '4.3.18_rc1', '5.1.3', '5.1.4_rc1']
         fixver = ['6.0.0']
@@ -362,8 +363,8 @@ class QuickTest(unittest.TestCase):
     def test_branch_incorrect_stab_name(self):
         destination = 'development/6.0'
         branches = OrderedDict({
-            1: {'name': 'stabilization/6.0',    'ignore': True},
-            2: {'name': 'development/6.0',      'ignore': False}
+            1: {'name': 'stabilization/6.0', 'ignore': True},
+            2: {'name': 'development/6.0', 'ignore': False}
         })
         tags = ['6.0.0']
         fixver = ['6.0.1']
@@ -373,8 +374,8 @@ class QuickTest(unittest.TestCase):
     def test_branch_targetting_incorrect_stab_name(self):
         destination = 'stabilization/6.0'
         branches = OrderedDict({
-            1: {'name': 'stabilization/6.0',    'ignore': False},
-            2: {'name': 'development/6.0',      'ignore': False}
+            1: {'name': 'stabilization/6.0', 'ignore': False},
+            2: {'name': 'development/6.0', 'ignore': False}
         })
         tags = ['6.0.0']
         fixver = ['6.0.1']
@@ -385,7 +386,7 @@ class QuickTest(unittest.TestCase):
         destination = 'development/5.1'
         branches = OrderedDict({
             1: {'name': 'stabilization/4.3.18', 'ignore': False},
-            2: {'name': 'development/5.1',      'ignore': False}
+            2: {'name': 'development/5.1', 'ignore': False}
         })
         tags = ['4.3.17', '5.1.3']
         fixver = ['5.1.4']
@@ -396,7 +397,7 @@ class QuickTest(unittest.TestCase):
         destination = 'stabilization/4.3.18'
         branches = OrderedDict({
             1: {'name': 'stabilization/4.3.18', 'ignore': False},
-            2: {'name': 'development/5.1',      'ignore': False}
+            2: {'name': 'development/5.1', 'ignore': False}
         })
         tags = ['4.3.17', '5.1.3']
         fixver = ['4.3.18', '5.1.4']
@@ -408,7 +409,7 @@ class QuickTest(unittest.TestCase):
         branches = OrderedDict({
             1: {'name': 'stabilization/4.3.17', 'ignore': True},
             2: {'name': 'stabilization/4.3.18', 'ignore': False},
-            3: {'name': 'development/4.3',      'ignore': False}
+            3: {'name': 'development/4.3', 'ignore': False}
         })
         tags = []
         fixver = []
@@ -418,7 +419,7 @@ class QuickTest(unittest.TestCase):
     def test_branch_cascade_invalid_dev_branch(self):
         destination = 'development/4.3.17'
         branches = OrderedDict({
-            1: {'name': 'development/4.3.17',   'ignore': False}
+            1: {'name': 'development/4.3.17', 'ignore': False}
         })
         tags = []
         fixver = []
@@ -428,8 +429,8 @@ class QuickTest(unittest.TestCase):
     def test_tags_without_stabilization(self):
         destination = 'development/6.0'
         branches = OrderedDict({
-            1: {'name': 'development/5.1',      'ignore': True},
-            2: {'name': 'development/6.0',      'ignore': False}
+            1: {'name': 'development/5.1', 'ignore': True},
+            2: {'name': 'development/6.0', 'ignore': False}
         })
         merge_paths = [
             ['development/5.1', 'development/6.0']
@@ -471,8 +472,8 @@ class QuickTest(unittest.TestCase):
     def test_tags_with_stabilization(self):
         destination = 'stabilization/6.1.5'
         branches = OrderedDict({
-            1: {'name': 'stabilization/6.1.5',  'ignore': False},
-            2: {'name': 'development/6.1',      'ignore': False}
+            1: {'name': 'stabilization/6.1.5', 'ignore': False},
+            2: {'name': 'development/6.1', 'ignore': False}
         })
         merge_paths = [
             ['development/6.1'],
@@ -976,9 +977,9 @@ class TestBertE(RepositoryTests):
         self.assertEqual(retcode, AuthorApprovalRequired.code)
 
         # test approval on sub pr has not effect
-        pr_child = self.admin_bb.get_pull_request(pull_request_id=pr['id']+1)
+        pr_child = self.admin_bb.get_pull_request(pull_request_id=pr['id'] + 1)
         pr_child.approve()
-        retcode = self.handle(pr['id']+1, options=['bypass_jira_check'])
+        retcode = self.handle(pr['id'] + 1, options=['bypass_jira_check'])
         self.assertEqual(retcode, AuthorApprovalRequired.code)
 
         # Author adds approval
@@ -1093,7 +1094,7 @@ class TestBertE(RepositoryTests):
         retcode = self.handle(pr['id'], options=['bypass_jira_check'])
         self.assertEqual(retcode, AuthorApprovalRequired.code)
         # simulate a child pr update
-        retcode = self.handle(pr['id']+1,
+        retcode = self.handle(pr['id'] + 1,
                               options=self.bypass_all)
         self.assertEqual(retcode, SuccessMessage.code)
 
@@ -1272,7 +1273,7 @@ class TestBertE(RepositoryTests):
 
         # test no effect sub pr options
         sub_pr_admin = self.admin_bb.get_pull_request(
-            pull_request_id=pr['id']+1)
+            pull_request_id=pr['id'] + 1)
         sub_pr_admin.add_comment('@%s'
                                  ' bypass_author_approval'
                                  ' bypass_peer_approval'
@@ -1570,7 +1571,7 @@ class TestBertE(RepositoryTests):
                             backtrace=True)
 
             # Set build status on child pr
-            self.set_build_status_on_pr_id(pr['id']+1, 'SUCCESSFUL')
+            self.set_build_status_on_pr_id(pr['id'] + 1, 'SUCCESSFUL')
 
             # Add a new commit
             self.gitrepo.cmd('git checkout bugfix/TEST-00081')
@@ -1605,7 +1606,7 @@ class TestBertE(RepositoryTests):
                         backtrace=True)
 
         # Set build status on child pr
-        self.set_build_status_on_pr_id(pr['id']+1, 'SUCCESSFUL')
+        self.set_build_status_on_pr_id(pr['id'] + 1, 'SUCCESSFUL')
 
         # create hook
         try:
@@ -1659,9 +1660,9 @@ class TestBertE(RepositoryTests):
                         options=self.bypass_all_but(['bypass_build_status']),
                         backtrace=True)
         self.set_build_status_on_pr_id(pr['id'], 'FAILED')
-        self.set_build_status_on_pr_id(pr['id']+1, 'SUCCESSFUL')
-        self.set_build_status_on_pr_id(pr['id']+2, 'SUCCESSFUL')
-        self.set_build_status_on_pr_id(pr['id']+3, 'SUCCESSFUL')
+        self.set_build_status_on_pr_id(pr['id'] + 1, 'SUCCESSFUL')
+        self.set_build_status_on_pr_id(pr['id'] + 2, 'SUCCESSFUL')
+        self.set_build_status_on_pr_id(pr['id'] + 3, 'SUCCESSFUL')
         retcode = self.handle(
             pr['id'],
             options=self.bypass_all_but(['bypass_build_status']))
@@ -1677,27 +1678,30 @@ class TestBertE(RepositoryTests):
                         backtrace=True)
 
         # test non related build key
-        self.set_build_status_on_pr_id(pr['id']+1, 'SUCCESSFUL', key='pipelin')
-        self.set_build_status_on_pr_id(pr['id']+2, 'SUCCESSFUL', key='pipelin')
-        self.set_build_status_on_pr_id(pr['id']+3, 'SUCCESSFUL', key='pipelin')
+        self.set_build_status_on_pr_id(pr['id'] + 1, 'SUCCESSFUL',
+                                       key='pipelin')
+        self.set_build_status_on_pr_id(pr['id'] + 2, 'SUCCESSFUL',
+                                       key='pipelin')
+        self.set_build_status_on_pr_id(pr['id'] + 3, 'SUCCESSFUL',
+                                       key='pipelin')
         with self.assertRaises(BuildNotStarted):
             self.handle(pr['id'],
                         options=self.bypass_all_but(['bypass_build_status']),
                         backtrace=True)
 
         # test build status failed
-        self.set_build_status_on_pr_id(pr['id']+1, 'SUCCESSFUL')
-        self.set_build_status_on_pr_id(pr['id']+2, 'INPROGRESS')
-        self.set_build_status_on_pr_id(pr['id']+3, 'FAILED')
+        self.set_build_status_on_pr_id(pr['id'] + 1, 'SUCCESSFUL')
+        self.set_build_status_on_pr_id(pr['id'] + 2, 'INPROGRESS')
+        self.set_build_status_on_pr_id(pr['id'] + 3, 'FAILED')
         retcode = self.handle(
             pr['id'],
             options=self.bypass_all_but(['bypass_build_status']))
         self.assertEqual(retcode, BuildFailed.code)
 
         # test build status inprogress
-        self.set_build_status_on_pr_id(pr['id']+1, 'SUCCESSFUL')
-        self.set_build_status_on_pr_id(pr['id']+2, 'INPROGRESS')
-        self.set_build_status_on_pr_id(pr['id']+3, 'SUCCESSFUL')
+        self.set_build_status_on_pr_id(pr['id'] + 1, 'SUCCESSFUL')
+        self.set_build_status_on_pr_id(pr['id'] + 2, 'INPROGRESS')
+        self.set_build_status_on_pr_id(pr['id'] + 3, 'SUCCESSFUL')
         with self.assertRaises(BuildInProgress):
             self.handle(pr['id'],
                         options=self.bypass_all_but(['bypass_build_status']),
@@ -2031,11 +2035,11 @@ class TestBertE(RepositoryTests):
         branches = self.gitrepo.cmd(
             'git ls-remote origin w/*/bugfix/TEST-00001')
         assert len(branches)
-        pr_ = self.admin_bb.get_pull_request(pull_request_id=pr['id']+1)
+        pr_ = self.admin_bb.get_pull_request(pull_request_id=pr['id'] + 1)
         assert pr_['state'] == 'OPEN'
-        pr_ = self.admin_bb.get_pull_request(pull_request_id=pr['id']+2)
+        pr_ = self.admin_bb.get_pull_request(pull_request_id=pr['id'] + 2)
         assert pr_['state'] == 'OPEN'
-        pr_ = self.admin_bb.get_pull_request(pull_request_id=pr['id']+3)
+        pr_ = self.admin_bb.get_pull_request(pull_request_id=pr['id'] + 3)
         assert pr_['state'] == 'OPEN'
 
         pr.decline()
@@ -2049,11 +2053,11 @@ class TestBertE(RepositoryTests):
         branches = self.gitrepo.cmd(
             'git ls-remote origin w/*/bugfix/TEST-00001')
         assert branches == ''
-        pr_ = self.admin_bb.get_pull_request(pull_request_id=pr['id']+1)
+        pr_ = self.admin_bb.get_pull_request(pull_request_id=pr['id'] + 1)
         assert pr_['state'] == 'DECLINED'
-        pr_ = self.admin_bb.get_pull_request(pull_request_id=pr['id']+2)
+        pr_ = self.admin_bb.get_pull_request(pull_request_id=pr['id'] + 2)
         assert pr_['state'] == 'DECLINED'
-        pr_ = self.admin_bb.get_pull_request(pull_request_id=pr['id']+3)
+        pr_ = self.admin_bb.get_pull_request(pull_request_id=pr['id'] + 3)
         assert pr_['state'] == 'DECLINED'
 
         # check nothing bad happens if called again
@@ -2789,7 +2793,7 @@ class TestQueueing(RepositoryTests):
             assert self.gitrepo.remote_branch_exists(branch)
 
         # set build status
-        self.set_build_status_on_pr_id(pr['id']+1, 'SUCCESSFUL')
+        self.set_build_status_on_pr_id(pr['id'] + 1, 'SUCCESSFUL')
         self.set_build_status(sha1=sha1_w_5_1, state='SUCCESSFUL')
         self.set_build_status(sha1=sha1_w_6_0, state='FAILED')
         with self.assertRaises(NothingToDo):
@@ -2887,7 +2891,7 @@ class TestQueueing(RepositoryTests):
         retcode = self.handle(pr['id'], options=self.bypass_all)
         self.assertEqual(retcode, Queued.code)
 
-        self.set_build_status_on_pr_id(pr['id']+1, 'SUCCESSFUL')
+        self.set_build_status_on_pr_id(pr['id'] + 1, 'SUCCESSFUL')
         pr.decline()
 
         with self.assertRaises(PullRequestDeclined):
@@ -2904,7 +2908,7 @@ class TestQueueing(RepositoryTests):
         retcode = self.handle(pr['id'], options=self.bypass_all)
         self.assertEqual(retcode, Queued.code)
 
-        self.set_build_status_on_pr_id(pr['id']+1, 'SUCCESSFUL')
+        self.set_build_status_on_pr_id(pr['id'] + 1, 'SUCCESSFUL')
 
         # delete integration branch
         self.gitrepo.cmd('git fetch')
@@ -2948,7 +2952,7 @@ class TestQueueing(RepositoryTests):
         intq1.remove(do_push=True)
 
         sha1 = self.set_build_status_on_branch_tip(
-                'q/3/6.0/bugfix/TEST-00002', 'SUCCESSFUL')
+            'q/3/6.0/bugfix/TEST-00002', 'SUCCESSFUL')
 
         with self.assertRaises(IncoherentQueues):
             self.handle(sha1,
@@ -2997,7 +3001,7 @@ class TestQueueing(RepositoryTests):
         with self.assertRaises(NothingToDo):
             self.handle(pr['id'], options=self.bypass_all, backtrace=True)
 
-        self.set_build_status_on_pr_id(pr['id']+1, 'SUCCESSFUL')
+        self.set_build_status_on_pr_id(pr['id'] + 1, 'SUCCESSFUL')
 
         with self.assertRaises(Merged):
             self.handle(old_sha1,
@@ -3036,7 +3040,7 @@ class TestQueueing(RepositoryTests):
         with self.assertRaises(NothingToDo):
             self.handle(pr['id'], options=self.bypass_all, backtrace=True)
 
-        self.set_build_status_on_pr_id(pr['id']+1, 'SUCCESSFUL')
+        self.set_build_status_on_pr_id(pr['id'] + 1, 'SUCCESSFUL')
 
         with self.assertRaises(Merged):
             self.handle(old_sha1,
@@ -3054,7 +3058,7 @@ class TestQueueing(RepositoryTests):
         retcode = self.handle(pr['id'], options=self.bypass_all)
         self.assertEqual(retcode, Queued.code)
 
-        self.set_build_status_on_pr_id(pr['id']+1, 'SUCCESSFUL')
+        self.set_build_status_on_pr_id(pr['id'] + 1, 'SUCCESSFUL')
 
         # Add a new commit
         self.gitrepo.cmd('git fetch')
@@ -3097,8 +3101,8 @@ class TestQueueing(RepositoryTests):
         pr2 = self.create_pr('bugfix/TEST-00002', 'development/5.1')
         retcode = self.handle(pr2['id'], options=self.bypass_all)
         self.assertEqual(retcode, Queued.code)
-        self.set_build_status_on_pr_id(pr2['id']+1, 'SUCCESSFUL')
-        self.set_build_status_on_pr_id(pr2['id']+2, 'SUCCESSFUL')
+        self.set_build_status_on_pr_id(pr2['id'] + 1, 'SUCCESSFUL')
+        self.set_build_status_on_pr_id(pr2['id'] + 2, 'SUCCESSFUL')
         with self.assertRaises(Merged):
             self.handle(pr2['source']['commit']['hash'],
                         options=self.bypass_all,
@@ -3124,9 +3128,9 @@ class TestQueueing(RepositoryTests):
         retcode = self.handle(pr['id'], options=self.bypass_all)
         self.assertEqual(retcode, Queued.code)
 
-        self.set_build_status_on_pr_id(pr['id']+1, 'SUCCESSFUL')
-        self.set_build_status_on_pr_id(pr['id']+2, 'SUCCESSFUL')
-        self.set_build_status_on_pr_id(pr['id']+3, 'SUCCESSFUL')
+        self.set_build_status_on_pr_id(pr['id'] + 1, 'SUCCESSFUL')
+        self.set_build_status_on_pr_id(pr['id'] + 2, 'SUCCESSFUL')
+        self.set_build_status_on_pr_id(pr['id'] + 3, 'SUCCESSFUL')
 
         # introduce a new version, but not its queue branch
         self.gitrepo.cmd('git fetch')
@@ -3144,9 +3148,9 @@ class TestQueueing(RepositoryTests):
         retcode = self.handle(pr['id'], options=self.bypass_all)
         self.assertEqual(retcode, Queued.code)
 
-        self.set_build_status_on_pr_id(pr['id']+1, 'SUCCESSFUL')
-        self.set_build_status_on_pr_id(pr['id']+2, 'SUCCESSFUL')
-        self.set_build_status_on_pr_id(pr['id']+3, 'SUCCESSFUL')
+        self.set_build_status_on_pr_id(pr['id'] + 1, 'SUCCESSFUL')
+        self.set_build_status_on_pr_id(pr['id'] + 2, 'SUCCESSFUL')
+        self.set_build_status_on_pr_id(pr['id'] + 3, 'SUCCESSFUL')
 
         # delete a middle dev branch
         self.gitrepo.cmd('git push origin :development/5.1')
@@ -3175,8 +3179,8 @@ class TestQueueing(RepositoryTests):
         retcode = self.handle(pr['id'], options=self.bypass_all)
         self.assertEqual(retcode, Queued.code)
 
-        self.set_build_status_on_pr_id(pr['id']+1, 'SUCCESSFUL')
-        self.set_build_status_on_pr_id(pr['id']+2, 'SUCCESSFUL')
+        self.set_build_status_on_pr_id(pr['id'] + 1, 'SUCCESSFUL')
+        self.set_build_status_on_pr_id(pr['id'] + 2, 'SUCCESSFUL')
 
         # introduce a new stab, but not its queue branches
         self.gitrepo.cmd('git fetch')

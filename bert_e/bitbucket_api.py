@@ -43,7 +43,7 @@ BUILD_STATUS_CACHE = defaultdict(LRUCache)
 def fix_pull_request_title(title):
     if title < MAX_PR_TITLE_LEN:
         return title
-    return title[:MAX_PR_TITLE_LEN-4] + '...'
+    return title[:MAX_PR_TITLE_LEN - 4] + '...'
 
 
 class Client(Session):
