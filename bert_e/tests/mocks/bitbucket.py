@@ -17,8 +17,7 @@
 
 import requests
 
-from .git import Branch as GitBranch
-from .git import Repository as GitRepository
+from ...api.git import Repository as GitRepository, Branch as GitBranch
 
 
 def fake_user_dict(username):

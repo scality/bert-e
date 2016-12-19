@@ -19,9 +19,9 @@ import unittest
 from collections import OrderedDict
 from copy import deepcopy
 
-from . import bert_e, server
-from .api import bitbucket as bitbucket_api
-from .api import bitbucket_mock as bitbucket_api_mock
+from .. import bert_e, server
+from ..api import bitbucket as bitbucket_api
+from .mocks import bitbucket as bitbucket_api_mock
 from .test_server_data import COMMENT_CREATED, COMMIT_STATUS_CREATED
 
 bitbucket_api.Client = bitbucket_api_mock.Client

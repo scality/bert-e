@@ -52,10 +52,10 @@ If the text input `Old password` doesn't appear here:
 
 ```
 #!bash
-$ python -m bert_e.test_bert_e <owner> \
-                               <bert_e_username> <bert_e_password> \
-                               <eva_username> <eva_password> \
-                               <your_login> <your_password>
+$ python -m bert_e.tests.test_bert_e <owner> \
+                                     <bert_e_username> <bert_e_password> \
+                                     <eva_username> <eva_password> \
+                                     <your_login> <your_password>
 .............................................................s........
 ----------------------------------------------------------------------
 Ran 103 tests in 152.139s
@@ -63,12 +63,12 @@ Ran 103 tests in 152.139s
 OK (skipped=2)
 
 
-$ python -m bert_e.test_bert_e --help
-usage: test_bert_e [-h] [--repo-prefix REPO_PREFIX] [-v] [--failfast]
-                   [--disable-mock] [--disable-queues]
-                   owner bert_e_username bert_e_password eva_username
-                   eva_password your_login your_password
-                   [tests [tests ...]]
+$ python -m bert_e.tests.test_bert_e --help
+usage: test_bert_e.py [-h] [--repo-prefix REPO_PREFIX] [-v] [--failfast]
+                      [--disable-mock] [--disable-queues]
+                      owner bert_e_username bert_e_password eva_username
+                      eva_password your_login your_password
+                      [tests [tests ...]]
 
 Launches Bert-E tests.
 
@@ -96,8 +96,8 @@ optional arguments:
 
 ```
 #!bash
-usage: server [-h] [--host HOST] [--port PORT]
-              [--settings-file SETTINGS_FILE] [--verbose]
+usage: server.py [-h] [--host HOST] [--port PORT]
+                 [--settings-file SETTINGS_FILE] [--verbose]
 
 Handles webhook calls.
 
