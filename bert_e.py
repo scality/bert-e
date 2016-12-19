@@ -35,7 +35,6 @@ from git_api import (Repository as GitRepository,
                      RemoveFailedException,
                      PushFailedException)
 from jira.exceptions import JIRAError
-from simplecmd import CommandError
 from template_loader import render
 from utils import RetryHandler
 from bert_e_exceptions import (AfterPullRequest,
@@ -993,14 +992,6 @@ class BertE:
         self.repo = GitRepository(self.bbrepo.get_git_url())
         self.tmpdir = self.repo.tmp_directory
 
-    def test_sha1_in_queue(self, sha1):
-        cmd = 'git branch -r --contains %s "origin/q/*"'
-        try:
-            ret = self.repo.cmd(cmd, sha1)
-        except CommandError:
-            return False
-        return ret != ''
-
     def handler(self):
         """Determine the resolution path based on the input id.
 
@@ -1018,9 +1009,6 @@ class BertE:
             if len(self.token) in SHA1_LENGHT:
                 branches = self.repo.get_branches_from_sha1(self.token)
                 for branch in branches:
-                    if branch.startswith('development'):
-                        raise NothingToDo()   # already merged
-
                     if self.use_queue and branch.startswith('q/'):
                         return self.handle_merge_queues()   # queued
 
@@ -2056,7 +2044,6 @@ class BertE:
         # merged before.
         if self.destination_branch.includes_commit(self._pr.source_branch):
             raise NothingToDo()
-
 
         self._build_branch_cascade()
         self._validate_repo()
