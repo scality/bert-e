@@ -6,7 +6,7 @@ from __future__ import print_function
 import argparse
 import datetime
 
-from .api import bitbucket as bitbucket_api
+from ..api import bitbucket as bitbucket_api
 
 
 """
@@ -15,7 +15,7 @@ This is for manual usage for now.
 """
 
 
-def list_pull_requests(r, key):
+def list_pull_requests(r, key, time):
 
     for i in r.get_pull_requests():
         try:
@@ -30,8 +30,7 @@ def list_pull_requests(r, key):
             raise
 
 
-if __name__ == "__main__":
-
+def main():
     parser = argparse.ArgumentParser(description="PRs without build status")
     parser.add_argument('user', action="store", help="Username")
     parser.add_argument('pwd', action="store", help="Password")
@@ -55,4 +54,8 @@ if __name__ == "__main__":
 
     c = bitbucket_api.Client(user, pwd, email)
     r = bitbucket_api.Repository(c, owner=owner, repo_slug=repo)
-    list_pull_requests(r, key)
+    list_pull_requests(r, key, time)
+
+
+if __name__ == "__main__":
+    main()

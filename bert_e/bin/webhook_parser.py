@@ -26,8 +26,8 @@ of failure.
 import json
 import sys
 
-if __name__ == '__main__':
 
+def main():
     if len(sys.argv) != 3:
         print('Error: the script needs two arguments '
               '(properties filename and JSON string).')
@@ -70,3 +70,7 @@ if __name__ == '__main__':
         f.write("REPOSITORY_OWNER:%s\n" % owner)
 
     sys.exit(0)
+
+
+if __name__ == '__main__':
+    main()

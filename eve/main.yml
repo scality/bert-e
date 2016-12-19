@@ -50,4 +50,5 @@ stages:
           name: Coverage report
           command: coverage report bert_e/*.py
                                    bert_e/api/*.py
+                                   bert_e/bin/*.py
                                    bert_e/tests/*.py

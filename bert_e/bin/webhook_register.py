@@ -21,7 +21,7 @@
 
 import argparse
 
-from .api import bitbucket as bitbucket_api
+from ..api import bitbucket as bitbucket_api
 
 EVENTS = (
     # 'issue:created',
