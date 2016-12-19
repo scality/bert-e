@@ -17,7 +17,6 @@
 """A python daemon that listens for webhooks coming from bitbucket and
 launches, Bert-E accordingly.
 """
-import argparse
 import json
 import logging
 import os
@@ -25,7 +24,6 @@ import sys
 from collections import deque, namedtuple
 from datetime import datetime
 from functools import wraps
-from threading import Thread
 
 import jinja2
 from flask import Flask, Response, request
@@ -325,40 +323,3 @@ def handle_pullrequest_event(event, json_data):
     pr_id = json_data['pullrequest']['id']
     logging.info('The pull request <%s> has been updated', pr_id)
     return str(pr_id)
-
-
-def main():
-    """Program entry point."""
-    parser = argparse.ArgumentParser(
-        add_help=True,
-        description='Handles webhook calls.'
-    )
-
-    parser.add_argument('--host', type=str, default='0.0.0.0',
-                        help='server host (defaults to 0.0.0.0)')
-    parser.add_argument('--port', '-p', type=int, default=5000,
-                        help='server port (defaults to 5000)')
-    parser.add_argument('--settings-file', '-f', type=str, required=True,
-                        help='settings-file location')
-    parser.add_argument('--verbose', '-v', action='store_true', default=False,
-                        help='verbose mode')
-
-    args = parser.parse_args()
-
-    logging.basicConfig(level=logging.DEBUG if args.verbose else logging.INFO)
-    worker = Thread(target=bert_e_launcher)
-    worker.daemon = True
-    worker.start()
-
-    settings = bert_e.setup_settings(args.settings_file)
-
-    APP.config['SETTINGS_FILE'] = args.settings_file
-    APP.config['PULL_REQUEST_BASE_URL'] = settings['pull_request_base_url']
-    APP.config['COMMIT_BASE_URL'] = settings['commit_base_url']
-    APP.config['REPOSITORY_OWNER'] = settings['repository_owner']
-    APP.config['REPOSITORY_SLUG'] = settings['repository_slug']
-    APP.run(host=args.host, port=args.port, debug=args.verbose)
-
-
-if __name__ == '__main__':
-    main()

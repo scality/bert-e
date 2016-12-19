@@ -6,21 +6,20 @@ Scality's automated branch merging tool. Version 2.0.
 
 ```
 #!bash
-$ git clone git@bitbucket.org:scality/bert-e.git
-$ cd bert-e/bert_e
+$ mkdir bert-e && cd bert-e
 $ virtualenv venv
 $ source venv/bin/activate
-$ pip install -r requirements.txt
+$ pip install git+ssh://git@bitbucket.org/scality/bert-e.git
 ```
 
 ### How do I ask Bert-E to merge a pull request? ###
 
 ```
 #!bash
-usage: python -m bert_e.bert_e [-h] [--disable-queues] [--option CMD_LINE_OPTIONS]
-                               [--interactive] [--no-comment] [-v] [--backtrace]
-                               [--quiet]
-                               settings bitbucket_password jira_password token
+usage: bert_e [-h] [--disable-queues] [--option CMD_LINE_OPTIONS]
+              [--interactive] [--no-comment] [-v] [--backtrace]
+              [--quiet]
+              settings bitbucket_password jira_password token
 
 Merges bitbucket pull requests.
 
@@ -96,8 +95,8 @@ optional arguments:
 
 ```
 #!bash
-usage: server.py [-h] [--host HOST] [--port PORT]
-                 [--settings-file SETTINGS_FILE] [--verbose]
+usage: bert-e-serve [-h] [--host HOST] [--port PORT]
+                    [--settings-file SETTINGS_FILE] [--verbose]
 
 Handles webhook calls.
 
@@ -126,7 +125,7 @@ Place the template in a file called:
 Then simply run:
 
 ```
-$ python -m bert_e.server --host 0.0.0.0 --port 8080
+$ bert-e-serve --host 0.0.0.0 --port 8080
 ```
 
 The server is now listening for webhooks on
