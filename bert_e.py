@@ -990,7 +990,7 @@ class BertE:
         self.ref_git_repo = args.reference_git_repo
         self.token = args.token.strip()
         self.use_queue = not args.disable_queues
-        self.repo = self._clone_git_repo()
+        self.repo = GitRepository(self.bbrepo.get_git_url())
         self.tmpdir = self.repo.tmp_directory
 
     def test_sha1_in_queue(self, sha1):
@@ -1016,10 +1016,13 @@ class BertE:
         """
         try:
             if len(self.token) in SHA1_LENGHT:
-                # it is a sha1 (build status received),
-                # check if the sha1 belongs to a queue or a PR
-                if self.use_queue and self.test_sha1_in_queue(self.token):
-                    return self.handle_merge_queues()
+                branches = self.repo.get_branches_from_sha1(self.token)
+                for branch in branches:
+                    if branch.startswith('development'):
+                        raise NothingToDo()   # already merged
+
+                    if self.use_queue and branch.startswith('q/'):
+                        return self.handle_merge_queues()   # queued
 
                 return self.handle_pull_request_from_sha1(self.token)
 
@@ -1074,6 +1077,7 @@ class BertE:
 
     def handle_merge_queues(self):
         """Entry point to handle queues following a build status update."""
+        self._clone_git_repo()
         cascade = BranchCascade()
         cascade.build(self.repo)
         qc = self._validate_queues(cascade)
@@ -1207,7 +1211,7 @@ class BertE:
         return self._pr.bb_pr['state']
 
     def _clone_git_repo(self):
-        repo = GitRepository(self.bbrepo.get_git_url())
+        repo = self.repo
         repo.clone(self.ref_git_repo)
         repo.fetch_all_branches()
         repo.config('user.email', self.settings['robot_email'])
@@ -2037,6 +2041,13 @@ class BertE:
         src_branch_name = self._pr.bb_pr['source']['branch']['name']
         self._setup_source_branch(src_branch_name, dst_branch_name)
         self._setup_destination_branch(dst_branch_name)
+        self._check_if_ignored()
+
+        self._init_phase()
+        self._check_dependencies()
+
+        # Now we're actually going to work on the repository. Let's clone it.
+        self._clone_git_repo()
 
         if self._pr.bb_pr['state'] == 'DECLINED':
             self._handle_declined_pr()
@@ -2046,9 +2057,7 @@ class BertE:
         if self.destination_branch.includes_commit(self._pr.source_branch):
             raise NothingToDo()
 
-        self._check_if_ignored()
-        self._init_phase()
-        self._check_dependencies()
+
         self._build_branch_cascade()
         self._validate_repo()
         self._check_compatibility_src_dest()

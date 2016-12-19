@@ -15,6 +15,7 @@
 import logging
 import os
 import time
+from collections import defaultdict
 from pipes import quote
 from shutil import rmtree
 from tempfile import mkdtemp
@@ -28,6 +29,8 @@ class Repository(object):
         self._url = url
         self.tmp_directory = mkdtemp()
         self.cmd_directory = self.tmp_directory
+        self._remote_heads = defaultdict(set)
+        self._remote_branches = dict()
 
     def __enter__(self):
         return self
@@ -80,7 +83,30 @@ class Repository(object):
     def config(self, key, value):
         self.cmd('git config %s %s', key, value)
 
-    def remote_branch_exists(self, name):
+    def _get_remote_branches(self, force=False):
+        """Put remote branch information in cache.
+
+        Args:
+            - Force (bool): force cache refresh. Defaults to False.
+
+        """
+        output = ''
+        if not force and (self._remote_branches or self._remote_heads):
+            return
+        self._remote_heads = defaultdict(set)
+        self._remote_branches = dict()
+        try:
+            output = self.cmd('git ls-remote --heads %s', self._url)
+        except CommandError:
+            return
+
+        for line in output.splitlines():
+            sha, branch = line.split()
+            branch = branch.replace('refs/heads/', '').strip()
+            self._remote_heads[sha].add(branch)
+            self._remote_branches[branch] = sha
+
+    def remote_branch_exists(self, name, refresh_cache=False):
         """Test if a remote branch exists.
 
         Args:
@@ -89,22 +115,13 @@ class Repository(object):
         Returns:
             A boolean: True if the remote branch exists.
         """
-        try:
-            self.cmd('git ls-remote --heads --exit-code %s %s',
-                     self._url, name)
-        except CommandError:
-            return False
-
-        return True
+        self._get_remote_branches(refresh_cache)
+        return name in self._remote_branches
 
     def get_branches_from_sha1(self, sha1):
-        lines = self.cmd('git ls-remote --heads %s', self._url).splitlines()
-        branches = []
-        for line in lines:
-            line_sha1, reference = line.split()
-            if line_sha1 == sha1 and reference.startswith('refs/heads/'):
-                branches.append(reference.replace('refs/heads/', '').strip())
-        return branches
+        """Get branches corresponding to given sha1."""
+        self._get_remote_branches()
+        return self._remote_heads[sha1]
 
     def checkout(self, name):
         try:

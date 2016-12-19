@@ -1021,7 +1021,7 @@ class TestBertE(RepositoryTests):
             # check existence of integration branches
             for version in ['4.3', '5.1', '6.0']:
                 remote = 'w/%s/%s' % (version, feature_branch)
-                ret = self.gitrepo.remote_branch_exists(remote)
+                ret = self.gitrepo.remote_branch_exists(remote, True)
                 self.assertTrue(ret)
             remote = 'w/4.3.18/%s' % feature_branch
             ret = self.gitrepo.remote_branch_exists(remote)
@@ -2815,7 +2815,7 @@ class TestQueueing(RepositoryTests):
         for branch in ['q/4.3', 'q/5.1', 'q/6.0']:
             assert self.gitrepo.remote_branch_exists(branch)
         for branch in expected_branches:
-            assert not self.gitrepo.remote_branch_exists(branch)
+            assert not self.gitrepo.remote_branch_exists(branch, True)
         for dev in ['development/4.3', 'development/5.1', 'development/6.0']:
             branch = bert_e.branch_factory(self.gitrepo, dev)
             branch.checkout()
