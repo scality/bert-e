@@ -125,7 +125,7 @@ class TestWebhookListener(unittest.TestCase):
 
     def test_merge_queue_print(self):
         bert_e.STATUS['merge queue'] = OrderedDict([
-            ('4472', [
+            (4472, [
                 ('6.4', '4472/6.4'),
                 ('6.3', '4472/6.3'),
                 ('6.2', '4472/6.2')]),

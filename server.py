@@ -208,10 +208,11 @@ def display_queue():
                 else:
                     build_status[version] = '{:^15}'.format(build)
 
+            merge_queue_pr_id = '#%d' % int(pr_id)
             if output_mode == 'html':
-                merge_queue_pr = [revision_link('#%d' % int(pr_id))]
+                merge_queue_pr = [revision_link(merge_queue_pr_id)]
             else:
-                merge_queue_pr = ['{:^10}'.format('#%d' % int(pr_id))]
+                merge_queue_pr = ['{:^10}'.format(merge_queue_pr_id)]
 
             merge_queue_pr.extend(build_status.get(v, ' ' * 15)
                                   for v in versions)
