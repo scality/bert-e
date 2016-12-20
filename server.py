@@ -47,8 +47,8 @@ FIFO = queue.Queue()
 DONE = deque(maxlen=1000)
 CODE_NAMES = {}
 
-TXT_TEMPLATE = "txt_template"
-HTML_TEMPLATE = "html_template"
+TXT_TEMPLATE = os.path.dirname(os.path.realpath(__file__)) + "/txt_template"
+HTML_TEMPLATE = os.path.dirname(os.path.realpath(__file__)) + "/html_template"
 
 try:
     SENTRY = Sentry(APP, logging=True, level=logging.INFO,
