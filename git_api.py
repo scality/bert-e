@@ -61,24 +61,40 @@ class Repository(object):
                 os.mkdir(top)
             except OSError:
                 pass
-            reference = top + repo_slug
+            reference = os.path.join(top, repo_slug + '.git')
             if not os.path.isdir(reference):
                 # fixme: isdir() is not a good test of repo existence
-                self.cmd('git clone --mirror %s %s', self._url, reference)
-
-        clone_cmd = 'git clone'
-        clone_cmd += ' --reference ' + reference
-        self.cmd('%s %%s' % clone_cmd, self._url)
+                # Clone the git cache in ~/.bert-e/<repo>.git
+                self.cmd('git clone --mirror %s', self._url, cwd=top)
+            else:
+                # Update the git cache
+                self.cmd('git fetch', cwd=reference)
 
         # all commands will now execute from repo directory
         self.cmd_directory = os.path.join(self.tmp_directory, repo_slug)
+        if os.path.isdir(self.cmd_directory):
+            # The repo is already cloned by a previous call to this method
+            # some tests do clone twice (May need to be fixed)
+            return
 
-    def fetch_all_branches(self):
-        for remote in self.cmd("git branch -r").split('\n')[:-1]:
-            local = remote.replace('origin/', '').split()[-1]
-            self.cmd("git branch --track %s %s || exit 0", local, remote)
-        self.cmd('git fetch --all')
-        self.cmd('git pull --all || exit 0')
+        # We need to clone all the git branches locally to make Bert-E's code
+        # simple and easy to maintain.
+        # A fast way to do that is to clone a mirror and then reconvert it to
+        # a normal repo.
+        os.mkdir(self.cmd_directory)
+        clone_cmd = 'git clone --mirror'
+        clone_cmd += ' --reference ' + reference
+        self.cmd('%s %%s .git' % clone_cmd, self._url)
+        self.cmd('git config --bool core.bare false')
+        # origin is tagged as a mirror, delete then recreate removes the tag
+        self.cmd('git remote remove origin')
+        self.cmd('git remote add origin %s', self._url)
+        #FIXME: remove the following line when all the 'branch -r' are removed
+        # from the code. We do not need remote branches anymore.
+        self.cmd('git remote update origin')
+        # Checkout any branch to finish the mirror repo conversion to a normal
+        # one
+        self.cmd('git checkout $(git branch | head -1)')
 
     def config(self, key, value):
         self.cmd('git config %s %s', key, value)
@@ -149,7 +165,7 @@ class Repository(object):
                 quote(arg.strip()) if isinstance(arg, str) and arg else arg
                 for arg in args
             )
-        cwd = kwargs.get('cwd', self.cmd_directory)
+        cwd = kwargs.pop('cwd', self.cmd_directory)
         try:
             ret = cmd(command, cwd=cwd, **kwargs)
         except CommandError:
@@ -172,8 +188,6 @@ class Branch(object):
     def merge(self, *source_branches, **kwargs):
         do_push = kwargs.pop('do_push', False)
         force_commit = kwargs.pop('force_commit', False)
-        for source_branch in source_branches:
-            self.repo.checkout(source_branch.name)
         self.checkout()
 
         branches = ' '.join(("'%s'" % s.name) for s in source_branches)
@@ -187,7 +201,6 @@ class Branch(object):
             self.push()
 
     def get_commit_diff(self, source_branch):
-        self.repo.checkout(source_branch.name)
         log = self.repo.cmd('git log --no-merges --pretty=%%H %s..%s',
                             source_branch.name, self.name,
                             universal_newlines=True)
@@ -205,6 +218,8 @@ class Branch(object):
         return self.repo.cmd('git rev-parse %s', self.name).rstrip()
 
     def exists(self):
+        #TODO: this can be greatly optimized.
+        # We do not need to checkout to check existence.
         try:
             self.checkout()
             return True
@@ -215,17 +230,19 @@ class Branch(object):
         self.repo.checkout(self.name)
 
     def reset(self, do_checkout=True):
+        #TODO: here, we should always checkout but the checkout should be
+        # inexpensive when done more than once
         if do_checkout:
-            self.repo.cmd('git checkout %s', self.name)
+            self.checkout()
         self.repo.cmd('git reset --hard origin/%s', self.name)
 
     def push(self):
         self.repo.push(self.name)
 
     def create(self, source_branch, do_push=True):
-        self.repo.checkout(source_branch.name)
         try:
-            self.repo.cmd('git checkout -b %s', self.name)
+            self.repo.cmd('git checkout -b %s %s', self.name,
+                          source_branch.name)
         except CommandError:
             msg = "branch:%s source:%s" % (self.name, source_branch.name)
             raise BranchCreationFailedException(msg)

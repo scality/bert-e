@@ -1203,7 +1203,6 @@ class BertE:
     def _clone_git_repo(self):
         repo = self.repo
         repo.clone(self.ref_git_repo)
-        repo.fetch_all_branches()
         repo.config('user.email', self.settings['robot_email'])
         repo.config('user.name', self.settings['robot_username'])
         repo.config('merge.renameLimit', '999999')
