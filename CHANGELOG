@@ -1,6 +1,11 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [2.0.6] - 2016-12-20
+# Changed
+- monitoring page is now in HTML
+- delayed git clone and added an ls-remote cache to speed bert-e up
+
 ## [2.0.4] - 2016-11-16
 # Changed
 - moved settings to per-project files
