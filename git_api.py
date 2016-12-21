@@ -43,54 +43,46 @@ class Repository(object):
         self.tmp_directory = None
         self.cmd_directory = None
 
-    def clone(self, reference='', create_mirror=True):
+    def clone(self):
         """Clone the repository locally.
-
-        Args:
-            * reference: use given local repository as a reference.
-            * create_mirror: if set to True (default), then in the absence of a
-                reference argument, create a git mirror of the repository under
-                the ``$HOME/.bert-e`` tree.
-
         """
         repo_slug = self._url.split('/')[-1].replace('.git', '')
 
-        if not reference and create_mirror:
-            top = os.path.expanduser('~/.bert-e/')
-            try:
-                os.mkdir(top)
-            except OSError:
-                pass
-            reference = os.path.join(top, repo_slug + '.git')
-            if not os.path.isdir(reference):
-                # fixme: isdir() is not a good test of repo existence
-                # Clone the git cache in ~/.bert-e/<repo>.git
-                self.cmd('git clone --mirror %s', self._url, cwd=top)
-            else:
-                # Update the git cache
-                self.cmd('git fetch', cwd=reference)
+        top = os.path.expanduser('~/.bert-e/')
+        try:
+            os.mkdir(top)
+        except OSError:
+            pass
+        git_cache = os.path.join(top, repo_slug + '.git')
+        if not os.path.isdir(git_cache):
+            # fixme: isdir() is not a good test of repo existence
+            # Clone the git cache in ~/.bert-e/<repo>.git
+            self.cmd('git clone --mirror %s', self._url, cwd=top)
+        else:
+            # Update the git cache
+            self.cmd('git fetch --prune', cwd=git_cache)
 
         # all commands will now execute from repo directory
         self.cmd_directory = os.path.join(self.tmp_directory, repo_slug)
         if os.path.isdir(self.cmd_directory):
             # The repo is already cloned by a previous call to this method
-            # some tests do clone twice (May need to be fixed)
+            # some tests do clone twice
             return
 
         # We need to clone all the git branches locally to make Bert-E's code
         # simple and easy to maintain.
         # A fast way to do that is to clone a mirror and then reconvert it to
         # a normal repo.
+        # see https://git.wiki.kernel.org/index.php/Git_FAQ#How_do_I_clone_a_re
+        # pository_with_all_remotely_tracked_branches.3F
         os.mkdir(self.cmd_directory)
-        clone_cmd = 'git clone --mirror'
-        clone_cmd += ' --reference ' + reference
-        self.cmd('%s %%s .git' % clone_cmd, self._url)
+        self.cmd('git clone --mirror %s .git', git_cache)
         self.cmd('git config --bool core.bare false')
-        # origin is tagged as a mirror, delete then recreate removes the tag
+        # The current origin is the local cache, delete then point it to the
+        # original repo
         self.cmd('git remote remove origin')
         self.cmd('git remote add origin %s', self._url)
-        #FIXME: remove the following line when all the 'branch -r' are removed
-        # from the code. We do not need remote branches anymore.
+        # Update the list of remote branches (required if we use 'branch -r')
         self.cmd('git remote update origin')
         # Checkout any branch to finish the mirror repo conversion to a normal
         # one
@@ -218,8 +210,6 @@ class Branch(object):
         return self.repo.cmd('git rev-parse %s', self.name).rstrip()
 
     def exists(self):
-        #TODO: this can be greatly optimized.
-        # We do not need to checkout to check existence.
         try:
             self.checkout()
             return True
@@ -230,8 +220,6 @@ class Branch(object):
         self.repo.checkout(self.name)
 
     def reset(self, do_checkout=True):
-        #TODO: here, we should always checkout but the checkout should be
-        # inexpensive when done more than once
         if do_checkout:
             self.checkout()
         self.repo.cmd('git reset --hard origin/%s', self.name)

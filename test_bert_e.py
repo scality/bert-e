@@ -736,7 +736,6 @@ class RepositoryTests(unittest.TestCase):
     def handle(self,
                token,
                options=[],
-               reference_git_repo='',
                no_comment=False,
                interactive=False,
                backtrace=False,

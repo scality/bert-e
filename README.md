@@ -18,8 +18,8 @@ $ pip install flake8 jira==1.0.3 requests==2.9.1 six-1.10.0 Jinja2==2.7.1
 ```
 #!bash
 usage: bert_e.py [-h] [--disable-queues] [--option CMD_LINE_OPTIONS]
-                 [--reference-git-repo REFERENCE_GIT_REPO] [--interactive]
-                 [--no-comment] [-v] [--backtrace] [--quiet]
+                 [--interactive] [--no-comment] [-v] [--backtrace] 
+                 [--quiet]
                  settings bitbucket_password jira_password token
 
 Merges bitbucket pull requests.
@@ -36,9 +36,6 @@ optional arguments:
   --disable-queues      Deactivate optimistic merge queue (legacy mode)
   --option CMD_LINE_OPTIONS, -o CMD_LINE_OPTIONS
                         Activate additional options
-  --reference-git-repo REFERENCE_GIT_REPO
-                        Reference to a local git repo to improve cloning
-                        delay. If empty, a local clone will be created
   --interactive         Ask before merging or sending comments
   --no-comment          Do not add any comment to the pull request page
   -v                    Verbose mode

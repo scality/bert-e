@@ -986,7 +986,6 @@ class BertE:
         self.interactive = args.interactive
         self.no_comment = args.no_comment
         self.quiet = args.quiet
-        self.ref_git_repo = args.reference_git_repo
         self.token = args.token.strip()
         self.use_queue = not args.disable_queues
         self.repo = GitRepository(self.bbrepo.get_git_url())
@@ -1202,7 +1201,7 @@ class BertE:
 
     def _clone_git_repo(self):
         repo = self.repo
-        repo.clone(self.ref_git_repo)
+        repo.clone()
         repo.config('user.email', self.settings['robot_email'])
         repo.config('user.name', self.settings['robot_username'])
         repo.config('merge.renameLimit', '999999')
@@ -2180,10 +2179,6 @@ def setup_parser():
     parser.add_argument(
         '--option', '-o', action='append', type=str, dest='cmd_line_options',
         help="Activate additional options")
-    parser.add_argument(
-        '--reference-git-repo', default='',
-        help="Reference to a local git repo to improve cloning delay. "
-             "If empty, a local clone will be created")
     parser.add_argument(
         '--interactive', action='store_true', default=False,
         help="Ask before merging or sending comments")

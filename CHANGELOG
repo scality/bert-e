@@ -1,6 +1,11 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [2.0.7] - 2016-12-23
+# Changed
+- Faster retrieval of all git branches using mirror clones.
+- Removed the --reference option as it was replaced by an internal git cache.
+
 ## [2.0.6] - 2016-12-20
 # Changed
 - monitoring page is now in HTML
