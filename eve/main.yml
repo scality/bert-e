@@ -1,4 +1,6 @@
 ---
+version: 0.1
+
 branches:
   feature/*, bugfix/*, improvement/*, w/*:
     stage: tests
