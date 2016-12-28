@@ -29,16 +29,20 @@ bitbucket_api.Repository = bitbucket_api_mock.Repository
 
 
 class TestWebhookListener(unittest.TestCase):
-    def handle_post(self, event_type, data):
-        os.environ['BERT_E_PWD'] = 'dummy'
-        os.environ['WEBHOOK_LOGIN'] = 'dummy'
-        os.environ['WEBHOOK_PWD'] = 'dummy'
-
+    def setUp(self):
         server.APP.config['SETTINGS_FILE'] = '/bert-e/test_owner/test_repo'
         server.APP.config['PULL_REQUEST_BASE_URL'] = \
             'https://bitbucket.org/foo/bar/pull-requests/{pr_id}'
         server.APP.config['COMMIT_BASE_URL'] = \
             'https://bitbucket.org/foo/bar/commits/{commit_id}'
+        server.APP.config['REPOSITORY_OWNER'] = 'test_user'
+        server.APP.config['REPOSITORY_SLUG'] = 'test_repo'
+
+    def handle_post(self, event_type, data):
+        os.environ['BERT_E_PWD'] = 'dummy'
+        os.environ['WEBHOOK_LOGIN'] = 'dummy'
+        os.environ['WEBHOOK_PWD'] = 'dummy'
+
         server.APP.config['REPOSITORY_OWNER'] = \
             data['repository']['owner']['username']
         server.APP.config['REPOSITORY_SLUG'] = data['repository']['name']
