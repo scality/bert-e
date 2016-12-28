@@ -27,6 +27,9 @@ RUN pip2 install -r /tmp/requirements.txt \
 USER eve
 WORKDIR /home/eve
 
+RUN mkdir -p /home/eve/.ssh/ \
+    && /bin/echo -e "Host bitbucket.org\n\tStrictHostKeyChecking no\n" >> /home/eve/.ssh/config
+
 ENV LANG=C.UTF-8 \
     BUILD_DISTRO=trusty \
     JOB_NAME=walle_trusty_docker
