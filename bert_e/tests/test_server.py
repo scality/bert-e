@@ -18,6 +18,7 @@ import os
 import unittest
 from collections import OrderedDict
 from copy import deepcopy
+from datetime import datetime
 
 from .. import bert_e, server
 from ..api import bitbucket as bitbucket_api
@@ -259,30 +260,33 @@ class TestWebhookListener(unittest.TestCase):
     def test_current_job_print(self):
         job = server.Job("test_owner", "test_repo",
                          "456deadbeef12345678901234567890123456789",
-                         "2016-12-08 14:54:20.655930", "/dev/null")
+                         datetime(2016, 12, 8, 14, 54, 20, 123456),
+                         "/dev/null")
         bert_e.STATUS['current job'] = job
 
         app = server.APP.test_client()
         res = app.get('/?output=txt')
 
-        assert 'Current job: [2016-12-08 14:54:20.655930]' \
+        assert 'Current job: [2016-12-08 14:54:20]' \
                ' - 456deadbeef12345678901234567890123456789' in res.data
 
     def test_pending_jobs_print(self):
 
         job = server.Job("test_owner", "test_repo",
                          "123deadbeef12345678901234567890123456789",
-                         "2016-12-08 14:54:18.655930", "/dev/null")
+                         datetime(2016, 12, 8, 14, 54, 18, 123456),
+                         "/dev/null")
         server.FIFO.put(job)
         job = server.Job("test_owner", "test_repo", "666",
-                         "2016-12-08 14:54:19.655930", "/dev/null")
+                         datetime(2016, 12, 8, 14, 54, 19, 123456),
+                         "/dev/null")
         server.FIFO.put(job)
 
         expected = (
             '2 pending jobs:',
-            '* [2016-12-08 14:54:18.655930] - 123deadbeef'
+            '* [2016-12-08 14:54:18] - 123deadbeef'
             '12345678901234567890123456789',
-            '* [2016-12-08 14:54:19.655930] - 666'
+            '* [2016-12-08 14:54:19] - 666'
         )
 
         app = server.APP.test_client()
@@ -293,11 +297,11 @@ class TestWebhookListener(unittest.TestCase):
 
         expected = (
             '<h3>2 pending jobs:</h3>',
-            '<li>[2016-12-08 14:54:18.655930] - <a href='
+            '<li>[2016-12-08 14:54:18] - <a href='
             '"https://bitbucket.org/foo/bar/commits/123deadbeef123456789'
             '01234567890123456789">123deadbeef12345678901234567890123456'
             '789</a></li>',
-            '<li>[2016-12-08 14:54:19.655930] - <a href='
+            '<li>[2016-12-08 14:54:19] - <a href='
             '"https://bitbucket.org/foo/bar/pull-requests/666">666</a></'
             'li>'
         )
@@ -311,17 +315,19 @@ class TestWebhookListener(unittest.TestCase):
 
         job = server.Job("test_owner", "test_repo",
                          "123deadbeef12345678901234567890123456789",
-                         "2016-12-08 14:54:18.655930", "/dev/null")
+                         datetime(2016, 12, 8, 14, 54, 18, 123456),
+                         "/dev/null")
         server.DONE.appendleft((job, "NothingToDo"))
         job = server.Job("test_owner", "test_repo", "666",
-                         "2016-12-08 14:54:19.655930", "/dev/null")
+                         datetime(2016, 12, 8, 14, 54, 19, 123456),
+                         "/dev/null")
         server.DONE.appendleft((job, "NothingToDo"))
 
         expected = (
             'Completed jobs:',
-            '* [2016-12-08 14:54:19.655930] - '
+            '* [2016-12-08 14:54:19] - '
             '666 -> NothingToDo',
-            '* [2016-12-08 14:54:18.655930] - '
+            '* [2016-12-08 14:54:18] - '
             '123deadbeef12345678901234567890123456789 -> NothingToDo'
         )
 
@@ -333,10 +339,10 @@ class TestWebhookListener(unittest.TestCase):
 
         expected = (
             '<h3>Completed jobs:</h3>',
-            '<li>[2016-12-08 14:54:19.655930] - <a href="ht'
+            '<li>[2016-12-08 14:54:19] - <a href="ht'
             'tps://bitbucket.org/foo/bar/pull-requests/666">666</a> -> No'
             'thingToDo</li>',
-            '<li>[2016-12-08 14:54:18.655930] - <a href="ht'
+            '<li>[2016-12-08 14:54:18] - <a href="ht'
             'tps://bitbucket.org/foo/bar/commits/123deadbeef1234567890123'
             '4567890123456789">123deadbeef12345678901234567890123456789</'
             'a> -> NothingToDo</li>'
