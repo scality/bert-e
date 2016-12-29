@@ -25,8 +25,7 @@ from collections import deque, namedtuple
 from datetime import datetime
 from functools import wraps
 
-import jinja2
-from flask import Flask, Response, request
+from flask import Flask, request, Response, render_template
 from raven.contrib.flask import Sentry
 
 from . import bert_e, exceptions
@@ -42,9 +41,6 @@ APP = Flask(__name__)
 FIFO = queue.Queue()
 DONE = deque(maxlen=1000)
 CODE_NAMES = {}
-
-TXT_TEMPLATE = 'templates/status.txt'
-HTML_TEMPLATE = 'templates/status.html'
 
 try:
     SENTRY = Sentry(APP, logging=True, level=logging.INFO,
@@ -65,18 +61,17 @@ for name in dir(exceptions):
     CODE_NAMES[obj.code] = name
 
 
-def revision_link(revision):
-    # Hack to make the difference between git commit and pull request id
-    revision_length = len(revision)
-    if revision_length == 40 or revision_length == 12:
-        url = APP.config['COMMIT_BASE_URL']
-        link = '<a href="%s">%s</a>' % (
-            url.format(commit_id=revision), revision)
+@APP.template_filter('pr_url')
+def pr_url_filter(id_or_revision):
+    if len(str(id_or_revision)) in [12, 40]:
+        return APP.config['COMMIT_BASE_URL'].format(commit_id=id_or_revision)
     else:
-        url = APP.config['PULL_REQUEST_BASE_URL']
-        link = '<a href="%s">%s</a>' % (
-            url.format(pr_id=revision.replace('#', '')), revision)
-    return link
+        return APP.config['PULL_REQUEST_BASE_URL'].format(pr_id=id_or_revision)
+
+
+@APP.template_filter('build_url')
+def build_url_filter(sha1):
+    return BUILD_STATUS_CACHE['pre-merge'].get('%s-build' % sha1, '')
 
 
 def bert_e_launcher():
@@ -152,94 +147,48 @@ def display_queue():
     if output_mode is None:
         output_mode = 'html'
 
+    current_job = bert_e.STATUS.get('current job', None)
     merged_prs = bert_e.STATUS.get('merged PRs', [])
-    merge_queue = bert_e.STATUS.get('merge queue', None)
-    cur_job = bert_e.STATUS.get('current job', None)
+    queue_data = bert_e.STATUS.get('merge queue', None)
+    pending_jobs = FIFO.queue
 
-    tasks = FIFO.queue
-
-    output_vars = {}
-
-    if cur_job is not None:
-        if output_mode == 'html':
-            current_job = Job(cur_job.repo_owner, cur_job.repo_slug,
-                              revision_link(cur_job.revision),
-                              cur_job.start_time, cur_job.repo_settings)
-        else:
-            current_job = cur_job
-        output_vars['cur_job'] = current_job
-
-    if merged_prs:
-        output_vars['merged_prs'] = []
-        for i in merged_prs:
-            if output_mode == 'html':
-                output_vars['merged_prs'].append(revision_link('#%d' % i))
-            else:
-                output_vars['merged_prs'].append('#%d' % i)
-
-    if merge_queue:
-        versions = set()
-        for queued_commits in merge_queue.values():
+    queue_lines = []
+    versions = set()
+    if queue_data:
+        for queued_commits in queue_data.values():
             for version, _ in queued_commits:
                 versions.add(version)
 
         versions = sorted(versions, reverse=True)
 
-        headers = [(' ' * 10)]
-        headers.extend('{:^15}'.format(v) for v in versions)
-        output_vars['merge_queue'] = [headers]
-        for pr_id, queued_commits in merge_queue.items():
+        for pr_id, queued_commits in queue_data.items():
             if int(pr_id) in merged_prs:
                 continue
-            build_status = {}
+            line = {'pr_id': pr_id}
             for version, sha1 in queued_commits:
-                build = BUILD_STATUS_CACHE['pre-merge'].get(sha1, 'INPROGRESS')
-                if output_mode == 'html':
-                    url = BUILD_STATUS_CACHE['pre-merge'].get('%s-build' %
-                                                              sha1, '')
-                    build_status[version] = '<a href="%s">%s</a>' % (url,
-                                                                     build)
-                else:
-                    build_status[version] = '{:^15}'.format(build)
-
-            merge_queue_pr_id = '#%d' % int(pr_id)
-            if output_mode == 'html':
-                merge_queue_pr = [revision_link(merge_queue_pr_id)]
-            else:
-                merge_queue_pr = ['{:^10}'.format(merge_queue_pr_id)]
-
-            merge_queue_pr.extend(build_status.get(v, ' ' * 15)
-                                  for v in versions)
-
-            output_vars['merge_queue'].append(merge_queue_pr)
-
-    output_vars['pending_jobs'] = []
-    for i in tasks:
-        if output_mode == 'html':
-            i = Job(i.repo_owner, i.repo_slug, revision_link(i.revision),
-                    i.start_time, i.repo_settings)
-        output_vars['pending_jobs'].append(i._asdict())
-
-    output_vars['completed_jobs'] = []
-    for i, j in DONE:
-        if output_mode == 'html':
-            i = Job(i.repo_owner, i.repo_slug, revision_link(i.revision),
-                    i.start_time, i.repo_settings)
-        output_vars['completed_jobs'].append([j, i._asdict()])
+                line[version] = {
+                    'sha1': sha1,
+                    'status':
+                        BUILD_STATUS_CACHE['pre-merge'].get(sha1, 'INPROGRESS')
+                }
+            queue_lines.append(line)
 
     if output_mode == 'txt':
         output_mimetype = 'text/plain'
-        path_template, file_template = os.path.split(TXT_TEMPLATE)
+        file_template = 'status.txt'
     else:
         output_mimetype = 'text/html'
-        path_template, file_template = os.path.split(HTML_TEMPLATE)
-    root_path = os.path.dirname(os.path.abspath(__file__))
+        file_template = 'status.html'
 
-    output_render = jinja2.Environment(
-        loader=jinja2.FileSystemLoader(os.path.join(root_path, path_template))
-    ).get_template(file_template).render(output_vars)
-
-    return Response(output_render, mimetype=output_mimetype)
+    return render_template(
+        file_template,
+        current_job=current_job,
+        merged_prs=merged_prs,
+        queue_lines=queue_lines,
+        versions=versions,
+        pending_jobs=pending_jobs,
+        completed_jobs=DONE
+    ), 200, {'Content-Type': output_mimetype}
 
 
 @APP.route('/bitbucket', methods=['POST'])
