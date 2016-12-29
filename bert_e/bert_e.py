@@ -995,7 +995,7 @@ class BertE:
 
     def handle_pull_request_from_sha1(self, sha1):
         """Entry point to handle a pull request from a sha1."""
-        pr = self.get_pull_request_from_sha1(sha1)
+        pr = self.get_integration_pull_request_from_sha1(sha1)
         if not pr:
             raise NothingToDo('Could not find the PR corresponding to'
                               ' sha1: %s' % sha1)
@@ -1025,7 +1025,7 @@ class BertE:
         self._push(prune=True)
         raise Merged()
 
-    def get_pull_request_from_sha1(self, sha1):
+    def get_integration_pull_request_from_sha1(self, sha1):
         """Get the oldest open integration pull request containing given
         commit.
 
