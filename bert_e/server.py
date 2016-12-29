@@ -182,6 +182,8 @@ def display_queue():
 
     return render_template(
         file_template,
+        owner=APP.config['REPOSITORY_OWNER'],
+        slug=APP.config['REPOSITORY_SLUG'],
         current_job=current_job,
         merged_prs=merged_prs,
         queue_lines=queue_lines,

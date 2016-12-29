@@ -1,9 +1,9 @@
 <html>
-<h2>Bert-E status page</h2><p>
+<h2>Bert-E status page for {{ owner }}/{{ slug }}</h2><p>
 
 {%- if current_job %}
 <h3>Current job:</h3>
-<p>&emsp;[{{ current_job['start_time'] }}] {{ current_job['repo_owner'] }}/{{ current_job['repo_slug'] }} - <a href="{{ current_job['revision']|pr_url }}">{{ current_job['revision'] }}</a></p>
+<p>&emsp;[{{ current_job['start_time'] }}] - <a href="{{ current_job['revision']|pr_url }}">{{ current_job['revision'] }}</a></p>
 {%- endif %}
 
 {%- for pr in merged_prs %}
@@ -49,13 +49,13 @@
 {%- if loop.first %}
 <h3>{{ pending_jobs|length }} pending jobs:</h3><ul>
 {% endif %}
-<li>[{{ job['start_time'] }}] {{ job['repo_owner'] }}/{{ job['repo_slug'] }} - <a href="{{ job['revision']|pr_url }}">{{ job['revision'] }}</a></li>
+<li>[{{ job['start_time'] }}] - <a href="{{ job['revision']|pr_url }}">{{ job['revision'] }}</a></li>
 {%- if loop.last %}</ul>{% endif %}
 {%- endfor %}
 
 {%- for job in completed_jobs %}
 {%- if loop.first %}<h3>Completed jobs:</h3><ul>{% endif %}
-<li>[{{ job[0]['start_time'] }}] {{ job[0]['repo_owner'] }}/{{ job[0]['repo_slug'] }} - <a href="{{ job[0]['revision']|pr_url }}">{{ job[0]['revision'] }}</a> -> {{ job[1] }}</li>
+<li>[{{ job[0]['start_time'] }}] - <a href="{{ job[0]['revision']|pr_url }}">{{ job[0]['revision'] }}</a> -> {{ job[1] }}</li>
 {%- if loop.last %}</ul>{% endif %}
 {%- endfor %}
 </html>
