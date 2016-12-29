@@ -10,7 +10,7 @@ Current job: [{{ current_job['start_time'].strftime("%Y-%m-%d %H:%M:%S") }}] - {
 
 Recently merged pull requests:
 {% endif %}
-* #{{ pr }}
+* [{{ pr['merge_time'].strftime("%Y-%m-%d %H:%M:%S") }}] - #{{ pr['id'] }}
 {%- endfor %}
 
 {%- for line in queue_lines %}

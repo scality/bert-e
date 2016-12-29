@@ -21,6 +21,7 @@ import logging
 import re
 from collections import OrderedDict, deque
 from copy import deepcopy
+from datetime import datetime
 from functools import total_ordering
 from os.path import exists
 
@@ -2090,7 +2091,7 @@ def add_merged_pr(pr_id):
 
     """
     merged_prs = STATUS.setdefault('merged PRs', deque(maxlen=10))
-    merged_prs.append(pr_id)
+    merged_prs.append({'id': pr_id, 'merge_time': datetime.now()})
 
 
 def setup_parser():
