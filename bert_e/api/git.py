@@ -111,6 +111,8 @@ class Repository(object):
 
         for line in output.splitlines():
             sha, branch = line.split()
+            # use short sha1 everywhere (sometimes only info sent by BB API)
+            sha = sha[:12]
             branch = branch.replace('refs/heads/', '').strip()
             self._remote_heads[sha].add(branch)
             self._remote_branches[branch] = sha
@@ -130,7 +132,7 @@ class Repository(object):
     def get_branches_from_sha1(self, sha1):
         """Get branches corresponding to given sha1."""
         self._get_remote_branches()
-        return self._remote_heads[sha1]
+        return self._remote_heads[sha1[:12]]
 
     def checkout(self, name):
         try:
