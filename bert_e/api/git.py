@@ -85,9 +85,6 @@ class Repository(object):
         self.cmd('git remote add origin %s', self._url)
         # Update the list of remote branches (required if we use 'branch -r')
         self.cmd('git remote update origin')
-        # Checkout any branch to finish the mirror repo conversion to a normal
-        # one
-        self.cmd('git checkout $(git branch | head -1)')
 
     def config(self, key, value):
         self.cmd('git config %s %s', key, value)
