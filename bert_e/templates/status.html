@@ -55,7 +55,7 @@
 
 {%- for job in completed_jobs %}
 {%- if loop.first %}<h3>Completed jobs:</h3><ul>{% endif %}
-<li>[{{ job[0]['start_time'].strftime("%Y-%m-%d %H:%M:%S") }}] - <a href="{{ job[0]['revision']|pr_url }}">{{ job[0]['revision'] }}</a> -> {{ job[1] }}</li>
+<li>[{{ job['job']['start_time'].strftime("%Y-%m-%d %H:%M:%S") }}] - <a href="{{ job['job']['revision']|pr_url }}">{{ job['job']['revision'] }}</a> -> {{ job['status'] }}{% if job['details'] %}<p>{{ job['details'] }}</p>{% endif %}</li>
 {%- if loop.last %}</ul>{% endif %}
 {%- endfor %}
 </html>

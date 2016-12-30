@@ -45,5 +45,7 @@ Merge queue status:
 
 Completed jobs:
 {%- endif %}
-* [{{ job[0]['start_time'].strftime("%Y-%m-%d %H:%M:%S") }}] - {{ job[0]['revision'] }} -> {{ job[1] }}
+* [{{ job['job']['start_time'].strftime("%Y-%m-%d %H:%M:%S") }}] - {{ job['job']['revision'] }} -> {{ job['status'] }}{% if job['details'] %}
+{{ job['details'] }}
+{% endif %}
 {%- endfor %}
