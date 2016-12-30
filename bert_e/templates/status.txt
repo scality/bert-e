@@ -1,8 +1,8 @@
-Bert-E status page
+Bert-E status page for {{ owner }}/{{ slug }}
 
 {%- if current_job %}
 
-Current job: [{{ current_job['start_time'] }}] {{ current_job['repo_owner'] }}/{{ current_job['repo_slug'] }} - {{ current_job['revision'] }}
+Current job: [{{ current_job['start_time'].strftime("%Y-%m-%d %H:%M:%S") }}] - {{ current_job['revision'] }}
 {%- endif %}
 
 {%- for pr in merged_prs %}
@@ -37,7 +37,7 @@ Merge queue status:
 
 {{ pending_jobs|length }} pending jobs:
 {% endif %}
-* [{{ job['start_time'] }}] {{ job['repo_owner'] }}/{{ job['repo_slug'] }} - {{ job['revision'] }}
+* [{{ job['start_time'].strftime("%Y-%m-%d %H:%M:%S") }}] - {{ job['revision'] }}
 {%- endfor %}
 
 {%- for job in completed_jobs %}
@@ -45,5 +45,5 @@ Merge queue status:
 
 Completed jobs:
 {%- endif %}
-* [{{ job[0]['start_time'] }}] {{ job[0]['repo_owner'] }}/{{ job[0]['repo_slug'] }} - {{ job[0]['revision'] }} -> {{ job[1] }}
+* [{{ job[0]['start_time'].strftime("%Y-%m-%d %H:%M:%S") }}] - {{ job[0]['revision'] }} -> {{ job[1] }}
 {%- endfor %}
