@@ -16,6 +16,7 @@
 # limitations under the License.
 
 import argparse
+import datetime
 import logging
 import re
 import sys
@@ -594,6 +595,8 @@ class RepositoryTests(unittest.TestCase):
             time.sleep(5)  # don't be too agressive on API
         self.admin_bb.delete()
         self.gitrepo.delete()
+        # reset STATUS to default value to ensure test independance
+        bert_e.STATUS = {}
 
     def create_pr(
             self,
@@ -806,7 +809,13 @@ class TestBertE(RepositoryTests):
         retcode = self.handle(pr['id'])
         self.assertEqual(retcode, 0)
 
-        assert pr['id'] in bert_e.STATUS.get('merged PRs', [])
+        merged_pr = bert_e.STATUS.get('merged PRs', [])
+        assert len(merged_pr) == 1
+        assert merged_pr[0]['id'] == pr['id']
+        assert (merged_pr[0]['merge_time'] >
+                datetime.datetime.now() - datetime.timedelta(minutes=1))
+        assert (merged_pr[0]['merge_time'] <
+                datetime.datetime.now() + datetime.timedelta(minutes=1))
 
     def test_not_my_job_cases(self):
         feature_branch = 'feature/TEST-00002'
@@ -2786,7 +2795,9 @@ class TestQueueing(RepositoryTests):
 
         last_comment = list(pr.get_comments())[-1]['content']['raw']
         assert 'I have successfully merged' in last_comment
-        assert 1 in bert_e.STATUS.get('merged PRs', [])
+        merged_pr = bert_e.STATUS.get('merged PRs', [])
+        assert len(merged_pr) == 1
+        assert merged_pr[0]['id'] == 1
 
     def test_system_missing_integration_queue_before_in_queue(self):
         pr1 = self.create_pr('bugfix/TEST-00001', 'development/4.3')

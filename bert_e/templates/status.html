@@ -8,7 +8,7 @@
 
 {%- for pr in merged_prs %}
 {%- if loop.first %}<h3>Recently merged pull requests:</h3><ul>{% endif %}
-<li><a href="{{ pr|pr_url }}">#{{ pr }}</a></li>
+<li>[{{ pr['merge_time'].strftime("%Y-%m-%d %H:%M:%S") }}] - <a href="{{ pr['id']|pr_url }}">#{{ pr['id'] }}</a></li>
 {%- if loop.last %}</ul>{% endif %}
 {%- endfor %}
 

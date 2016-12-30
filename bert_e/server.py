@@ -162,7 +162,7 @@ def display_queue():
         versions = sorted(versions, reverse=True)
 
         for pr_id, queued_commits in queue_data.items():
-            if int(pr_id) in merged_prs:
+            if int(pr_id) in [i['id'] for i in merged_prs]:
                 continue
             line = {'pr_id': pr_id}
             for version, sha1 in queued_commits:

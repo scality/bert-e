@@ -94,7 +94,11 @@ class TestWebhookListener(unittest.TestCase):
             ('10', [('4.3', '0033deadbeef'), ('6.0', '13370badf00d')])
         ])
 
-        bert_e.STATUS['merged PRs'] = [1, 2, 3]
+        bert_e.STATUS['merged PRs'] = [
+            {'id': 1, 'merge_time': datetime(2016, 12, 9, 14, 54, 20, 123456)},
+            {'id': 2, 'merge_time': datetime(2016, 12, 9, 14, 54, 21, 123456)},
+            {'id': 3, 'merge_time': datetime(2016, 12, 8, 14, 54, 22, 123456)}
+        ]
 
         app = server.APP.test_client()
         res = app.get('/?output=txt')
@@ -102,16 +106,20 @@ class TestWebhookListener(unittest.TestCase):
         # Check merged Pull Requests and merge queue status appear in monitor
         # view
         assert 'Recently merged pull requests:' in res.data
-        assert '* #1\n* #2\n* #3' in res.data
+        assert '* [2016-12-09 14:54:20] - #1\n' in res.data
+        assert '* [2016-12-09 14:54:21] - #2\n' in res.data
+        assert '* [2016-12-08 14:54:22] - #3\n' in res.data
         assert 'Merge queue status:' in res.data
         assert '   #10       INPROGRESS     INPROGRESS  ' in res.data
 
         res = app.get('/')
         assert 'Recently merged pull requests:' in res.data
-        assert '<li><a href="https://bitbucket.org/foo/bar/pull-requests/' \
-               '1">#1</a></li>\n<li><a href="https://bitbucket.org/foo/ba' \
-               'r/pull-requests/2">#2</a></li>\n<li><a href="https://bitb' \
-               'ucket.org/foo/bar/pull-requests/3">#3</a></li>' in res.data
+        assert '<li>[2016-12-09 14:54:20] - <a href="https://bitbucket.or' \
+               'g/foo/bar/pull-requests/1">#1</a></li>' in res.data
+        assert '<li>[2016-12-09 14:54:21] - <a href="https://bitbucket.or' \
+               'g/foo/bar/pull-requests/2">#2</a></li>' in res.data
+        assert '<li>[2016-12-08 14:54:22] - <a href="https://bitbucket.or' \
+               'g/foo/bar/pull-requests/3">#3</a></li>' in res.data
         assert 'Merge queue status:' in res.data
         assert '<td><a href="https://bitbucket.org/foo/bar/pull-requests/' \
                '10">#10</a></td>\n<td><a href="">INPROGRESS</a></td>\n<td' \
@@ -133,16 +141,19 @@ class TestWebhookListener(unittest.TestCase):
                ' href="">FAILED</a></td>' in res.data
 
         # Everything is merged, the queue status shouldn't appear anymore
-        bert_e.STATUS['merged PRs'].append(10)
+        bert_e.STATUS['merged PRs'].append({
+            'id': 10,
+            'merge_time': datetime(2016, 12, 9, 14, 54, 20, 123456)
+        })
         res = app.get('/?output=txt')
 
         # PR #10 should appear as merged
-        assert '* #10' in res.data
+        assert '* [2016-12-09 14:54:20] - #10' in res.data
         assert 'Merge queue status:' not in res.data
 
         res = app.get('/')
-        assert '<li><a href="https://bitbucket.org/foo/bar/pull-requests/' \
-               '10">#10</a></li>' in res.data
+        assert '<li>[2016-12-09 14:54:20] - <a href="https://bitbucket.or' \
+               'g/foo/bar/pull-requests/10">#10</a></li>' in res.data
         assert 'Merge queue status:' not in res.data
 
     def test_merge_queue_print(self):
