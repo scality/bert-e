@@ -112,10 +112,11 @@ def bert_e_launcher():
         finally:
             FIFO.task_done()
 
-            logging.debug("It took the server %s to handle job %s:%s",
-                          datetime.now() - job.start_time,
-                          job.repo_slug, job.revision)
-            DONE.appendleft({'job': job, 'status': status, 'details': details})
+            wait_time = int((datetime.now() - job.start_time).total_seconds())
+            logging.debug("It took the server %d to handle job %s:%s",
+                          wait_time, job.repo_slug, job.revision)
+            DONE.appendleft({'job': job, 'status': status,
+                             'details': details, 'wait_time': wait_time})
             bert_e.STATUS.pop('current job')
 
 
@@ -144,6 +145,34 @@ def requires_auth(func):
             return authenticate()
         return func(*args, **kwargs)
     return decorated
+
+
+def running_mean(milestones):
+    """Extract running means from DONE structure.
+
+    complexity is O(n): acceptable with DONE < 1000 items.
+
+    """
+    if not milestones:
+        return []
+    sum_ = 0
+    now = datetime.now()
+    milestone_idx = 0
+    next_date = now - datetime.timedelta(seconds=milestones[0])
+    out = []
+    for i, job in enumerate(reversed(DONE)):
+        if job['job']['start_time'] > next_date:
+            sum_ += job['wait_time']
+        else:
+            out.append(sum_/i)
+            milestone_idx++
+            if milestone_idx = len(milestones):
+                break
+            next_date = now - datetime.timedelta(
+                seconds=milestones[milestone_idx])
+    if milestone_idx != len(milestones):
+        out.append(sum_/i)
+    return out
 
 
 @APP.route('/', methods=['GET'])
@@ -177,6 +206,8 @@ def display_queue():
                         BUILD_STATUS_CACHE['pre-merge'].get(sha1, 'INPROGRESS')
                 }
             queue_lines.append(line)
+
+    five, thirty, day = running_mean([5, 30, 86400])
 
     if output_mode == 'txt':
         output_mimetype = 'text/plain'

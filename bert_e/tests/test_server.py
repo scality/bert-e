@@ -329,19 +329,28 @@ class TestWebhookListener(unittest.TestCase):
                          datetime(2016, 12, 8, 14, 54, 18, 123456),
                          "/dev/null")
         server.DONE.appendleft({
-            'job': job, 'status': "NothingToDo", 'details': None})
+            'job': job,
+            'status': "NothingToDo",
+            'details': None,
+            'wait_time': 30
+        })
         job = server.Job("test_owner", "test_repo", "666",
                          datetime(2016, 12, 8, 14, 54, 19, 123456),
                          "/dev/null")
         server.DONE.appendleft({
-            'job': job, 'status': "NothingToDo", 'details': "details"})
+            'job': job,
+            'status': "NothingToDo",
+            'details': "details"
+            'wait_time': 60
+        })
 
         expected = (
             'Completed jobs:',
             '* [2016-12-08 14:54:19] - '
             '666 -> NothingToDo\ndetails',
             '* [2016-12-08 14:54:18] - '
-            '123deadbeef12345678901234567890123456789 -> NothingToDo'
+            '123deadbeef12345678901234567890123456789 -> NothingToDo',
+            'wait time:\nlast 5 minutes: 45s\nlast 2 hours: 45s\nlast day:45s'
         )
 
         app = server.APP.test_client()
@@ -357,7 +366,10 @@ class TestWebhookListener(unittest.TestCase):
             'p></li>',
             '<li>[2016-12-08 14:54:18] - <a href="https://bitbucket.org/f'
             'oo/bar/commits/123deadbeef12345678901234567890123456789">123'
-            'deadbeef12345678901234567890123456789</a> -> NothingToDo</li>'
+            'deadbeef12345678901234567890123456789</a> -> NothingToDo</li'
+            '>',
+            '<h4>Wait time:<h4><ul><li>last 5 minutes: 45s</li><li>last 2'
+            ' hours: 45s</li><li>last day:45s</li></ul>'
         )
 
         res = app.get('/')
@@ -365,6 +377,9 @@ class TestWebhookListener(unittest.TestCase):
         for exp in expected:
             assert exp in res.data
 
+
+class TestWebhookListener(unittest.TestCase):
+running_mean
 
 if __name__ == '__main__':
     unittest.main(failfast=True)
