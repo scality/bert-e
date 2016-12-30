@@ -1,6 +1,16 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [2.0.8] - 2016-12-30
+# Changed
+- Bert-E is now provided as an installable package
+- optimised templating for status page
+- information added to status page: merge date, details of internal errors
+# Fixed
+- server tests can now run individually
+- fixed tests based on get_pull_request
+- fixed permanent CommandError for new repositories
+
 ## [2.0.7] - 2016-12-23
 # Changed
 - Faster retrieval of all git branches using mirror clones.
