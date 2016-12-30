@@ -1,54 +1,61 @@
 <html>
-<h2>Bert-E status</h2><p>
+<h2>Bert-E status page</h2><p>
 
-{%- if cur_job is defined  and cur_job != [] %}
-<b>Current job:</b><br>
-&emsp;[{{ cur_job['start_time'] }}] {{ cur_job['repo_owner'] }}/{{ cur_job['repo_slug'] }} - {{ cur_job['revision'] }}<br>
-<p>
-{% endif %}
+{%- if current_job %}
+<h3>Current job:</h3>
+<p>&emsp;[{{ current_job['start_time'] }}] {{ current_job['repo_owner'] }}/{{ current_job['repo_slug'] }} - <a href="{{ current_job['revision']|pr_url }}">{{ current_job['revision'] }}</a></p>
+{%- endif %}
 
-{%- if merged_prs is defined and merged_prs != [] %}
-<b>Recently merged Pull Requests:</b><br>
-{%- for pr_id in merged_prs %}
-&emsp;* {{ pr_id }}<br>
+{%- for pr in merged_prs %}
+{%- if loop.first %}<h3>Recently merged pull requests:</h3><ul>{% endif %}
+<li><a href="{{ pr|pr_url }}">#{{ pr }}</a></li>
+{%- if loop.last %}</ul>{% endif %}
 {%- endfor %}
-<p>
-{% endif %}
 
-{%- if merge_queue is defined and merge_queue|length > 1 %}
-<b>Merge queue status:</b><br>
-<table>
-<tr>
-<td>
-&emsp;
-</td>
-<td>
+{%- for line in queue_lines %}
+{%- if loop.first %}
+<h3>Merge queue status:</h3><p>
 <table border="1" cellpadding="10">
-{%- for line in merge_queue %}
-{%- set line_length=line|length %}
-{%- set line_format='<tr align="center">' + '<td>%s</td>'*line_length + '</tr>' %}
-{{ line_format|format(*line) }}
+<tr align="center">
+{%- for v in versions %}
+{%- if loop.first %}
+<td></td>
+{%- endif %}
+<td>{{ v }}</td>
 {%- endfor %}
-</table>
-</td>
 </tr>
+{%- endif %}
+{%- for v in versions %}
+{%- if loop.first %}
+<tr align="center">
+<td><a href="{{ line['pr_id']|pr_url }}">#{{ line['pr_id'] }}</a></td>
+{%- endif %}
+{%- if v in line %}
+<td><a href="{{ line[v]['sha1']|build_url }}">{{ line[v]['status'] }}</a></td>
+{%- else %}
+<td></td>
+{%- endif %}
+{%- if loop.last %}
+</tr>
+{%- endif %}
+{%- endfor %}
+{%- if loop.last %}
 </table>
-<p>
-{% endif %}
+</p>
+{%- endif %}
+{%- endfor %}
 
-{%- if pending_jobs is defined %}
-<b>{{ pending_jobs|length }} pending jobs:</b><br>
 {%- for job in pending_jobs %}
-&emsp;* [{{ job['start_time'] }}] {{ job['repo_owner'] }}/{{ job['repo_slug'] }} - {{ job['revision'] }}<br>
-{%- endfor %}
-<p>
+{%- if loop.first %}
+<h3>{{ pending_jobs|length }} pending jobs:</h3><ul>
 {% endif %}
+<li>[{{ job['start_time'] }}] {{ job['repo_owner'] }}/{{ job['repo_slug'] }} - <a href="{{ job['revision']|pr_url }}">{{ job['revision'] }}</a></li>
+{%- if loop.last %}</ul>{% endif %}
+{%- endfor %}
 
-{%- if completed_jobs is defined and completed_jobs != [] %}
-<b>Completed jobs:</b><br>
 {%- for job in completed_jobs %}
-&emsp;* [{{ job[1]['start_time'] }}] {{ job[1]['repo_owner'] }}/{{ job[1]['repo_slug'] }} - {{ job[1]['revision'] }} -> {{ job[0] }}<br>
+{%- if loop.first %}<h3>Completed jobs:</h3><ul>{% endif %}
+<li>[{{ job[0]['start_time'] }}] {{ job[0]['repo_owner'] }}/{{ job[0]['repo_slug'] }} - <a href="{{ job[0]['revision']|pr_url }}">{{ job[0]['revision'] }}</a> -> {{ job[1] }}</li>
+{%- if loop.last %}</ul>{% endif %}
 {%- endfor %}
-<p>
-{% endif %}
 </html>

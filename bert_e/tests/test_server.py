@@ -29,16 +29,20 @@ bitbucket_api.Repository = bitbucket_api_mock.Repository
 
 
 class TestWebhookListener(unittest.TestCase):
-    def handle_post(self, event_type, data):
-        os.environ['BERT_E_PWD'] = 'dummy'
-        os.environ['WEBHOOK_LOGIN'] = 'dummy'
-        os.environ['WEBHOOK_PWD'] = 'dummy'
-
+    def setUp(self):
         server.APP.config['SETTINGS_FILE'] = '/bert-e/test_owner/test_repo'
         server.APP.config['PULL_REQUEST_BASE_URL'] = \
             'https://bitbucket.org/foo/bar/pull-requests/{pr_id}'
         server.APP.config['COMMIT_BASE_URL'] = \
             'https://bitbucket.org/foo/bar/commits/{commit_id}'
+        server.APP.config['REPOSITORY_OWNER'] = 'test_user'
+        server.APP.config['REPOSITORY_SLUG'] = 'test_repo'
+
+    def handle_post(self, event_type, data):
+        os.environ['BERT_E_PWD'] = 'dummy'
+        os.environ['WEBHOOK_LOGIN'] = 'dummy'
+        os.environ['WEBHOOK_PWD'] = 'dummy'
+
         server.APP.config['REPOSITORY_OWNER'] = \
             data['repository']['owner']['username']
         server.APP.config['REPOSITORY_SLUG'] = data['repository']['name']
@@ -96,11 +100,21 @@ class TestWebhookListener(unittest.TestCase):
 
         # Check merged Pull Requests and merge queue status appear in monitor
         # view
-        assert 'Recently merged Pull Requests:' in res.data
+        assert 'Recently merged pull requests:' in res.data
         assert '* #1\n* #2\n* #3' in res.data
         assert 'Merge queue status:' in res.data
-        assert '{:^10}{:^15}{:^15}'.format(
-            '#10', 'INPROGRESS', 'INPROGRESS') in res.data
+        assert '   #10       INPROGRESS     INPROGRESS  ' in res.data
+
+        res = app.get('/')
+        assert 'Recently merged pull requests:' in res.data
+        assert '<li><a href="https://bitbucket.org/foo/bar/pull-requests/' \
+               '1">#1</a></li>\n<li><a href="https://bitbucket.org/foo/ba' \
+               'r/pull-requests/2">#2</a></li>\n<li><a href="https://bitb' \
+               'ucket.org/foo/bar/pull-requests/3">#3</a></li>' in res.data
+        assert 'Merge queue status:' in res.data
+        assert '<td><a href="https://bitbucket.org/foo/bar/pull-requests/' \
+               '10">#10</a></td>\n<td><a href="">INPROGRESS</a></td>\n<td' \
+               '><a href="">INPROGRESS</a></td>' in res.data
 
         # Update cache with a successful and a failed build
         bitbucket_api.BUILD_STATUS_CACHE['pre-merge'].set('0033deadbeef',
@@ -109,15 +123,25 @@ class TestWebhookListener(unittest.TestCase):
                                                           'SUCCESS')
 
         res = app.get('/?output=txt')
-        assert '{:^10}{:^15}{:^15}'.format(
-            '#10', 'SUCCESS', 'FAILED') in res.data
+        assert '   #10        SUCCESS         FAILED    ' in res.data
+
+        res = app.get('/')
+
+        assert '<td><a href="https://bitbucket.org/foo/bar/pull-requests/' \
+               '10">#10</a></td>\n<td><a href="">SUCCESS</a></td>\n<td><a' \
+               ' href="">FAILED</a></td>' in res.data
 
         # Everything is merged, the queue status shouldn't appear anymore
         bert_e.STATUS['merged PRs'].append(10)
         res = app.get('/?output=txt')
 
         # PR #10 should appear as merged
-        assert '* #10\n' in res.data
+        assert '* #10' in res.data
+        assert 'Merge queue status:' not in res.data
+
+        res = app.get('/')
+        assert '<li><a href="https://bitbucket.org/foo/bar/pull-requests/' \
+               '10">#10</a></li>' in res.data
         assert 'Merge queue status:' not in res.data
 
     def test_merge_queue_print(self):
@@ -140,28 +164,94 @@ class TestWebhookListener(unittest.TestCase):
 
         cache = bitbucket_api.BUILD_STATUS_CACHE['pre-merge']
         cache.set('4472/6.4', 'SUCCESSFUL')
+        cache.set('4472/6.4-build', '4472/6.4_url')
         cache.set('4472/6.3', 'SUCCESSFUL')
+        cache.set('4472/6.3-build', '4472/6.3_url')
         cache.set('4472/6.2', 'INPROGRESS')
+        cache.set('4472/6.2-build', '4472/6.2_url')
         cache.set('5773/6.4', 'FAILED')
+        cache.set('5773/6.4-build', '5773/6.4_url')
         cache.set('6050/6.4', 'SUCCESSFUL')
+        cache.set('6050/6.4-build', '6050/6.4_url')
         cache.set('6086/6.4', 'FAILED')
+        cache.set('6086/6.4-build', '6086/6.4_url')
         cache.set('6086/6.3.0', 'SUCCESSFUL')
+        cache.set('6086/6.3.0-build', '6086/6.3.0_url')
         cache.set('6086/6.3', 'SUCCESSFUL')
+        cache.set('6086/6.3-build', '6086/6.3_url')
         cache.set('5095/6.4', 'SUCCESSFUL')
+        cache.set('5095/6.4-build', '5095/6.4_urltoto')
 
         expected = (
             'Merge queue status:',
             '                6.4           6.3.0           6.3            6.2',
-            '  #4472     SUCCESSFUL                    SUCCESSFUL'
-            '     INPROGRESS',
-            '  #5773       FAILED',
-            '  #6050     SUCCESSFUL',
-            '  #6086       FAILED       SUCCESSFUL     SUCCESSFUL',
-            '  #5095     SUCCESSFUL'
+            '  #4472      SUCCESSFUL                    SUCCESSFUL     INPROGRESS  \n', # noqa
+            '  #5773        FAILED                                                 \n', # noqa
+            '  #6050      SUCCESSFUL                                               \n', # noqa
+            '  #6086        FAILED       SUCCESSFUL     SUCCESSFUL                 \n', # noqa
+            '  #5095      SUCCESSFUL                                               \n'  # noqa
         )
 
         app = server.APP.test_client()
         res = app.get('/?output=txt')
+
+        for exp in expected:
+            assert exp in res.data
+
+        expected = (
+            '<h3>Merge queue status:</h3>\n'
+            '<table border="1" cellpadding="10">\n'
+            '<tr align="center">\n'
+            '<td></td>\n'
+            '<td>6.4</td>\n'
+            '<td>6.3.0</td>\n'
+            '<td>6.3</td>\n'
+            '<td>6.2</td>\n'
+            '</tr>\n'
+            '<tr align="center">\n'
+            '<td><a href="https://bitbucket.org/foo/bar/pull-requests/4472">'
+            '#4472</a></td>\n'
+            '<td><a href="4472/6.4_url">SUCCESSFUL</a></td>\n'
+            '<td></td>\n'
+            '<td><a href="4472/6.3_url">SUCCESSFUL</a></td>\n'
+            '<td><a href="4472/6.2_url">INPROGRESS</a></td>\n'
+            '</tr>\n'
+            '<tr align="center">\n'
+            '<td><a href="https://bitbucket.org/foo/bar/pull-requests/5773">'
+            '#5773</a></td>\n'
+            '<td><a href="5773/6.4_url">FAILED</a></td>\n'
+            '<td></td>\n'
+            '<td></td>\n'
+            '<td></td>\n'
+            '</tr>\n'
+            '<tr align="center">\n'
+            '<td><a href="https://bitbucket.org/foo/bar/pull-requests/6050">'
+            '#6050</a></td>\n'
+            '<td><a href="6050/6.4_url">SUCCESSFUL</a></td>\n'
+            '<td></td>\n'
+            '<td></td>\n'
+            '<td></td>\n'
+            '</tr>\n'
+            '<tr align="center">\n'
+            '<td><a href="https://bitbucket.org/foo/bar/pull-requests/6086">'
+            '#6086</a></td>\n'
+            '<td><a href="6086/6.4_url">FAILED</a></td>\n'
+            '<td><a href="6086/6.3.0_url">SUCCESSFUL</a></td>\n'
+            '<td><a href="6086/6.3_url">SUCCESSFUL</a></td>\n'
+            '<td></td>\n'
+            '</tr>\n'
+            '<tr align="center">\n'
+            '<td><a href="https://bitbucket.org/foo/bar/pull-requests/5095">'
+            '#5095</a></td>\n'
+            '<td><a href="5095/6.4_urltoto">SUCCESSFUL</a></td>\n'
+            '<td></td>\n'
+            '<td></td>\n'
+            '<td></td>\n'
+            '</tr>\n'
+            '</table>\n'
+        )
+
+        res = app.get('/')
 
         for exp in expected:
             assert exp in res.data
@@ -175,7 +265,8 @@ class TestWebhookListener(unittest.TestCase):
         app = server.APP.test_client()
         res = app.get('/?output=txt')
 
-        assert 'Current job: [2016-12-08 14:54:20.655930] scality/example - 456deadbeef12345678901234567890123456789' in res.data # noqa
+        assert 'Current job: [2016-12-08 14:54:20.655930] scality/example' \
+               ' - 456deadbeef12345678901234567890123456789' in res.data
 
     def test_pending_jobs_print(self):
 
@@ -189,7 +280,8 @@ class TestWebhookListener(unittest.TestCase):
 
         expected = (
             '2 pending jobs:',
-            '* [2016-12-08 14:54:18.655930] scality/example - 123deadbeef12345678901234567890123456789', # noqa
+            '* [2016-12-08 14:54:18.655930] scality/example - 123deadbeef'
+            '12345678901234567890123456789',
             '* [2016-12-08 14:54:19.655930] scality/example - 666'
         )
 
@@ -200,12 +292,16 @@ class TestWebhookListener(unittest.TestCase):
             assert exp in res.data
 
         expected = (
-            '<b>2 pending jobs:</b><br>',
-            '* [2016-12-08 14:54:18.655930] scality/example - <a href="https://bitbucket.org/foo/bar/commits/123deadbeef12345678901234567890123456789">123deadbeef12345678901234567890123456789</a><br>', # noqa
-            '* [2016-12-08 14:54:19.655930] scality/example - <a href="https://bitbucket.org/foo/bar/pull-requests/666">666</a><br>' # noqa
+            '<h3>2 pending jobs:</h3>',
+            '<li>[2016-12-08 14:54:18.655930] scality/example - <a href='
+            '"https://bitbucket.org/foo/bar/commits/123deadbeef123456789'
+            '01234567890123456789">123deadbeef12345678901234567890123456'
+            '789</a></li>',
+            '<li>[2016-12-08 14:54:19.655930] scality/example - <a href='
+            '"https://bitbucket.org/foo/bar/pull-requests/666">666</a></'
+            'li>'
         )
 
-        app = server.APP.test_client()
         res = app.get('/')
 
         for exp in expected:
@@ -223,8 +319,10 @@ class TestWebhookListener(unittest.TestCase):
 
         expected = (
             'Completed jobs:',
-            '* [2016-12-08 14:54:19.655930] scality/example - 666 -> NothingToDo', # noqa
-            '* [2016-12-08 14:54:18.655930] scality/example - 123deadbeef12345678901234567890123456789 -> NothingToDo' # noqa
+            '* [2016-12-08 14:54:19.655930] scality/example - '
+            '666 -> NothingToDo',
+            '* [2016-12-08 14:54:18.655930] scality/example - '
+            '123deadbeef12345678901234567890123456789 -> NothingToDo'
         )
 
         app = server.APP.test_client()
@@ -234,12 +332,16 @@ class TestWebhookListener(unittest.TestCase):
             assert exp in res.data
 
         expected = (
-            '<b>Completed jobs:</b><br>',
-            '* [2016-12-08 14:54:19.655930] scality/example - <a href="https://bitbucket.org/foo/bar/pull-requests/666">666</a> -> NothingToDo<br>', # noqa
-            '* [2016-12-08 14:54:18.655930] scality/example - <a href="https://bitbucket.org/foo/bar/commits/123deadbeef12345678901234567890123456789">123deadbeef12345678901234567890123456789</a> -> NothingToDo<br>' # noqa
+            '<h3>Completed jobs:</h3>',
+            '<li>[2016-12-08 14:54:19.655930] scality/example - <a href="ht'
+            'tps://bitbucket.org/foo/bar/pull-requests/666">666</a> -> No'
+            'thingToDo</li>',
+            '<li>[2016-12-08 14:54:18.655930] scality/example - <a href="ht'
+            'tps://bitbucket.org/foo/bar/commits/123deadbeef1234567890123'
+            '4567890123456789">123deadbeef12345678901234567890123456789</'
+            'a> -> NothingToDo</li>'
         )
 
-        app = server.APP.test_client()
         res = app.get('/')
 
         for exp in expected:

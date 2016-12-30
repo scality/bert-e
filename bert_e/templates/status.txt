@@ -1,33 +1,49 @@
-{%- if cur_job is defined  and cur_job != [] %}
-Current job: [{{ cur_job['start_time'] }}] {{ cur_job['repo_owner'] }}/{{ cur_job['repo_slug'] }} - {{ cur_job['revision'] }}
-{% endif %}
+Bert-E status page
 
-{%- if merged_prs is defined and merged_prs != [] %}
-Recently merged Pull Requests:
-{%- for pr_id in merged_prs %}
-* {{ pr_id }}
+{%- if current_job %}
+
+Current job: [{{ current_job['start_time'] }}] {{ current_job['repo_owner'] }}/{{ current_job['repo_slug'] }} - {{ current_job['revision'] }}
+{%- endif %}
+
+{%- for pr in merged_prs %}
+{%- if loop.first %}
+
+Recently merged pull requests:
+{% endif %}
+* #{{ pr }}
 {%- endfor %}
-{% endif %}
 
-{%- if merge_queue is defined and merge_queue|length > 1 %}
+{%- for line in queue_lines %}
+{%- if loop.first %}
+
 Merge queue status:
-{%- for line in merge_queue %}
-{%- set line_length=line|length %}
-{%- set line_format='%s'*line_length %}
-{{ line_format|format(*line) }}
+{% for v in versions %}
+{%- if loop.first %}{{ ' '*10 }}{% endif %}
+{{- v|center(15) }}
 {%- endfor %}
-{% endif %}
+{%- endif %}
+{% for v in versions %}
+{%- if loop.first %}{{ '#%s'|format(line['pr_id'])|center(10) }}{% endif %}
+{%- if v in line %}
+{{- line[v]['status']|center(15) }}
+{%- else %}
+{{- ' '*15 }}
+{%- endif %}
+{%- endfor %}
+{%- endfor %}
 
-{%- if pending_jobs is defined %}
-{{ pending_jobs|length }} pending jobs:
 {%- for job in pending_jobs %}
+{%- if loop.first %}
+
+{{ pending_jobs|length }} pending jobs:
+{% endif %}
 * [{{ job['start_time'] }}] {{ job['repo_owner'] }}/{{ job['repo_slug'] }} - {{ job['revision'] }}
 {%- endfor %}
-{% endif %}
 
-{%- if completed_jobs is defined and completed_jobs != [] %}
-Completed jobs:
 {%- for job in completed_jobs %}
-* [{{ job[1]['start_time'] }}] {{ job[1]['repo_owner'] }}/{{ job[1]['repo_slug'] }} - {{ job[1]['revision'] }} -> {{ job[0] }}
+{%- if loop.first %}
+
+Completed jobs:
+{%- endif %}
+* [{{ job[0]['start_time'] }}] {{ job[0]['repo_owner'] }}/{{ job[0]['repo_slug'] }} - {{ job[0]['revision'] }} -> {{ job[1] }}
 {%- endfor %}
-{% endif %}
