@@ -30,6 +30,7 @@ from raven.contrib.flask import Sentry
 
 from . import bert_e, exceptions
 from .api.bitbucket import BUILD_STATUS_CACHE
+from .exceptions import BertE_Exception, InternalException
 
 if sys.version_info.major < 3:
     import Queue as queue
@@ -94,23 +95,27 @@ def bert_e_launcher():
             str(job.revision)
         ])
         try:
-            retcode = bert_e.main()
-            status = CODE_NAMES.get(retcode, 'Unknown status: %s' % retcode)
+            bert_e.main()
         except Exception as err:
-            if SENTRY:
-                SENTRY.captureException()
-            else:
-                logging.error("Bert-E job %s finished with an error: %s",
-                              job, err)
+            # with '--backtrace', all instances will raise
             retcode = getattr(err, 'code', None)
             status = CODE_NAMES.get(retcode, type(err).__name__)
+            details = None
+
+            if (not isinstance(err, BertE_Exception) or
+                    isinstance(err, InternalException)):
+                logging.error("Bert-E job %s finished with an error: %s",
+                              job, err)
+                details = err.message
+                if SENTRY:
+                    SENTRY.captureException()
         finally:
             FIFO.task_done()
 
             logging.debug("It took the server %s to handle job %s:%s",
                           datetime.now() - job.start_time,
                           job.repo_slug, job.revision)
-            DONE.appendleft((job, status))
+            DONE.appendleft({'job': job, 'status': status, 'details': details})
             bert_e.STATUS.pop('current job')
 
 

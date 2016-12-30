@@ -328,16 +328,18 @@ class TestWebhookListener(unittest.TestCase):
                          "123deadbeef12345678901234567890123456789",
                          datetime(2016, 12, 8, 14, 54, 18, 123456),
                          "/dev/null")
-        server.DONE.appendleft((job, "NothingToDo"))
+        server.DONE.appendleft({
+            'job': job, 'status': "NothingToDo", 'details': None})
         job = server.Job("test_owner", "test_repo", "666",
                          datetime(2016, 12, 8, 14, 54, 19, 123456),
                          "/dev/null")
-        server.DONE.appendleft((job, "NothingToDo"))
+        server.DONE.appendleft({
+            'job': job, 'status': "NothingToDo", 'details': "details"})
 
         expected = (
             'Completed jobs:',
             '* [2016-12-08 14:54:19] - '
-            '666 -> NothingToDo',
+            '666 -> NothingToDo\ndetails',
             '* [2016-12-08 14:54:18] - '
             '123deadbeef12345678901234567890123456789 -> NothingToDo'
         )
@@ -350,13 +352,12 @@ class TestWebhookListener(unittest.TestCase):
 
         expected = (
             '<h3>Completed jobs:</h3>',
-            '<li>[2016-12-08 14:54:19] - <a href="ht'
-            'tps://bitbucket.org/foo/bar/pull-requests/666">666</a> -> No'
-            'thingToDo</li>',
-            '<li>[2016-12-08 14:54:18] - <a href="ht'
-            'tps://bitbucket.org/foo/bar/commits/123deadbeef1234567890123'
-            '4567890123456789">123deadbeef12345678901234567890123456789</'
-            'a> -> NothingToDo</li>'
+            '<li>[2016-12-08 14:54:19] - <a href="https://bitbucket.org/f'
+            'oo/bar/pull-requests/666">666</a> -> NothingToDo<p>details</'
+            'p></li>',
+            '<li>[2016-12-08 14:54:18] - <a href="https://bitbucket.org/f'
+            'oo/bar/commits/123deadbeef12345678901234567890123456789">123'
+            'deadbeef12345678901234567890123456789</a> -> NothingToDo</li>'
         )
 
         res = app.get('/')
