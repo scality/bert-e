@@ -214,6 +214,10 @@ class PullRequest(BitBucketObject):
         return Comment.get_list(self.client, full_name=self.full_name(),
                                 pull_request_id=self['id'])
 
+    def get_tasks(self):
+        return Task.get_list(self.client, full_name=self.full_name(),
+                             pull_request_id=self['id'])
+
     def merge(self):
         self._json_data['full_name'] = self.full_name()
         self._json_data['pull_request_id'] = self['id']
@@ -254,6 +258,11 @@ class Comment(BitBucketObject):
         return '%s/%s' % (self._json_data['pr_repo']['owner'],
                           self._json_data['pr_repo']['slug'])
 
+    def add_task(self, msg):
+        return Task(self.client, content=msg, full_name=self.full_name(),
+                    pull_request_id=self['pull_request_id'],
+                    comment_id=self['comment_id']).create()
+
     def create(self):
         json_str = json.dumps({'content': self._json_data['content']})
         response = self.client.post(Template(self.add_url)
@@ -273,17 +282,32 @@ class Comment(BitBucketObject):
         response.raise_for_status()
 
 
+class Task(BitBucketObject):
+    get_url = 'https://bitbucket.org/!api/internal/repositories/$full_name/' \
+        'pullrequests/$pull_request_id/tasks/$task_id'
+    add_url = 'https://bitbucket.org/!api/internal/repositories/$full_name/' \
+        'pullrequests/$pull_request_id/tasks'
+    list_url = add_url + '?page=$page'
+
+    def __init__(self, client, **kwargs):
+        super(Task, self).__init__(client, **kwargs)
+        if 'comment_id' in self._json_data:
+            self._json_data['comment'] = {'id': self._json_data['comment_id']}
+        if 'content' in self._json_data:
+            self._json_data['content'] = {'raw': self._json_data['content']}
+
+
 class BuildStatus(BitBucketObject):
     get_url = 'https://api.bitbucket.org/2.0/repositories/$owner/$repo_slug/' \
         'commit/$revision/statuses/build/$key'
-    list_url = 'https://api.bitbucket.org/2.0/repositories/$owner/' \
+    add_url = 'https://api.bitbucket.org/2.0/repositories/$owner/' \
         '$repo_slug/commit/$revision/statuses/build'
-    add_url = list_url
+    list_url = add_url + '?page=$page'
 
 
 class WebHook(BitBucketObject):
     get_url = 'https://api.bitbucket.org/2.0/repositories/$owner/$repo_slug/' \
         'hooks/$uid'
-    list_url = 'https://api.bitbucket.org/2.0/repositories/$owner/$repo_slug/'\
+    add_url = 'https://api.bitbucket.org/2.0/repositories/$owner/$repo_slug/'\
         'hooks'
-    add_url = list_url
+    list_url = add_url + '?page=$page'

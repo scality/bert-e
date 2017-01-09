@@ -118,3 +118,13 @@ prefixes:
 admins:
   - username_admin_1
   - username_admin_2
+
+
+# tasks [OPTIONAL]:
+#   The list of tasks to create by default on the bitbucket pull request
+#
+#   default value: empty
+#   empty: no task is created by default
+tasks:
+  - do this
+  - do that

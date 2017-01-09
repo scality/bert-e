@@ -120,6 +120,7 @@ class Repository(BitBucketObject):
     def delete(self):
         BitBucketObject.delete(self)
         PullRequest.items = []
+        Task.items = []
         Comment.items = []
 
     def create(self):
@@ -175,10 +176,15 @@ class PullRequestController(Controller):
                           pull_request_id=self.controlled.id).create()
 
         self.update_participant(role='PARTICIPANT')
-        return comment
+        return CommentController(self.client, comment)
 
     def get_comments(self):
-        return [Controller(self.client, c) for c in Comment.get_list(
+        return [CommentController(self.client, c) for c in Comment.get_list(
+                self.client, full_name=self.controlled.full_name(),
+                pull_request_id=self.controlled.id)]
+
+    def get_tasks(self):
+        return [Controller(self.client, t) for t in Task.get_list(
                 self.client, full_name=self.controlled.full_name(),
                 pull_request_id=self.controlled.id)]
 
@@ -218,6 +224,20 @@ class PullRequestController(Controller):
 
     def decline(self):
         self['_state'] = "DECLINED"
+
+
+class CommentController(Controller):
+    def add_task(self, msg):
+        task = Task(self.client, content=msg,
+                    full_name=self.controlled.full_name,
+                    pr_id=self.controlled.pull_request_id,
+                    comment_id=self.controlled.id).create()
+
+        PullRequest.items[self.controlled.pull_request_id - 1].task_count += 1
+        return task
+
+    def delete(self):
+        self.controlled.delete()
 
 
 class Branch(object):
@@ -310,6 +330,29 @@ class Comment(BitBucketObject):
     def get_list(client, full_name, pull_request_id):
         return [c for c in Comment.items if c.full_name == full_name and
                 c.pull_request_id == pull_request_id]
+
+
+class Task(BitBucketObject):
+    items = []
+
+    def __init__(self, client, content, pr_id, full_name, comment_id):
+        #  URL params #
+        self.pull_request_id = pr_id
+        self.full_name = full_name
+        self.comment_id = comment_id
+
+        #  JSON params #
+        self.content = {"raw": content}
+        self.id = len(Task.items)
+
+    def create(self):
+        self.__class__.items.append(self)
+        return self
+
+    @staticmethod
+    def get_list(client, full_name, pull_request_id):
+        return [t for t in Task.items if t.full_name == full_name and
+                t.pull_request_id == pull_request_id]
 
 
 class BuildStatus(BitBucketObject):
