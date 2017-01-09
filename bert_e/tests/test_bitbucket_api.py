@@ -75,9 +75,14 @@ class TestBitbucketApi(unittest.TestCase):
             description='coucou'
         )
 
-        pr.add_comment('Hello world!')
-        pr.add_comment('Hello world2!')
+        comment1 = pr.add_comment('Hello world!')
+        comment2 = pr.add_comment('Hello world2!')
         self.assertEqual(len(list(pr.get_comments())), 2)
+
+        comment1.add_task('do spam')
+        comment1.add_task('do egg')
+        comment2.add_task('do bacon')
+        self.assertEqual(len(list(pr.get_tasks())), 3)
 
 
 def main():

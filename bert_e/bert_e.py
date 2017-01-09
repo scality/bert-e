@@ -52,7 +52,8 @@ DEFAULT_OPTIONAL_SETTINGS = {
     'jira_keys': [],
     'prefixes': {},
     'testers': [],
-    'admins': []
+    'admins': [],
+    'tasks': [],
 }
 
 # This variable is used to get an introspectable status that the server can
@@ -1085,7 +1086,7 @@ class BertE:
             u = comment['user']['username']
             raw = comment['content']['raw']
             # python3
-            if isinstance(username, str) and u != username:
+            if isinstance(username, (unicode, str)) and u != username:
                 continue
             # python2
             if isinstance(username, list) and u not in username:
@@ -1121,13 +1122,28 @@ class BertE:
                 return
 
         logging.debug('SENDING MSG %s', msg)
+        return self._pr.bb_pr.add_comment(msg)
 
-        self._pr.bb_pr.add_comment(msg)
+    def create_task(self, task, comment):
+        logging.debug('considering creating task: %s', task)
+
+        if self.no_comment:
+            logging.debug('not sending message due to no_comment being True.')
+            return
+
+        if self.interactive:
+            print('%s\n' % task)
+            if not confirm('Do you want to create this task?'):
+                return
+
+        logging.debug('CREATING TASK %s', task)
+
+        comment.add_task(task)
 
     def send_msg_and_continue(self, msg):
         try:
-            self.send_bitbucket_msg(unicode(msg),
-                                    msg.dont_repeat_if_in_history)
+            return self.send_bitbucket_msg(unicode(msg),
+                                           msg.dont_repeat_if_in_history)
         except CommentAlreadyExists:
             logging.info("Comment '%s' already posted", msg.__class__.__name__)
 
@@ -1180,12 +1196,19 @@ class BertE:
                 username=self.settings['robot_username']):
             return
 
-        self.send_msg_and_continue(InitMessage(
+        # On bitbucket tasks are displayed LIFO so we reverse to keep ordering
+        tasks = reversed(self.settings.get('tasks', []))
+
+        comment = self.send_msg_and_continue(InitMessage(
             bert_e=self.settings['robot_username'],
             author=self._pr.author_display_name,
             status=self.get_status_report(),
-            active_options=self._get_active_options()
+            active_options=self._get_active_options(),
+            tasks=tasks,
         ))
+
+        for task in tasks:
+            self.create_task(task, comment)
 
     def _check_options(self, comment_author, pr_author, keyword_list, comment):
         logging.debug('checking keywords %s', keyword_list)
@@ -2257,7 +2280,7 @@ def setup_settings(settings_file):
         if not isinstance(settings[setting_], dict):
             raise IncorrectSettingsFile(settings_file)
 
-    for setting_ in ['jira_keys', 'admins']:
+    for setting_ in ['jira_keys', 'admins', 'tasks']:
         if not isinstance(settings[setting_], list):
             raise IncorrectSettingsFile(settings_file)
 

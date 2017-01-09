@@ -18,6 +18,7 @@
 import json
 import logging
 import urllib
+import urlparse
 from collections import defaultdict
 from string import Template
 
@@ -95,8 +96,12 @@ class BitBucketObject(object):
                 if obj:
                     yield cls(client, **obj)
             try:
-                response.json()['next']
-            except KeyError:
+                next_ = urlparse.urlparse(response.json()['next'])
+                # check if next page is same as current (internal API)
+                page_ = int(urlparse.parse_qs(next_.query)['page'][0])
+                if page_ == page:
+                    return
+            except (KeyError, ValueError):
                 return
 
     def create(self):
@@ -214,6 +219,10 @@ class PullRequest(BitBucketObject):
         return Comment.get_list(self.client, full_name=self.full_name(),
                                 pull_request_id=self['id'])
 
+    def get_tasks(self):
+        return Task.get_list(self.client, full_name=self.full_name(),
+                             pull_request_id=self['id'])
+
     def merge(self):
         self._json_data['full_name'] = self.full_name()
         self._json_data['pull_request_id'] = self['id']
@@ -254,6 +263,11 @@ class Comment(BitBucketObject):
         return '%s/%s' % (self._json_data['pr_repo']['owner'],
                           self._json_data['pr_repo']['slug'])
 
+    def add_task(self, msg):
+        return Task(self.client, content=msg, full_name=self.full_name(),
+                    pull_request_id=self['pull_request_id'],
+                    comment_id=self['comment_id']).create()
+
     def create(self):
         json_str = json.dumps({'content': self._json_data['content']})
         response = self.client.post(Template(self.add_url)
@@ -271,6 +285,21 @@ class Comment(BitBucketObject):
                                       .substitute(self._json_data)
                                       .replace('/2.0/', '/1.0/'))
         response.raise_for_status()
+
+
+class Task(BitBucketObject):
+    get_url = 'https://bitbucket.org/!api/internal/repositories/$full_name/' \
+        'pullrequests/$pull_request_id/tasks/$task_id'
+    list_url = 'https://bitbucket.org/!api/internal/repositories/$full_name/' \
+        'pullrequests/$pull_request_id/tasks/'
+    add_url = list_url
+
+    def __init__(self, client, **kwargs):
+        super(Task, self).__init__(client, **kwargs)
+        if 'comment_id' in self._json_data:
+            self._json_data['comment'] = {'id': self._json_data['comment_id']}
+        if 'content' in self._json_data:
+            self._json_data['content'] = {'raw': self._json_data['content']}
 
 
 class BuildStatus(BitBucketObject):
