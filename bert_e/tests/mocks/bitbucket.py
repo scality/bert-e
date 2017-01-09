@@ -264,7 +264,7 @@ class PullRequest(BitBucketObject):
             "commit": Branch(self.repo.gitrepo, source['branch']['name']),
             "repository": fake_repository_dict("")
         }
-        self.task_count = 1
+        self.task_count = 0
         self.title = "Changes"
         self.type = "pullrequest"
         self.updated_on = "2016-01-12T19:31:23.673329+00:00"
