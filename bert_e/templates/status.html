@@ -3,7 +3,7 @@
 
 {%- if current_job %}
 <h3>Current job:</h3>
-<p>&emsp;[{{ current_job['start_time'].strftime("%Y-%m-%d %H:%M:%S") }}] - <a href="{{ current_job['revision']|pr_url }}">{{ current_job['revision'] }}</a></p>
+<p>[{{ current_job['start_time'].strftime("%Y-%m-%d %H:%M:%S") }}] - <a href="{{ current_job['revision']|pr_url }}">{{ current_job['revision'] }}</a></p>
 {%- endif %}
 
 {%- for pr in merged_prs %}
