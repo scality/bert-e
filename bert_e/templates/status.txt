@@ -25,7 +25,11 @@ Merge queue status:
 {% for v in versions %}
 {%- if loop.first %}{{ '#%s'|format(line['pr_id'])|center(10) }}{% endif %}
 {%- if v in line %}
+{%- if line[v].get('status', 'NOTSTARTED') != 'NOTSTARTED' %}
 {{- line[v]['status']|center(15) }}
+{%- else %}
+{{- 'NOTSTARTED'|center(15) }}
+{%- endif %}
 {%- else %}
 {{- ' '*15 }}
 {%- endif %}
