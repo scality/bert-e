@@ -1944,6 +1944,9 @@ class TestBertE(RepositoryTests):
         retcode = self.handle(pr_opened['id'], options=self.bypass_all)
         self.assertEqual(retcode, SuccessMessage.code)
 
+        if RepositoryTests.args.disable_mock:
+            # take bitbucket laggyness into account
+            time.sleep(10)
         retcode = self.handle(blocked_pr['id'], options=self.bypass_all)
         self.assertEqual(retcode, UnanimityApprovalRequired.code)
 
