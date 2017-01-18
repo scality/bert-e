@@ -50,7 +50,6 @@ commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
 build_key: pre-merge
 required_peer_approvals: 2
 prefixes:
-  Epic: project
   Story: feature
   Bug: bugfix
   Improvement: improvement

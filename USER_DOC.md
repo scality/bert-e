@@ -225,8 +225,9 @@ _hotfix/..._ or _user/..._.
 ___
 
 **The prefix of the source branch is correct.**
-__Bert-E__ will only accept the prefixes: _feature/..._, _bugfix/..._,
-_improvement/..._, _project/..._.
+__Bert-E__ will only accept the prefixes as defined for the project (the
+list of valid prefixes varies from project to project, but typically
+includes: _feature/..._, _bugfix/..._, _improvement/..._.
 
 *__Bert-E__ sends message code 105 in case of non-conformance.*
 
@@ -289,9 +290,9 @@ merged to _development/..._ branches.
 
 **The type of the JIRA issue matches the prefix of the source branch.**
 There is a correspondance between the type of JIRA issue and the prefix to use
-for the source branch name. It is mandatory to follow the link given here:
+for the source branch name. The correspondance table is defined per project. A
+typical correspondance table is:
 
-* Issue type *Epic* → branch prefix *project*,
 * Issue type *User Story* → branch prefix *feature*,
 * Issue type *Bug* → branch prefix *bugfix*,
 * Issue type *Improvement* → branch prefix *improvement*.
