@@ -59,6 +59,9 @@ jira_keys:
   - TEST
 admins:
   - {admin}
+tasks:
+  - do foo
+  - do bar
 """ # noqa
 
 
@@ -1152,6 +1155,10 @@ class TestBertE(RepositoryTests):
     def test_options_and_commands(self):
         pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
 
+        # add lots of inactive comments to check paging
+        for _ in range(1, 30):
+            pr.add_comment('no so useful')
+
         # option: wait
         comment = pr.add_comment('@%s wait' % self.args.robot_username)
         with self.assertRaises(NothingToDo):
@@ -1940,6 +1947,9 @@ class TestBertE(RepositoryTests):
         retcode = self.handle(pr_opened['id'], options=self.bypass_all)
         self.assertEqual(retcode, SuccessMessage.code)
 
+        if RepositoryTests.args.disable_mock:
+            # take bitbucket laggyness into account
+            time.sleep(10)
         retcode = self.handle(blocked_pr['id'], options=self.bypass_all)
         self.assertEqual(retcode, UnanimityApprovalRequired.code)
 
@@ -2197,6 +2207,93 @@ admins:
                 ],
                 backtrace=True,
                 settings=settings)
+
+    def test_task_list_creation(self):
+        pr = self.create_pr('feature/death-ray', 'development/6.0')
+        try:
+            self.handle(pr['id'])
+        except requests.HTTPError as err:
+            self.fail("Error from bitbucket: %s" % err.response.text)
+        # retrieving tasks from private bitbucket API only works for admin
+        pr_admin = self.admin_bb.get_pull_request(pull_request_id=pr['id'])
+        self.assertEqual(len(list(pr_admin.get_tasks())), 2)
+
+    def test_task_list_missing(self):
+        pr = self.create_pr('feature/death-ray', 'development/6.0')
+        settings = """
+repository_owner: {owner}
+repository_slug: {slug}
+robot_username: {robot}
+robot_email: nobody@nowhere.com
+pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
+commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
+build_key: pre-merge
+required_peer_approvals: 0
+admins:
+  - {admin}
+""" # noqa
+        try:
+            self.handle(pr['id'], settings=settings)
+        except requests.HTTPError as err:
+            self.fail("Error from bitbucket: %s" % err.response.text)
+        pr_admin = self.admin_bb.get_pull_request(pull_request_id=pr['id'])
+        self.assertEqual(len(list(pr_admin.get_tasks())), 0)
+
+    def test_task_list_funky(self):
+        pr = self.create_pr('feature/death-ray', 'development/6.0')
+        settings = """
+repository_owner: {owner}
+repository_slug: {slug}
+robot_username: {robot}
+robot_email: nobody@nowhere.com
+pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
+commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
+build_key: pre-merge
+required_peer_approvals: 0
+admins:
+  - {admin}
+tasks:
+  - ''
+  - zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz
+  - éâàë€
+  - 1
+  - 2
+  - 3
+  - 3
+  - 3
+  - 3
+  - 3
+  - 3
+  - 3
+  - 3
+  - 3
+  - 3
+""" # noqa
+        try:
+            self.handle(pr['id'], settings=settings)
+        except requests.HTTPError as err:
+            self.fail("Error from bitbucket: %s" % err.response.text)
+        pr_admin = self.admin_bb.get_pull_request(pull_request_id=pr['id'])
+        self.assertEqual(len(list(pr_admin.get_tasks())), 15)
+
+    def test_task_list_illegal(self):
+        pr = self.create_pr('feature/death-ray', 'development/6.0')
+        settings = """
+repository_owner: {owner}
+repository_slug: {slug}
+robot_username: {robot}
+robot_email: nobody@nowhere.com
+pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
+commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
+build_key: pre-merge
+required_peer_approvals: 0
+admins:
+  - {admin}
+tasks:
+  - ['a task in a list']
+""" # noqa
+        with self.assertRaises(IncorrectSettingsFile):
+            self.handle(pr['id'], backtrace=True, settings=settings)
 
 
 class TestQueueing(RepositoryTests):

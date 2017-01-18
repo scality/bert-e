@@ -3,6 +3,7 @@
 from os.path import abspath, dirname, join
 from setuptools import setup
 from subprocess import PIPE, Popen
+import sys
 
 
 CWD = dirname(abspath(__file__))
@@ -11,6 +12,8 @@ CWD = dirname(abspath(__file__))
 def version():
     p = Popen(['git', 'describe', '--tags', '--always'], stdout=PIPE, cwd=CWD)
     out = p.communicate()[0]
+    if sys.version_info[0] > 2:
+        out = out.decode()
     return out.strip()
 
 
