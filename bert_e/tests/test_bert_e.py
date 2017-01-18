@@ -1156,6 +1156,10 @@ class TestBertE(RepositoryTests):
     def test_options_and_commands(self):
         pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
 
+        # add lots of inactive comments to check paging
+        for _ in range(1, 30):
+            pr.add_comment('no so useful')
+
         # option: wait
         comment = pr.add_comment('@%s wait' % self.args.robot_username)
         with self.assertRaises(NothingToDo):
