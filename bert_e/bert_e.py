@@ -2227,7 +2227,8 @@ def setup_settings(settings_file):
 
     with open(settings_file, 'r') as f:
         try:
-            new_settings = yaml.safe_load(f)
+            # read the yaml data as pure string (no conversion)
+            new_settings = yaml.load(f, Loader=yaml.BaseLoader)
         except Exception:
             raise IncorrectSettingsFile(settings_file)
 
@@ -2243,12 +2244,14 @@ def setup_settings(settings_file):
         if setting_ not in settings:
             raise MissingMandatorySetting(settings_file)
 
-        if not isinstance(settings[setting_], str):
+        if not isinstance(settings[setting_], (str, unicode)):
             raise IncorrectSettingsFile(settings_file)
 
-    for setting_ in ['required_peer_approvals']:
-        if not isinstance(settings[setting_], int):
-            raise IncorrectSettingsFile(settings_file)
+    try:
+        settings['required_peer_approvals'] = int(
+            settings['required_peer_approvals'])
+    except ValueError:
+        raise IncorrectSettingsFile(settings_file)
 
     for setting_ in ['prefixes']:
         if not isinstance(settings[setting_], dict):
@@ -2257,6 +2260,10 @@ def setup_settings(settings_file):
     for setting_ in ['jira_keys', 'admins']:
         if not isinstance(settings[setting_], list):
             raise IncorrectSettingsFile(settings_file)
+
+        for data in settings[setting_]:
+            if not isinstance(data, (str, unicode)):
+                raise IncorrectSettingsFile(settings_file)
 
     return settings
 
