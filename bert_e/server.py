@@ -174,7 +174,7 @@ def display_queue():
                 line[version] = {
                     'sha1': sha1,
                     'status':
-                        BUILD_STATUS_CACHE['pre-merge'].get(sha1, 'INPROGRESS')
+                        BUILD_STATUS_CACHE['pre-merge'].get(sha1, 'NOTSTARTED')
                 }
             queue_lines.append(line)
 

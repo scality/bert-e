@@ -3,7 +3,7 @@
 
 {%- if current_job %}
 <h3>Current job:</h3>
-<p>&emsp;[{{ current_job['start_time'].strftime("%Y-%m-%d %H:%M:%S") }}] - <a href="{{ current_job['revision']|pr_url }}">{{ current_job['revision'] }}</a></p>
+<p>[{{ current_job['start_time'].strftime("%Y-%m-%d %H:%M:%S") }}] - <a href="{{ current_job['revision']|pr_url }}">{{ current_job['revision'] }}</a></p>
 {%- endif %}
 
 {%- for pr in merged_prs %}
@@ -30,11 +30,11 @@
 <tr align="center">
 <td><a href="{{ line['pr_id']|pr_url }}">#{{ line['pr_id'] }}</a></td>
 {%- endif %}
-{%- if v in line %}
-<td><a href="{{ line[v]['sha1']|build_url }}">{{ line[v]['status'] }}</a></td>
-{%- else %}
-<td></td>
-{%- endif %}
+{%- if v in line %}<td>
+{%- if line[v].get('status', 'NOTSTARTED') != 'NOTSTARTED' -%}
+<a href="{{ line[v]['sha1']|build_url }}">{{ line[v]['status'] }}</a>
+{%- else %}NOTSTARTED{% endif %}</td>
+{%- else %}<td></td>{% endif %}
 {%- if loop.last %}
 </tr>
 {%- endif %}

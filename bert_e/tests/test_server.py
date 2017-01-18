@@ -93,6 +93,10 @@ class TestWebhookListener(unittest.TestCase):
         bert_e.STATUS['merge queue'] = OrderedDict([
             ('10', [('4.3', '0033deadbeef'), ('6.0', '13370badf00d')])
         ])
+        bitbucket_api.BUILD_STATUS_CACHE['pre-merge'].set('0033deadbeef',
+                                                          'INPROGRESS')
+        bitbucket_api.BUILD_STATUS_CACHE['pre-merge'].set('0033deadbeef-build',
+                                                          'fakeurl')
 
         bert_e.STATUS['merged PRs'] = [
             {'id': 1, 'merge_time': datetime(2016, 12, 9, 14, 54, 20, 123456)},
@@ -110,7 +114,7 @@ class TestWebhookListener(unittest.TestCase):
         assert '* [2016-12-09 14:54:21] - #2\n' in res.data
         assert '* [2016-12-08 14:54:22] - #3\n' in res.data
         assert 'Merge queue status:' in res.data
-        assert '   #10       INPROGRESS     INPROGRESS  ' in res.data
+        assert '   #10       NOTSTARTED     INPROGRESS  ' in res.data
 
         res = app.get('/')
         assert 'Recently merged pull requests:' in res.data
@@ -122,14 +126,18 @@ class TestWebhookListener(unittest.TestCase):
                'g/foo/bar/pull-requests/3">#3</a></li>' in res.data
         assert 'Merge queue status:' in res.data
         assert '<td><a href="https://bitbucket.org/foo/bar/pull-requests/' \
-               '10">#10</a></td>\n<td><a href="">INPROGRESS</a></td>\n<td' \
-               '><a href="">INPROGRESS</a></td>' in res.data
+               '10">#10</a></td><td>NOTSTARTED</td><td><a href="fakeurl">' \
+               'INPROGRESS</a></td>' in res.data
 
         # Update cache with a successful and a failed build
         bitbucket_api.BUILD_STATUS_CACHE['pre-merge'].set('0033deadbeef',
                                                           'FAILED')
+        bitbucket_api.BUILD_STATUS_CACHE['pre-merge'].set('0033deadbeef-build',
+                                                          'url2')
         bitbucket_api.BUILD_STATUS_CACHE['pre-merge'].set('13370badf00d',
                                                           'SUCCESS')
+        bitbucket_api.BUILD_STATUS_CACHE['pre-merge'].set('13370badf00d-build',
+                                                          'url3')
 
         res = app.get('/?output=txt')
         assert '   #10        SUCCESS         FAILED    ' in res.data
@@ -137,8 +145,8 @@ class TestWebhookListener(unittest.TestCase):
         res = app.get('/')
 
         assert '<td><a href="https://bitbucket.org/foo/bar/pull-requests/' \
-               '10">#10</a></td>\n<td><a href="">SUCCESS</a></td>\n<td><a' \
-               ' href="">FAILED</a></td>' in res.data
+               '10">#10</a></td><td><a href="url3">SUCCESS</a></td><td><a' \
+               ' href="url2">FAILED</a></td>' in res.data
 
         # Everything is merged, the queue status shouldn't appear anymore
         bert_e.STATUS['merged PRs'].append({
