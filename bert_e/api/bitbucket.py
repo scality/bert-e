@@ -25,7 +25,9 @@ import six
 from requests import HTTPError, Session
 from requests.auth import HTTPBasicAuth
 
+from ..exceptions import TaskAPIError
 from ..utils import LRUCache
+
 
 if six.PY3:
     quote = urllib.parse.quote
@@ -295,6 +297,31 @@ class Task(BitBucketObject):
             self._json_data['comment'] = {'id': self._json_data['comment_id']}
         if 'content' in self._json_data:
             self._json_data['content'] = {'raw': self._json_data['content']}
+
+    def create(self, *args, **kwargs):
+        try:
+            return super(Task, self).create(*args, **kwargs)
+        except Exception as err:
+            raise TaskAPIError('create', err)
+
+    def delete(self, *args, **kwargs):
+        try:
+            return super(Task, self).delete(*args, **kwargs)
+        except Exception as err:
+            raise TaskAPIError('delete', err)
+
+    def get(self, *args, **kwargs):
+        try:
+            return super(Task, self).get(*args, **kwargs)
+        except Exception as err:
+            raise TaskAPIError('get', err)
+
+    @classmethod
+    def get_list(self, *args, **kwargs):
+        try:
+            return list(super(Task, self).get_list(*args, **kwargs))
+        except Exception as err:
+            raise TaskAPIError('get_list', err)
 
 
 class BuildStatus(BitBucketObject):

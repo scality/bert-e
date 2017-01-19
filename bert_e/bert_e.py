@@ -1134,7 +1134,11 @@ class BertE:
 
         logging.debug('CREATING TASK %s', task)
 
-        comment.add_task(task)
+        try:
+            comment.add_task(task)
+        except TaskAPIError as err:
+            logging.error('could not create task %s (%s)', task, err)
+            pass
 
     def send_msg_and_continue(self, msg):
         try:

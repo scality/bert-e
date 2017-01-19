@@ -2299,6 +2299,39 @@ tasks:
         with self.assertRaises(IncorrectSettingsFile):
             self.handle(pr['id'], backtrace=True, settings=settings)
 
+    def test_task_list_incompatible_api_update_create(self):
+        try:
+            real = bitbucket_api.Task.add_url
+            bitbucket_api.Task.add_url = 'https://bitbucket.org/plouf'
+
+            pr = self.create_pr('feature/death-ray', 'development/6.0')
+            try:
+                self.handle(pr['id'])
+            except requests.HTTPError as err:
+                self.fail("Error from bitbucket: %s" % err.response.text)
+            pr_admin = self.admin_bb.get_pull_request(pull_request_id=pr['id'])
+            self.assertEqual(len(list(pr_admin.get_tasks())), 0)
+
+        finally:
+            bitbucket_api.Task.add_url = real
+
+    def test_task_list_incompatible_api_update_list(self):
+        try:
+            real = bitbucket_api.Task.list_url
+            bitbucket_api.Task.list_url = 'https://bitbucket.org/plouf'
+
+            pr = self.create_pr('feature/death-ray', 'development/6.0')
+            try:
+                self.handle(pr['id'])
+            except requests.HTTPError as err:
+                self.fail("Error from bitbucket: %s" % err.response.text)
+            pr_admin = self.admin_bb.get_pull_request(pull_request_id=pr['id'])
+            with self.assertRaises(TaskAPIError):
+                len(list(pr_admin.get_tasks()))
+
+        finally:
+            bitbucket_api.Task.list_url = real
+
 
 class TestQueueing(RepositoryTests):
     """Tests which validate all things related to the merge queue.
@@ -3455,6 +3488,7 @@ def main():
     if not RepositoryTests.args.disable_mock:
         bitbucket_api.Client = bitbucket_api_mock.Client
         bitbucket_api.Repository = bitbucket_api_mock.Repository
+        bitbucket_api.Task = bitbucket_api_mock.Task
     jira_api.JiraIssue = jira_api_mock.JiraIssue
 
     if RepositoryTests.args.verbose:

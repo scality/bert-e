@@ -383,6 +383,15 @@ class MissingMandatorySetting(InternalException):
         super(MissingMandatorySetting, self).__init__(msg)
 
 
+class TaskAPIError(InternalException):
+    code = 221
+
+    def __init__(self, method, err):
+        msg = "There was an error while accessing the task " \
+              "API %r (%s)" % (method, err)
+        super(TaskAPIError, self).__init__(msg)
+
+
 class QueueValidationError(Exception):
     """Extend simple string class with an error code and recovery potential."""
     code = 'Q000'

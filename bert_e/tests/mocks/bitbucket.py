@@ -17,6 +17,7 @@
 
 import requests
 
+from ...exceptions import TaskAPIError
 from ...api.git import Repository as GitRepository, Branch as GitBranch
 
 
@@ -333,6 +334,8 @@ class Comment(BitBucketObject):
 
 
 class Task(BitBucketObject):
+    add_url = 'legit_add_url'
+    list_url = 'legit_list_url'
     items = []
 
     def __init__(self, client, content, pr_id, full_name, comment_id):
@@ -346,11 +349,15 @@ class Task(BitBucketObject):
         self.id = len(Task.items)
 
     def create(self):
+        if self.add_url != 'legit_add_url':
+            raise TaskAPIError('create', 'url does not work')
         self.__class__.items.append(self)
         return self
 
     @staticmethod
     def get_list(client, full_name, pull_request_id):
+        if Task.list_url != 'legit_list_url':
+            raise TaskAPIError('get_list', 'url does not work')
         return [t for t in Task.items if t.full_name == full_name and
                 t.pull_request_id == pull_request_id]
 
