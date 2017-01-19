@@ -1193,7 +1193,7 @@ class BertE:
             return
 
         # On bitbucket tasks are displayed LIFO so we reverse to keep ordering
-        tasks = reversed(self.settings.get('tasks', []))
+        tasks = list(reversed(self.settings.get('tasks', [])))
 
         comment = self.send_msg_and_continue(InitMessage(
             bert_e=self.settings['robot_username'],

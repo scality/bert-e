@@ -2217,6 +2217,8 @@ admins:
         # retrieving tasks from private bitbucket API only works for admin
         pr_admin = self.admin_bb.get_pull_request(pull_request_id=pr['id'])
         self.assertEqual(len(list(pr_admin.get_tasks())), 2)
+        init_comment = list(pr.get_comments())[0]['content']['raw']
+        assert 'task' in init_comment
 
     def test_task_list_missing(self):
         pr = self.create_pr('feature/death-ray', 'development/6.0')
@@ -2238,6 +2240,8 @@ admins:
             self.fail("Error from bitbucket: %s" % err.response.text)
         pr_admin = self.admin_bb.get_pull_request(pull_request_id=pr['id'])
         self.assertEqual(len(list(pr_admin.get_tasks())), 0)
+        init_comment = list(pr.get_comments())[0]['content']['raw']
+        assert 'task' not in init_comment
 
     def test_task_list_funky(self):
         pr = self.create_pr('feature/death-ray', 'development/6.0')
