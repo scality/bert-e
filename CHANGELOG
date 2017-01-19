@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file.
 
 ## [2.0.10] - XXX
+# Changed
+- do not fail in case the internal API of tasks has changed at bitbucket
 # Fixed
 - fixed init message when there is no default review tasks for the project
 
