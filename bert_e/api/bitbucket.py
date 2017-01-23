@@ -1,6 +1,3 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
 # Copyright 2016 Scality
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,18 +14,15 @@
 
 import json
 import logging
-import urllib
 from collections import defaultdict
 from string import Template
+from urllib.parse import quote
 
 from requests import HTTPError, Session
 from requests.auth import HTTPBasicAuth
 
 from ..exceptions import TaskAPIError
 from ..utils import LRUCache
-
-quote = urllib.parse.quote
-
 
 MAX_PR_TITLE_LEN = 255
 

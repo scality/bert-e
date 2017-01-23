@@ -1,6 +1,4 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
+#!/usr/bin/env python3
 # Copyright 2016 Scality
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -544,7 +542,7 @@ class QueueCollection(object):
             versions = [branch.version for branch in merge_path]
             stack = deepcopy(self._queues)
             # remove versions not on this merge_path from consideration
-            for version in tuple(stack.keys()):
+            for version in list(stack.keys()):
                 if version not in versions:
                     stack.pop(version)
 
