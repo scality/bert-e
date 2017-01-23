@@ -25,7 +25,6 @@ from datetime import datetime
 from functools import total_ordering
 from os.path import exists
 
-import six
 import yaml
 from jira.exceptions import JIRAError
 
@@ -37,10 +36,6 @@ from .api.git import (Branch, CheckoutFailedException, MergeFailedException,
 from .exceptions import *
 from .template_loader import render
 from .utils import RetryHandler
-
-if six.PY3:
-    raw_input = input
-    unicode = six.text_type
 
 SHA1_LENGHT = [12, 40]
 
@@ -165,9 +160,6 @@ class BertEBranch(Branch):
             self.__setattr__(key, value)
 
     def __str__(self):
-        return self.name
-
-    def __unicode__(self):
         return self.name
 
 
@@ -552,7 +544,7 @@ class QueueCollection(object):
             versions = [branch.version for branch in merge_path]
             stack = deepcopy(self._queues)
             # remove versions not on this merge_path from consideration
-            for version in stack.keys():
+            for version in tuple(stack.keys()):
                 if version not in versions:
                     stack.pop(version)
 
@@ -661,7 +653,7 @@ class QueueCollection(object):
             versions = [branch.version for branch in merge_path]
             stack = deepcopy(self._queues)
             # remove versions not on this merge_path from consideration
-            for version in stack.keys():
+            for version in list(stack.keys()):
                 if version not in versions:
                     stack.pop(version)
 
@@ -854,7 +846,7 @@ class BranchCascade(object):
         include_dev_branches = False
         dev_branch = None
 
-        for (major, minor), branch_set in self._cascade.items():
+        for (major, minor), branch_set in list(self._cascade.items()):
             dev_branch = branch_set[DevelopmentBranch]
             stb_branch = branch_set[StabilizationBranch]
 
@@ -1086,7 +1078,7 @@ class BertE:
             u = comment['user']['username']
             raw = comment['content']['raw']
             # python3
-            if isinstance(username, (unicode, str)) and u != username:
+            if isinstance(username, str) and u != username:
                 continue
             # python2
             if isinstance(username, list) and u not in username:
@@ -1142,7 +1134,7 @@ class BertE:
 
     def send_msg_and_continue(self, msg):
         try:
-            return self.send_bitbucket_msg(unicode(msg),
+            return self.send_bitbucket_msg(str(msg),
                                            msg.dont_repeat_if_in_history)
         except CommentAlreadyExists:
             logging.info("Comment '%s' already posted", msg.__class__.__name__)
@@ -1390,9 +1382,9 @@ class BertE:
         prs = [self.bbrepo.get_pull_request(pull_request_id=int(x))
                for x in self._pr.after_prs]
 
-        opened_prs = filter(lambda x: x['state'] == 'OPEN', prs)
-        merged_prs = filter(lambda x: x['state'] == 'MERGED', prs)
-        declined_prs = filter(lambda x: x['state'] == 'DECLINED', prs)
+        opened_prs = [p for p in prs if p['state'] == 'OPEN']
+        merged_prs = [p for p in prs if p['state'] == 'MERGED']
+        declined_prs = [p for p in prs if p['state'] == 'DECLINED']
 
         if len(self._pr.after_prs) != len(merged_prs):
             raise AfterPullRequest(
@@ -2096,7 +2088,7 @@ def update_queue_status(queue_collection):
     qib = QueueIntegrationBranch
     status = OrderedDict()
     # initialize status dict
-    for branch in reversed(queues[queues.keys()[-1]][qib]):
+    for branch in reversed(queues[list(queues.keys())[-1]][qib]):
         status[branch.pr_id] = []
 
     for version, queue in reversed(queues.items()):
@@ -2267,7 +2259,7 @@ def setup_settings(settings_file):
         if setting_ not in settings:
             raise MissingMandatorySetting(settings_file)
 
-        if not isinstance(settings[setting_], (str, unicode)):
+        if not isinstance(settings[setting_], str):
             raise IncorrectSettingsFile(settings_file)
 
     try:
@@ -2285,7 +2277,7 @@ def setup_settings(settings_file):
             raise IncorrectSettingsFile(settings_file)
 
         for data in settings[setting_]:
-            if not isinstance(data, (str, unicode)):
+            if not isinstance(data, str):
                 raise IncorrectSettingsFile(settings_file)
 
     return settings

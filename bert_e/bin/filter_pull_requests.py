@@ -19,14 +19,8 @@ import argparse
 import logging
 import re
 
-import six
-
 from ..api.bitbucket import Repository as BitBucketRepository
 from ..api.bitbucket import Client
-
-if six.PY2:
-    import sys
-    import codecs
 
 fields = {
     'author': ['author/username', 'author/display_name'],
@@ -82,10 +76,6 @@ def filter_pr(your_login, your_password, your_mail, owner, slug, **kwargs):
 
 
 def main():
-    if six.PY2:
-        sys.stdout = (codecs
-                      .getwriter('utf8')(sys.stdout))  # required for piping
-
     parser = (argparse
               .ArgumentParser(description='Searches for pull requests.'))
 

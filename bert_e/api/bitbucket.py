@@ -21,19 +21,13 @@ import urllib
 from collections import defaultdict
 from string import Template
 
-import six
 from requests import HTTPError, Session
 from requests.auth import HTTPBasicAuth
 
 from ..exceptions import TaskAPIError
 from ..utils import LRUCache
 
-
-if six.PY3:
-    quote = urllib.parse.quote
-    from past.builtins import xrange
-else:
-    quote = urllib.quote
+quote = urllib.parse.quote
 
 
 MAX_PR_TITLE_LEN = 255
@@ -44,7 +38,7 @@ BUILD_STATUS_CACHE = defaultdict(LRUCache)
 
 
 def fix_pull_request_title(title):
-    if title < MAX_PR_TITLE_LEN:
+    if len(title) < MAX_PR_TITLE_LEN:
         return title
     return title[:MAX_PR_TITLE_LEN - 4] + '...'
 
@@ -88,7 +82,7 @@ class BitBucketObject(object):
 
     @classmethod
     def get_list(cls, client, **kwargs):
-        for page in xrange(1, 100):  # Max 100 pages retrieved
+        for page in range(1, 100):  # Max 100 pages retrieved
             kwargs['page'] = page
             response = client.get(Template(cls.list_url)
                                   .substitute(kwargs))

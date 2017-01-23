@@ -631,6 +631,7 @@ class RepositoryTests(unittest.TestCase):
         with a second call to Bert-E
 
         """
+        queued_excp = None
         if not backtrace:
             sys.argv.append('--backtrace')
         argv_copy = list(sys.argv)
@@ -640,8 +641,8 @@ class RepositoryTests(unittest.TestCase):
         sys.argv.append(str(token))
         try:
             bert_e.main()
-        except Queued as queued_excp:
-            pass
+        except Queued as excp:
+            queued_excp = excp
         except SilentException as excp:
             if backtrace:
                 raise
@@ -1087,7 +1088,7 @@ class TestBertE(RepositoryTests):
 
             """
             return md5(
-                list(pr.get_comments())[-1]['content']['raw']
+                list(pr.get_comments())[-1]['content']['raw'].encode()
             ).digest()
 
         pr = self.create_pr('bugfix/TEST-01334', 'development/4.3',
@@ -1099,7 +1100,7 @@ class TestBertE(RepositoryTests):
         try:
             self.handle(pr['id'], backtrace=True)
         except HelpMessage as ret:
-            help_msg = md5(ret.msg).digest()
+            help_msg = md5(ret.msg.encode()).digest()
 
         last_comment = get_last_comment(pr)
         self.assertEqual(last_comment, help_msg,
@@ -1122,7 +1123,7 @@ class TestBertE(RepositoryTests):
             self.handle(
                 pr['id'], options=['bypass_jira_check'], backtrace=True)
         except AuthorApprovalRequired as ret:
-            author_msg = md5(ret.msg).digest()
+            author_msg = md5(ret.msg.encode()).digest()
 
         last_comment = get_last_comment(pr)
         self.assertEqual(last_comment, author_msg,
