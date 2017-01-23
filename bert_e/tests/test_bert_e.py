@@ -1980,7 +1980,7 @@ class TestBertE(RepositoryTests):
         create_branch(self.gitrepo, 'bugfix/TEST-00001',
                       from_branch='development/4.3', file_=True)
         pr = self.contributor_bb.create_pull_request(
-            title='A' * (bitbucket_api.MAX_PR_TITLE_LEN - 10),
+            title='A' * bitbucket_api.MAX_PR_TITLE_LEN,
             name='name',
             source={'branch': {'name': 'bugfix/TEST-00001'}},
             destination={'branch': {'name': 'development/4.3'}},
