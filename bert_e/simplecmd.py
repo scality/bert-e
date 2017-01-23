@@ -1,6 +1,3 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
 # Copyright 2016 Scality
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,12 +15,7 @@
 import logging
 import os
 import signal
-import sys
-
-if (sys.version_info.major, sys.version_info.minor) < (3, 3):
-    import subprocess32 as subprocess
-else:
-    import subprocess
+import subprocess
 
 
 class CommandError(Exception):
@@ -71,6 +63,7 @@ def _do_cmd(command, timeout, **kwargs):
     # http://stackoverflow.com/questions/36952245/subprocess-timeout-failure
     kwargs['stdout'] = subprocess.PIPE
     kwargs['preexec_fn'] = os.setsid
+    kwargs['universal_newlines'] = True
     with subprocess.Popen(command, **kwargs) as proc:
         try:
             output, _ = proc.communicate(timeout=timeout)

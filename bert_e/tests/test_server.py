@@ -49,9 +49,10 @@ class TestWebhookListener(unittest.TestCase):
         server.APP.config['REPOSITORY_SLUG'] = data['repository']['name']
 
         app = server.APP.test_client()
-        basic_auth = 'Basic ' + base64.b64encode(bytes(
-            os.environ['WEBHOOK_LOGIN'] + ":" +
-            os.environ['WEBHOOK_PWD'])).decode('ascii')
+        auth = ''.join(
+            (os.environ['WEBHOOK_LOGIN'], ':', os.environ['WEBHOOK_PWD'])
+        )
+        basic_auth = 'Basic ' + base64.b64encode(auth.encode()).decode()
         return app.post(
             '/bitbucket', data=json.dumps(data),
             headers={'X-Event-Key': event_type, 'Authorization': basic_auth}
@@ -73,16 +74,14 @@ class TestWebhookListener(unittest.TestCase):
 
     def test_build_status_filtered(self):
         data = deepcopy(COMMIT_STATUS_CREATED)
-        data[b'commit_status'][b'state'] = b'INPROGRESS'
-        resp = self.handle_post('repo:commit_status_created',
-                                data)
+        data['commit_status']['state'] = 'INPROGRESS'
+        resp = self.handle_post('repo:commit_status_created', data)
 
         self.assertEqual(200, resp.status_code)
         self.assertEqual(server.FIFO.unfinished_tasks, 0)
 
-        data[b'commit_status'][b'state'] = b'SUCCESS'
-        resp = self.handle_post('repo:commit_status_created',
-                                data)
+        data['commit_status']['state'] = 'SUCCESS'
+        resp = self.handle_post('repo:commit_status_created', data)
         self.assertEqual(server.FIFO.unfinished_tasks, 1)
 
         # consume job
@@ -106,28 +105,30 @@ class TestWebhookListener(unittest.TestCase):
 
         app = server.APP.test_client()
         res = app.get('/?output=txt')
+        data = res.data.decode()
 
         # Check merged Pull Requests and merge queue status appear in monitor
         # view
-        assert 'Recently merged pull requests:' in res.data
-        assert '* [2016-12-09 14:54:20] - #1\n' in res.data
-        assert '* [2016-12-09 14:54:21] - #2\n' in res.data
-        assert '* [2016-12-08 14:54:22] - #3\n' in res.data
-        assert 'Merge queue status:' in res.data
-        assert '   #10       NOTSTARTED     INPROGRESS  ' in res.data
+        assert 'Recently merged pull requests:' in data
+        assert '* [2016-12-09 14:54:20] - #1\n' in data
+        assert '* [2016-12-09 14:54:21] - #2\n' in data
+        assert '* [2016-12-08 14:54:22] - #3\n' in data
+        assert 'Merge queue status:' in data
+        assert '   #10       NOTSTARTED     INPROGRESS  ' in data
 
         res = app.get('/')
-        assert 'Recently merged pull requests:' in res.data
+        data = res.data.decode()
+        assert 'Recently merged pull requests:' in data
         assert '<li>[2016-12-09 14:54:20] - <a href="https://bitbucket.or' \
-               'g/foo/bar/pull-requests/1">#1</a></li>' in res.data
+               'g/foo/bar/pull-requests/1">#1</a></li>' in data
         assert '<li>[2016-12-09 14:54:21] - <a href="https://bitbucket.or' \
-               'g/foo/bar/pull-requests/2">#2</a></li>' in res.data
+               'g/foo/bar/pull-requests/2">#2</a></li>' in data
         assert '<li>[2016-12-08 14:54:22] - <a href="https://bitbucket.or' \
-               'g/foo/bar/pull-requests/3">#3</a></li>' in res.data
-        assert 'Merge queue status:' in res.data
+               'g/foo/bar/pull-requests/3">#3</a></li>' in data
+        assert 'Merge queue status:' in data
         assert '<td><a href="https://bitbucket.org/foo/bar/pull-requests/' \
                '10">#10</a></td><td>NOTSTARTED</td><td><a href="fakeurl">' \
-               'INPROGRESS</a></td>' in res.data
+               'INPROGRESS</a></td>' in data
 
         # Update cache with a successful and a failed build
         bitbucket_api.BUILD_STATUS_CACHE['pre-merge'].set('0033deadbeef',
@@ -140,13 +141,13 @@ class TestWebhookListener(unittest.TestCase):
                                                           'url3')
 
         res = app.get('/?output=txt')
-        assert '   #10        SUCCESS         FAILED    ' in res.data
+        assert '   #10        SUCCESS         FAILED    ' in res.data.decode()
 
         res = app.get('/')
 
         assert '<td><a href="https://bitbucket.org/foo/bar/pull-requests/' \
                '10">#10</a></td><td><a href="url3">SUCCESS</a></td><td><a' \
-               ' href="url2">FAILED</a></td>' in res.data
+               ' href="url2">FAILED</a></td>' in res.data.decode()
 
         # Everything is merged, the queue status shouldn't appear anymore
         bert_e.STATUS['merged PRs'].append({
@@ -154,15 +155,16 @@ class TestWebhookListener(unittest.TestCase):
             'merge_time': datetime(2016, 12, 9, 14, 54, 20, 123456)
         })
         res = app.get('/?output=txt')
-
+        data = res.data.decode()
         # PR #10 should appear as merged
-        assert '* [2016-12-09 14:54:20] - #10' in res.data
-        assert 'Merge queue status:' not in res.data
+        assert '* [2016-12-09 14:54:20] - #10' in data
+        assert 'Merge queue status:' not in data
 
         res = app.get('/')
+        data = res.data.decode()
         assert '<li>[2016-12-09 14:54:20] - <a href="https://bitbucket.or' \
-               'g/foo/bar/pull-requests/10">#10</a></li>' in res.data
-        assert 'Merge queue status:' not in res.data
+               'g/foo/bar/pull-requests/10">#10</a></li>' in data
+        assert 'Merge queue status:' not in data
 
     def test_merge_queue_print(self):
         bert_e.STATUS['merge queue'] = OrderedDict([
@@ -214,9 +216,10 @@ class TestWebhookListener(unittest.TestCase):
 
         app = server.APP.test_client()
         res = app.get('/?output=txt')
+        data = res.data.decode()
 
         for exp in expected:
-            assert exp in res.data
+            assert exp in data
 
         expected = (
             '<h3>Merge queue status:</h3>\n'
@@ -272,9 +275,9 @@ class TestWebhookListener(unittest.TestCase):
         )
 
         res = app.get('/')
-
+        data = res.data.decode()
         for exp in expected:
-            assert exp in res.data
+            assert exp in data
 
     def test_current_job_print(self):
         job = server.Job("test_owner", "test_repo",
@@ -285,9 +288,10 @@ class TestWebhookListener(unittest.TestCase):
 
         app = server.APP.test_client()
         res = app.get('/?output=txt')
+        data = res.data.decode()
 
         assert 'Current job: [2016-12-08 14:54:20]' \
-               ' - 456deadbeef12345678901234567890123456789' in res.data
+               ' - 456deadbeef12345678901234567890123456789' in data
 
     def test_pending_jobs_print(self):
 
@@ -310,9 +314,10 @@ class TestWebhookListener(unittest.TestCase):
 
         app = server.APP.test_client()
         res = app.get('/?output=txt')
+        data = res.data.decode()
 
         for exp in expected:
-            assert exp in res.data
+            assert exp in data
 
         expected = (
             '<h3>2 pending jobs:</h3>',
@@ -326,9 +331,9 @@ class TestWebhookListener(unittest.TestCase):
         )
 
         res = app.get('/')
-
+        data = res.data.decode()
         for exp in expected:
-            assert exp in res.data
+            assert exp in data
 
     def test_completed_jobs_print(self):
 
@@ -354,9 +359,9 @@ class TestWebhookListener(unittest.TestCase):
 
         app = server.APP.test_client()
         res = app.get('/?output=txt')
-
+        data = res.data.decode()
         for exp in expected:
-            assert exp in res.data
+            assert exp in data
 
         expected = (
             '<h3>Completed jobs:</h3>',
@@ -369,9 +374,9 @@ class TestWebhookListener(unittest.TestCase):
         )
 
         res = app.get('/')
-
+        data = res.data.decode()
         for exp in expected:
-            assert exp in res.data
+            assert exp in data
 
 
 if __name__ == '__main__':

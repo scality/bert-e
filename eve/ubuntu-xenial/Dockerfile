@@ -12,13 +12,19 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends --ass
     python-setuptools \
     python-pip \
     python-dev \
+    python3 \
+    python3-pkg-resources \
+    python3-setuptools \
+    python3-pip \
+    python3-dev \
     wget \
     git
 
 COPY requirements.txt /tmp/
 
-RUN pip2 install -r /tmp/requirements.txt \
- && pip2 install buildbot-worker==0.9.0rc1 \
+RUN pip3 install -r /tmp/requirements.txt
+
+RUN pip2 install buildbot-worker==0.9.0rc1 \
  && git config --global credential.helper store \
  && adduser -u 1042 --home /home/eve --disabled-password --gecos "" eve \
  && adduser eve sudo \

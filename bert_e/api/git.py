@@ -20,8 +20,6 @@ from pipes import quote
 from shutil import rmtree
 from tempfile import mkdtemp
 
-import six
-
 from ..simplecmd import CommandError, cmd
 
 
@@ -201,7 +199,7 @@ class Branch(object):
     def includes_commit(self, sha1):
         try:
             self.repo.cmd('git merge-base --is-ancestor %s %s',
-                          six.text_type(sha1), self.name)
+                          sha1, self.name)
         except CommandError:
             return False
         return True

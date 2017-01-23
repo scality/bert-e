@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # Copyright 2016 Scality
 #
@@ -205,7 +205,7 @@ def parse_bitbucket_webhook():
     # The event key of the event that triggers the webhook
     # for example, repo:push.
     entity, event = request.headers.get('X-Event-Key').split(':')
-    json_data = json.loads(request.data)
+    json_data = json.loads(request.data.decode())
     repo_owner = json_data['repository']['owner']['username']
     repo_slug = json_data['repository']['name']
 
