@@ -1,7 +1,7 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
-## [2.0.10] - XXX
+## [2.0.10] - 2017-01-23
 # Changed
 - do not fail in case the internal API of tasks has changed at bitbucket
 # Fixed
