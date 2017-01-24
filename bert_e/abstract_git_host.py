@@ -18,17 +18,17 @@ Typical implementations would be Bitbucket, Github or Gitlab.
 
 """
 
-from abc import ABC as AbstractBaseClass, abstractmethod
+from abc import ABCMeta, abstractmethod
 from typing import Iterable
 
 
-class AbstractTask(AbstractBaseClass):
+class AbstractTask(metaclass=ABCMeta):
     """Abstract class defining a task's interface."""
     # Empty, but used as a return value below
     pass
 
 
-class AbstractComment(AbstractBaseClass):
+class AbstractComment(metaclass=ABCMeta):
     """Abstract class defining the interface of a pull requests's comment."""
     @abstractmethod
     def add_task(self, msg: str) -> AbstractTask:
@@ -55,7 +55,7 @@ class AbstractComment(AbstractBaseClass):
         pass
 
 
-class AbstractPullRequest(AbstractBaseClass):
+class AbstractPullRequest(metaclass=ABCMeta):
     @abstractmethod
     def add_comment(self, msg: str) -> AbstractComment:
         """Add a new comment to the Pull Request.
@@ -161,7 +161,7 @@ class AbstractPullRequest(AbstractBaseClass):
         """
 
 
-class AbstractRepository(AbstractBaseClass):
+class AbstractRepository(metaclass=ABCMeta):
     @abstractmethod
     def get_build_status(self, revision: str, key: str) -> str:
         """Get the build status associated to a commit.
