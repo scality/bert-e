@@ -18,7 +18,7 @@ Typical implementations would be Bitbucket, Github or Gitlab.
 
 """
 
-from abc import ABC as AbstractBaseClass, abstractmethod, abstractproperty
+from abc import ABC as AbstractBaseClass, abstractmethod
 from typing import Iterable
 
 
@@ -42,12 +42,14 @@ class AbstractComment(AbstractBaseClass):
         """
         pass
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def author(self) -> str:
         """The comment author's username (login)."""
         pass
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def text(self) -> str:
         """The comment's contents as raw plaintext."""
         pass
@@ -101,43 +103,53 @@ class AbstractPullRequest(AbstractBaseClass):
     def decline(self):
         """Decline this pull request."""
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def id(self) -> str:
         """The pull request's unique ID."""
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def title(self) -> str:
         """The pull request's title."""
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def author(self) -> str:
         """The username of the pull request's author."""
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def author_display_name(self) -> str:
         """The display name of the pull request's author."""
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def description(self) -> str:
         """The description of the Pull Request."""
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def src_branch(self) -> str:
         """The name of the pull request's source branch."""
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def src_commit(self) -> str:
-        """The sha1 hash corresponding to the pull request's source commit.
+        """The sha1 hash corresponding to the pull request's source commit."""
 
-        /!\ This property must have a setter.
+    @src_commit.setter
+    @abstractmethod
+    def src_commit(self, sha1):
+        pass
 
-        """
-
-    @abstractproperty
+    @property
+    @abstractmethod
     def dst_branch(self) -> str:
         """The name of the pull request's destination branch."""
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def status(self) -> str:
         """The current status of the pull request.
 
