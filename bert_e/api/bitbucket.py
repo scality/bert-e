@@ -21,14 +21,16 @@ from urllib.parse import quote
 from requests import HTTPError, Session
 from requests.auth import HTTPBasicAuth
 
+
+from ..abstract_git_host import (
+    AbstractComment, AbstractPullRequest, AbstractRepository, AbstractTask
+)
 from ..exceptions import TaskAPIError
 from ..utils import LRUCache
 
 MAX_PR_TITLE_LEN = 255
 
-# Key: build_key
-# Value: LRUCache
-BUILD_STATUS_CACHE = defaultdict(LRUCache)
+BUILD_STATUS_CACHE = defaultdict(LRUCache)  # type: Dict[str, LRUCache]
 
 
 def fix_pull_request_title(title):
@@ -39,21 +41,22 @@ def fix_pull_request_title(title):
 
 class Client(Session):
     def __init__(self, bitbucket_login, bitbucket_password, bitbucket_mail):
-        Session.__init__(self)
+        super().__init__()
         headers = {
             'Accept': 'application/json',
             'User-Agent': 'Bert-E',
             'Content-type': 'application/json',
-            'From': bitbucket_mail}
+            'From': bitbucket_mail
+        }
         self.mail = bitbucket_mail
         self.headers.update(headers)
         self.auth = HTTPBasicAuth(bitbucket_login, bitbucket_password)
 
 
 class BitBucketObject(object):
-    list_url = None
-    add_url = None
-    get_url = None
+    list_url = None  # type: str
+    add_url = None   # type: str
+    get_url = None   # type: str
 
     def __init__(self, client, **kwargs):
         self.client = client
@@ -107,7 +110,7 @@ class BitBucketObject(object):
         response.raise_for_status()
 
 
-class Repository(BitBucketObject):
+class Repository(BitBucketObject, AbstractRepository):
     add_url = 'https://api.bitbucket.org/2.0/repositories/$owner/$repo_slug'
     get_url = add_url
 
@@ -115,69 +118,77 @@ class Repository(BitBucketObject):
         return 'https://%s:%s@bitbucket.org/%s/%s.git' % (
             quote(self.client.auth.username),
             quote(self.client.auth.password),
-            self['owner'],
-            self['repo_slug'])
+            self.owner,
+            self.slug)
 
-    def create_pull_request(self, **kwargs):
-        # Documentation here
-        # https://confluence.atlassian.com/bitbucket/pullrequests-resource-423626332.html#pullrequestsResource-POST(create)anewpullrequest
-        kwargs['full_name'] = self['owner'] + '/' + self['repo_slug']
+    def create_pull_request(self, title, src_branch, dst_branch,
+                            description, **kwargs):
+        kwargs.update({
+            'title': fix_pull_request_title(title),
+            'source': {'branch': {'name': src_branch}},
+            'destination': {'branch': {'name': dst_branch}},
+            'description': description,
+            'full_name': self.full_name
+        })
         return PullRequest(self.client, **kwargs).create()
 
-    def get_pull_requests(self, **kwargs):
-        kwargs['full_name'] = self['owner'] + '/' + self['repo_slug']
-        return PullRequest.get_list(self.client, **kwargs)
+    def get_pull_requests(self):
+        return PullRequest.get_list(self.client, full_name=self.full_name)
 
-    def get_pull_request(self, **kwargs):
-        kwargs['full_name'] = self['owner'] + '/' + self['repo_slug']
-        return PullRequest.get(self.client, **kwargs)
+    def get_pull_request(self, pull_request_id):
+        return PullRequest.get(self.client,
+                               pull_request_id=pull_request_id,
+                               full_name=self.full_name)
 
-    def get_build_status(self, **kwargs):
-        kwargs['owner'] = self['owner']
-        kwargs['repo_slug'] = self['repo_slug']
-        sha1 = kwargs['revision']
-        key = kwargs['key']
+    def get_build_status(self, revision, key):
+        kwargs = {
+            'owner': self.owner,
+            'repo_slug': self.slug,
+            'revision': revision,
+            'key': key
+        }
 
-        # Check if a successful build for this sha1 is in cache
-        status = BUILD_STATUS_CACHE[key].get(sha1, None)
+        # Check if a successful build for this revision is in cache
+        status = BUILD_STATUS_CACHE[key].get(revision, None)
         if status == 'SUCCESSFUL':
-            logging.debug('Build status on %s: cache GET (%s)', sha1, status)
+            logging.debug('Build on %s: cache GET (%s)', revision, status)
             return status
 
-        logging.debug('Build status on %s: cache MISS (%s)', sha1, status)
+        logging.debug('Build on %s: cache MISS (%s)', revision, status)
 
         # Either not in cache or wasn't successful last time. Check BB again.
         try:
             status = BuildStatus.get(self.client, **kwargs)
-            return BUILD_STATUS_CACHE[key].set(sha1, status['state'])
+            return BUILD_STATUS_CACHE[key].set(revision, status['state'])
         except HTTPError as e:
             if e.response.status_code == 404:
-                return BUILD_STATUS_CACHE[key].set(sha1, 'NOTSTARTED')
+                return BUILD_STATUS_CACHE[key].set(revision, 'NOTSTARTED')
             raise
 
     def invalidate_build_status_cache(self):
         """Reset cache entries (useful for tests)."""
         BUILD_STATUS_CACHE.clear()
 
-    def set_build_status(self, **kwargs):
-        kwargs['owner'] = self['owner']
-        kwargs['repo_slug'] = self['repo_slug']
+    def set_build_status(self, revision, key, state, **kwargs):
+        kwargs.update({
+            'owner': self.owner,
+            'repo_slug': self.slug,
+            'revision': revision,
+            'key': key,
+            'state': state
+        })
         return BuildStatus(self.client, **kwargs).create()
 
     def get_webhooks(self, **kwargs):
-        kwargs['owner'] = self['owner']
-        kwargs['repo_slug'] = self['repo_slug']
+        kwargs.update({'owner': self.owner, 'repo_slug': self.slug})
         return WebHook.get_list(self.client, **kwargs)
 
     def create_webhook(self, **kwargs):
-        kwargs['owner'] = self['owner']
-        kwargs['repo_slug'] = self['repo_slug']
+        kwargs.update({'owner': self.owner, 'repo_slug': self.slug})
         return WebHook(self.client, **kwargs).create()
 
     def delete_webhooks_with_title(self, title):
-        kwargs = {}
-        kwargs['owner'] = self['owner']
-        kwargs['repo_slug'] = self['repo_slug']
+        kwargs = {'owner': self.owner, 'repo_slug': self.slug}
         for webhook in self.get_webhooks(**kwargs):
             if webhook['description'] == title:
                 webhook['owner'] = self['owner']
@@ -185,8 +196,20 @@ class Repository(BitBucketObject):
                 webhook['uid'] = webhook['uuid']
                 webhook.delete()
 
+    @property
+    def full_name(self):
+        return '/'.join((self.owner, self.slug))
 
-class PullRequest(BitBucketObject):
+    @property
+    def owner(self):
+        return self['owner']
+
+    @property
+    def slug(self):
+        return self['repo_slug']
+
+
+class PullRequest(BitBucketObject, AbstractPullRequest):
     add_url = ('https://api.bitbucket.org/2.0/repositories/'
                '$full_name/pullrequests')
     list_url = add_url + '?page=$page'
@@ -207,6 +230,15 @@ class PullRequest(BitBucketObject):
     def get_tasks(self):
         return Task.get_list(self.client, full_name=self.full_name(),
                              pull_request_id=self['id'])
+
+    def get_approvals(self):
+        for participant in self['participants']:
+            if participant['approved']:
+                yield participant['user']['username']
+
+    def get_participants(self):
+        for participant in self['participants']:
+            yield participant['user']['username']
 
     def merge(self):
         self._json_data['full_name'] = self.full_name()
@@ -236,8 +268,48 @@ class PullRequest(BitBucketObject):
                                     json_str)
         response.raise_for_status()
 
+    @property
+    def id(self):
+        return self['id']
 
-class Comment(BitBucketObject):
+    @property
+    def title(self):
+        return self['title']
+
+    @property
+    def author(self):
+        return self['author']['username']
+
+    @property
+    def author_display_name(self):
+        return self['author']['display_name']
+
+    @property
+    def src_branch(self):
+        return self['source']['branch']['name']
+
+    @property
+    def src_commit(self):
+        return self['source']['commit']['hash']
+
+    @src_commit.setter
+    def src_commit(self, sha1):
+        self['source']['commit']['hash'] = sha1
+
+    @property
+    def dst_branch(self):
+        return self['destination']['branch']['name']
+
+    @property
+    def status(self):
+        return self['state']
+
+    @property
+    def description(self):
+        return self['description']
+
+
+class Comment(BitBucketObject, AbstractComment):
     add_url = ('https://api.bitbucket.org/2.0/repositories/'
                '$full_name/pullrequests/$pull_request_id/comments')
     list_url = add_url + '?page=$page'
@@ -271,8 +343,16 @@ class Comment(BitBucketObject):
                                       .replace('/2.0/', '/1.0/'))
         response.raise_for_status()
 
+    @property
+    def author(self):
+        return self['user']['username']
 
-class Task(BitBucketObject):
+    @property
+    def text(self):
+        return self['content']['raw']
+
+
+class Task(BitBucketObject, AbstractTask):
     get_url = 'https://bitbucket.org/!api/internal/repositories/$full_name/' \
         'pullrequests/$pull_request_id/tasks/$task_id'
     add_url = 'https://bitbucket.org/!api/internal/repositories/$full_name/' \
@@ -280,7 +360,7 @@ class Task(BitBucketObject):
     list_url = add_url + '?page=$page'
 
     def __init__(self, client, **kwargs):
-        super(Task, self).__init__(client, **kwargs)
+        super().__init__(client, **kwargs)
         if 'comment_id' in self._json_data:
             self._json_data['comment'] = {'id': self._json_data['comment_id']}
         if 'content' in self._json_data:
@@ -288,26 +368,26 @@ class Task(BitBucketObject):
 
     def create(self, *args, **kwargs):
         try:
-            return super(Task, self).create(*args, **kwargs)
+            return super().create(*args, **kwargs)
         except Exception as err:
             raise TaskAPIError('create', err)
 
     def delete(self, *args, **kwargs):
         try:
-            return super(Task, self).delete(*args, **kwargs)
+            return super().delete(*args, **kwargs)
         except Exception as err:
             raise TaskAPIError('delete', err)
 
     def get(self, *args, **kwargs):
         try:
-            return super(Task, self).get(*args, **kwargs)
+            return super().get(*args, **kwargs)
         except Exception as err:
             raise TaskAPIError('get', err)
 
     @classmethod
     def get_list(self, *args, **kwargs):
         try:
-            return list(super(Task, self).get_list(*args, **kwargs))
+            return list(super().get_list(*args, **kwargs))
         except Exception as err:
             raise TaskAPIError('get_list', err)
 

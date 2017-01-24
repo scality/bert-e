@@ -113,21 +113,17 @@ class BertEPullRequest():
         pull_request_id = int(pr_id)
 
         self.bbrepo = bbrepo
-        self.bb_pr = self.bbrepo.get_pull_request(
-            pull_request_id=pull_request_id)
-        self.author = self.bb_pr['author']['username']
-        self.author_display_name = self.bb_pr['author']['display_name']
+        self.bb_pr = self.bbrepo.get_pull_request(pull_request_id)
+        self.author = self.bb_pr.author
+        self.author_display_name = self.bb_pr.author_display_name
         if robot_username == self.author:
-            res = re.search('(?P<pr_id>\d+)',
-                            self.bb_pr['description'])
+            res = re.search('(?P<pr_id>\d+)', self.bb_pr.description)
             if not res:
-                raise ParentPullRequestNotFound(self.bb_pr['id'])
+                raise ParentPullRequestNotFound(self.bb_pr.id)
             pull_request_id = int(res.group('pr_id'))
-            self.bb_pr = self.bbrepo.get_pull_request(
-                pull_request_id=pull_request_id
-            )
-            self.author = self.bb_pr['author']['username']
-            self.author_display_name = self.bb_pr['author']['display_name']
+            self.bb_pr = self.bbrepo.get_pull_request(pull_request_id)
+            self.author = self.bb_pr.author
+            self.author_display_name = self.bb_pr.author_display_name
 
         # first posted comments first in the list
         self.comments = []
@@ -220,22 +216,18 @@ class IntegrationBranch(BertEBranch):
 
     def get_pull_request_from_list(self, open_prs):
         for pr in open_prs:
-            if pr['source']['branch']['name'] != self.name:
+            if pr.src_branch != self.name:
                 continue
             if self.destination_branch and \
-                    pr['destination']['branch']['name'] != \
+                    pr.dst_branch != \
                     self.destination_branch.name:
                 continue
             return pr
 
     def get_or_create_pull_request(self, parent_pr, open_prs, bitbucket_repo,
                                    first=False):
-        title = bitbucket_api.fix_pull_request_title(
-            'INTEGRATION [PR#%s > %s] %s' % (
-                parent_pr['id'],
-                self.destination_branch.name,
-                parent_pr['title']
-            )
+        title = 'INTEGRATION [PR#%s > %s] %s' % (
+            parent_pr.id, self.destination_branch.name, parent_pr.title
         )
 
         # WARNING potential infinite loop:
@@ -254,8 +246,8 @@ class IntegrationBranch(BertEBranch):
             pr = bitbucket_repo.create_pull_request(
                 title=title,
                 name='name',
-                source={'branch': {'name': self.name}},
-                destination={'branch': {'name': self.destination_branch.name}},
+                src_branch=self.name,
+                dst_branch=self.destination_branch.name,
                 close_source_branch=True,
                 description=description)
             created = True
@@ -571,8 +563,8 @@ class QueueCollection(object):
             if qints:
                 qint = qints[0]
                 status = self.bbrepo.get_build_status(
-                    revision=qint.get_latest_commit(),
-                    key=self.build_key
+                    qint.get_latest_commit(),
+                    self.build_key
                 )
                 if status != 'SUCCESSFUL':
                     first_failed_pr = qint.pr_id
@@ -991,7 +983,7 @@ class BertE:
         if not pr:
             raise NothingToDo('Could not find the PR corresponding to'
                               ' sha1: %s' % sha1)
-        return self.handle_pull_request(pr['id'])
+        return self.handle_pull_request(pr.id)
 
     def handle_merge_queues(self):
         """Entry point to handle queues following a build status update."""
@@ -1026,7 +1018,7 @@ class BertE:
         candidates = sorted(
             filter(bool, (b.get_pull_request_from_list(open_prs) for b in
                           self._get_integration_branches_from_sha1(sha1))),
-            key=lambda pr: pr['id']
+            key=lambda pr: pr.id
         )
         if candidates:
             return candidates[0]
@@ -1073,8 +1065,8 @@ class BertE:
         if max_history not in (None, -1):
             comments = itertools.islice(comments, 0, max_history)
         for comment in comments:
-            u = comment['user']['username']
-            raw = comment['content']['raw']
+            u = comment.author
+            raw = comment.text
             # python3
             if isinstance(username, str) and u != username:
                 continue
@@ -1087,8 +1079,7 @@ class BertE:
                 continue
             return comment
 
-    def send_bitbucket_msg(self, msg,
-                           dont_repeat_if_in_history=10):
+    def send_bitbucket_msg(self, msg, dont_repeat_if_in_history=10):
         if self.no_comment:
             logging.debug('not sending message due to no_comment being True.')
             return
@@ -1138,10 +1129,10 @@ class BertE:
             logging.info("Comment '%s' already posted", msg.__class__.__name__)
 
     def _check_pr_state(self):
-        if self._pr.bb_pr['state'] not in ('OPEN', 'DECLINED'):
+        if self._pr.bb_pr.status not in ('OPEN', 'DECLINED'):
             raise NothingToDo('The pull-request\'s state is "%s"'
-                              % self._pr.bb_pr['state'])
-        return self._pr.bb_pr['state']
+                              % self._pr.bb_pr.status)
+        return self._pr.bb_pr.status
 
     def _clone_git_repo(self):
         repo = self.repo
@@ -1249,19 +1240,12 @@ class BertE:
         """Load settings from pull-request comments."""
         username = self.settings['robot_username']
         for comment in self._pr.comments:
-            raw = comment['content']['raw']
+            raw = comment.text
             if not raw.strip().startswith('@%s' % username):
                 continue
 
             logging.debug('Found a keyword comment: %s', raw)
             raw_cleaned = raw.strip()[len(username) + 1:]
-
-            author = comment['user']['username']
-            if isinstance(author, list):
-                # python2 returns a list
-                if len(author) != 1:
-                    continue
-                author = author[0]
 
             # accept all options in the form:
             # @{robot_username} option1 option2...
@@ -1277,7 +1261,8 @@ class BertE:
 
             keywords = match_.group('keywords').strip().split()
 
-            if not self._check_options(author, pr_author, keywords, raw):
+            if not self._check_options(comment.author, pr_author,
+                                       keywords, raw):
                 logging.debug('Keyword comment ignored. '
                               'Not an option, checks failed: %s', raw)
                 continue
@@ -1316,20 +1301,13 @@ class BertE:
         """Detect the last command in pull-request comments and act on it."""
         username = self.settings['robot_username']
         for comment in reversed(self._pr.comments):
-            author = comment['user']['username']
-            if isinstance(author, list):
-                # python2 returns a list
-                if len(author) != 1:
-                    continue
-                author = author[0]
-
             # if Bert-E is the author of this comment, any previous command
             # has been treated or is outdated, since Bert-E replies to all
             # commands. The search is over.
-            if author == username:
+            if comment.author == username:
                 return
 
-            raw = comment['content']['raw']
+            raw = comment.text
             if not raw.strip().startswith('@%s' % username):
                 continue
 
@@ -1348,7 +1326,7 @@ class BertE:
 
             command = match_.group('command')
 
-            if not self._check_command(author, command, raw):
+            if not self._check_command(comment.author, command, raw):
                 logging.debug('Command comment ignored. '
                               'Not a command, checks failed: %s' % raw)
                 continue
@@ -1377,12 +1355,12 @@ class BertE:
         if not self._pr.after_prs:
             return
 
-        prs = [self.bbrepo.get_pull_request(pull_request_id=int(x))
-               for x in self._pr.after_prs]
+        prs = [self.bbrepo.get_pull_request(int(pr_id))
+               for pr_id in self._pr.after_prs]
 
-        opened_prs = [p for p in prs if p['state'] == 'OPEN']
-        merged_prs = [p for p in prs if p['state'] == 'MERGED']
-        declined_prs = [p for p in prs if p['state'] == 'DECLINED']
+        opened_prs = [p for p in prs if p.status == 'OPEN']
+        merged_prs = [p for p in prs if p.status == 'MERGED']
+        declined_prs = [p for p in prs if p.status == 'DECLINED']
 
         if len(self._pr.after_prs) != len(merged_prs):
             raise AfterPullRequest(
@@ -1546,9 +1524,9 @@ class BertE:
             # decline integration PR
             for pr in open_prs:
                 if (
-                    pr['state'] == 'OPEN' and
-                    pr['source']['branch']['name'] == name and
-                    pr['destination']['branch']['name'] == dst_branch.name
+                    pr.status == 'OPEN' and
+                    pr.src_branch == name and
+                    pr.dst_branch == dst_branch.name
                 ):
                     pr.decline()
                     changed = True
@@ -1671,7 +1649,7 @@ class BertE:
         """
         for branch, pr in zip(integration_branches, integration_prs):
             branch_sha1 = branch.get_latest_commit()
-            pr_sha1 = pr['source']['commit']['hash']  # 12 hex hash
+            pr_sha1 = pr.src_commit  # 12 hex hash
             if branch_sha1.startswith(pr_sha1):
                 continue
 
@@ -1680,10 +1658,10 @@ class BertE:
                                 'got PR commit: %s).', branch_sha1,
                                 pr_sha1)
                 logging.warning('Updating the integration PR locally.')
-                pr['source']['commit']['hash'] = branch_sha1
+                pr.src_commit = branch_sha1
                 continue
 
-            raise PullRequestSkewDetected(pr['id'], branch_sha1, pr_sha1)
+            raise PullRequestSkewDetected(pr.id, branch_sha1, pr_sha1)
 
     def _check_approvals(self):
         """Check approval of a PR by author, tester and peer.
@@ -1721,21 +1699,23 @@ class BertE:
         # NB: when author hasn't approved the PR, author isn't listed in
         # 'participants'
         username = self.settings['robot_username']
-        for participant in self._pr.bb_pr['participants']:
-            if not participant['approved']:
-                # Exclude Bert-E from consideration
-                if participant['user']['username'] != username:
-                    is_unanimous = False
-                continue
-            if participant['user']['username'] == self._pr.author:
-                approved_by_author = True
-            elif participant['user']['username'] in self.settings['testers']:
-                approved_by_tester = True
-            else:
-                current_peer_approvals += 1
 
-        missing_peer_approvals = \
-            required_peer_approvals - current_peer_approvals
+        participants = set(self._pr.bb_pr.get_participants())
+        approvals = set(self._pr.bb_pr.get_approvals())
+
+        # Exclude Bert-E from consideration
+        participants -= {username}
+
+        testers = set(self.settings['testers'])
+
+        is_unanimous = approvals - {username} == participants
+        approved_by_author |= self._pr.author in approvals
+        approved_by_tester |= bool(approvals & testers)
+        peer_approvals = approvals - testers - {self._pr.author}
+        current_peer_approvals += len(peer_approvals)
+        missing_peer_approvals = (
+            required_peer_approvals - current_peer_approvals)
+
         if not approved_by_author:
             raise AuthorApprovalRequired(
                 pr=self._pr.bb_pr,
@@ -1756,7 +1736,7 @@ class BertE:
                 active_options=self._get_active_options()
             )
 
-        if not approved_by_tester:
+        if testers and not approved_by_tester:
             raise TesterApprovalRequired(
                 pr=self._pr.bb_pr,
                 author_approval=approved_by_author,
@@ -1766,7 +1746,7 @@ class BertE:
                 active_options=self._get_active_options()
             )
 
-        if (requires_unanimity and not is_unanimous):
+        if requires_unanimity and not is_unanimous:
             raise UnanimityApprovalRequired(
                 pr=self._pr.bb_pr,
                 author_approval=approved_by_author,
@@ -1778,10 +1758,10 @@ class BertE:
 
     def _get_sha1_build_status(self, sha1, key=None):
         key = key or self.settings['build_key']
-        return self.bbrepo.get_build_status(revision=sha1, key=key)
+        return self.bbrepo.get_build_status(sha1, key)
 
     def _get_pr_build_status(self, key, pr):
-        return self._get_sha1_build_status(pr['source']['commit']['hash'], key)
+        return self._get_sha1_build_status(pr.src_commit, key)
 
     def _check_build_status(self, child_prs):
         """Report the worst status available."""
@@ -1802,7 +1782,7 @@ class BertE:
                 worst_pr = pr
 
         if g_state == 'FAILED':
-            raise BuildFailed(pr_id=worst_pr['id'],
+            raise BuildFailed(pr_id=worst_pr.id,
                               active_options=self._get_active_options())
         elif g_state == 'NOTSTARTED':
             raise BuildNotStarted()
@@ -1835,7 +1815,7 @@ class BertE:
         try:
             qbranch.merge(wbranch)
             qint = self._get_queue_integration_branch(
-                self._pr.bb_pr['id'], wbranch)
+                self._pr.bb_pr.id, wbranch)
             qint.create(qbranch, do_push=False)
             to_push.append(qint)
             for qbranch, wbranch in zip(qbranches, wbranches):
@@ -1846,7 +1826,7 @@ class BertE:
                     qbranch.merge(qint, wbranch)
 
                 qint = self._get_queue_integration_branch(
-                    self._pr.bb_pr['id'], wbranch)
+                    self._pr.bb_pr.id, wbranch)
                 qint.create(qbranch, do_push=False)
                 to_push.append(qint)
         except MergeFailedException:
@@ -1856,7 +1836,7 @@ class BertE:
 
     def _already_in_queue(self, integration_branches):
         qint_branches = [
-            self._get_queue_integration_branch(self._pr.bb_pr['id'], w)
+            self._get_queue_integration_branch(self._pr.bb_pr.id, w)
             for w in integration_branches
         ]
         exist = [q.exists() for q in qint_branches]
@@ -1929,11 +1909,11 @@ class BertE:
         self._cascade = cascade
         src_branch = branch_factory(
             self.repo,
-            self._pr.bb_pr['source']['branch']['name']
+            self._pr.bb_pr.src_branch
         )
         dst_branch = branch_factory(
             self.repo,
-            self._pr.bb_pr['destination']['branch']['name']
+            self._pr.bb_pr.dst_branch
         )
         self._cascade.finalize(dst_branch)
 
@@ -1943,7 +1923,7 @@ class BertE:
                 branches=self._cascade.destination_branches,
                 ignored=self._cascade.ignored_branches,
                 issue=src_branch.jira_issue_key,
-                author=self._pr.bb_pr['author']['display_name'],
+                author=self._pr.bb_pr.author_display_name,
                 active_options=[]))
 
         else:
@@ -1976,8 +1956,8 @@ class BertE:
 
         self._check_pr_state()
 
-        dst_branch_name = self._pr.bb_pr['destination']['branch']['name']
-        src_branch_name = self._pr.bb_pr['source']['branch']['name']
+        dst_branch_name = self._pr.bb_pr.dst_branch
+        src_branch_name = self._pr.bb_pr.src_branch
         self._setup_source_branch(src_branch_name, dst_branch_name)
         self._setup_destination_branch(dst_branch_name)
         self._check_if_ignored()
@@ -1988,7 +1968,7 @@ class BertE:
         # Now we're actually going to work on the repository. Let's clone it.
         self._clone_git_repo()
 
-        if self._pr.bb_pr['state'] == 'DECLINED':
+        if self._pr.bb_pr.status == 'DECLINED':
             self._handle_declined_pr()
 
         # Handle the case when bitbucket is lagging and the PR was actually
@@ -2057,7 +2037,7 @@ class BertE:
 
         else:
             self._merge(integration_branches)
-            add_merged_pr(self._pr.bb_pr['id'])
+            add_merged_pr(self._pr.bb_pr.id)
             self._validate_repo()
             raise SuccessMessage(
                 branches=self._cascade.destination_branches,

@@ -17,6 +17,10 @@
 
 import requests
 
+from ...abstract_git_host import (
+    AbstractComment, AbstractPullRequest, AbstractRepository, AbstractTask
+)
+
 from ...exceptions import TaskAPIError
 from ...api.git import Repository as GitRepository, Branch as GitBranch
 
@@ -55,7 +59,7 @@ class Client:
         self.auth = self
 
 
-class BitBucketObject(object):
+class BitBucketObject:
     def __getitem__(self, item):
         return self.__getattribute__(item)
 
@@ -73,7 +77,7 @@ class BitBucketObject(object):
             raise requests.exceptions.HTTPError(response=Error404Response())
 
 
-class Controller(object):
+class Controller:
     def __init__(self, client, controlled):
         self.controlled = controlled
         self.client = client
@@ -85,7 +89,7 @@ class Controller(object):
         return self.controlled.__setattr__(item, value)
 
 
-class Repository(BitBucketObject):
+class Repository(BitBucketObject, AbstractRepository):
     items = []
     repos = {}
 
@@ -119,7 +123,7 @@ class Repository(BitBucketObject):
         # ###############
 
     def delete(self):
-        BitBucketObject.delete(self)
+        super().delete()
         PullRequest.items = []
         Task.items = []
         Comment.items = []
@@ -129,15 +133,18 @@ class Repository(BitBucketObject):
         self.gitrepo.cmd('git init')
         self.gitrepo.revisions = {}  # UGLY
         Repository.repos[(self.repo_owner, self.repo_slug)] = self.gitrepo
-        return BitBucketObject.create(self)
+        return super().create()
 
     def get_git_url(self):
         self.gitrepo = Repository.repos[(self.repo_owner, self.repo_slug)]
         return self.gitrepo.tmp_directory
 
-    def create_pull_request(self, title, name, source, destination,
-                            close_source_branch, description, reviewers=[]):
+    def create_pull_request(self, title, src_branch, dst_branch,
+                            name='name', description='',
+                            close_source_branch=True, reviewers=[]):
         self.get_git_url()
+        source = {'branch': {'name': src_branch}}
+        destination = {'branch': {'name': dst_branch}}
         pr = PullRequest(self, title, name, source, destination,
                          close_source_branch, reviewers, description).create()
         prc = PullRequestController(self.client, pr)
@@ -152,7 +159,7 @@ class Repository(BitBucketObject):
     def get_pull_request(self, pull_request_id):
         assert type(pull_request_id) == int
         for pr in self.get_pull_requests():
-            if pr['id'] == pull_request_id:
+            if pr.id == pull_request_id:
                 return pr
         raise Exception("Did not find this pr")
 
@@ -165,12 +172,12 @@ class Repository(BitBucketObject):
     def invalidate_build_status_cache(self):
         pass
 
-    def set_build_status(self, revision, key, state, name, url):
+    def set_build_status(self, revision, key, state, **kwargs):
         self.get_git_url()
         self.gitrepo.revisions[(revision, key)] = state
 
 
-class PullRequestController(Controller):
+class PullRequestController(Controller, AbstractPullRequest):
     def add_comment(self, msg):
         comment = Comment(self.client, content=msg,
                           full_name=self.controlled.full_name(),
@@ -223,11 +230,60 @@ class PullRequestController(Controller):
             'approved': False,
             'role': 'PARTICIPANT'})
 
+    def get_approvals(self):
+        for participant in self['participants']:
+            if participant['approved']:
+                yield participant['user']['username']
+
+    def get_participants(self):
+        for participant in self['participants']:
+            yield participant['user']['username']
+
     def decline(self):
         self['_state'] = "DECLINED"
 
+    @property
+    def id(self):
+        return self['id']
 
-class CommentController(Controller):
+    @property
+    def title(self):
+        return self['title']
+
+    @property
+    def author(self):
+        return self['author']['username']
+
+    @property
+    def author_display_name(self):
+        return self['author']['display_name']
+
+    @property
+    def src_branch(self):
+        return self['source']['branch']['name']
+
+    @property
+    def src_commit(self):
+        return self['source']['commit']['hash']
+
+    @src_commit.setter
+    def src_commit(self, sha1):
+        self['source']['commit']['hash'] = sha1
+
+    @property
+    def dst_branch(self):
+        return self['destination']['branch']['name']
+
+    @property
+    def status(self):
+        return self['state']
+
+    @property
+    def description(self):
+        return self['description']
+
+
+class CommentController(Controller, AbstractComment):
     def add_task(self, msg):
         task = Task(self.client, content=msg,
                     full_name=self.controlled.full_name,
@@ -239,6 +295,14 @@ class CommentController(Controller):
 
     def delete(self):
         self.controlled.delete()
+
+    @property
+    def author(self):
+        return self['user']['username']
+
+    @property
+    def text(self):
+        return self['content']['raw']
 
 
 class Branch(object):
@@ -333,7 +397,7 @@ class Comment(BitBucketObject):
                 c.pull_request_id == pull_request_id]
 
 
-class Task(BitBucketObject):
+class Task(BitBucketObject, AbstractTask):
     add_url = 'legit_add_url'
     list_url = 'legit_list_url'
     items = []

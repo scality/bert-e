@@ -19,6 +19,7 @@ import re
 import sys
 import time
 import unittest
+import warnings
 from collections import OrderedDict
 from copy import deepcopy
 from hashlib import md5
@@ -539,6 +540,8 @@ class RepositoryTests(unittest.TestCase):
         return bypasses
 
     def setUp(self):
+        warnings.resetwarnings()
+        warnings.simplefilter('ignore')
         # repo creator and reviewer
         self.creator = self.args.admin_username
         client = bitbucket_api.Client(
@@ -611,8 +614,8 @@ class RepositoryTests(unittest.TestCase):
         pr = self.contributor_bb.create_pull_request(
             title='title',
             name='name',
-            source={'branch': {'name': feature_branch}},
-            destination={'branch': {'name': from_branch}},
+            src_branch=feature_branch,
+            dst_branch=from_branch,
             close_source_branch=True,
             reviewers=[{'username': rev} for rev in reviewers],
             description=''
@@ -825,8 +828,8 @@ class TestBertE(RepositoryTests):
         pr = self.contributor_bb.create_pull_request(
             title='title',
             name='name',
-            source={'branch': {'name': feature_branch}},
-            destination={'branch': {'name': 'release/6.0'}},
+            src_branch=feature_branch,
+            dst_branch='release/6.0',
             close_source_branch=True,
             description=''
         )
@@ -848,8 +851,8 @@ class TestBertE(RepositoryTests):
             pr = self.contributor_bb.create_pull_request(
                 title='title',
                 name='name',
-                source={'branch': {'name': 'feature/TEST-00001'}},
-                destination={'branch': {'name': destination}},
+                src_branch='feature/TEST-00001',
+                dst_branch=destination,
                 close_source_branch=True,
                 description=''
             )
@@ -1002,8 +1005,8 @@ class TestBertE(RepositoryTests):
             pr = self.contributor_bb.create_pull_request(
                 title='title',
                 name='name',
-                source={'branch': {'name': source}},
-                destination={'branch': {'name': 'development/4.3'}},
+                src_branch=source,
+                dst_branch='development/4.3',
                 close_source_branch=True,
                 description=''
             )
@@ -1043,8 +1046,8 @@ class TestBertE(RepositoryTests):
         pr = self.contributor_bb.create_pull_request(
             title='title',
             name='name',
-            source={'branch': {'name': 'bugfix/TEST-00001'}},
-            destination={'branch': {'name': 'master2'}},
+            src_branch='bugfix/TEST-00001',
+            dst_branch='master2',
             close_source_branch=True,
             description=''
         )
@@ -1068,8 +1071,8 @@ class TestBertE(RepositoryTests):
         pr = self.robot_bb.create_pull_request(
             title='title',
             name='name',
-            source={'branch': {'name': 'w/bugfix/TEST-00069'}},
-            destination={'branch': {'name': 'development/4.3'}},
+            src_branch='w/bugfix/TEST-00069',
+            dst_branch='development/4.3',
             close_source_branch=True,
             reviewers=[{'username': self.args.contributor_username}],
             description=''
@@ -1979,8 +1982,8 @@ class TestBertE(RepositoryTests):
         pr = self.contributor_bb.create_pull_request(
             title='A' * bitbucket_api.MAX_PR_TITLE_LEN,
             name='name',
-            source={'branch': {'name': 'bugfix/TEST-00001'}},
-            destination={'branch': {'name': 'development/4.3'}},
+            src_branch='bugfix/TEST-00001',
+            dst_branch='development/4.3',
             close_source_branch=True,
             description=''
         )
@@ -2343,7 +2346,7 @@ class TestQueueing(RepositoryTests):
         if self.args.disable_queues:
             self.skipTest("skipping queue-related tests, "
                           "remove --disable-queues to activate")
-        super(TestQueueing, self).setUp()
+        super().setUp()
 
     def queue_branch(self, name):
         return bert_e.QueueBranch(self.gitrepo, name)
