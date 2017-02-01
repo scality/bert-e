@@ -18,10 +18,10 @@
 import requests
 
 from . import base
-from .factory import api_client
-
+from ..api.git import Branch as GitBranch
+from ..api.git import Repository as GitRepository
 from ..exceptions import TaskAPIError
-from ..api.git import Repository as GitRepository, Branch as GitBranch
+from .factory import api_client
 
 
 def fake_user_dict(username):

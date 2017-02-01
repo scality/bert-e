@@ -18,14 +18,11 @@ import sys
 import time
 import unittest
 import warnings
-
 from contextlib import suppress
-
-from ..git_host import client_factory
 
 from ..api.git import Repository as GitRepository
 from ..api.git import Branch
-from ..git_host.base import NoSuchRepository
+from ..git_host import NoSuchRepository, client_factory
 
 
 def initialize_git_repo(repo, username, usermail):

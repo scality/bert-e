@@ -27,14 +27,14 @@ from hashlib import md5
 import requests
 
 from .. import bert_e
-from ..git_host import bitbucket as bitbucket_api
 from ..api import jira as jira_api
 from ..api.git import Repository as GitRepository
 from ..api.git import Branch
 from ..exceptions import *
+from ..git_host import bitbucket as bitbucket_api
+from ..git_host import mock as bitbucket_api_mock
 from ..simplecmd import CommandError, cmd
 from ..utils import RetryHandler
-from ..git_host import mock as bitbucket_api_mock
 from .mocks import jira as jira_api_mock
 
 

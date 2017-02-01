@@ -22,8 +22,8 @@ from datetime import datetime
 
 from .. import bert_e, server
 from ..git_host import bitbucket as bitbucket_api
-from ..git_host.mock import Client as MockClient, \
-    Repository as MockRepository
+from ..git_host.mock import Client as MockClient
+from ..git_host.mock import Repository as MockRepository
 from .test_server_data import COMMENT_CREATED, COMMIT_STATUS_CREATED
 
 bitbucket_api.Client = MockClient

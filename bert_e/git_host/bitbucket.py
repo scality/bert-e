@@ -21,13 +21,10 @@ from urllib.parse import quote
 from requests import HTTPError, Session
 from requests.auth import HTTPBasicAuth
 
-
-from .base import (
-    AbstractClient, AbstractComment, AbstractPullRequest, AbstractRepository,
-    AbstractTask
-)
 from ..exceptions import TaskAPIError
 from ..utils import LRUCache
+from .base import (AbstractClient, AbstractComment, AbstractPullRequest,
+                   AbstractRepository, AbstractTask)
 from .factory import api_client
 
 MAX_PR_TITLE_LEN = 255

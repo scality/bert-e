@@ -25,12 +25,12 @@ from collections import deque, namedtuple
 from datetime import datetime
 from functools import wraps
 
-from flask import Flask, request, Response, render_template
+from flask import Flask, Response, render_template, request
 from raven.contrib.flask import Sentry
 
 from . import bert_e, exceptions
-from .git_host.bitbucket import BUILD_STATUS_CACHE
 from .exceptions import BertE_Exception, InternalException
+from .git_host.bitbucket import BUILD_STATUS_CACHE
 
 if sys.version_info.major < 3:
     import Queue as queue
