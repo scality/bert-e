@@ -25,13 +25,14 @@ RUN pip2 install -r /tmp/requirements.txt \
  && echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 
 USER eve
-WORKDIR /home/eve
 
-RUN mkdir -p /home/eve/.ssh/ \
+RUN mkdir -p /home/eve/workspace \
+    && mkdir -p /home/eve/.ssh/ \
     && /bin/echo -e "Host bitbucket.org\n\tStrictHostKeyChecking no\n" >> /home/eve/.ssh/config
 
 ENV LANG=C.UTF-8 \
     BUILD_DISTRO=trusty
 
+WORKDIR /home/eve/workspace
 CMD buildbot-worker create-worker . "$BUILDMASTER:$BUILDMASTER_PORT" "$WORKERNAME" "$WORKERPASS" \
     && buildbot-worker start --nodaemon
