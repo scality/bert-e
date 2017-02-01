@@ -29,7 +29,7 @@ from flask import Flask, request, Response, render_template
 from raven.contrib.flask import Sentry
 
 from . import bert_e, exceptions
-from .api.bitbucket import BUILD_STATUS_CACHE
+from .git_host.bitbucket import BUILD_STATUS_CACHE
 from .exceptions import BertE_Exception, InternalException
 
 if sys.version_info.major < 3:

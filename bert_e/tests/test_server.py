@@ -21,12 +21,13 @@ from copy import deepcopy
 from datetime import datetime
 
 from .. import bert_e, server
-from ..api import bitbucket as bitbucket_api
-from .mocks import bitbucket as bitbucket_api_mock
+from ..git_host import bitbucket as bitbucket_api
+from ..git_host.mock import Client as MockClient, \
+    Repository as MockRepository
 from .test_server_data import COMMENT_CREATED, COMMIT_STATUS_CREATED
 
-bitbucket_api.Client = bitbucket_api_mock.Client
-bitbucket_api.Repository = bitbucket_api_mock.Repository
+bitbucket_api.Client = MockClient
+bitbucket_api.Repository = MockRepository
 
 
 class TestWebhookListener(unittest.TestCase):

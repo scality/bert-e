@@ -22,10 +22,25 @@ from abc import ABCMeta, abstractmethod
 from typing import Iterable
 
 
+class Error(Exception):
+    """Base class for git host api related errors."""
+
+
+class RepositoryExists(Error):
+    """The repository we are trying to create already exists."""
+
+
+class NoSuchRepository(Error):
+    """The repository we want to access to or delete does not exist."""
+
+
+class NoSuchGitHost(Error):
+    """The requested git host is not implemented."""
+
+
 class AbstractTask(metaclass=ABCMeta):
     """Abstract class defining a task's interface."""
     # Empty, but used as a return value below
-    pass
 
 
 class AbstractComment(metaclass=ABCMeta):
@@ -40,19 +55,16 @@ class AbstractComment(metaclass=ABCMeta):
         Returns: the newly created task.
 
         """
-        pass
 
     @property
     @abstractmethod
     def author(self) -> str:
         """The comment author's username (login)."""
-        pass
 
     @property
     @abstractmethod
     def text(self) -> str:
         """The comment's contents as raw plaintext."""
-        pass
 
 
 class AbstractPullRequest(metaclass=ABCMeta):
@@ -222,3 +234,35 @@ class AbstractRepository(metaclass=ABCMeta):
     def git_url(self) -> str:
         """This repository's git clone url."""
         return self.get_git_url()
+
+
+class AbstractClient(metaclass=ABCMeta):
+
+    @abstractmethod
+    def get_repository(self, slug, owner=None) -> AbstractRepository:
+        """Get the associated repository for the client.
+
+        Raises: NoSuchRepository if the repository does not exist.
+
+        Returns: the corresponding AbstractRepository object.
+
+        """
+
+    @abstractmethod
+    def create_repository(self, slug, owner=None,
+                          **kwargs) -> AbstractRepository:
+        """Create a new repository.
+
+        Raises: RepositoryExists if the repository already exists.
+
+        Returns: the corresponding AbstractRepository object.
+
+        """
+
+    @abstractmethod
+    def delete_repository(self, slug, owner=None):
+        """Delete a repository.
+
+        Raises: NoSuchRepository if the repository does not exist.
+
+        """

@@ -22,11 +22,13 @@ from requests import HTTPError, Session
 from requests.auth import HTTPBasicAuth
 
 
-from ..abstract_git_host import (
-    AbstractComment, AbstractPullRequest, AbstractRepository, AbstractTask
+from .base import (
+    AbstractClient, AbstractComment, AbstractPullRequest, AbstractRepository,
+    AbstractTask
 )
 from ..exceptions import TaskAPIError
 from ..utils import LRUCache
+from .factory import api_client
 
 MAX_PR_TITLE_LEN = 255
 
@@ -39,7 +41,8 @@ def fix_pull_request_title(title):
     return title[:MAX_PR_TITLE_LEN - 4] + '...'
 
 
-class Client(Session):
+@api_client('bitbucket')
+class Client(Session, AbstractClient):
     def __init__(self, bitbucket_login, bitbucket_password, bitbucket_mail):
         super().__init__()
         headers = {
@@ -48,9 +51,32 @@ class Client(Session):
             'Content-type': 'application/json',
             'From': bitbucket_mail
         }
+        self.login = bitbucket_login
         self.mail = bitbucket_mail
         self.headers.update(headers)
         self.auth = HTTPBasicAuth(bitbucket_login, bitbucket_password)
+
+    def get_repository(self, slug, owner=None):
+        """Get the repository with the associated owner and slug."""
+        if owner is None:
+            owner = self.login
+        return Repository(self, repo_slug=slug, owner=owner)
+
+    def create_repository(self, slug, owner=None, scm='git', is_private=True):
+        """Create a Bitbucket Repository"""
+        if owner is None:
+            owner = self.login
+        repo = Repository(self, repo_slug=slug, owner=owner, scm=scm,
+                          is_private=is_private)
+        repo.create()
+        return repo
+
+    def delete_repository(self, slug, owner=None):
+        """Delete a bitbucket repository"""
+        if owner is None:
+            owner = self.login
+        repo = Repository(self, repo_slug=slug, owner=owner)
+        repo.delete()
 
 
 class BitBucketObject(object):

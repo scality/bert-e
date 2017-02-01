@@ -17,12 +17,11 @@
 
 import requests
 
-from ...abstract_git_host import (
-    AbstractComment, AbstractPullRequest, AbstractRepository, AbstractTask
-)
+from . import base
+from .factory import api_client
 
-from ...exceptions import TaskAPIError
-from ...api.git import Repository as GitRepository, Branch as GitBranch
+from ..exceptions import TaskAPIError
+from ..api.git import Repository as GitRepository, Branch as GitBranch
 
 
 def fake_user_dict(username):
@@ -52,11 +51,53 @@ class Error404Response:
     status_code = 404
 
 
-class Client:
+@api_client('mock')
+class Client(base.AbstractClient):
     def __init__(self, username, password, email):
         self.username = username
         self.password = password
         self.auth = self
+
+    def create_repository(self, slug, owner=None, scm='git',
+                          is_private=True):
+        if owner is None:
+            owner = self.username
+
+        repo_key = (owner, slug)
+
+        if repo_key in Repository.repos:
+            raise base.RepositoryExists(
+                "A repository with owner '{}' and slug '{}' "
+                "already exist.".format(owner, slug)
+            )
+
+        new_repo = Repository(self, owner=owner, repo_slug=slug, scm=scm,
+                              is_private=True)
+        new_repo.create()
+        return new_repo
+
+    def get_repository(self, slug, owner=None):
+        if owner is None:
+            owner = self.username
+        repo_key = (owner, slug)
+        if repo_key not in Repository.repos:
+            raise base.NoSuchRepository(
+                "Could not find the repository whose owner is '{}' "
+                "and slug is '{}'".format(self.username, slug)
+            )
+        return Repository.repos.get(repo_key)
+
+    def delete_repository(self, slug, owner=None):
+        if owner is None:
+            owner = self.username
+        repo_key = (owner, slug)
+        if repo_key not in Repository.repos:
+            raise base.NoSuchRepository(
+                "Could not find the repository whose owner is '{}' "
+                "and slug is '{}'".format(self.username, slug)
+            )
+        Repository.repos[repo_key].delete()
+        Repository.repos.pop(repo_key)
 
 
 class BitBucketObject:
@@ -89,7 +130,7 @@ class Controller:
         return self.controlled.__setattr__(item, value)
 
 
-class Repository(BitBucketObject, AbstractRepository):
+class Repository(BitBucketObject, base.AbstractRepository):
     items = []
     repos = {}
 
@@ -130,7 +171,7 @@ class Repository(BitBucketObject, AbstractRepository):
 
     def create(self):
         self.gitrepo = GitRepository(None)
-        self.gitrepo.cmd('git init')
+        self.gitrepo.cmd('git init --bare')
         self.gitrepo.revisions = {}  # UGLY
         Repository.repos[(self.repo_owner, self.repo_slug)] = self.gitrepo
         return super().create()
@@ -177,7 +218,7 @@ class Repository(BitBucketObject, AbstractRepository):
         self.gitrepo.revisions[(revision, key)] = state
 
 
-class PullRequestController(Controller, AbstractPullRequest):
+class PullRequestController(Controller, base.AbstractPullRequest):
     def add_comment(self, msg):
         comment = Comment(self.client, content=msg,
                           full_name=self.controlled.full_name(),
@@ -283,7 +324,7 @@ class PullRequestController(Controller, AbstractPullRequest):
         return self['description']
 
 
-class CommentController(Controller, AbstractComment):
+class CommentController(Controller, base.AbstractComment):
     def add_task(self, msg):
         task = Task(self.client, content=msg,
                     full_name=self.controlled.full_name,
@@ -397,7 +438,7 @@ class Comment(BitBucketObject):
                 c.pull_request_id == pull_request_id]
 
 
-class Task(BitBucketObject, AbstractTask):
+class Task(BitBucketObject, base.AbstractTask):
     add_url = 'legit_add_url'
     list_url = 'legit_list_url'
     items = []

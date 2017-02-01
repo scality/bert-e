@@ -17,11 +17,15 @@ import logging
 import sys
 import time
 import unittest
+import warnings
 
-from ..api.bitbucket import Repository as BitBucketRepository
-from ..api.bitbucket import Client
+from contextlib import suppress
+
+from ..git_host import client_factory
+
 from ..api.git import Repository as GitRepository
 from ..api.git import Branch
+from ..git_host.base import NoSuchRepository
 
 
 def initialize_git_repo(repo, username, usermail):
@@ -41,16 +45,18 @@ def initialize_git_repo(repo, username, usermail):
 class TestBitbucketApi(unittest.TestCase):
 
     def setUp(self):
-        client = Client(self.args.username, self.args.password,
-                        'nobody@nowhere.com')
-        self.bbrepo = BitBucketRepository(client, owner=self.args.owner,
-                                          repo_slug=self.args.slug)
-        try:
-            self.bbrepo.delete()
+        warnings.resetwarnings()
+        warnings.simplefilter('ignore')
+        client = client_factory(self.args.git_host, self.args.username,
+                                self.args.password, 'nobody@nowhere.com')
+
+        assert 'ring' not in self.args.slug
+        with suppress(NoSuchRepository):
+            client.delete_repository(self.args.slug, owner=self.args.owner)
             time.sleep(5)
-        except Exception:
-            pass
-        self.bbrepo.create()
+
+        self.bbrepo = client.create_repository(self.args.slug,
+                                               owner=self.args.owner)
         self.gitrepo = GitRepository(self.bbrepo.get_git_url())
         initialize_git_repo(self.gitrepo,
                             self.args.owner,
@@ -66,8 +72,8 @@ class TestBitbucketApi(unittest.TestCase):
         pr = self.bbrepo.create_pull_request(
             title='title',
             name='name',
-            source={'branch': {'name': 'master2'}},
-            destination={'branch': {'name': 'master'}},
+            src_branch='master2',
+            dst_branch='master',
             close_source_branch=True,
             description='coucou'
         )
@@ -83,7 +89,10 @@ class TestBitbucketApi(unittest.TestCase):
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Launches bitbucket tests.')
+    parser = argparse.ArgumentParser(description='Launches git host tests.')
+    parser.add_argument('git_host',
+                        help=('host of the repository provider '
+                              '(bitbucket, mock...)'))
     parser.add_argument('owner',
                         help='Owner of test repository (aka Bitbucket team)')
     parser.add_argument('slug',

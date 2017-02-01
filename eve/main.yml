@@ -21,6 +21,15 @@ stages:
           name: flake8
           command: flake8 bert_e/
       - ShellCommand:
+          name: Git host API mock tests
+          command: coverage run -am bert_e.tests.test_git_host
+                     -v
+                     mock
+                     mock_owner
+                     mock_slug
+                     mock_username
+                     mock_password
+      - ShellCommand:
           name: Bert-E server tests
           command: coverage run -am bert_e.tests.test_server
       - ShellCommand:

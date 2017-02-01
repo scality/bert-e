@@ -26,12 +26,12 @@ from os.path import exists
 import yaml
 from jira.exceptions import JIRAError
 
-from .api import bitbucket as bitbucket_api
 from .api import jira as jira_api
 from .api.git import Repository as GitRepository
 from .api.git import (Branch, CheckoutFailedException, MergeFailedException,
                       PushFailedException, RemoveFailedException)
 from .exceptions import *
+from .git_host import bitbucket as bitbucket_api
 from .template_loader import render
 from .utils import RetryHandler
 
