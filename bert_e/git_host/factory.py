@@ -30,10 +30,8 @@ _API_CLIENTS = {}
 def api_client(api_name):
     """Decorator. Register a git host API client to the factory."""
     def wrap(cls):
-        assert (api_name not in _API_CLIENTS,
-                "An API of the same name already exists")
-        assert (issubclass(cls, AbstractClient),
-                "The client must implement the AbstractClient interface.")
+        assert api_name not in _API_CLIENTS
+        assert issubclass(cls, AbstractClient)
         _API_CLIENTS[api_name] = cls
         return cls
     return wrap
