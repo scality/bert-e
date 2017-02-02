@@ -260,7 +260,7 @@ class AbstractClient(metaclass=ABCMeta):
         """
 
     @abstractmethod
-    def delete_repository(self, slug, owner=None):
+    def delete_repository(self, slug, owner=None) -> None:
         """Delete a repository.
 
         Raises: NoSuchRepository if the repository does not exist.
