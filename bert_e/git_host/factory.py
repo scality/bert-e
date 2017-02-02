@@ -1,27 +1,48 @@
 """
-Git host module
+Git host client factory module.
+
+The client factory uses a dispatcher pattern to ease registration of new git
+host APIs.
+
+To register a new git host API implementation to this factory, simply decorate
+the client class with @api_client(api_name).
+
+Example:
+
+    # bert_e.git_host.bitbucket module
+
+    from bert_e.git_host import base, factory
+
+    @factory.api_client('github')
+    class GitHubClient(base.AbstractClient):
+        # ... implementation of the client.
+
+Additionnally, if you want the API to be automatically registered when loading
+the git_host package, add it to the imports of the git_host.__init__ module.
+
 """
 
-from .base import NoSuchGitHost
+from .base import AbstractClient, NoSuchGitHost
 
 _API_CLIENTS = {}
 
 
-def api_client(class_name):
-    """Decorator.
-
-    Associate a service name to a client class to instanciate.
-    """
+def api_client(api_name):
+    """Decorator. Register a git host API client to the factory."""
     def wrap(cls):
-        _API_CLIENTS[class_name] = cls
+        assert (api_name not in _API_CLIENTS,
+                "An API of the same name already exists")
+        assert (issubclass(cls, AbstractClient),
+                "The client must implement the AbstractClient interface.")
+        _API_CLIENTS[api_name] = cls
         return cls
     return wrap
 
 
-def client_factory(service, *args, **kwargs):
+def client_factory(service: str, *args, **kwargs) -> AbstractClient:
     """Factory function.
 
-    Given the `service` parameter, try to instanciate the associated class.
+    Given the `service` parameter, instanciate the associated class.
 
     Args:
         - service: the service name from which to instanciate the class.
