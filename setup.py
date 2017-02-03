@@ -33,6 +33,7 @@ setup(
         'bert_e',
         'bert_e.api',
         'bert_e.bin',
+        'bert_e.git_host',
     ],
     install_requires=requires(),
     entry_points={
