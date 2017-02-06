@@ -252,9 +252,9 @@ class PullRequest(BitBucketObject, AbstractPullRequest):
 
     def get_comments(self):
         return sorted(
-            (Comment.get_list(
+            Comment.get_list(
                 self.client, full_name=self.full_name(),
-                pull_request_id=self.id)),
+                pull_request_id=self.id),
             key=lambda c: c.id
         )
 
