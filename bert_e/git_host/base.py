@@ -66,6 +66,11 @@ class AbstractComment(metaclass=ABCMeta):
     def text(self) -> str:
         """The comment's contents as raw plaintext."""
 
+    @property
+    @abstractmethod
+    def id(self) -> int:
+        """The comment's ID"""
+
 
 class AbstractPullRequest(metaclass=ABCMeta):
     @abstractmethod
@@ -172,6 +177,11 @@ class AbstractPullRequest(metaclass=ABCMeta):
 
         """
 
+    @property
+    @abstractmethod
+    def comments(self) -> Iterable[AbstractComment]:
+        """Cached list of comments of the pull request."""
+
 
 class AbstractRepository(metaclass=ABCMeta):
     @abstractmethod
@@ -202,10 +212,6 @@ class AbstractRepository(metaclass=ABCMeta):
         """
 
     @abstractmethod
-    def get_git_url(self) -> str:
-        """Get the clonable url of the Git repository."""
-
-    @abstractmethod
     def get_pull_requests(self) -> Iterable[AbstractPullRequest]:
         """Get all pull requests from this repository."""
 
@@ -231,6 +237,7 @@ class AbstractRepository(metaclass=ABCMeta):
         """
 
     @property
+    @abstractmethod
     def git_url(self) -> str:
         """This repository's git clone url."""
         return self.get_git_url()

@@ -231,6 +231,10 @@ class Repository(BitBucketObject, AbstractRepository):
     def slug(self):
         return self['repo_slug']
 
+    @property
+    def git_url(self):
+        return self.get_git_url()
+
 
 class PullRequest(BitBucketObject, AbstractPullRequest):
     add_url = ('https://api.bitbucket.org/2.0/repositories/'
@@ -247,8 +251,12 @@ class PullRequest(BitBucketObject, AbstractPullRequest):
                        pull_request_id=self['id']).create()
 
     def get_comments(self):
-        return Comment.get_list(self.client, full_name=self.full_name(),
-                                pull_request_id=self['id'])
+        return sorted(
+            (Comment.get_list(
+                self.client, full_name=self.full_name(),
+                pull_request_id=self.id)),
+            key=lambda c: c.id
+        )
 
     def get_tasks(self):
         return Task.get_list(self.client, full_name=self.full_name(),
@@ -331,6 +339,12 @@ class PullRequest(BitBucketObject, AbstractPullRequest):
     def description(self):
         return self['description']
 
+    @property
+    def comments(self):
+        if not hasattr(self, '_comments') or not(self._comments):
+            self._comments = list(self.get_comments())
+        return self._comments
+
 
 class Comment(BitBucketObject, AbstractComment):
     add_url = ('https://api.bitbucket.org/2.0/repositories/'
@@ -373,6 +387,10 @@ class Comment(BitBucketObject, AbstractComment):
     @property
     def text(self):
         return self['content']['raw']
+
+    @property
+    def id(self):
+        return self['id']
 
 
 class Task(BitBucketObject, AbstractTask):

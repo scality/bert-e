@@ -180,6 +180,10 @@ class Repository(BitBucketObject, base.AbstractRepository):
         self.gitrepo = Repository.repos[(self.repo_owner, self.repo_slug)]
         return self.gitrepo.tmp_directory
 
+    @property
+    def git_url(self):
+        return self.get_git_url()
+
     def create_pull_request(self, title, src_branch, dst_branch,
                             name='name', description='',
                             close_source_branch=True, reviewers=[]):
@@ -228,9 +232,10 @@ class PullRequestController(Controller, base.AbstractPullRequest):
         return CommentController(self.client, comment)
 
     def get_comments(self):
-        return [CommentController(self.client, c) for c in Comment.get_list(
-                self.client, full_name=self.controlled.full_name(),
-                pull_request_id=self.controlled.id)]
+        return (CommentController(self.client, c)
+                for c in Comment.get_list(
+                    self.client, full_name=self.controlled.full_name(),
+                    pull_request_id=self.controlled.id))
 
     def get_tasks(self):
         return [Controller(self.client, t) for t in Task.get_list(
@@ -323,6 +328,10 @@ class PullRequestController(Controller, base.AbstractPullRequest):
     def description(self):
         return self['description']
 
+    @property
+    def comments(self):
+        return list(self.get_comments())
+
 
 class CommentController(Controller, base.AbstractComment):
     def add_task(self, msg):
@@ -344,6 +353,10 @@ class CommentController(Controller, base.AbstractComment):
     @property
     def text(self):
         return self['content']['raw']
+
+    @property
+    def id(self):
+        return self['id']
 
 
 class Branch(object):
