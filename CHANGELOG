@@ -5,7 +5,8 @@ All notable changes to this project will be documented in this file.
 # Changed
 - dropped Python 2 support, in favor of Python 3.5+
 - defined an abstract git_host API for Bitbucket and similar services
-- major refactoring: the bit bert_e.bert_e module was exploded in independent packages
+
+- major refactoring: the big bert_e.bert_e module was exploded in independent packages
 
 ## [2.0.10] - 2017-01-23
 # Changed
