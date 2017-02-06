@@ -6,7 +6,7 @@ Conflict during merge
 
 {% block message %}
 A conflict has been raised during the update of integration branch `{{ wbranch.name }}` with
-contents from `{{ source.name }}` and `{{ wbranch.destination_branch.name }}`.
+contents from `{{ source.name }}` and `{{ wbranch.dst_branch.name }}`.
 
 {% if origin %}
 Please resolve the conflict on **the feature branch** (`{{ feature_branch.name }}`).
@@ -38,7 +38,7 @@ Here are the steps to resolve this conflict:
 #!bash
  $ git fetch
  $ git checkout {{ wbranch.name }}
- $ git merge origin/{{ wbranch.destination_branch.name }}
+ $ git merge origin/{{ wbranch.dst_branch.name }}
  $ # <intense conflict resolution>
  $ git merge origin/{{ source.name }}
  $ # <intense conflict resolution>

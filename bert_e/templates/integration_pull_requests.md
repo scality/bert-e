@@ -8,8 +8,8 @@ Integration pull requests created
 I have created the following integration pull requests:
 
 {% for pr in child_prs -%}
-* integration pull request #{{ pr['id'] }} will merge `{{ pr['source']['branch']['name'] }}`
- into `{{ pr['destination']['branch']['name'] }}`
+* integration pull request #{{ pr.id }} will merge `{{ pr.src_branch }}`
+ into `{{ pr.dst_branch }}`
 {% endfor %}
 
 Now would be a great time to *follow* them if you would like to be notified of

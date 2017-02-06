@@ -1,5 +1,5 @@
 This pull request has been created automatically.
-It is linked to its parent pull request #{{ pr['id'] }}.
+It is linked to its parent pull request #{{ pr.id }}.
 
 **Do not edit this pull request directly.**
 {% if first -%}
@@ -18,4 +18,4 @@ procedure:
 ```
 {% endif %}
 
-Please always comment pull request #{{ pr['id'] }} instead of this one.
+Please always comment pull request #{{ pr.id }} instead of this one.
