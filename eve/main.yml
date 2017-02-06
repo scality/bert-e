@@ -23,6 +23,9 @@ stages:
           name: flake8
           command: flake8 bert_e/
       - ShellCommand:
+          name: unit tests
+          command: coverage run -am py.test -v bert_e/tests/unit/
+      - ShellCommand:
           name: Git host API mock tests
           command: coverage run -am bert_e.tests.test_git_host
                      -v
