@@ -12,8 +12,45 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from collections import deque
+from collections import ChainMap, deque
 from time import sleep
+
+
+class DispatcherMeta(type):
+    """Metaclass used to define a dispatcher class."""
+    def __new__(mcs, name, bases, attrs):
+        callbacks = ChainMap()
+        maps = callbacks.maps
+        for base in bases:
+            if isinstance(base, DispatcherMeta):
+                maps.extend(base.__callbacks__.maps)
+
+        attrs['__callbacks__'] = callbacks
+        attrs['dispatcher'] = property(lambda obj: callbacks)
+        cls = super().__new__(mcs, name, bases, attrs)
+        return cls
+
+
+class Dispatcher(metaclass=DispatcherMeta):
+    """Dispatcher pattern mixin."""
+    def dispatch(self, key, default=None):
+        return self.dispatcher.get(key, default)
+
+    @classmethod
+    def set_callback(cls, key, callback):
+        """Set a new callback to the dispatcher class."""
+        cls.__callbacks__[key] = callback
+        return callback
+
+    @classmethod
+    def register(cls, key):
+        """Register a new callback to the dispatcher class with a decorator
+        syntax.
+
+        """
+        def wrapper(callback):
+            return cls.set_callback(key, callback)
+        return wrapper
 
 
 class LRUCache(object):
