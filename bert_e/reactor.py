@@ -351,10 +351,6 @@ class Reactor(Dispatcher):
                            and the method is called with privileged=False.
 
         """
-        if prefix is None:
-            prefix = '@{}'.format(job.settings.robot_username)
-            LOG.debug('looking for prefix: %s', prefix)
-
         raw = text.strip()
         if not raw.startswith(prefix):
             return
