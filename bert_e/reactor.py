@@ -44,48 +44,79 @@ is register them using the corresponding class methods.
 
 Examples:
 
-    # Register an unprivileged command to the 'say_hi' key, using the
-    # function's docstring as the command's help.
-    @Reactor.command
-    def say_hi(job, *args):
-        '''Print 'hi' in the console.'''
-        print("hi")
+    >>> from bert_e.reactor import Reactor
+    >>> from types import SimpleNamespace
 
-    # Register a privileged command to the 'shutdown' key.
-    @Reactor.command(privileged=True)
-    def shutdown(job, *args):
-        '''Shut the application down.'''
-        raise SystemExit(0)
+    Register an unprivileged command to the 'say_hi' key, using the
+    function's docstring as the command's help:
 
-    # Register a privileged command using custom help string.
-    @Reactor.command(privileged=True, help='Execute a shell command.')
-    def shell(job, *args):
-        '''Run a command in the shell.'''
-        subprocess.call(args)
+    >>> @Reactor.command
+    ... def say_hi(job, *args):
+    ...     '''Print 'hi' in the console.'''
+    ...     print("hi")
 
-    # Register a boolean option that will be set in job.settings to `True` when
-    # called by a privileged user. Default value is `False`
-    Reactor.add_option('bypass_checks', privileged=True)
+    Register a privileged command to the 'shutdown' key:
 
-    # Register an unprivileged option with special behavior.
-    @Reactor.option(default=set())
-    def after_pull_request(job, *pr_ids):
-        job.settings.after_pull_request.update(pr_ids)
+    >>> @Reactor.command(privileged=True)
+    ... def shutdown(job, *args):
+    ...     '''Shut the application down.'''
+    ...     print("Shutting down the application")
+    ...     raise SystemExit(0)
 
+    Register a privileged command using custom help string:
 
-    #To use the Reactor, instanciate it.
-    reactor = Reactor()
+    >>> @Reactor.command(privileged=True, help_='Execute a shell command.')
+    ... def shell(job, *args):
+    ...     '''Run a command in the shell.'''
+    ...     print("Executing a privileged command.")
 
-    job = SimpleNamespace(settings={})
+    Register a boolean option that will be set in job.settings to `True`
+    when called by a privileged user. Default value is `None`:
 
-    # This will print 'hi' in the console
-    reactor.handle_commands(job, '!do say_hi', prefix='!do')
+    >>> Reactor.add_option('bypass_checks', privileged=True)
 
-    # This will raise a NotPrivileged error
-    reactor.handle_commands(job, '!do shell ls', prefix='!do')
+    Register an unprivileged option with special behavior:
 
-    # This will execute the 'ls' command in a shell
-    reactor.handle_commands(job, '!do shell ls', prefix='!do', privileged=True)
+    >>> @Reactor.option(key='after_pull_request', default=set())
+    ... def after_pr(job, pr_id):
+    ...     job.settings['after_pull_request'].add(pr_id)
+    ...
+
+    To use the Reactor, instanciate it:
+
+    >>> reactor = Reactor()
+    >>> job = SimpleNamespace(settings={})
+    >>> reactor.handle_commands(job, '!do say_hi', prefix='!do')
+    hi
+    >>>
+    >>> reactor.handle_commands(job, '!do shell ls', prefix='!do')
+    Traceback (most recent call last):
+        [...]
+    bert_e.reactor.NotPrivileged
+    >>> reactor.handle_commands(job, '!do shell ls', prefix='!do',
+    ...                         privileged=True)
+    Executing a privileged command.
+
+    Initializing a job's settings to the registered default values:
+
+    >>> reactor.init_settings(job)
+    >>> job.settings
+    {'after_pull_request': set(), 'bypass_checks': None}
+
+    Executing option-related commands:
+
+    >>> reactor.handle_options(job, '!do after_pull_request=4', '!do')
+    >>> reactor.handle_options(job, '!do bypass_checks', '!do',
+                               privileged=True)
+    >>> job.settings
+    {'after_pull_request': {'4'}, 'bypass_checks': True}
+
+    Note that you can pass mutable objets as default values, they are copied
+    during initialization of the settings:
+
+    >>> reactor.init_settings(job)
+    >>> job.settings
+    {'after_pull_request': set(), 'bypass_checks': None}
 
 """
 
@@ -108,7 +139,7 @@ class Error(Exception):
 
 
 class NotPrivileged(Error):
-    """A non-privileged user tried to used a privileged command or option."""
+    """A non-privileged user tried to use a privileged command or option."""
     def __init__(self, keyword: str):
         super().__init__()
         self.keyword = keyword
