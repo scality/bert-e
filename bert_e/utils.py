@@ -16,6 +16,52 @@ from collections import ChainMap, deque
 from time import sleep
 
 
+def confirm(question):
+    input_ = input(question + " Enter (y)es or (n)o: ")
+    return input_ == "yes" or input_ == "y"
+
+
+class SettingsDict:
+    """A ChainMap-like object that handles direct attibute access."""
+
+    def __init__(self, *args, **kwargs):
+        self._wrapped = ChainMap(*args, **kwargs)
+
+    def __getattr__(self, attr):
+        if attr.startswith('_'):
+            return super().__getattr__(attr)
+        instance_dict = self.__dict__
+        if attr in instance_dict:
+            return instance_dict[attr]
+        else:
+            try:
+                return self._wrapped[attr]
+            except KeyError as err:
+                raise AttributeError(err) from err
+
+    def __setattr__(self, attr, val):
+        if attr.startswith('_'):
+            super().__setattr__(attr, val)
+        else:
+            self._wrapped[attr] = val
+
+    def __getitem__(self, key):
+        return self._wrapped[key]
+
+    def __setitem__(self, key, val):
+        self._wrapped[key] = val
+
+    @property
+    def maps(self):
+        return self._wrapped.maps
+
+    def setdefault(self, key, val):
+        return self._wrapped.setdefault(key, val)
+
+    def get(self, key, default=None):
+        return self._wrapped.get(key, default)
+
+
 class DispatcherMeta(type):
     """Metaclass used to define a dispatcher class."""
     def __new__(mcs, name, bases, attrs):

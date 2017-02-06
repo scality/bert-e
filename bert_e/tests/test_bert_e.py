@@ -26,6 +26,8 @@ from hashlib import md5
 
 import requests
 
+from bert_e.workflow import gitwaterflow as gwf
+
 from .. import bert_e
 from ..api import jira as jira_api
 from ..api.git import Repository as GitRepository
@@ -218,7 +220,7 @@ class QuickTest(unittest.TestCase):
 
         c.finalize(bert_e.branch_factory(FakeGitRepo(), destination))
 
-        self.assertEqual(c.destination_branches, expected_dest)
+        self.assertEqual(c.dst_branches, expected_dest)
         self.assertEqual(c.ignored_branches, expected_ignored)
         self.assertEqual(c.target_versions, fixver)
         return c
@@ -1094,6 +1096,9 @@ class TestBertE(RepositoryTests):
         pr = self.create_pr('bugfix/TEST-01334', 'development/4.3',
                             file_='toto.txt')
 
+        # Let Bert-E post its initial 'Hello' comment
+        self.handle(pr['id'])
+
         # The help message should be displayed every time the user requests it
         help_msg = ''
         pr.add_comment('@%s help' % self.args.robot_username)
@@ -1520,7 +1525,7 @@ class TestBertE(RepositoryTests):
     def test_pr_skew_with_lagging_pull_request_data(self):
         # create hook
         try:
-            real = bert_e.BertE._create_pull_requests
+            real = gwf.create_integration_pull_requests
             global local_child_prs
             local_child_prs = []
 
@@ -1530,7 +1535,7 @@ class TestBertE(RepositoryTests):
                 local_child_prs = child_prs
                 return child_prs
 
-            bert_e.BertE._create_pull_requests = _create_pull_requests
+            gwf.create_integration_pull_requests = _create_pull_requests
 
             pr = self.create_pr('bugfix/TEST-00081', 'development/6.0')
             # Create integration branch and child pr
@@ -1555,7 +1560,7 @@ class TestBertE(RepositoryTests):
                 global local_child_prs
                 return local_child_prs
 
-            bert_e.BertE._create_pull_requests = _create_pull_requests2
+            gwf.create_integration_pull_requests = _create_pull_requests2
 
             # Run Bert-E
             with self.assertRaises(BuildNotStarted):
@@ -1565,7 +1570,7 @@ class TestBertE(RepositoryTests):
                             backtrace=True)
 
         finally:
-            bert_e.BertE._create_pull_requests = real
+            gwf.create_integration_pull_requests = real
 
     def test_pr_skew_with_new_external_commit(self):
         pr = self.create_pr('bugfix/TEST-00081', 'development/6.0')
@@ -1580,7 +1585,7 @@ class TestBertE(RepositoryTests):
 
         # create hook
         try:
-            real = bert_e.BertE._create_pull_requests
+            real = gwf.create_integration_pull_requests
 
             def _create_pull_requests(*args, **kwargs):
                 # simulate the update of the integration PR (by addition
@@ -1601,7 +1606,7 @@ class TestBertE(RepositoryTests):
                     child_prs[0]['source']['commit']['hash'] = sha1
                 return child_prs
 
-            bert_e.BertE._create_pull_requests = _create_pull_requests
+            gwf.create_integration_pull_requests = _create_pull_requests
 
             # Run Bert-E
             with self.assertRaises(PullRequestSkewDetected):
@@ -1611,7 +1616,7 @@ class TestBertE(RepositoryTests):
                             backtrace=True)
 
         finally:
-            bert_e.BertE._create_pull_requests = real
+            gwf.create_integration_pull_requests = real
 
     def test_build_key_on_main_pr_has_no_effect(self):
         pr = self.create_pr('bugfix/TEST-00078', 'development/4.3')
@@ -1962,19 +1967,19 @@ class TestBertE(RepositoryTests):
 
         """
         try:
-            real = bert_e.BertE._check_pr_state
+            real = gwf.early_checks
 
             pr = self.create_pr('bugfix/TEST-00081', 'development/6.0')
             retcode = self.handle(pr['id'], self.bypass_all)
             self.assertEqual(retcode, SuccessMessage.code)
 
-            bert_e.BertE._check_pr_state = lambda *args, **kwargs: None
+            gwf.early_checks = lambda *args, **kwargs: None
 
             with self.assertRaises(NothingToDo):
                 self.handle(pr['id'], self.bypass_all, backtrace=True)
 
         finally:
-            self.robot_bb.get_pull_request = real
+            gwf.early_checks = real
 
     def test_pr_title_too_long(self):
         create_branch(self.gitrepo, 'bugfix/TEST-00001',
@@ -3013,7 +3018,7 @@ class TestQueueing(RepositoryTests):
         self.gitrepo.cmd('git fetch')
         dev = bert_e.branch_factory(self.gitrepo, 'development/6.0')
         intb = bert_e.branch_factory(self.gitrepo, 'w/6.0/bugfix/TEST-00001')
-        intb.destination_branch = dev
+        intb.dst_branch = dev
         intb.checkout()
         intb.remove(do_push=True)
 
