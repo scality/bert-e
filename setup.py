@@ -34,6 +34,8 @@ setup(
         'bert_e.api',
         'bert_e.bin',
         'bert_e.git_host',
+        'bert_e.workflow',
+        'bert_e.workflow.gitwaterflow',
     ],
     install_requires=requires(),
     entry_points={
