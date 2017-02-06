@@ -107,7 +107,7 @@ Examples:
 
     >>> reactor.handle_options(job, '!do after_pull_request=4', '!do')
     >>> reactor.handle_options(job, '!do bypass_checks', '!do',
-                               privileged=True)
+    ...                        privileged=True)
     >>> job.settings
     {'after_pull_request': {'4'}, 'bypass_checks': True}
 
