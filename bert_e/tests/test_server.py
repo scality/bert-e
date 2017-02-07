@@ -397,7 +397,7 @@ class TestWebhookListener(unittest.TestCase):
             datetime(2016, 12, 8, 14, 54, 19, 123456),
             "/dev/null"))
         try:
-            server.bert_e_worker_loop()
+            server.bert_e_worker_job()
         except:
             self.fail("Loop shouldn't crash")
         finally:

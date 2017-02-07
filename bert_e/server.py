@@ -78,10 +78,10 @@ def build_url_filter(sha1):
 def bert_e_launcher():
     """Basic worker loop that waits for Bert-E jobs and launches them."""
     while True:
-        bert_e_worker_loop()
+        bert_e_worker_job()
 
 
-def bert_e_worker_loop():
+def bert_e_worker_job():
     """Insights of the worker loop.
 
     This is defined as a separate function to make it testable.
