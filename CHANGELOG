@@ -1,12 +1,17 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [3.0.1] - 2017-02-06
+# Fixed
+- Some exceptions slipped through and killed the BertE worker thread in the server
+- Tasks were set in reversed order on bitbucket
+
 ## [3.0.0] - 2017-02-06
 # Changed
 - dropped Python 2 support, in favor of Python 3.5+
 - defined an abstract git_host API for Bitbucket and similar services
-
 - major refactoring: the big bert_e.bert_e module was exploded in independent packages
+- support for Bitbucket's STOPPED build status
 
 ## [2.0.10] - 2017-01-23
 # Changed
