@@ -3,10 +3,10 @@ version: 0.1
 
 branches:
   user/*, feature/*, improvement/*, bugfix/*, w/*, q/*:
-    stage: tests
+    stage: pre-merge
 
 stages:
-  tests:
+  pre-merge:
     worker:
       type: docker
       path: eve/ubuntu-xenial
