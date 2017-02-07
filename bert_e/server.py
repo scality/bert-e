@@ -109,11 +109,12 @@ def bert_e_worker_loop():
         # with '--backtrace', all instances will raise
         retcode = getattr(err, 'code', None)
         status = CODE_NAMES.get(retcode, type(err).__name__)
-        details = getattr(err, 'message', None)
+        details = None
 
         if not isinstance(err, (BertE_Exception, InternalException)):
             logging.error("Bert-E job %s finished with an error: %s",
                           job, err)
+            details = str(err)
             if SENTRY:
                 SENTRY.captureException()
     finally:
