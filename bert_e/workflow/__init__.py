@@ -1,1 +1,1 @@
-from . import gitwaterflow as gwf  # flake8: noqa
+from . import gitwaterflow as gwf  # noqa

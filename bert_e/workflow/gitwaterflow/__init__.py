@@ -24,7 +24,7 @@ from bert_e.utils import confirm
 from ..git_utils import push, clone_git_repo
 from ..pr_utils import find_comment, send_comment, create_task
 from .branches import branch_factory, is_cascade_consumer, is_cascade_producer
-from .commands import setup, get_active_options  # flake8: noqa
+from .commands import setup, get_active_options  # noqa
 from .integration import (create_integration_branches,
                           create_integration_pull_requests,
                           merge_integration_branches,
