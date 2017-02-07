@@ -19,10 +19,9 @@ This module implements automation of the GitWaterFlow by BertE.
 import logging
 
 from bert_e import exceptions as messages
-from bert_e.api import git
 from bert_e.reactor import Reactor, NotFound, NotPrivileged
 from bert_e.utils import confirm
-from ..git_utils import octopus_merge, push, clone_git_repo
+from ..git_utils import push, clone_git_repo
 from ..pr_utils import find_comment, send_comment, create_task
 from .branches import branch_factory, is_cascade_consumer, is_cascade_producer
 from .commands import setup, get_active_options  # flake8: noqa
@@ -167,10 +166,10 @@ def send_greetings(job):
     if find_comment(job.pull_request, username=username):
         return
 
-    tasks = job.settings.get('tasks', [])
+    tasks = list(reversed(job.settings.get('tasks', [])))
 
-    comment = send_comment(job.settings, job.pull_request,
-        messages.InitMessage(
+    comment = send_comment(
+        job.settings, job.pull_request, messages.InitMessage(
             bert_e=username, author=job.pull_request.author_display_name,
             status={}, active_options=get_active_options(job), tasks=tasks
         )
@@ -516,5 +515,3 @@ def check_build_status(job, child_prs):
     elif worst_status == 'INPROGRESS':
         raise messages.BuildInProgress()
     assert worst_status == 'SUCCESSFUL'
-
-
