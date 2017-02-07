@@ -379,6 +379,30 @@ class TestWebhookListener(unittest.TestCase):
         for exp in expected:
             assert exp in data
 
+    def test_unpredictible_exception_handling(self):
+        os.environ['BERT_E_BB_PWD'] = 'plop'
+        os.environ['BERT_E_JIRA_PWD'] = 'plop'
+        main_real = bert_e.main
+
+        class NastyError(Exception):
+            pass
+
+        def main_patched():
+            raise NastyError
+
+        bert_e.main = main_patched
+
+        server.FIFO.put(server.Job(
+            "test_owner", "test_repo", "666",
+            datetime(2016, 12, 8, 14, 54, 19, 123456),
+            "/dev/null"))
+        try:
+            server.bert_e_worker_loop()
+        except:
+            self.fail("Loop shouldn't crash")
+        finally:
+            bert_e.main = main_real
+
 
 if __name__ == '__main__':
     unittest.main(failfast=True)

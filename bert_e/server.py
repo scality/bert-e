@@ -77,46 +77,53 @@ def build_url_filter(sha1):
 
 def bert_e_launcher():
     """Basic worker loop that waits for Bert-E jobs and launches them."""
+    while True:
+        bert_e_worker_loop()
+
+
+def bert_e_worker_loop():
+    """Insights of the worker loop.
+
+    This is defined as a separate function to make it testable.
+
+    """
     bb_pwd = os.environ['BERT_E_BB_PWD']
     jira_pwd = os.environ['BERT_E_JIRA_PWD']
-    while True:
-        job = FIFO.get()
-        sys.argv[:] = []
-        bert_e.STATUS['current job'] = job
-        sys.argv.extend([
-            'bert_e',
-            '-v',
-            '--backtrace'
-        ])
-        sys.argv.extend([
-            job.repo_settings,
-            bb_pwd,
-            jira_pwd,
-            str(job.revision)
-        ])
-        try:
-            bert_e.main()
-        except Exception as err:
-            # with '--backtrace', all instances will raise
-            retcode = getattr(err, 'code', None)
-            status = CODE_NAMES.get(retcode, type(err).__name__)
-            details = None
+    job = FIFO.get()
+    sys.argv[:] = []
+    bert_e.STATUS['current job'] = job
+    sys.argv.extend([
+        'bert_e',
+        '-v',
+        '--backtrace'
+    ])
+    sys.argv.extend([
+        job.repo_settings,
+        bb_pwd,
+        jira_pwd,
+        str(job.revision)
+    ])
+    try:
+        bert_e.main()
+    except Exception as err:
+        # with '--backtrace', all instances will raise
+        retcode = getattr(err, 'code', None)
+        status = CODE_NAMES.get(retcode, type(err).__name__)
+        details = getattr(err, 'message', None)
 
-            if (not isinstance(err, BertE_Exception) or
-                    isinstance(err, InternalException)):
-                logging.error("Bert-E job %s finished with an error: %s",
-                              job, err)
-                details = err.message
-                if SENTRY:
-                    SENTRY.captureException()
-        finally:
-            FIFO.task_done()
+        if not isinstance(err, (BertE_Exception, InternalException)):
+            logging.error("Bert-E job %s finished with an error: %s",
+                          job, err)
+            if SENTRY:
+                SENTRY.captureException()
+    finally:
+        FIFO.task_done()
 
-            logging.debug("It took the server %s to handle job %s:%s",
-                          datetime.now() - job.start_time,
-                          job.repo_slug, job.revision)
-            DONE.appendleft({'job': job, 'status': status, 'details': details})
-            bert_e.STATUS.pop('current job')
+        logging.debug("It took the server %s to handle job %s:%s",
+                      datetime.now() - job.start_time,
+                      job.repo_slug, job.revision)
+        DONE.appendleft({'job': job, 'status': status, 'details': details})
+        bert_e.STATUS.pop('current job')
 
 
 def check_auth(username, password):
