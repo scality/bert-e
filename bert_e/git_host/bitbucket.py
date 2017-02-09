@@ -16,7 +16,7 @@ import json
 import logging
 from collections import defaultdict
 from string import Template
-from urllib.parse import quote
+from urllib.parse import quote_plus as quote
 
 from requests import HTTPError, Session
 from requests.auth import HTTPBasicAuth
@@ -31,11 +31,26 @@ MAX_PR_TITLE_LEN = 255
 
 BUILD_STATUS_CACHE = defaultdict(LRUCache)  # type: Dict[str, LRUCache]
 
+LOG = logging.getLogger(__name__)
+
 
 def fix_pull_request_title(title):
     if len(title) < MAX_PR_TITLE_LEN:
         return title
     return title[:MAX_PR_TITLE_LEN - 4] + '...'
+
+
+def build_filter_query(filters):
+    """Build a filter query based on a filter dict."""
+    predicates = []
+    for key, val in filters.items():
+
+        pred_str = ' OR '.join('{} = "{}"'.format(key, sub) for sub in val)
+        if len(val) > 1:
+            pred_str = "({})".format(pred_str)
+        predicates.append(pred_str)
+
+    return quote(' AND '.join(predicates))
 
 
 @api_client('bitbucket')
@@ -96,7 +111,9 @@ class BitBucketObject(object):
 
     @classmethod
     def get(cls, client, **kwargs):
-        response = client.get(Template(cls.get_url).substitute(kwargs))
+        request = Template(cls.get_url).substitute(kwargs)
+        LOG.debug("GET %s", request)
+        response = client.get(request)
         response.raise_for_status()
         return cls(client, **response.json())
 
@@ -104,8 +121,9 @@ class BitBucketObject(object):
     def get_list(cls, client, **kwargs):
         for page in range(1, 100):  # Max 100 pages retrieved
             kwargs['page'] = page
-            response = client.get(Template(cls.list_url)
-                                  .substitute(kwargs))
+            request = Template(cls.list_url).substitute(kwargs)
+            LOG.debug("GET %s", request)
+            response = client.get(request)
             response.raise_for_status()
             for obj in response.json()['values']:
                 if obj:
@@ -117,13 +135,13 @@ class BitBucketObject(object):
 
     def create(self):
         json_str = json.dumps(self._json_data)
-        response = self.client.post(Template(self.add_url)
-                                    .substitute(self._json_data),
-                                    json_str)
+        request = Template(self.add_url).substitute(self._json_data)
+        LOG.debug("POST %s", request)
+        response = self.client.post(request, json_str)
         try:
             response.raise_for_status()
         except HTTPError:
-            logging.error(response.text)
+            LOG.error(response.text)
             raise
         return self.__class__(self.client, **response.json())
 
@@ -155,8 +173,21 @@ class Repository(BitBucketObject, AbstractRepository):
         })
         return PullRequest(self.client, **kwargs).create()
 
-    def get_pull_requests(self):
-        return PullRequest.get_list(self.client, full_name=self.full_name)
+    def get_pull_requests(self, author=None, src_branch=None):
+        filters = {}
+        if author:
+            filters['author.username'] = [author]
+        if isinstance(src_branch, str):
+            filters['source.branch.name'] = [src_branch]
+        elif src_branch is not None:
+            filters['source.branch.name'] = list(src_branch)
+
+        filter_query = ''
+        if filters:
+            filter_query = 'q={}&'.format(build_filter_query(filters))
+
+        return PullRequest.get_list(self.client, full_name=self.full_name,
+                                    filters=filter_query)
 
     def get_pull_request(self, pull_request_id):
         return PullRequest.get(self.client,
@@ -174,10 +205,10 @@ class Repository(BitBucketObject, AbstractRepository):
         # Check if a successful build for this revision is in cache
         status = BUILD_STATUS_CACHE[key].get(revision, None)
         if status == 'SUCCESSFUL':
-            logging.debug('Build on %s: cache GET (%s)', revision, status)
+            LOG.debug('Build on %s: cache GET (%s)', revision, status)
             return status
 
-        logging.debug('Build on %s: cache MISS (%s)', revision, status)
+        LOG.debug('Build on %s: cache MISS (%s)', revision, status)
 
         # Either not in cache or wasn't successful last time. Check BB again.
         try:
@@ -239,7 +270,7 @@ class Repository(BitBucketObject, AbstractRepository):
 class PullRequest(BitBucketObject, AbstractPullRequest):
     add_url = ('https://api.bitbucket.org/2.0/repositories/'
                '$full_name/pullrequests')
-    list_url = add_url + '?page=$page'
+    list_url = add_url + '?${filters}page=$page'
     get_url = ('https://api.bitbucket.org/2.0/repositories/'
                '$full_name/pullrequests/$pull_request_id')
 

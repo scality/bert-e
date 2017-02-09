@@ -212,8 +212,14 @@ class AbstractRepository(metaclass=ABCMeta):
         """
 
     @abstractmethod
-    def get_pull_requests(self) -> Iterable[AbstractPullRequest]:
-        """Get all pull requests from this repository."""
+    def get_pull_requests(self, author=None, src_branch=None
+                          ) -> Iterable[AbstractPullRequest]:
+        """Get pull requests from this repository.
+
+            * author (str): optional filter on PR author username.
+            * src_branch (str or List[str]): optional filter on PR source
+                branch name.
+        """
 
     @abstractmethod
     def get_pull_request(self, pull_request_id: int) -> AbstractPullRequest:

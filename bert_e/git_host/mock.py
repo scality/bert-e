@@ -197,9 +197,20 @@ class Repository(BitBucketObject, base.AbstractRepository):
             prc.add_participant(reviewer)
         return prc
 
-    def get_pull_requests(self):
-        return [PullRequestController(self.client, item)
-                for item in PullRequest.items]
+    def get_pull_requests(self, author=None, src_branch=None):
+        def predicate(pr):
+            if author is not None and pr.author != author:
+                return False
+            if isinstance(src_branch, str) and pr.src_branch != src_branch:
+                return False
+            elif src_branch is not None and pr.src_branch not in src_branch:
+                return False
+            return True
+        return filter(
+            predicate,
+            [PullRequestController(self.client, item)
+             for item in PullRequest.items]
+        )
 
     def get_pull_request(self, pull_request_id):
         assert type(pull_request_id) == int
