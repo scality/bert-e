@@ -33,8 +33,9 @@ delete all `w/*` branches related to this pull request
 Once done, please **decline the old integration pull requests** and comment
 this pull request to resume the merge process.
 {% endif%}
-{% else %} Please
+{% else %} {%- if not empty -%} Please
 resolve the conflict on **the integration branch** (`{{ wbranch.name }}`).
+{%- endif -%}
 
 
 Here are the steps to resolve this conflict:
