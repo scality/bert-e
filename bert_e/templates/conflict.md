@@ -38,11 +38,13 @@ Here are the steps to resolve this conflict:
 #!bash
  $ git fetch
  {% if empty -%}
+ $ git checkout {{ wbranch.dst_branch.name }}
+ $ git pull
  $ git checkout -b {{ wbranch.name }}
 {%- else -%}
  $ git checkout {{ wbranch.name }}
-{%- endif %}
  $ git merge origin/{{ wbranch.dst_branch.name }}
+{%- endif %}
  $ # <intense conflict resolution>
  $ git merge origin/{{ source.name }}
  $ # <intense conflict resolution>
