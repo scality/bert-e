@@ -306,11 +306,19 @@ def handle_declined_pull_request(job):
     build_branch_cascade(job)
     changed = False
     src_branch = job.pull_request.src_branch
-    open_prs = list(job.project_repo.get_pull_requests())
-    for dst_branch in job.git.cascade.dst_branches:
-        name = 'w/{}/{}'.format(dst_branch.version, src_branch)
+    dst_branches = job.git.cascade.dst_branches
+
+    wbranch_names = ['w/{}/{}'.format(b.version, src_branch)
+                     for b in dst_branches]
+
+    open_prs = list(job.project_repo.get_pull_requests(
+        src_branch=wbranch_names, author=job.settings.robot_username
+    ))
+
+    for name, dst_branch in zip(wbranch_names, dst_branches):
         for pr in open_prs:
-            if (pr.status == 'OPEN' and pr.src_branch == name and
+            if (pr.status == 'OPEN' and
+                    pr.src_branch == name and
                     pr.dst_branch == dst_branch.name):
                 pr.decline()
                 changed = True

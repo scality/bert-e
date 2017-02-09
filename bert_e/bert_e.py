@@ -168,20 +168,17 @@ class BertE:
         commit.
 
         """
-        open_prs = list(self.bbrepo.get_pull_requests())
-        candidates = sorted(
-            filter(bool, (b.get_pull_request_from_list(open_prs) for b in
-                          self._get_integration_branches_from_sha1(sha1))),
-            key=lambda pr: pr.id
-        )
-        if candidates:
-            return candidates[0]
-
-    def _get_integration_branches_from_sha1(self, sha1):
         git_repo = GitRepository(self.bbrepo.git_url)
-        return (IntegrationBranch(self, branch) for branch in
-                git_repo.get_branches_from_sha1(sha1)
-                if branch.startswith('w/'))
+        candidates = [b for b in git_repo.get_branches_from_sha1(sha1)
+                      if b.startswith('w/')]
+        if not candidates:
+            return
+        prs = list(self.bbrepo.get_pull_requests(
+            src_branch=candidates,
+            author=self.settings['robot_username']))
+        if not prs:
+            return
+        return min(prs, key=lambda pr: pr.id)
 
     def find_comment(self, username=None, startswith=None, max_history=None):
         # check last commits
