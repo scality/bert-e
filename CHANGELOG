@@ -1,7 +1,13 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
-## [3.0.1] - 2017-02-06
+## [3.0.2] - 2017-02-09
+# Changed
+- Bitbucket API HTTP calls were optimized to avoid full-scan (and throttling by Bitbucket)
+# Added
+- The abstract Git HOST API allows for filtering when listing pull requests
+
+## [3.0.1] - 2017-02-07
 # Fixed
 - Some exceptions slipped through and killed the BertE worker thread in the server
 - Tasks were set in reversed order on bitbucket
