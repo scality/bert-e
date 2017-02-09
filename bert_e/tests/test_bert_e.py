@@ -3380,7 +3380,7 @@ class TestQueueing(RepositoryTests):
         self.set_build_status_on_branch_tip(
             'q/13/5.1/bugfix/TEST-00004', 'SUCCESSFUL')
         self.set_build_status_on_branch_tip(
-            'q/13/6.0/bugfix/TEST-00004', 'FAIL')
+            'q/13/6.0/bugfix/TEST-00004', 'FAILED')
         with self.assertRaises(NothingToDo):
             self.handle(sha1,
                         options=self.bypass_all,
