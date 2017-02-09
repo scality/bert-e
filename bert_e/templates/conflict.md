@@ -5,8 +5,12 @@ Conflict during merge
 {% endblock %}
 
 {% block message %}
-A conflict has been raised during the update of integration branch `{{ wbranch.name }}` with
+A conflict has been raised during the {{ "creation" if empty else "update" }} of integration branch `{{ wbranch.name }}` with
 contents from `{{ source.name }}` and `{{ wbranch.dst_branch.name }}`.
+
+{% if empty -%}
+**I have not created the integration branch.**
+{%- endif %}
 
 {% if origin %}
 Please resolve the conflict on **the feature branch** (`{{ feature_branch.name }}`).
@@ -31,6 +35,7 @@ this pull request to resume the merge process.
 {% endif%}
 {% else %} Please
 resolve the conflict on **the integration branch** (`{{ wbranch.name }}`).
+
 
 Here are the steps to resolve this conflict:
 
