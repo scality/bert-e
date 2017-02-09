@@ -37,7 +37,11 @@ Here are the steps to resolve this conflict:
 ```
 #!bash
  $ git fetch
+ {% if empty -%}
+ $ git checkout -b {{ wbranch.name }}
+{%- else -%}
  $ git checkout {{ wbranch.name }}
+{%- endif %}
  $ git merge origin/{{ wbranch.dst_branch.name }}
  $ # <intense conflict resolution>
  $ git merge origin/{{ source.name }}

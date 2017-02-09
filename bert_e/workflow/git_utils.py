@@ -31,9 +31,14 @@ def octopus_merge(dst: git.Branch, src1: git.Branch, src2: git.Branch):
     """
     try:
         dst.merge(src1, src2)
-    except git.MergeFailedException:
-        dst.reset(False)
-        dst.merge(src2, src1)
+    except git.MergeFailedException as err:
+        try:
+            dst.reset(False)
+            dst.merge(src2, src1)
+        except git.MergeFailedException:
+            raise
+        except Exception:
+            raise err
 
 
 def push(repo: git.Repository, branches=(), prune=False):

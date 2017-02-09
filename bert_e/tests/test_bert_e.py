@@ -890,7 +890,7 @@ class TestBertE(RepositoryTests):
             # branch with the same target as the original PR
             self.assertIn('on **the feature branch** '
                           '(`bugfix/TEST-0006-other`', e.msg)
-            self.assertNotIn("git checkout w/5.1/bugfix/TEST-0006-other",
+            self.assertNotIn("git checkout -b w/5.1/bugfix/TEST-0006-other",
                              e.msg)
         else:
             self.fail("No conflict detected.")
@@ -923,7 +923,7 @@ class TestBertE(RepositoryTests):
             # Bert-E MUST instruct the user to modify the integration
             # branch with the same target as the original PR
             self.assertIn(
-                "git checkout w/5.1/improvement/TEST-0006",
+                "git checkout -b w/5.1/improvement/TEST-0006",
                 e.msg)
             self.assertIn(
                 "git merge origin/w/4.3/improvement/TEST-0006",
