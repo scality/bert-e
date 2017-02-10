@@ -21,6 +21,7 @@ from collections import OrderedDict, deque
 from datetime import datetime
 from os.path import exists
 from types import SimpleNamespace
+from urllib.parse import quote_plus
 
 import yaml
 
@@ -64,6 +65,7 @@ class BertE:
             repo_slug=settings['repository_slug']
         )
         self.settings = settings
+        settings['bitbucket_password'] = args.bitbucket_password
         settings['jira_password'] = args.jira_password
         self.backtrace = args.backtrace
         self.interactive = settings['interactive'] = args.interactive
@@ -71,7 +73,8 @@ class BertE:
         self.quiet = args.quiet
         self.token = args.token.strip()
         self.use_queue = settings['use_queue'] = not args.disable_queues
-        self.repo = GitRepository(self.bbrepo.git_url)
+        self.repo = GitRepository(self.bbrepo.git_url,
+                                  mask_pwd=quote_plus(args.bitbucket_password))
         self.tmpdir = self.repo.tmp_directory
 
         # This is a temporary namespace utility.
@@ -168,7 +171,9 @@ class BertE:
         commit.
 
         """
-        git_repo = GitRepository(self.bbrepo.git_url)
+        git_repo = GitRepository(
+            self.bbrepo.git_url,
+            mask_pwd=quote_plus(self.settings['bitbucket_password']))
         candidates = [b for b in git_repo.get_branches_from_sha1(sha1)
                       if b.startswith('w/')]
         if not candidates:

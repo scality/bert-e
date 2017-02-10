@@ -23,13 +23,17 @@ from tempfile import mkdtemp
 from ..simplecmd import CommandError, cmd
 
 
+LOG = logging.getLogger(__name__)
+
+
 class Repository(object):
-    def __init__(self, url):
+    def __init__(self, url, mask_pwd=''):
         self._url = url
         self.tmp_directory = mkdtemp()
         self.cmd_directory = self.tmp_directory
         self._remote_heads = defaultdict(set)
         self._remote_branches = dict()
+        self._mask_pwd = mask_pwd
 
     def __enter__(self):
         return self
@@ -156,15 +160,14 @@ class Repository(object):
                 for arg in args
             )
         cwd = kwargs.pop('cwd', self.cmd_directory)
+        kwargs.setdefault('mask_pwd', self._mask_pwd)
         try:
             ret = cmd(command, cwd=cwd, **kwargs)
         except CommandError:
             if retry == 0:
                 raise
 
-            logging.warning('The following command failed:\n'
-                            ' %s\n'
-                            '[%s retry left]', command, retry)
+            LOG.warning('command failed: [%s retry left]', retry)
             time.sleep(120)  # helps stabilize requests to bitbucket
             ret = self.cmd(command, retry=retry - 1, **kwargs)
         return ret

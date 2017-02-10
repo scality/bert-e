@@ -23,6 +23,7 @@ import warnings
 from collections import OrderedDict
 from copy import deepcopy
 from hashlib import md5
+from urllib.parse import quote_plus
 
 import requests
 
@@ -589,7 +590,10 @@ class RepositoryTests(unittest.TestCase):
             repo_slug=('%s_%s' % (self.args.repo_prefix,
                                   self.args.admin_username)),
         )
-        self.gitrepo = GitRepository(self.admin_bb.get_git_url())
+        self.gitrepo = GitRepository(
+            self.admin_bb.get_git_url(),
+            mask_pwd=quote_plus(self.args.admin_password)
+        )
         initialize_git_repo(self.gitrepo,
                             self.args.admin_username,
                             "nobody@nowhere.com")
