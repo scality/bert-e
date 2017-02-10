@@ -136,21 +136,21 @@ class Repository(object):
     def checkout(self, name):
         try:
             self.cmd('git checkout %s', name)
-        except CommandError:
-            raise CheckoutFailedException(name)
+        except CommandError as err:
+            raise CheckoutFailedException(name) from err
 
     def push(self, name):
         try:
             self.cmd('git push --set-upstream origin ' + name)
-        except CommandError:
-            raise PushFailedException(name)
+        except CommandError as err:
+            raise PushFailedException(name) from err
 
     def push_all(self, prune=False):
         prune = '--prune' if prune else ''
         try:
             self.cmd('git push --all --atomic %s' % prune)
         except CommandError as err:
-            raise PushFailedException(err)
+            raise PushFailedException(err) from err
 
     def cmd(self, command, *args, **kwargs):
         retry = kwargs.pop('retry', 0)
@@ -188,8 +188,8 @@ class Branch(object):
             command = 'git merge --no-edit %s %s' % ('--no-ff' if force_commit
                                                      else '', branches)
             self.repo.cmd(command)  # May fail if conflict
-        except CommandError:
-            raise MergeFailedException(self.name, branches)
+        except CommandError as err:
+            raise MergeFailedException(self.name, branches) from err
         if do_push:
             self.push()
 
@@ -232,9 +232,9 @@ class Branch(object):
         try:
             self.repo.cmd('git checkout -b %s %s', self.name,
                           source_branch.name)
-        except CommandError:
+        except CommandError as err:
             msg = "branch:%s source:%s" % (self.name, source_branch.name)
-            raise BranchCreationFailedException(msg)
+            raise BranchCreationFailedException(msg) from err
         if do_push:
             self.push()
 
@@ -249,8 +249,8 @@ class Branch(object):
             return
         try:
             self.repo.push(':' + self.name)
-        except PushFailedException:
-            raise RemoveFailedException()
+        except PushFailedException as err:
+            raise RemoveFailedException() from err
 
     def __repr__(self):
         return self.name
