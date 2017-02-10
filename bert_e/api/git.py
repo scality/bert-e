@@ -167,7 +167,7 @@ class Repository(object):
             if retry == 0:
                 raise
 
-            LOG.warning('command failed: [%s retry left]', retry)
+            LOG.debug('command failed: [%s retry left]', retry)
             time.sleep(120)  # helps stabilize requests to bitbucket
             ret = self.cmd(command, retry=retry - 1, **kwargs)
         return ret
