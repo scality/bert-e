@@ -86,6 +86,9 @@ def _do_cmd(command, timeout, **kwargs):
         except subprocess.TimeoutExpired as err:
             os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
             proc.communicate()
-            raise CommandError("Command %s timed out." % mask_pwd(command))
+            raise CommandError(
+                "Command %s timed out." % mask_pwd(command)) from err
+        except CommandError:
+            raise
         except Exception as err:
-            raise CommandError(mask_pwd(str(err)))
+            raise CommandError(mask_pwd(str(err))) from err
