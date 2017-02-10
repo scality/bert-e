@@ -38,11 +38,15 @@ def cmd(command, shell=True, stderr=subprocess.STDOUT, timeout=300, **kwargs):
 
     Return: the standard output
     """
+    pwd = kwargs.get('mask_pwd', None)
+
+    def mask_pwd(data):
+        return data.replace(pwd, '***') if pwd else data
+
     kwargs.update({'shell': shell, 'stderr': stderr})
     if logging.getLogger().isEnabledFor(logging.DEBUG):
-        logging.debug('')
-        logging.debug('#' * 50 + ' pwd = ' + kwargs.get('cwd', os.getcwd()))
-        logging.debug('# BASH : %s', command)
+        logging.debug('#' * 50 + ' cwd = ' + kwargs.get('cwd', os.getcwd()))
+        logging.debug('# BASH : %s', mask_pwd(command))
         try:
             return _do_cmd(command, timeout, **kwargs)
         except CommandError:
@@ -60,6 +64,11 @@ def _do_cmd(command, timeout, **kwargs):
     case of timeout.
 
     """
+    pwd = kwargs.pop('mask_pwd', None)
+
+    def mask_pwd(data):
+        return data.replace(pwd, '***') if pwd else data
+
     # http://stackoverflow.com/questions/36952245/subprocess-timeout-failure
     kwargs['stdout'] = subprocess.PIPE
     kwargs['preexec_fn'] = os.setsid
@@ -67,13 +76,16 @@ def _do_cmd(command, timeout, **kwargs):
     with subprocess.Popen(command, **kwargs) as proc:
         try:
             output, _ = proc.communicate(timeout=timeout)
+            output = mask_pwd(output)
             if proc.returncode != 0:
-                raise CommandError('Command %s returned with code %d: %s' %
-                                   (command, proc.returncode, output))
+                raise CommandError(
+                    'Command %s returned with code %d: %s' %
+                    (mask_pwd(command), proc.returncode, output)
+                )
             return output
         except subprocess.TimeoutExpired as err:
             os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
             proc.communicate()
-            raise CommandError("Command %s timed out." % command)
+            raise CommandError("Command %s timed out." % mask_pwd(command))
         except Exception as err:
-            raise CommandError(str(err))
+            raise CommandError(mask_pwd(str(err)))
