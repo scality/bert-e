@@ -5,8 +5,12 @@ Conflict during merge
 {% endblock %}
 
 {% block message %}
-A conflict has been raised during the update of integration branch `{{ wbranch.name }}` with
+A conflict has been raised during the {{ "creation" if empty else "update" }} of integration branch `{{ wbranch.name }}` with
 contents from `{{ source.name }}` and `{{ wbranch.dst_branch.name }}`.
+
+{% if empty -%}
+**I have not created the integration branch.**
+{%- endif %}
 
 {% if origin %}
 Please resolve the conflict on **the feature branch** (`{{ feature_branch.name }}`).
@@ -29,16 +33,23 @@ delete all `w/*` branches related to this pull request
 Once done, please **decline the old integration pull requests** and comment
 this pull request to resume the merge process.
 {% endif%}
-{% else %} Please
+{% else %} {%- if not empty -%} Please
 resolve the conflict on **the integration branch** (`{{ wbranch.name }}`).
+{%- endif -%}
+
 
 Here are the steps to resolve this conflict:
 
 ```
 #!bash
  $ git fetch
+ {% if empty -%}
+ $ git checkout origin/{{ wbranch.dst_branch.name }}
+ $ git checkout -b {{ wbranch.name }}
+{%- else -%}
  $ git checkout {{ wbranch.name }}
  $ git merge origin/{{ wbranch.dst_branch.name }}
+{%- endif %}
  $ # <intense conflict resolution>
  $ git merge origin/{{ source.name }}
  $ # <intense conflict resolution>

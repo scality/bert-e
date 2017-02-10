@@ -7,6 +7,7 @@ All notable changes to this project will be documented in this file.
 # Added
 - The abstract Git HOST API allows for filtering when listing pull requests
 # Fixed
+- BertE no longer pushes empty integration branches to the repository
 - Add mechanism to hide BertE's credentials from error messages and logs
 
 ## [3.0.1] - 2017-02-07
