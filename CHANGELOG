@@ -6,6 +6,8 @@ All notable changes to this project will be documented in this file.
 - Bitbucket API HTTP calls were optimized to avoid full-scan (and throttling by Bitbucket)
 # Added
 - The abstract Git HOST API allows for filtering when listing pull requests
+# Fixed
+- Add mechanism to hide BertE's credentials from error messages and logs
 
 ## [3.0.1] - 2017-02-07
 # Fixed
