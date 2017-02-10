@@ -45,8 +45,8 @@ def cmd(command, shell=True, stderr=subprocess.STDOUT, timeout=300, **kwargs):
 
     kwargs.update({'shell': shell, 'stderr': stderr})
     if logging.getLogger().isEnabledFor(logging.DEBUG):
-        logging.debug('#' * 50 + ' cwd = ' + kwargs.get('cwd', os.getcwd()))
-        logging.debug('# BASH : %s', mask_pwd(command))
+        logging.debug('[%s] %s',
+                      kwargs.get('cwd', os.getcwd()), mask_pwd(command))
         try:
             return _do_cmd(command, timeout, **kwargs)
         except CommandError:
