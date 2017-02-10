@@ -890,7 +890,7 @@ class TestBertE(RepositoryTests):
             # branch with the same target as the original PR
             self.assertIn('on **the feature branch** '
                           '(`bugfix/TEST-0006-other`', e.msg)
-            self.assertNotIn("git checkout w/5.1/bugfix/TEST-0006-other",
+            self.assertNotIn("git checkout -b w/5.1/bugfix/TEST-0006-other",
                              e.msg)
         else:
             self.fail("No conflict detected.")
@@ -923,7 +923,7 @@ class TestBertE(RepositoryTests):
             # Bert-E MUST instruct the user to modify the integration
             # branch with the same target as the original PR
             self.assertIn(
-                "git checkout w/5.1/improvement/TEST-0006",
+                "git checkout -b w/5.1/improvement/TEST-0006",
                 e.msg)
             self.assertIn(
                 "git merge origin/w/4.3/improvement/TEST-0006",
@@ -933,6 +933,13 @@ class TestBertE(RepositoryTests):
                 e.msg)
         else:
             self.fail("No conflict detected.")
+
+        # Check that the w/4.3 branch of pr4 was pushed,
+        # but not the (empty) w/5.1 branch
+        assert self.gitrepo.remote_branch_exists(
+            "w/4.3/improvement/TEST-0006-other", True)
+        assert not self.gitrepo.remote_branch_exists(
+            "w/5.1/improvement/TEST-0006-other", True)
 
     def test_approvals(self):
         """Test approvals of author, reviewer and tester."""

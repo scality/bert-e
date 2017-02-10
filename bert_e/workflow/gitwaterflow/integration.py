@@ -34,9 +34,9 @@ def create_integration_branches(job):
         name = "w/{}/{}".format(dst.version, src)
         branch = branch_factory(job.git.repo, name)
         branch.src_branch, branch.dst_branch = src, dst
-        yield branch
         if not branch.exists():
-            branch.create(dst)
+            branch.create(dst, do_push=False)
+        yield branch
 
 
 def update_integration_branches(job, wbranches):
@@ -67,12 +67,13 @@ def update_integration_branches(job, wbranches):
             )
 
     def update(wbranch, source, origin=False):
+        empty = not wbranch.get_commit_diff(wbranch.dst_branch)
         try:
             octopus_merge(wbranch, wbranch.dst_branch, source)
         except git.MergeFailedException as err:
             raise exceptions.Conflict(
                 source=source, wbranch=wbranch, dev_branch=job.git.dst_branch,
-                feature_branch=job.git.src_branch, origin=origin,
+                feature_branch=job.git.src_branch, origin=origin, empty=empty,
                 active_options=get_active_options(job)
             ) from err
 
