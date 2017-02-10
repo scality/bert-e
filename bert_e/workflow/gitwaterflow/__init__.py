@@ -91,7 +91,10 @@ def handle_pull_request(job):
             for branch in wbranches:
                 branch.reset()
     finally:
-        # Do not push empty integration branches
+        # Do not push empty integration branches as this would trigger new
+        # builds on the CI server and possibly an overwrite of artifacts, since
+        # empty integration w/x.y branches basically point at their target
+        # development/x.y branches.
         to_push = [branch for branch in wbranches
                    if branch.get_commit_diff(branch.dst_branch)]
         if to_push:

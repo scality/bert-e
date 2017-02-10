@@ -934,6 +934,13 @@ class TestBertE(RepositoryTests):
         else:
             self.fail("No conflict detected.")
 
+        # Check that the w/4.3 branch of pr4 was pushed,
+        # but not the (empty) w/5.1 branch
+        assert self.gitrepo.remote_branch_exists(
+            "w/4.3/improvement/TEST-0006-other", True)
+        assert not self.gitrepo.remote_branch_exists(
+            "w/5.1/improvement/TEST-0006-other", True)
+
     def test_approvals(self):
         """Test approvals of author, reviewer and tester."""
         feature_branch = 'bugfix/TEST-0007'
