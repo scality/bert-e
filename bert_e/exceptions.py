@@ -130,6 +130,7 @@ class Conflict(TemplateException):
 class ApprovalRequired(TemplateException):
     code = 115
     template = 'need_approval.md'
+    dont_repeat_if_in_history = NEVER_REPEAT
 
 
 class BuildFailed(TemplateException):
