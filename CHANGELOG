@@ -1,6 +1,10 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [3.0.3] - 2017-02-14
+# Fixed
+- Never repeat the "Approvals required" message
+
 ## [3.0.2] - 2017-02-13
 # Changed
 - Bitbucket API HTTP calls were optimized to avoid full-scan (and throttling by Bitbucket)
