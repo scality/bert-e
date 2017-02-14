@@ -525,6 +525,15 @@ class FakeGitRepo:
         return True
 
 
+class BuildFaildTest(unittest.TestCase):
+
+    def test_build_fail_with_build_url(self):
+        build_url = 'http://host/path/to/the?build=url'
+        build_fail = BuildFailed(pr_id=1, build_url=build_url,
+                                 active_options=None)
+        assert 'Link to the build: {}'.format(build_url) in build_fail.msg
+
+
 class RepositoryTests(unittest.TestCase):
     bypass_all = [
         'bypass_author_approval',
