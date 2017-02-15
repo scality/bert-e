@@ -87,10 +87,11 @@ def create_integration_pull_requests(job, wbranches):
     """Create integration pull requests if they do not exist."""
     # read open PRs and store them for multiple usage
     wbranch_names = [wbranch.name for wbranch in wbranches]
-    open_prs = list(job.project_repo.get_pull_requests(
-        src_branch=wbranch_names,
-        author=job.settings.robot_username
-    ))
+    open_prs = list(
+        pr for pr in job.project_repo.get_pull_requests(
+            src_branch=wbranch_names,
+            author=job.settings.robot_username
+        ) if pr.status == 'OPEN')
     prs, created = zip(*(
         # FIXME: git branches shouldn't be allowed to interact to create
         # pull requests: that's an undesirable coupling.

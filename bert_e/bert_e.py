@@ -178,9 +178,12 @@ class BertE:
                       if b.startswith('w/')]
         if not candidates:
             return
-        prs = list(self.bbrepo.get_pull_requests(
-            src_branch=candidates,
-            author=self.settings['robot_username']))
+        prs = list(
+            pr for pr in self.bbrepo.get_pull_requests(
+                src_branch=candidates,
+                author=self.settings['robot_username'])
+            if pr.status == 'OPEN'
+        )
         if not prs:
             return
         return min(prs, key=lambda pr: pr.id)
