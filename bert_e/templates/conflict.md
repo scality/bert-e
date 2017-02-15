@@ -45,12 +45,12 @@ Here are the steps to resolve this conflict:
  $ git fetch
  {% if empty -%}
  $ git checkout origin/{{ wbranch.dst_branch.name }}
- $ git checkout -b {{ wbranch.name }}
+ $ git checkout -B {{ wbranch.name }}
 {%- else -%}
  $ git checkout {{ wbranch.name }}
  $ git merge origin/{{ wbranch.dst_branch.name }}
-{%- endif %}
  $ # <intense conflict resolution>
+{%- endif %}
  $ git merge origin/{{ source.name }}
  $ # <intense conflict resolution>
  $ git push origin HEAD:{{ wbranch.name }}
