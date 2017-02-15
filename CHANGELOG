@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 ## [3.0.3] - 2017-02-15
 # Fixed
 - Filter on open pull requests only to avoid getting stuck in a loop
+- Fixed conflict resolution instructions on non-pushed integration branches
 
 ## [3.0.2] - 2017-02-13
 # Changed
