@@ -194,6 +194,30 @@ class Repository(BitBucketObject, AbstractRepository):
                                pull_request_id=pull_request_id,
                                full_name=self.full_name)
 
+    def get_build_url(self, revision, key):
+
+        kwargs = {
+            'owner': self.owner,
+            'repo_slug': self.slug,
+            'revision': revision,
+            'key': key
+        }
+
+        key = '{}-build'.format(revision)
+        build_url = BUILD_STATUS_CACHE[key].get(revision, None)
+        if build_url is not None:
+            return build_url
+
+        # Check against Bitbucket
+        try:
+            status = BuildStatus.get(self.client, **kwargs)
+        except HTTPError as e:
+            if e.response.status_code == 404:
+                return None
+            raise
+        else:
+            return BUILD_STATUS_CACHE[key].set(revision, status['url'])
+
     def get_build_status(self, revision, key):
         kwargs = {
             'owner': self.owner,

@@ -219,6 +219,10 @@ class Repository(BitBucketObject, base.AbstractRepository):
                 return pr
         raise Exception("Did not find this pr")
 
+    def get_build_url(self, revision, key):
+        key = '{}-build'.format(revision)
+        return self.gitrepo.revisions.get((revision, key), None)
+
     def get_build_status(self, revision, key):
         try:
             return self.gitrepo.revisions[(revision, key)]

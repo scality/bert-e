@@ -494,8 +494,7 @@ def check_build_status(job, child_prs):
         return job.project_repo.get_build_status(pr.src_commit, key)
 
     def build_url(pr):
-        return job.project_repo.get_build_status(
-            '{}-build'.format(pr.src_commit), key)
+        return job.project_repo.get_build_url(pr.src_commit, key)
 
     statuses = {p.src_branch: status(p) for p in child_prs}
     worst = max(child_prs, key=lambda p: ordered_state[statuses[p.src_branch]])
