@@ -2139,7 +2139,6 @@ admins:
 
         assert ret == SuccessMessage.code
 
-
     def test_branch_name_escape(self):
         """Make sure git api support branch names with
         special chars and doesn't interpret them in bash.
