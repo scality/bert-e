@@ -298,6 +298,8 @@ class PullRequestController(Controller, base.AbstractPullRequest):
 
     def decline(self):
         self['_state'] = "DECLINED"
+        # Freeze the PR's source commit
+        self['source']['commit'] = {'hash': self.src_commit}
 
     @property
     def id(self):

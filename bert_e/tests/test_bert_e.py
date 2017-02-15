@@ -2096,6 +2096,50 @@ admins:
                 options=self.bypass_all_but(['bypass_build_status']),
                 backtrace=True)
 
+    def test_integration_pr_declined(self):
+        pr = self.create_pr('bugfix/TEST-0001', 'development/4.3')
+        self.gitrepo.cmd('git fetch --all')
+        self.gitrepo.cmd('git checkout bugfix/TEST-0001')
+        # Add another commit
+        self.gitrepo.cmd('echo something > toto.txt')
+        self.gitrepo.cmd('git add toto.txt')
+        self.gitrepo.cmd('git commit -m "something"')
+        self.gitrepo.push('bugfix/TEST-0001')
+
+        self.handle(pr['id'],
+                    options=self.bypass_all_but(['bypass_build_status']))
+
+        int_prs = list(self.contributor_bb.get_pull_requests(
+            src_branch=[
+                'w/4.3/bugfix/TEST-0001',
+                'w/5.1/bugfix/TEST-0001',
+                'w/6.0/bugfix/TEST-0001'
+            ])
+        )
+
+        self.gitrepo.cmd('git checkout bugfix/TEST-0001')
+        self.gitrepo.cmd('git reset HEAD~1 --hard')
+        self.gitrepo.cmd('git push origin -f bugfix/TEST-0001')
+
+        res = self.handle(pr['id'], options=self.bypass_all)
+
+        assert res == BranchHistoryMismatch.code
+
+        # Decline integration pull requests
+        assert len(int_prs) == 3
+        for ipr in int_prs:
+            ipr.decline()
+
+        # Delete integration branches
+        self.gitrepo.push(':w/4.3/bugfix/TEST-0001 '
+                          ':w/5.1/bugfix/TEST-0001 '
+                          ':w/6.0/bugfix/TEST-0001')
+
+        ret = self.handle(pr['id'], options=self.bypass_all)
+
+        assert ret == SuccessMessage.code
+
+
     def test_branch_name_escape(self):
         """Make sure git api support branch names with
         special chars and doesn't interpret them in bash.
