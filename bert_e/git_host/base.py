@@ -200,6 +200,17 @@ class AbstractRepository(metaclass=ABCMeta):
 
         """
 
+    def get_build_url(self, revision: str, key: str) -> str:
+        """Get the build url associated to a commit.
+
+        Args:
+            - revision: commit sha1 or branch name
+            - key: build key (e.g. "pre-merge")
+
+        Returns: url of the link which points to the build, `None` if
+                 there is no build.
+        """
+
     def set_build_status(self, revision: str, key: str, state: str, **kwargs):
         """Associate a build status to a commit.
 
