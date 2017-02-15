@@ -525,13 +525,23 @@ class FakeGitRepo:
         return True
 
 
-class BuildFaildTest(unittest.TestCase):
+class BuildFailedTest(unittest.TestCase):
 
     def test_build_fail_with_build_url(self):
         build_url = 'http://host/path/to/the?build=url'
         build_fail = BuildFailed(pr_id=1, build_url=build_url,
                                  active_options=None)
-        assert 'Link to the build: {}'.format(build_url) in build_fail.msg
+        assert 'The [build]({}) did not succeed'.format(build_url) \
+            in build_fail.msg
+
+    def test_build_fail_with_url_to_none(self):
+        build_fail = BuildFailed(pr_id=1, build_url=None,
+                                 active_options=None)
+        assert 'The build did not succeed' in build_fail.msg
+
+    def test_build_fail_with_no_url(self):
+        build_fail = BuildFailed(pr_id=1, active_options=None)
+        assert 'The build did not succeed' in build_fail.msg
 
 
 class RepositoryTests(unittest.TestCase):

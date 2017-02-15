@@ -5,8 +5,5 @@ Build failed
 {% endblock %}
 
 {% block message %}
-The build did not succeed in integration pull request #{{ pr_id }}.
-{% if build_url is defined %}
-Link to the build: {{ build_url }}
-{%- endif -%}
+The {% if build_url is defined and build_url is not none %}[build]({{ build_url }}){% else %}build{% endif %} did not succeed in integration pull request #{{ pr_id }}.
 {% endblock %}
