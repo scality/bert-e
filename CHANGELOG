@@ -5,8 +5,7 @@ All notable changes to this project will be documented in this file.
 # Fixed
 - Bert-E specifically handles the case where the destination of a PR is archived/deleted
 # Added
-- The abstract GIT HOST API now contains a method for recovering build url.
-- Support for build url if present in status
+- Provide the url to failed builds in pull requests
 
 ## [3.0.3] - 2017-02-15
 # Fixed
