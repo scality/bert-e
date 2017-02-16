@@ -1558,20 +1558,9 @@ admins:
 
     def test_wrong_pr_destination(self):
         """Check what happens if a PR's destination doesn't exist anymore."""
-        if TestBertE.args.disable_mock:
-            self.skipTest("Too complex to reproduce without a mock.")
-        create_branch(self.gitrepo, 'bugfix/TEST-01', 'development/4.3',
-                      file_=True)
+        pr = self.create_pr('bugfix/TEST-01', 'development/4.3')
 
-        pr = self.contributor_bb.create_pull_request(
-            title='title',
-            name='name',
-            src_branch='bugfix/TEST-01',
-            dst_branch='development/4.4',  # dst branch does not exist
-            close_source_branch=True,
-            reviewers=[],
-            description=''
-        )
+        self.gitrepo.cmd('git push origin :development/4.3 -f')
 
         with self.assertRaises(WrongDestination):
             self.handle(pr['id'], backtrace=True)
