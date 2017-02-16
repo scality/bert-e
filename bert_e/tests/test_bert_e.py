@@ -1759,16 +1759,19 @@ admins:
             self.handle(pr['id'],
                         options=self.bypass_all_but(['bypass_build_status']),
                         backtrace=True)
-        self.set_build_status_on_pr_id(pr['id'] + 1, 'FAILED')
+        self.set_build_status_on_pr_id(pr['id'] + 1, 'FAILED', url='DEADBEEF')
         self.set_build_status_on_pr_id(pr['id'] + 2, 'SUCCESSFUL')
 
-        childpr = self.robot_bb.get_pull_request(
-            pull_request_id=pr['id'] + 1)
+        with self.assertRaises(BuildFailed) as err:
 
-        retcode = self.handle(childpr['source']['commit']['hash'],
-                              options=self.bypass_all_but(
-                                  ['bypass_build_status']))
-        self.assertEqual(retcode, BuildFailed.code)
+            childpr = self.robot_bb.get_pull_request(
+                pull_request_id=pr['id'] + 1)
+
+            self.handle(childpr['source']['commit']['hash'],
+                        options=self.bypass_all_but(
+                        ['bypass_build_status']),
+                        backtrace=True)
+            self.assertIn("(DEADBEEF)", err.msg)
 
         self.set_build_status_on_pr_id(pr['id'] + 1, 'SUCCESSFUL')
 
