@@ -493,16 +493,15 @@ def check_build_status(job, child_prs):
     def status(pr):
         return job.project_repo.get_build_status(pr.src_commit, key)
 
-    def build_url(pr):
-        return job.project_repo.get_build_url(pr.src_commit, key)
-
     statuses = {p.src_branch: status(p) for p in child_prs}
     worst = max(child_prs, key=lambda p: ordered_state[statuses[p.src_branch]])
     worst_status = statuses[worst.src_branch]
     if worst_status in ('FAILED', 'STOPPED'):
-        raise messages.BuildFailed(pr_id=worst.id,
-                                   build_url=build_url(worst),
-                                   active_options=get_active_options(job))
+        raise messages.BuildFailed(
+            pr_id=worst.id,
+            build_url=job.project_repo.get_build_url(worst.src_commit, key),
+            active_options=get_active_options(job)
+        )
     elif worst_status == 'NOTSTARTED':
         raise messages.BuildNotStarted()
     elif worst_status == 'INPROGRESS':
