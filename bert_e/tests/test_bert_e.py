@@ -1556,6 +1556,26 @@ admins:
         with self.assertRaises(DevBranchDoesNotExist):
             self.handle(pr['id'], options=self.bypass_all)
 
+    def test_wrong_pr_destination(self):
+        """Check what happens if a PR's destination doesn't exist anymore."""
+        if TestBertE.args.disable_mock:
+            self.skipTest("Too complex to reproduce without a mock.")
+        create_branch(self.gitrepo, 'bugfix/TEST-01', 'development/4.3',
+                      file_=True)
+
+        pr = self.contributor_bb.create_pull_request(
+            title='title',
+            name='name',
+            src_branch='bugfix/TEST-01',
+            dst_branch='development/4.4',  # dst branch does not exist
+            close_source_branch=True,
+            reviewers=[],
+            description=''
+        )
+
+        with self.assertRaises(WrongDestination):
+            self.handle(pr['id'], backtrace=True)
+
     def test_pr_skew_with_lagging_pull_request_data(self):
         # create hook
         try:

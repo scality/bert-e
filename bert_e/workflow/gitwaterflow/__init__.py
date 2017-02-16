@@ -161,8 +161,13 @@ def early_checks(job):
         raise messages.NothingToDo("The pull request is '{}'".format(status))
 
     src, dst = job.pull_request.src_branch, job.pull_request.dst_branch
+
     if not is_cascade_producer(src) or not is_cascade_consumer(dst):
         raise messages.NotMyJob(src, dst)
+
+    if not job.git.repo.remote_branch_exists(dst):
+        raise messages.WrongDestination(dst_branch=dst,
+                                        active_options=get_active_options(job))
 
 
 def send_greetings(job):

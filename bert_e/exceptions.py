@@ -374,6 +374,11 @@ class TaskAPIError(InternalException):
         super(TaskAPIError, self).__init__(msg)
 
 
+class WrongDestination(TemplateException):
+    code = 222
+    template = 'incorrect_destination.md'
+
+
 class QueueValidationError(Exception):
     """Extend simple string class with an error code and recovery potential."""
     code = 'Q000'
