@@ -1558,9 +1558,9 @@ admins:
 
     def test_wrong_pr_destination(self):
         """Check what happens if a PR's destination doesn't exist anymore."""
-        pr = self.create_pr('bugfix/TEST-01', 'development/4.3')
+        pr = self.create_pr('bugfix/TEST-01', 'development/5.1')
 
-        self.gitrepo.cmd('git push origin :development/4.3 -f')
+        self.gitrepo.cmd('git push origin :development/5.1')
 
         with self.assertRaises(WrongDestination):
             self.handle(pr['id'], backtrace=True)
