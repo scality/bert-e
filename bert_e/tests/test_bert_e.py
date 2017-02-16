@@ -539,10 +539,6 @@ class BuildFailedTest(unittest.TestCase):
                                  active_options=None)
         assert 'The build did not succeed' in build_fail.msg
 
-    def test_build_fail_with_no_url(self):
-        build_fail = BuildFailed(pr_id=1, active_options=None)
-        assert 'The build did not succeed' in build_fail.msg
-
 
 class RepositoryTests(unittest.TestCase):
     bypass_all = [
