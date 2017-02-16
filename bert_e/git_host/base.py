@@ -207,8 +207,7 @@ class AbstractRepository(metaclass=ABCMeta):
             - revision: commit sha1 or branch name
             - key: build key (e.g. "pre-merge")
 
-        Returns: url of the link which points to the build, `None` if
-                 there is no build.
+        Returns: url to the build of `revision` or `None`
         """
 
     def set_build_status(self, revision: str, key: str, state: str, **kwargs):
