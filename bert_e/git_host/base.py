@@ -109,10 +109,6 @@ class AbstractPullRequest(metaclass=ABCMeta):
         """
 
     @abstractmethod
-    def merge(self):
-        """Merge this pull request."""
-
-    @abstractmethod
     def approve(self):
         """Approve this pull request."""
 
@@ -196,10 +192,12 @@ class AbstractRepository(metaclass=ABCMeta):
             - SUCCESSFUL
             - INPROGRESS
             - NOTSTARTED
+            - STOPPED
             - FAILED
 
         """
 
+    @abstractmethod
     def get_build_url(self, revision: str, key: str) -> str:
         """Get the build url associated to a commit.
 
@@ -210,6 +208,7 @@ class AbstractRepository(metaclass=ABCMeta):
         Returns: url to the build of `revision` or `None`
         """
 
+    @abstractmethod
     def set_build_status(self, revision: str, key: str, state: str, **kwargs):
         """Associate a build status to a commit.
 
@@ -222,13 +221,15 @@ class AbstractRepository(metaclass=ABCMeta):
         """
 
     @abstractmethod
-    def get_pull_requests(self, author=None, src_branch=None
+    def get_pull_requests(self, author=None, src_branch=None, status='OPEN'
                           ) -> Iterable[AbstractPullRequest]:
         """Get pull requests from this repository.
 
             * author (str): optional filter on PR author username.
             * src_branch (str or List[str]): optional filter on PR source
                 branch name.
+            * status (str): filter on the pull requests status. Defaults to
+                            'OPEN'.
         """
 
     @abstractmethod
@@ -262,7 +263,7 @@ class AbstractRepository(metaclass=ABCMeta):
 class AbstractClient(metaclass=ABCMeta):
 
     @abstractmethod
-    def get_repository(self, slug, owner=None) -> AbstractRepository:
+    def get_repository(self, slug: str, owner=None) -> AbstractRepository:
         """Get the associated repository for the client.
 
         Raises: NoSuchRepository if the repository does not exist.
@@ -272,8 +273,8 @@ class AbstractClient(metaclass=ABCMeta):
         """
 
     @abstractmethod
-    def create_repository(self, slug, owner=None,
-                          **kwargs) -> AbstractRepository:
+    def create_repository(self, slug: str, **kwargs
+                          ) -> AbstractRepository:
         """Create a new repository.
 
         Raises: RepositoryExists if the repository already exists.
@@ -283,7 +284,7 @@ class AbstractClient(metaclass=ABCMeta):
         """
 
     @abstractmethod
-    def delete_repository(self, slug, owner=None) -> None:
+    def delete_repository(self, slug: str, owner=None) -> None:
         """Delete a repository.
 
         Raises: NoSuchRepository if the repository does not exist.

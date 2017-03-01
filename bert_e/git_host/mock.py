@@ -54,15 +54,14 @@ class Error404Response:
 @api_client('mock')
 class Client(base.AbstractClient):
     def __init__(self, username, password, email):
-        self.username = username
+        self.login = username
         self.password = password
         self.auth = self
+        self.email = email
 
-    def create_repository(self, slug, owner=None, scm='git',
+    def create_repository(self, slug, scm='git',
                           is_private=True):
-        if owner is None:
-            owner = self.username
-
+        owner = self.login
         repo_key = (owner, slug)
 
         if repo_key in Repository.repos:
@@ -78,23 +77,23 @@ class Client(base.AbstractClient):
 
     def get_repository(self, slug, owner=None):
         if owner is None:
-            owner = self.username
+            owner = self.login
         repo_key = (owner, slug)
         if repo_key not in Repository.repos:
             raise base.NoSuchRepository(
                 "Could not find the repository whose owner is '{}' "
-                "and slug is '{}'".format(self.username, slug)
+                "and slug is '{}'".format(self.login, slug)
             )
         return Repository.repos.get(repo_key)
 
     def delete_repository(self, slug, owner=None):
         if owner is None:
-            owner = self.username
+            owner = self.login
         repo_key = (owner, slug)
         if repo_key not in Repository.repos:
             raise base.NoSuchRepository(
                 "Could not find the repository whose owner is '{}' "
-                "and slug is '{}'".format(self.username, slug)
+                "and slug is '{}'".format(self.login, slug)
             )
         Repository.repos[repo_key].delete()
         Repository.repos.pop(repo_key)
@@ -155,7 +154,7 @@ class Repository(BitBucketObject, base.AbstractRepository):
         self.created_on = "2011-12-20T16:35:06.480042+00:00"
         self.full_name = "tutorials/tutorials.bitbucket.org"
         self.has_issues = True
-        self.owner = fake_user_dict(client.username)
+        self.owner = fake_user_dict(client.login)
         self.updated_on = "2014-11-03T02:24:08.409995+00:00"
         self.size = 76182262
         self.is_private = is_private
@@ -197,8 +196,10 @@ class Repository(BitBucketObject, base.AbstractRepository):
             prc.add_participant(reviewer)
         return prc
 
-    def get_pull_requests(self, author=None, src_branch=None):
+    def get_pull_requests(self, author=None, src_branch=None, status='OPEN'):
         def predicate(pr):
+            if pr.status != status:
+                return False
             if author is not None and pr.author != author:
                 return False
             if isinstance(src_branch, str) and pr.src_branch != src_branch:
@@ -214,7 +215,8 @@ class Repository(BitBucketObject, base.AbstractRepository):
 
     def get_pull_request(self, pull_request_id):
         assert type(pull_request_id) == int
-        for pr in self.get_pull_requests():
+        for item in PullRequest.items:
+            pr = PullRequestController(self.client, item)
             if pr.id == pull_request_id:
                 return pr
         raise Exception("Did not find this pr")
@@ -267,13 +269,13 @@ class PullRequestController(Controller, base.AbstractPullRequest):
         # locate participant
         exists = False
         for participant in self['participants']:
-            if participant['user']['username'] == self.client.username:
+            if participant['user']['username'] == self.client.login:
                 exists = True
                 break
 
         if not exists:
             # new participant
-            self.add_participant(fake_user_dict(self.client.username))
+            self.add_participant(fake_user_dict(self.client.login))
             participant = self['participants'][-1]
 
         # update it
@@ -396,7 +398,7 @@ class PullRequest(BitBucketObject):
         self.client = repo.client
 
         #  JSON params #
-        self.author = fake_user_dict(self.client.username)
+        self.author = fake_user_dict(self.client.login)
 
         self.close_source_branch = False
         self.closed_by = None
@@ -421,7 +423,7 @@ class PullRequest(BitBucketObject):
             "repository": fake_repository_dict("")
         }
         self.task_count = 0
-        self.title = "Changes"
+        self.title = title
         self.type = "pullrequest"
         self.updated_on = "2016-01-12T19:31:23.673329+00:00"
         self._state = "OPEN"
@@ -454,7 +456,7 @@ class Comment(BitBucketObject):
         self.links = fake_links_dict(['self', 'html'])
         self.content = {"raw": content, "markup": "markdown", "html": content}
         self.created_on = "2013-11-19T21:19:24.138375+00:00"
-        self.user = fake_user_dict(client.username)
+        self.user = fake_user_dict(client.login)
         self.updated_on = "2013-11-19T21:19:24.141013+00:00"
         self.id = len(Comment.items) + 1
 

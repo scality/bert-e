@@ -21,11 +21,9 @@ from urllib.parse import quote_plus as quote
 from requests import HTTPError, Session
 from requests.auth import HTTPBasicAuth
 
+from . import base, factory
 from ..exceptions import TaskAPIError
 from ..utils import LRUCache
-from .base import (AbstractClient, AbstractComment, AbstractPullRequest,
-                   AbstractRepository, AbstractTask)
-from .factory import api_client
 
 MAX_PR_TITLE_LEN = 255
 
@@ -53,8 +51,8 @@ def build_filter_query(filters):
     return quote(' AND '.join(predicates))
 
 
-@api_client('bitbucket')
-class Client(Session, AbstractClient):
+@factory.api_client('bitbucket')
+class Client(Session, base.AbstractClient):
     def __init__(self, bitbucket_login, bitbucket_password, bitbucket_mail):
         super().__init__()
         headers = {
@@ -64,7 +62,7 @@ class Client(Session, AbstractClient):
             'From': bitbucket_mail
         }
         self.login = bitbucket_login
-        self.mail = bitbucket_mail
+        self.email = bitbucket_mail
         self.headers.update(headers)
         self.auth = HTTPBasicAuth(bitbucket_login, bitbucket_password)
 
@@ -74,13 +72,17 @@ class Client(Session, AbstractClient):
             owner = self.login
         return Repository(self, repo_slug=slug, owner=owner)
 
-    def create_repository(self, slug, owner=None, scm='git', is_private=True):
+    def create_repository(self, slug, scm='git', is_private=True):
         """Create a Bitbucket Repository"""
-        if owner is None:
-            owner = self.login
+        owner = self.login
         repo = Repository(self, repo_slug=slug, owner=owner, scm=scm,
                           is_private=is_private)
-        repo.create()
+        try:
+            repo.create()
+        except HTTPError as err:
+            if err.response.status_code == 400:
+                raise base.RepositoryExists('/'.join((owner, slug))) from err
+            raise
         return repo
 
     def delete_repository(self, slug, owner=None):
@@ -88,7 +90,12 @@ class Client(Session, AbstractClient):
         if owner is None:
             owner = self.login
         repo = Repository(self, repo_slug=slug, owner=owner)
-        repo.delete()
+        try:
+            repo.delete()
+        except HTTPError as err:
+            if err.response.status_code == 404:
+                raise base.NoSuchRepository('/'.join((owner, slug))) from err
+            raise
 
 
 class BitBucketObject(object):
@@ -151,7 +158,7 @@ class BitBucketObject(object):
         response.raise_for_status()
 
 
-class Repository(BitBucketObject, AbstractRepository):
+class Repository(BitBucketObject, base.AbstractRepository):
     add_url = 'https://api.bitbucket.org/2.0/repositories/$owner/$repo_slug'
     get_url = add_url
 
@@ -173,8 +180,8 @@ class Repository(BitBucketObject, AbstractRepository):
         })
         return PullRequest(self.client, **kwargs).create()
 
-    def get_pull_requests(self, author=None, src_branch=None):
-        filters = {}
+    def get_pull_requests(self, author=None, src_branch=None, status='OPEN'):
+        filters = {'state': [status.lower()]}
         if author:
             filters['author.username'] = [author]
         if isinstance(src_branch, str):
@@ -291,7 +298,7 @@ class Repository(BitBucketObject, AbstractRepository):
         return self.get_git_url()
 
 
-class PullRequest(BitBucketObject, AbstractPullRequest):
+class PullRequest(BitBucketObject, base.AbstractPullRequest):
     add_url = ('https://api.bitbucket.org/2.0/repositories/'
                '$full_name/pullrequests')
     list_url = add_url + '?${filters}page=$page'
@@ -401,7 +408,7 @@ class PullRequest(BitBucketObject, AbstractPullRequest):
         return self._comments
 
 
-class Comment(BitBucketObject, AbstractComment):
+class Comment(BitBucketObject, base.AbstractComment):
     add_url = ('https://api.bitbucket.org/2.0/repositories/'
                '$full_name/pullrequests/$pull_request_id/comments')
     list_url = add_url + '?page=$page'
@@ -448,7 +455,7 @@ class Comment(BitBucketObject, AbstractComment):
         return self['id']
 
 
-class Task(BitBucketObject, AbstractTask):
+class Task(BitBucketObject, base.AbstractTask):
     get_url = 'https://bitbucket.org/!api/internal/repositories/$full_name/' \
         'pullrequests/$pull_request_id/tasks/$task_id'
     add_url = 'https://bitbucket.org/!api/internal/repositories/$full_name/' \
