@@ -47,8 +47,7 @@ class Repository(object):
         self.cmd_directory = None
 
     def clone(self):
-        """Clone the repository locally.
-        """
+        """Clone the repository locally."""
         repo_slug = self._url.split('/')[-1].replace('.git', '')
 
         top = os.path.expanduser('~/.bert-e/')

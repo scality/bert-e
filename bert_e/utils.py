@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from collections import ChainMap, deque
+from collections import ChainMap, OrderedDict
 from time import sleep
 
 
@@ -110,8 +110,7 @@ class LRUCache(object):
 
         """
         self._size = size
-        self._dict = dict()
-        self._keys = deque()
+        self._dict = OrderedDict()
 
     def get(self, key, default):
         """Get an item from the cache.
@@ -125,10 +124,9 @@ class LRUCache(object):
 
         """
         try:
-            self._keys.remove(key)
-            self._keys.appendleft(key)
+            self._dict.move_to_end(key)
             return self._dict[key]
-        except ValueError:
+        except KeyError:
             return default
 
     def set(self, key, val):
@@ -143,15 +141,15 @@ class LRUCache(object):
             * val: value to associate to the key
 
         """
+
         try:
             # Key is in cache. Move it to top.
-            self._keys.remove(key)
-        except ValueError:
+            self._dict.move_to_end(key)
+        except KeyError:
             # Key is not in cache. Make room for it.
-            while len(self._keys) > self._size - 1:
-                self._dict.pop(self._keys.pop())
+            while len(self._dict) > self._size - 1:
+                self._dict.popitem(last=False)
         self._dict[key] = val
-        self._keys.appendleft(key)
         return val
 
     @property
@@ -163,8 +161,8 @@ class LRUCache(object):
     def size(self, val):
         """Setting the size property of the cache allows to redimension it."""
         self._size = val
-        while len(self._keys) > val:
-            self._dict.pop(self._keys.pop())
+        while len(self._dict) > val:
+            self._dict.popitem(last=False)
 
 
 class RetryTimeout(Exception):
