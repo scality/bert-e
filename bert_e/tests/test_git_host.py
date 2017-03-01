@@ -12,110 +12,244 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import argparse
 import logging
-import sys
-import time
-import unittest
-import warnings
-from contextlib import suppress
+from os import environ
+from time import sleep
+from types import SimpleNamespace
 
-from ..api.git import Repository as GitRepository
-from ..api.git import Branch
-from ..git_host import NoSuchRepository, client_factory
+import pytest
 
-
-def initialize_git_repo(repo, username, usermail):
-    """resets the git repo"""
-    assert '/ring/' not in repo._url  # This is a security, do not remove
-    repo.cmd('git init')
-    repo.cmd('git config user.email %s' % usermail)
-    repo.cmd('git config user.name %s' % username)
-    repo.cmd('touch a')
-    repo.cmd('git add a')
-    repo.cmd('git commit -m "Initial commit"')
-    repo.cmd('git remote add origin ' + repo._url)
-    # the following command fail randomly on bitbucket, so retry
-    repo.cmd("git push --all origin", retry=3)
+from bert_e.api.git import Repository as GitRepository
+from bert_e.git_host import client_factory, RepositoryExists
 
 
-class TestBitbucketApi(unittest.TestCase):
+def github_client_args():
+    return (environ['GH_LOGIN'],
+            environ['GH_PASSWORD'],
+            environ['GH_EMAIL'])
 
-    def setUp(self):
-        warnings.resetwarnings()
-        warnings.simplefilter('ignore')
-        client = client_factory(self.args.git_host, self.args.username,
-                                self.args.password, 'nobody@nowhere.com')
 
-        assert 'ring' not in self.args.slug
-        with suppress(NoSuchRepository):
-            client.delete_repository(self.args.slug, owner=self.args.owner)
-            time.sleep(5)
+def bitbucket_client_args():
+    return (environ['BB_LOGIN'],
+            environ['BB_PASSWORD'],
+            environ['BB_EMAIL'])
 
-        self.bbrepo = client.create_repository(self.args.slug,
-                                               owner=self.args.owner)
-        self.gitrepo = GitRepository(self.bbrepo.get_git_url())
-        initialize_git_repo(self.gitrepo,
-                            self.args.owner,
-                            "nobody@nowhere.com")
 
-    def test_create_pull_request_comment_and_task(self):
-        Branch(self.gitrepo, 'master2').create(Branch(self.gitrepo, 'master'))
-        self.gitrepo.cmd('touch b')
-        self.gitrepo.cmd('git add b')
-        self.gitrepo.cmd('git commit -m "another commit"')
-        # the following command fail randomly on bitbucket, so retry
-        self.gitrepo.cmd("git push --all origin", retry=3)
-        pr = self.bbrepo.create_pull_request(
-            title='title',
-            name='name',
-            src_branch='master2',
-            dst_branch='master',
-            close_source_branch=True,
-            description='coucou'
+def mock_client_args():
+    return ('login', 'password', 'login@example.com')
+
+
+CLIENT_PARAMS = [
+    ('mock', mock_client_args),
+    ('github', github_client_args),
+    ('bitbucket', bitbucket_client_args)
+]
+
+
+@pytest.fixture(scope='module', params=CLIENT_PARAMS, ids=lambda p: p[0])
+def client_host(request):
+    key, func = request.param
+    try:
+        return client_factory(key, *func()), key
+    except KeyError as err:
+        pytest.skip("Missing environment value: {}".format(err))
+
+
+@pytest.fixture(scope='class')
+def repository_host(client_host):
+    client, host = client_host
+    repo_name = '_test_git_host_api_{}'.format(host)
+    try:
+        repo = client.create_repository(repo_name)
+    except RepositoryExists:
+        client.delete_repository(repo_name)
+        repo = client.create_repository(repo_name)
+    yield repo, host
+    client.delete_repository(repo_name)
+
+
+@pytest.fixture(scope='class')
+def configured_repo(repository_host):
+    repository, host = repository_host
+    gitrepo = GitRepository(repository.git_url)
+    gitrepo.clone()
+    owner = repository.client.login
+    email = repository.client.email
+
+    with gitrepo:
+        gitrepo.cmd('git checkout -b master')
+        gitrepo.cmd('git config user.email {}'.format(email))
+        gitrepo.cmd('git config user.name {}'.format(owner))
+        gitrepo.cmd('touch a')
+        gitrepo.cmd('git add a')
+        gitrepo.cmd('git commit -m "Initial commit"')
+        gitrepo.cmd('git push -u origin master')
+        yield gitrepo, repository, host
+
+
+@pytest.fixture(scope='class')
+def workspace(configured_repo):
+    gitrepo, repo, host = configured_repo
+    wsp = SimpleNamespace(
+        host=host,
+        gitrepo=gitrepo,
+        repo=repo,
+        client=repo.client
+    )
+    return wsp
+
+
+def make_pull_request(workspace, src_branch, dst_branch='master',
+                      title=None, body='', filename=None, contents=None):
+    gitrepo, repo = workspace.gitrepo, workspace.repo
+    title = title or src_branch
+    if filename is None:
+        filename = src_branch
+    if contents is None:
+        contents = title
+
+    gitrepo.cmd('git fetch --prune')
+    gitrepo.cmd('git checkout {}'.format(dst_branch))
+    gitrepo.cmd('git pull')
+    gitrepo.cmd('git checkout -b {}'.format(src_branch))
+    gitrepo.cmd('echo {0} > {1} && git add {1}'.format(contents, filename))
+    gitrepo.cmd('git commit -m "{}"'.format(title))
+    gitrepo.cmd('git push -u origin {}'.format(src_branch))
+
+    return repo.create_pull_request(
+        title, src_branch, dst_branch, body
+    )
+
+
+class TestBasicFunctionality:
+    @classmethod
+    def setup_class(cls):
+        logging.basicConfig(level=logging.DEBUG)
+
+    def test_create_and_decline_pull_request(self, workspace):
+        repo = workspace.repo
+        branch_name = 'test_create_and_decline_pull_request'
+
+        existing_prs = list(repo.get_pull_requests(src_branch=branch_name))
+        assert not existing_prs
+
+        pr_title = 'Test create and close PR'
+        pull_request = make_pull_request(
+            workspace, branch_name, title=pr_title,
+            body='Test: open and close a pull request'
         )
 
-        comment1 = pr.add_comment('Hello world!')
-        comment2 = pr.add_comment('Hello world2!')
-        self.assertEqual(len(list(pr.get_comments())), 2)
+        assert pull_request.src_branch == branch_name
+        assert pull_request.dst_branch == 'master'
+        assert pull_request.title == pr_title
+        assert pull_request.status == 'OPEN'
 
-        comment1.add_task('do spam')
-        comment1.add_task('do egg')
+        # Check that the created pull request is listed
+        existing_prs = list(repo.get_pull_requests(src_branch=branch_name))
+        assert any(pr.id == pull_request.id for pr in existing_prs)
+
+        pull_request.decline()
+        pull_request = repo.get_pull_request(pull_request.id)
+        assert pull_request.status == 'DECLINED'
+        assert not list(repo.get_pull_requests(src_branch=branch_name))
+        assert list(repo.get_pull_requests(src_branch=branch_name,
+                                           status='DECLINED'))
+
+    def test_merge_pull_request_manually(self, workspace):
+        branch_name = 'test_merge_pull_request_manually'
+        repo = workspace.repo
+        pull_request = make_pull_request(
+            workspace, branch_name, 'master'
+        )
+        cmd = workspace.gitrepo.cmd
+        cmd('git checkout master')
+        cmd('git pull')
+        cmd('git merge {}'.format(branch_name))
+        cmd('git push origin master')
+
+        # Detection of merged pull requests can take time.
+        # Let's give the remote host a few retries.
+        for _ in range(10):
+            pull_request = workspace.repo.get_pull_request(pull_request.id)
+            if pull_request.status == 'MERGED':
+                break
+            sleep(1)
+
+        assert pull_request.status == 'MERGED'
+        assert not list(repo.get_pull_requests(src_branch=branch_name))
+        assert list(repo.get_pull_requests(src_branch=branch_name,
+                                           status='MERGED'))
+
+    def test_pull_request_comments(self, workspace):
+        pull_request = make_pull_request(
+            workspace, 'test_pull_request_comments', 'master'
+        )
+        comments = list(pull_request.get_comments())
+        assert not comments
+
+        pull_request.add_comment('First comment')
+        comments = list(pull_request.get_comments())
+        assert len(comments) == 1
+        assert comments[0].author == workspace.client.login
+
+        pull_request.add_comment('Second comment')
+        pull_request.add_comment('Third comment')
+        pull_request.add_comment('Last comment')
+
+        # Check that multiple calls to the same request yield the same result
+        # Basically, if the host implements a cache, check that it works well
+        # on paginated results.
+        comments = list(pull_request.get_comments())
+        comments2 = list(pull_request.get_comments())
+        assert [cmt.id for cmt in comments] == [cmt.id for cmt in comments2]
+
+        # Comments should be received in chronological order
+        assert all(comments[i].id < comments[i + 1].id
+                   for i in range(len(comments) - 1))
+
+        cmt1, *_, cmt2 = comments
+        assert cmt1.text == 'First comment'
+        assert cmt2.text == 'Last comment'
+
+    def test_tasks(self, workspace):
+        if workspace.host == 'github':
+            pytest.skip('Tasks are not supported by this host.')
+
+        pull_request = make_pull_request(workspace, 'test_tasks', 'master')
+        pull_request.get_tasks()
+
+        comment = pull_request.add_comment('Some comment')
+        comment2 = pull_request.add_comment('Some other comment')
+        comment.add_task('do spam')
+        comment.add_task('do egg')
         comment2.add_task('do bacon')
-        self.assertEqual(len(list(pr.get_tasks())), 3)
+        assert len(list(pull_request.get_tasks())) == 3
 
+    def test_build_status(self, workspace):
+        pull_request = make_pull_request(workspace, 'test_build_status',
+                                         'master')
 
-def main():
-    parser = argparse.ArgumentParser(description='Launches git host tests.')
-    parser.add_argument('git_host',
-                        help=('host of the repository provider '
-                              '(bitbucket, mock...)'))
-    parser.add_argument('owner',
-                        help='Owner of test repository (aka Bitbucket team)')
-    parser.add_argument('slug',
-                        help='Slug of test repository')
-    parser.add_argument('username',
-                        help='Bitbucket username')
-    parser.add_argument('password',
-                        help='Bitbucket password')
-    parser.add_argument('tests', nargs='*', help='run only these tests')
-    parser.add_argument('--failfast', action='store_true', default=False,
-                        help='Return on first failure')
-    parser.add_argument('-v', action='store_true', dest='verbose',
-                        help='Verbose mode')
-    TestBitbucketApi.args = parser.parse_args()
+        ref = pull_request.src_commit
+        repo = workspace.repo
+        repo.set_build_status(ref, 'some_key', 'FAILED',
+                              url='https://key.domain.org/build/1')
+        repo.set_build_status(ref, 'key', 'SUCCESSFUL',
+                              url='https://key.domain.org/build/2')
 
-    if TestBitbucketApi.args.verbose:
-        logging.basicConfig(level=logging.DEBUG)
-    else:
-        logging.basicConfig(level=logging.ERROR)
+        assert repo.get_build_status(ref, 'some_key') == 'FAILED'
+        assert repo.get_build_status(ref, 'key') == 'SUCCESSFUL'
+        assert repo.get_build_status(ref, 'nah') == 'NOTSTARTED'
 
-    sys.argv = [sys.argv[0]]
-    sys.argv.extend(TestBitbucketApi.args.tests)
-    loader = unittest.TestLoader()
-    loader.testMethodPrefix = "test_"
-    unittest.main(failfast=TestBitbucketApi.args.failfast, testLoader=loader)
+    def test_reviews(self, workspace):
+        if workspace.host == 'github':
+            pytest.skip('Not supported: Cannot approve own pull request.')
+        pull_request = make_pull_request(workspace, 'test_reviews',
+                                         'master')
 
+        assert not list(pull_request.get_approvals())
+        pull_request.approve()
+        # update pull_request
+        pull_request = workspace.repo.get_pull_request(pull_request.id)
 
-if __name__ == '__main__':
-    main()
+        assert len(list(pull_request.get_approvals())) == 1
+        assert workspace.client.login in list(pull_request.get_participants())

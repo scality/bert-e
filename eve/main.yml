@@ -27,13 +27,7 @@ stages:
           command: coverage run -am py.test -v bert_e/tests/unit/
       - ShellCommand:
           name: Git host API mock tests
-          command: coverage run -am bert_e.tests.test_git_host
-                     -v
-                     mock
-                     mock_owner
-                     mock_slug
-                     mock_username
-                     mock_password
+          command: coverage run -am pytest -v -k mock bert_e/tests/test_git_host.py
       - ShellCommand:
           name: Bert-E server tests
           command: coverage run -am bert_e.tests.test_server
