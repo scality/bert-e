@@ -774,6 +774,16 @@ def branch_factory(repo: git.Repository, branch_name: str) -> GWFBranch:
     raise errors.UnrecognizedBranchPattern(branch_name)
 
 
+def build_branch_cascade(job):
+    """Initialize the job's branch cascade."""
+    cascade = job.git.cascade
+    if cascade.dst_branches:
+        # Do not rebuild cascade
+        return
+    cascade.build(job.git.repo, job.git.dst_branch)
+    LOG.debug(cascade.dst_branches)
+
+
 def is_cascade_producer(branch_name: str) -> bool:
     return branch_factory(None, branch_name).cascade_producer
 

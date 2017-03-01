@@ -193,6 +193,16 @@ class QueueOutOfOrder(TemplateException):
     template = "queue_out_of_order.md"
 
 
+class ResetComplete(TemplateException):
+    code = 128
+    template = "reset_complete.md"
+
+
+class ResetHistoryMismatch(TemplateException):
+    code = 129
+    template = "reset_history_mismatch.md"
+
+
 # internal exceptions
 class UnableToSendEmail(InternalException):
     code = 201

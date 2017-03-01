@@ -23,7 +23,10 @@ from bert_e.reactor import Reactor, NotFound, NotPrivileged
 from bert_e.utils import confirm
 from ..git_utils import push, clone_git_repo
 from ..pr_utils import find_comment, send_comment, create_task
-from .branches import branch_factory, is_cascade_consumer, is_cascade_producer
+from .branches import (
+    branch_factory, build_branch_cascade,
+    is_cascade_consumer, is_cascade_producer
+)
 from .commands import setup, get_active_options  # noqa
 from .integration import (create_integration_branches,
                           create_integration_pull_requests,
@@ -40,14 +43,14 @@ def handle_pull_request(job):
     """Analyse and handle a pull request that has just been updated."""
     early_checks(job)
     send_greetings(job)
-    handle_comments(job)
-    LOG.debug("Running with active options: %r", get_active_options(job))
 
     src = job.git.src_branch = branch_factory(job.git.repo,
                                               job.pull_request.src_branch)
     dst = job.git.dst_branch = branch_factory(job.git.repo,
                                               job.pull_request.dst_branch)
 
+    handle_comments(job)
+    LOG.debug("Running with active options: %r", get_active_options(job))
     check_dependencies(job)
 
     # Now we're actually going to work on the repository. Let's clone it.
@@ -142,16 +145,6 @@ def handle_pull_request(job):
             issue=job.git.src_branch.jira_issue_key,
             author=job.pull_request.author_display_name,
             active_options=get_active_options(job))
-
-
-def build_branch_cascade(job):
-    """Initialize the job's branch cascade."""
-    cascade = job.git.cascade
-    if cascade.dst_branches:
-        # Do not rebuild cascade
-        return
-    cascade.build(job.git.repo, job.git.dst_branch)
-    LOG.debug(cascade.dst_branches)
 
 
 def early_checks(job):

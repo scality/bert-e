@@ -19,8 +19,13 @@ BertE through comments in the pull requests.
 
 """
 
-from bert_e.exceptions import CommandNotImplemented, HelpMessage, StatusReport
+from bert_e.exceptions import (
+    ResetHistoryMismatch, CommandNotImplemented, ResetComplete, HelpMessage,
+    StatusReport
+)
 from bert_e.reactor import Reactor
+from .branches import branch_factory, build_branch_cascade
+from ..git_utils import clone_git_repo
 
 
 # TODO: When jobs are implemented as proper classes, this function should
@@ -61,11 +66,74 @@ def status(job):
 @Reactor.command("retry", "Re-start a fresh build ```TBA```")
 @Reactor.command("clear",
                  "Remove all comments from Bert-E from the history ```TBA```")
-@Reactor.command("reset",
-                 "Delete integration branches & pull requests, and restart "
-                 "merge process from the beginning ```TBA```")
 def not_implemented(job):
     raise CommandNotImplemented(active_options=get_active_options(job))
+
+
+def _reset(job, force=False):
+    """Snippet to reset integration branches; deleting them both locally
+    and remotely.
+    """
+    clone_git_repo(job)
+    build_branch_cascade(job)
+    wbranches = []
+
+    # Get different integration branches from cascade
+    src = job.git.src_branch
+    for dst in job.git.cascade.dst_branches:
+        name = "w/{}/{}".format(dst.version, src)
+        branch = branch_factory(job.git.repo, name)
+        branch.src_branch, branch.dst_branch = src, dst
+        wbranches.append(branch)
+
+    first, *children = wbranches
+
+    if len(children) == 0:
+        for branch in wbranches:
+            branch.remove(do_push=True)
+        raise ResetComplete(active_options=get_active_options(job))
+
+    # Check that the first integration branch contains commits from its
+    # source and destination branch only.
+    history_mismatch = None
+    for child in children:
+        src, dst = child.src_branch, child.dst_branch
+        for commit in child.get_commit_diff(dst):
+            if not src.includes_commit(commit) and not \
+                    first.includes_commit(commit):
+                history_mismatch = ResetHistoryMismatch(
+                    commit=commit, integration_branch=child,
+                    feature_branch=src, development_branch=dst,
+                    active_options=get_active_options(job)
+                )
+
+    if force:
+        # Erase anyway
+        for branch in wbranches:
+            branch.remove(do_push=True)
+        raise ResetComplete(active_options=get_active_options(job))
+    elif history_mismatch is not None:
+        raise history_mismatch
+    else:
+        for branch in wbranches:
+            branch.remove(do_push=True)
+        raise ResetComplete(active_options=get_active_options(job))
+
+
+@Reactor.command
+def force_reset(job):
+    """Delete integration branches & pull requests, and restart merge process
+    from the beginning.
+    """
+    _reset(job, force=True)
+
+
+@Reactor.command
+def reset(job):
+    """Try to remove integration branches unless there are commits on them
+    which do not appear on the source branch.
+    """
+    _reset(job, force=False)
 
 
 def setup(defaults={}):

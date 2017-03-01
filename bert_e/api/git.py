@@ -127,9 +127,9 @@ class Repository(object):
         self._get_remote_branches(refresh_cache)
         return name in self._remote_branches
 
-    def get_branches_from_sha1(self, sha1):
+    def get_branches_from_sha1(self, sha1, refresh_cache=False):
         """Get branches corresponding to given sha1."""
-        self._get_remote_branches()
+        self._get_remote_branches(refresh_cache)
         return self._remote_heads[sha1[:12]]
 
     def checkout(self, name):
