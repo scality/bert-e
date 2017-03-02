@@ -20,7 +20,7 @@ from types import SimpleNamespace
 import pytest
 
 from bert_e.api.git import Repository as GitRepository
-from bert_e.git_host import client_factory, RepositoryExists
+from bert_e.git_host import client_factory, RepositoryExists, NoSuchRepository
 
 
 def github_client_args():
@@ -121,10 +121,34 @@ def make_pull_request(workspace, src_branch, dst_branch='master',
     )
 
 
+# Classes of test are made to avoid rebuilding/destroying whole workspaces
+# once per test. Please make sure that all tests within a class do not clash
+# with each other.
+# One easy way to do that when using the workspace fixture is to give the pull
+# request the name of the test.
 class TestBasicFunctionality:
     @classmethod
     def setup_class(cls):
         logging.basicConfig(level=logging.DEBUG)
+
+    def test_repository_exceptions(self, client_host):
+        client, _ = client_host
+        with pytest.raises(NoSuchRepository):
+            client.delete_repository('_test_repo_that_doesnt_exist')
+
+        with pytest.raises(NoSuchRepository):
+            client.get_repository('_test_repo_that_doesnt_exist')
+
+        try:
+            client.create_repository('_test_repo_in_git_api')
+            client.get_repository('_test_repo_in_git_api')  # Should not raise
+            with pytest.raises(RepositoryExists):
+                client.create_repository('_test_repo_in_git_api')
+        finally:
+            try:
+                client.delete_repository('_test_repo_in_git_api')
+            except:
+                pass
 
     def test_create_and_decline_pull_request(self, workspace):
         repo = workspace.repo
@@ -239,13 +263,12 @@ class TestBasicFunctionality:
         assert repo.get_build_status(ref, 'some_key') == 'FAILED'
         assert repo.get_build_status(ref, 'key') == 'SUCCESSFUL'
         assert repo.get_build_status(ref, 'nah') == 'NOTSTARTED'
-        assert repo.get_build_status('donesntexist', 'key') == 'NOTSTARTED'
+        assert repo.get_build_status('doesntexist', 'key') == 'NOTSTARTED'
 
-    def test_reviews(self, workspace):
+    def test_approvals(self, workspace):
         if workspace.host == 'github':
             pytest.skip('Not supported: Cannot approve own pull request.')
-        pull_request = make_pull_request(workspace, 'test_reviews',
-                                         'master')
+        pull_request = make_pull_request(workspace, 'test_approvals', 'master')
 
         assert not list(pull_request.get_approvals())
         pull_request.approve()

@@ -209,7 +209,8 @@ class AbstractRepository(metaclass=ABCMeta):
         """
 
     @abstractmethod
-    def set_build_status(self, revision: str, key: str, state: str, **kwargs):
+    def set_build_status(self, revision: str, key: str, state: str, **kwargs
+                         ) -> None:
         """Associate a build status to a commit.
 
         Args:
@@ -225,10 +226,11 @@ class AbstractRepository(metaclass=ABCMeta):
                           ) -> Iterable[AbstractPullRequest]:
         """Get pull requests from this repository.
 
-            * author (str): optional filter on PR author username.
-            * src_branch (str or List[str]): optional filter on PR source
-                branch name.
-            * status (str): filter on the pull requests status. Defaults to
+        Args:
+            - author (str): optional filter on PR author username.
+            - src_branch (str or List[str]): optional filter on PR source
+                                             branch name.
+            - status (str): filter on the pull requests status. Defaults to
                             'OPEN'.
         """
 

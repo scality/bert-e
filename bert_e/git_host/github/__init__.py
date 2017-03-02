@@ -77,7 +77,62 @@ class Client(base.AbstractClient):
     def _mk_key(url, params):
         return (url,) + tuple(sorted(params.items()))
 
+    def _cache_value(self, method, url, params, res):
+        """Put a request result in the query cache.
+
+        If the response's headers contain an ETag or a Last-Modified field,
+        the response can be used in subsequent calls to avoid hitting github's
+        rate limit.
+
+        Args:
+            - method (str): request method (e.g. GET)
+            - url (str): request url
+            - params (dict): request parameter dict as per requests library's
+                             params argument
+            - res (requests.Response): the request's response
+
+        Returns:
+            The response that was put in cache.
+
+        """
+        key = self._mk_key(url, params)
+        headers = res.headers
+        etag = headers.get('ETag', None)
+        date = headers.get('Last-Modified', None)
+        if etag or date:
+            self.query_cache[method].set(key, CacheEntry(res, etag, date))
+        return res
+
     def _get_cached_value(self, method, url, params):
+        """Get a value from the cache if any.
+
+        This method is intended to be called before performing an HTTP request,
+        in order to define the special headers used by GitHub's rate-limit
+        system.
+
+        If the request that follows returns a HTTP 304 code, this means that:
+            - the cached value returned by this method can be returned as a
+              valid result
+            - the request wasn't decremented from GitHub's rate limit counter
+
+        Args:
+            - method (str): request method (e.g. GET)
+            - url (str): request url
+            - params (dict): request parameter dict as per requests library's
+                             params argument
+
+        Returns:
+            A (response, headers) tuple.
+
+            - response is the last response we've received for this request
+              (possibly None).
+            - headers is a dictionary defining 'If-None-Match' and
+              'If-Modified-Since' headers to add to the request.
+
+        See: the _get() method to understand how it is used.
+
+        """
+
         key = self._mk_key(url, params)
         entry = self.query_cache[method].get(key, None)
         headers = {
@@ -92,16 +147,16 @@ class Client(base.AbstractClient):
             headers['If-Modified-Since'] = entry.date
         return entry.obj, headers
 
-    def _cache_value(self, method, url, params, res):
-        key = self._mk_key(url, params)
-        headers = res.headers
-        etag = headers.get('ETag', None)
-        date = headers.get('Last-Modified', None)
-        if etag or date:
-            self.query_cache[method].set(key, CacheEntry(res, etag, date))
-        return res
-
     def _get(self, url, **kwargs):
+        """Perform a GET request using the rate-limit cache system.
+
+        This method is not supposed to be called by other objects. Instead, it
+        is wrapped by the get() and iter_get() methods.
+
+        Returns:
+            A requests.Response object
+
+        """
         params = kwargs.get('params', {})
         url = self._patch_url(url)
         res, headers = self._get_cached_value('GET', url, params)
@@ -531,10 +586,10 @@ class AggregatedStatus(GithubObject):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._statuses = {}
+        self._status = {}
         for status_data in self.data.get('statuses', []):
             status = Status(**status_data, _validate=False)
-            self._statuses[status_data['context']] = status
+            self._status[status_data['context']] = status
 
     @property
     def commit(self) -> str:
@@ -542,7 +597,7 @@ class AggregatedStatus(GithubObject):
 
     @property
     def status(self):
-        return self._statuses
+        return self._status
 
 
 class Status(GithubObject):
