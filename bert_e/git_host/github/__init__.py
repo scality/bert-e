@@ -445,10 +445,9 @@ class Repository(GithubObject, base.AbstractRepository):
         status = BUILD_STATUS_CACHE[key].get(revision, None)
         if status and status.state == 'SUCCESSFUL':
             return status.state
-        status = self.get_commit_status(revision).status.get(key, None)
-        if status:
-            return status.state
-        else:
+        try:
+            return self.get_commit_status(revision).status.get(key, None).state
+        except AttributeError:
             return 'NOTSTARTED'
 
     def get_build_url(self, revision: str, key: str) -> str:

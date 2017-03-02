@@ -239,6 +239,7 @@ class TestBasicFunctionality:
         assert repo.get_build_status(ref, 'some_key') == 'FAILED'
         assert repo.get_build_status(ref, 'key') == 'SUCCESSFUL'
         assert repo.get_build_status(ref, 'nah') == 'NOTSTARTED'
+        assert repo.get_build_status('donesntexist', 'key') == 'NOTSTARTED'
 
     def test_reviews(self, workspace):
         if workspace.host == 'github':
