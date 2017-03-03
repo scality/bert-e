@@ -48,6 +48,7 @@ from .mocks import jira as jira_api_mock
 DEFAULT_SETTINGS = """
 repository_owner: {owner}
 repository_slug: {slug}
+repository_host: {host}
 robot_username: {robot}
 robot_email: nobody@nowhere.com
 pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
@@ -731,6 +732,7 @@ class RepositoryTests(unittest.TestCase):
             robot=self.args.robot_username,
             owner=self.args.owner,
             slug='%s_%s' % (self.args.repo_prefix, self.args.admin_username),
+            host='bitbucket' if self.args.disable_mock else 'mock'
         )
         with open('test_settings.yml', 'w') as settings_file:
             settings_file.write(data)
@@ -959,6 +961,7 @@ class TestBertE(RepositoryTests):
         settings = """
 repository_owner: {owner}
 repository_slug: {slug}
+repository_host: {host}
 robot_username: {robot}
 robot_email: nobody@nowhere.com
 pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
@@ -979,6 +982,7 @@ admins:
         settings = """
 repository_owner: {owner}
 repository_slug: {slug}
+repository_host: {host}
 robot_username: {robot}
 robot_email: nobody@nowhere.com
 pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
@@ -2257,6 +2261,7 @@ admins:
         settings = """
 repository_owner: {owner}
 repository_slug: {slug}
+repository_host: {host}
 robot_username: {robot}
 robot_email: nobody@nowhere.com
 pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
@@ -2277,6 +2282,7 @@ admins:
         settings = """
 repository_owner: {owner}
 repository_slug: {slug}
+repository_host: {host}
 robot_username: {robot}
 robot_email: nobody@nowhere.com
 pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
@@ -2295,6 +2301,7 @@ required_peer_approvals: 0
         settings = """
 repository_owner: {owner}
 repository_slug: {slug}
+repository_host: {host}
 robot_username: {robot}
 robot_email: nobody@nowhere.com
 pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
@@ -2319,6 +2326,7 @@ admins:
         pr = self.create_pr('bugfix/TEST-00004', 'development/4.3')
         settings = """
 repository_slug: {slug}
+repository_host: {host}
 robot_username: {robot}
 robot_email: nobody@nowhere.com
 pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
@@ -2328,7 +2336,7 @@ required_peer_approvals: 2
 admins:
   - {admin}
 """ # noqa
-        with self.assertRaises(exns.MissingMandatorySetting):
+        with self.assertRaises(exns.MalformedSettings):
             self.handle(
                 pr.id, options=['bypass_author_approval'], backtrace=True,
                 settings=settings)
@@ -2350,6 +2358,7 @@ admins:
         settings = """
 repository_owner: {owner}
 repository_slug: {slug}
+repository_host: {host}
 robot_username: {robot}
 robot_email: nobody@nowhere.com
 pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
@@ -2373,6 +2382,7 @@ admins:
         settings = """
 repository_owner: {owner}
 repository_slug: {slug}
+repository_host: {host}
 robot_username: {robot}
 robot_email: nobody@nowhere.com
 pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
@@ -2410,6 +2420,7 @@ tasks:
         settings = """
 repository_owner: {owner}
 repository_slug: {slug}
+repository_host: {host}
 robot_username: {robot}
 robot_email: nobody@nowhere.com
 pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
@@ -2421,7 +2432,7 @@ admins:
 tasks:
   - ['a task in a list']
 """ # noqa
-        with self.assertRaises(exns.IncorrectSettingsFile):
+        with self.assertRaises(exns.MalformedSettings):
             self.handle(pr.id, backtrace=True, settings=settings)
 
     def test_task_list_incompatible_api_update_create(self):

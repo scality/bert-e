@@ -23,60 +23,44 @@ from os.path import exists
 from types import SimpleNamespace
 from urllib.parse import quote_plus
 
-import yaml
-
 from .api.git import Repository as GitRepository
 from .exceptions import *
-from .git_host import bitbucket
+from .git_host.factory import client_factory
 from .lib.cli import confirm
 from .lib.settings_dict import SettingsDict
+from .settings import setup_settings
 from .workflow import gitwaterflow as gwf
 from .workflow.gitwaterflow.branches import *  # Temporary fix for the tests
 
 SHA1_LENGHT = [12, 40]
-
-DEFAULT_OPTIONAL_SETTINGS = {
-    'build_key': 'pre-merge',
-    'required_peer_approvals': 2,
-    'jira_account_url': '',
-    'jira_username': '',
-    'jira_keys': [],
-    'prefixes': {},
-    'testers': [],
-    'admins': [],
-    'tasks': [],
-}
 
 # This variable is used to get an introspectable status that the server can
 # display.
 STATUS = {}
 
 
+LOG = logging.getLogger(__name__)
+
+
 class BertE:
-    def __init__(self, args, settings):
-        # FIXME: use abstract API
-        self.client = bitbucket.Client(
-            settings['robot_username'],
-            args.bitbucket_password,
-            settings['robot_email']
-        )
-        self.bbrepo = bitbucket.Repository(
-            client=self.client,
-            owner=settings['repository_owner'],
-            repo_slug=settings['repository_slug']
-        )
+    def __init__(self, settings):
         self.settings = settings
-        settings['bitbucket_password'] = args.bitbucket_password
-        settings['jira_password'] = args.jira_password
-        self.backtrace = args.backtrace
-        self.interactive = settings['interactive'] = args.interactive
-        self.no_comment = settings['no_comment'] = args.no_comment
-        self.quiet = args.quiet
-        self.token = args.token.strip()
-        self.use_queue = settings['use_queue'] = not args.disable_queues
-        self.repo = GitRepository(self.bbrepo.git_url,
-                                  mask_pwd=quote_plus(args.bitbucket_password))
-        self.tmpdir = self.repo.tmp_directory
+        self.client = client_factory(
+            settings.repository_host,
+            settings.robot_username,
+            settings.robot_password,
+            settings.robot_email
+        )
+        self.project_repo = self.client.get_repository(
+            owner=settings.repository_owner,
+            slug=settings.repository_slug
+        )
+        settings['use_queue'] = not settings.disable_queues
+        self.token = None
+        self.git_repo = GitRepository(
+            self.project_repo.git_url,
+            mask_pwd=quote_plus(settings.robot_password)
+        )
 
         # This is a temporary namespace utility.
         # TODO: Create actual job classes.
@@ -92,26 +76,29 @@ class BertE:
             ),
             settings=SettingsDict({}, settings)
         )
+        self.tmpdir = self.git_repo.tmp_directory
+        gwf.setup({key: True for key in settings.cmd_line_options})
 
-    def handler(self):
+    def handle_token(self, token):
         """Determine the resolution path based on the input id.
 
         Args:
           - token (str):
             - pull request id: handle the pull request update
             - sha1: analyse state of the queues,
-               only if the sha1 belongs to a queue
+                    only if the sha1 belongs to a queue
 
         Returns:
             - a Bert-E return code
 
         """
+        self.token = token
         try:
             if len(self.token) in SHA1_LENGHT:
-                branches = self.repo.get_branches_from_sha1(self.token)
+                branches = self.git_repo.get_branches_from_sha1(self.token)
                 for branch in branches:
-                    if self.use_queue and isinstance(
-                            branch_factory(self.repo, branch),
+                    if self.settings.use_queue and isinstance(
+                            branch_factory(self.git_repo, branch),
                             QueueIntegrationBranch):
                         return self.handle_merge_queues()   # queued
 
@@ -128,11 +115,11 @@ class BertE:
             raise UnsupportedTokenType(self.token)
 
         except SilentException as excp:
-            if self.backtrace:
+            if self.settings.backtrace:
                 raise
 
             logging.info('Exception raised: %d', excp.code)
-            if not self.quiet:
+            if not self.settings.quiet:
                 print('%d - %s' % (0, excp.__class__.__name__))
             return 0
 
@@ -146,11 +133,11 @@ class BertE:
         except TemplateException as excp:
             self.send_comment(excp)
 
-            if self.backtrace:
+            if self.settings.backtrace:
                 raise excp
 
             logging.info('Exception raised: %d %s', excp.code, excp.__class__)
-            if not self.quiet:
+            if not self.settings.quiet:
                 print('%d - %s' % (excp.code, excp.__class__.__name__))
             return excp.code
 
@@ -173,14 +160,14 @@ class BertE:
 
         """
         git_repo = GitRepository(
-            self.bbrepo.git_url,
-            mask_pwd=quote_plus(self.settings['bitbucket_password']))
+            self.project_repo.git_url,
+            mask_pwd=quote_plus(self.settings.robot_password))
         candidates = [b for b in git_repo.get_branches_from_sha1(sha1)
                       if b.startswith('w/')]
         if not candidates:
             return
         prs = list(
-            pr for pr in self.bbrepo.get_pull_requests(
+            pr for pr in self.project_repo.get_pull_requests(
                 src_branch=candidates,
                 author=self.settings['robot_username'])
             if pr.status == 'OPEN'
@@ -208,7 +195,7 @@ class BertE:
             return comment
 
     def _send_msg(self, msg, dont_repeat_if_in_history=10):
-        if self.no_comment:
+        if self.settings.no_comment:
             logging.debug('not sending message due to no_comment being True.')
             return
 
@@ -223,7 +210,7 @@ class BertE:
                     'in the past. Nothing to do here!'
                 )
 
-        if self.interactive:
+        if self.settings.interactive:
             print('%s\n' % msg)
             if not confirm('Do you want to send this comment?'):
                 return
@@ -250,8 +237,8 @@ class BertE:
             ),
             settings=SettingsDict({}, self.settings)
         )
-        job.project_repo = self.bbrepo
-        job.git.repo = self.repo
+        job.project_repo = self.project_repo
+        job.git.repo = self.git_repo
         job.git.cascade = BranchCascade()
         return job
 
@@ -297,12 +284,10 @@ class BertE:
         # initialize status dict
         for branch in reversed(queues[list(queues.keys())[-1]][qib]):
             status[branch.pr_id] = []
-
         for version, queue in reversed(queues.items()):
             for branch in queue[qib]:
                 status[branch.pr_id].append((version,
                                              branch.get_latest_commit()))
-
         STATUS['merge queue'] = status
 
 
@@ -314,8 +299,8 @@ def setup_parser():
         'settings',
         help="Path to project settings file")
     parser.add_argument(
-        'bitbucket_password',
-        help="Robot Bitbucket password")
+        'robot_password',
+        help="Robot Bitbucket/GitHub password")
     parser.add_argument(
         'jira_password',
         help="Robot Jira password")
@@ -344,57 +329,7 @@ def setup_parser():
     parser.add_argument(
         '--quiet', action='store_true', default=False,
         help="Don't print return codes on the console")
-
     return parser
-
-
-def setup_settings(settings_file):
-    settings = dict(DEFAULT_OPTIONAL_SETTINGS)
-
-    if not exists(settings_file):
-        raise SettingsFileNotFound(settings_file)
-
-    with open(settings_file, 'r') as f:
-        try:
-            # read the yaml data as pure string (no conversion)
-            new_settings = yaml.load(f, Loader=yaml.BaseLoader)
-        except Exception:
-            raise IncorrectSettingsFile(settings_file)
-
-    # replace default data by provided data
-    for key in new_settings:
-        settings[key] = new_settings[key]
-
-    # check settings type and presence
-    for setting_ in ['repository_owner', 'repository_slug',
-                     'robot_username', 'robot_email', 'build_key',
-                     'jira_account_url', 'jira_username',
-                     'pull_request_base_url', 'commit_base_url']:
-        if setting_ not in settings:
-            raise MissingMandatorySetting(settings_file)
-
-        if not isinstance(settings[setting_], str):
-            raise IncorrectSettingsFile(settings_file)
-
-    try:
-        settings['required_peer_approvals'] = int(
-            settings['required_peer_approvals'])
-    except ValueError:
-        raise IncorrectSettingsFile(settings_file)
-
-    for setting_ in ['prefixes']:
-        if not isinstance(settings[setting_], dict):
-            raise IncorrectSettingsFile(settings_file)
-
-    for setting_ in ['jira_keys', 'admins', 'tasks']:
-        if not isinstance(settings[setting_], list):
-            raise IncorrectSettingsFile(settings_file)
-
-        for data in settings[setting_]:
-            if not isinstance(data, str):
-                raise IncorrectSettingsFile(settings_file)
-
-    return settings
 
 
 def main():
@@ -407,22 +342,22 @@ def main():
         logging.basicConfig(level=logging.DEBUG)
     else:
         logging.basicConfig(level=logging.INFO)
-        # request lib is noisy
-        requests_log = logging.getLogger("requests.packages.urllib3")
-        requests_log.setLevel(logging.WARNING)
-        requests_log.propagate = True
+
+    # request lib is noisy
+    requests_log = logging.getLogger("requests.packages.urllib3")
+    requests_log.setLevel(logging.WARNING)
+    requests_log.propagate = True
 
     settings = setup_settings(args.settings)
+    settings.update(vars(args))
 
-    gwf.setup({key: True for key in args.cmd_line_options})
-    bert_e = BertE(args, settings)
+    bert_e = BertE(settings)
 
-    try:
-        return bert_e.handler()
-    finally:
-        bert_e.repo.delete()
-        assert not exists(bert_e.tmpdir), (
-            "temporary workdir '%s' wasn't deleted!" % bert_e.tmpdir)
+    with bert_e.git_repo:
+        return bert_e.handle_token(args.token.strip())
+
+    assert not exists(bert_e.tmpdir), (
+        "temporary workdir '%s' wasn't deleted!" % bert_e.tmpdir)
 
 
 if __name__ == '__main__':

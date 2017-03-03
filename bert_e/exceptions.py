@@ -373,16 +373,22 @@ class IncorrectSettingsFile(InternalException):
 
     def __init__(self, filename):
         msg = "Cannot parse the settings file at %r." % filename
-        super(IncorrectSettingsFile, self).__init__(msg)
+        super().__init__(msg)
 
 
-class MissingMandatorySetting(InternalException):
+class MalformedSettings(InternalException):
     code = 220
 
-    def __init__(self, filename):
-        msg = "One or more of the mandatory settings are " \
-              "missing in %r" % filename
-        super(MissingMandatorySetting, self).__init__(msg)
+    def __init__(self, filename, errors, data):
+        errs = '\n'.join(
+            "{}: {}".format(
+                key, ', '.join(val) if isinstance(val, list) else val)
+            for key, val in errors.items()
+        )
+        msg = "One or more errors were found while parsing {!r}:\n{}".format(
+            filename, errs
+        )
+        super().__init__(msg)
 
 
 class TaskAPIError(InternalException):

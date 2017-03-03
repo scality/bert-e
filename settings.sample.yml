@@ -1,29 +1,31 @@
+# repository_host [MANDATORY]:
+#   The git hosting provider for the repository. Either bitbucket or github.
+repository_host: bitbucket
+
 # repository_owner [MANDATORY]:
-#   The name of the owner of the Bitbucket repository to work on
+#   The name of the owner of the Bitbucket/GitHub repository to work on
 #
-#   (a.k.a. Bitbucket team)
+#   (a.k.a. Bitbucket team or GitHub organization)
 #
 repository_owner: my_company
 
 
 # repository_slug [MANDATORY]:
-#   The slug of the Bitbucket repository to work on
+#   The slug of the Bitbucket/GitHub repository to work on
 #
 repository_slug: my_repository
 
 
 # robot_username [MANDATORY]:
-#   The Bitbucket account to use for interactions with pull requests
+#   The Bitbucket/GitHub account to use for interactions with pull requests
 #
 #   This user will act as the robot and will:
 #   - comment pull requests to indicate the progress of the merge,
 #   - merge feature branches to development/* branches.
 #
-#   The user must have the correct permissions in Bitbucket
+#   The user must have the correct permissions in Bitbucket/GitHub
 #   to allow those operations (it is typically the only user allowed
 #   to merge to development/* branches).
-#
-#   The same user is used for Bitbucket and Jira access.
 #
 #   The password associated to the account is passed on the command line.
 #
