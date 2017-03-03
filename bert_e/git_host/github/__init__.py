@@ -293,11 +293,15 @@ class Client(base.AbstractClient):
                     '{}/{}'.format(owner, slug)) from err
             raise
 
-    def create_repository(self, slug: str, **kwargs):
+    def create_repository(self, slug: str, owner=None, **kwargs):
         """See AbstractClient.create_repository()"""
+        url = Repository.CREATE_URL
+        owner = owner or self.login
+        if owner != self.login:
+            url = Repository.CREATE_ORG_URL
         kwargs['name'] = slug
         try:
-            return Repository.create(self, kwargs)
+            return Repository.create(self, kwargs, url=url, owner=owner)
         except HTTPError as err:
             if err.response.status_code == 422:
                 raise base.RepositoryExists(slug) from err
@@ -460,6 +464,7 @@ class Repository(GithubObject, base.AbstractRepository):
     GET_URL = '/repos/{owner}/{repo}'
     DELETE_URL = GET_URL
     CREATE_URL = '/user/repos'
+    CREATE_ORG_URL = '/orgs/{owner}/repos'
 
     SCHEMA = schema.Repo
     GET_SCHEMA = schema.Repo

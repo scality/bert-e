@@ -259,7 +259,16 @@ class AbstractRepository(metaclass=ABCMeta):
     @abstractmethod
     def git_url(self) -> str:
         """This repository's git clone url."""
-        return self.get_git_url()
+
+    @property
+    @abstractmethod
+    def owner(self) -> str:
+        """Owner of the repository."""
+
+    @property
+    @abstractmethod
+    def slug(self) -> str:
+        """Repository name or slug."""
 
 
 class AbstractClient(metaclass=ABCMeta):
@@ -275,7 +284,7 @@ class AbstractClient(metaclass=ABCMeta):
         """
 
     @abstractmethod
-    def create_repository(self, slug: str, **kwargs
+    def create_repository(self, slug: str, owner=None, **kwargs
                           ) -> AbstractRepository:
         """Create a new repository.
 

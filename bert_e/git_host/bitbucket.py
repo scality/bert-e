@@ -76,9 +76,9 @@ class Client(Session, base.AbstractClient):
         except HTTPError as err:
             raise base.NoSuchRepository('/'.join((owner, slug))) from err
 
-    def create_repository(self, slug, scm='git', is_private=True):
+    def create_repository(self, slug, owner=None, scm='git', is_private=True):
         """Create a Bitbucket Repository"""
-        owner = self.login
+        owner = owner or self.login
         repo = Repository(self, repo_slug=slug, owner=owner, scm=scm,
                           is_private=is_private)
         try:
@@ -291,7 +291,10 @@ class Repository(BitBucketObject, base.AbstractRepository):
 
     @property
     def owner(self):
-        return self['owner']
+        owner = self['owner']
+        if isinstance(owner, dict):
+            owner = owner['username']
+        return owner
 
     @property
     def slug(self):

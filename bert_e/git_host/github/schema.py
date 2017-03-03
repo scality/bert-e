@@ -18,7 +18,7 @@
 used by Bert-E) are declared.
 
 """
-from marshmallow import Schema, fields, ValidationError
+from marshmallow import Schema, ValidationError, fields
 
 from .. import base
 

@@ -20,7 +20,7 @@ from types import SimpleNamespace
 import pytest
 
 from bert_e.api.git import Repository as GitRepository
-from bert_e.git_host import client_factory, RepositoryExists, NoSuchRepository
+from bert_e.git_host import NoSuchRepository, RepositoryExists, client_factory
 
 
 def github_client_args():

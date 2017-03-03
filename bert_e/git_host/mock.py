@@ -59,9 +59,9 @@ class Client(base.AbstractClient):
         self.auth = self
         self.email = email
 
-    def create_repository(self, slug, scm='git',
+    def create_repository(self, slug, owner=None, scm='git',
                           is_private=True):
-        owner = self.login
+        owner = owner or self.login
         repo_key = (owner, slug)
 
         if repo_key in Repository.repos:
@@ -82,9 +82,11 @@ class Client(base.AbstractClient):
         if repo_key not in Repository.repos:
             raise base.NoSuchRepository(
                 "Could not find the repository whose owner is '{}' "
-                "and slug is '{}'".format(self.login, slug)
+                "and slug is '{}'. Available repos are: {}".format(
+                    self.login, slug, list(Repository.repos.keys()))
             )
-        return Repository.repos.get(repo_key)
+        return Repository(self, owner=owner, repo_slug=slug, scm='git',
+                          is_private=True)
 
     def delete_repository(self, slug, owner=None):
         if owner is None:
@@ -154,7 +156,7 @@ class Repository(BitBucketObject, base.AbstractRepository):
         self.created_on = "2011-12-20T16:35:06.480042+00:00"
         self.full_name = "tutorials/tutorials.bitbucket.org"
         self.has_issues = True
-        self.owner = fake_user_dict(client.login)
+        self._owner = fake_user_dict(client.login)
         self.updated_on = "2014-11-03T02:24:08.409995+00:00"
         self.size = 76182262
         self.is_private = is_private
@@ -237,6 +239,14 @@ class Repository(BitBucketObject, base.AbstractRepository):
     def set_build_status(self, revision, key, state, **kwargs):
         self.get_git_url()
         self.gitrepo.revisions[(revision, key)] = state
+
+    @property
+    def owner(self):
+        return self.repo_owner
+
+    @property
+    def slug(self):
+        return self.repo_slug
 
 
 class PullRequestController(Controller, base.AbstractPullRequest):
