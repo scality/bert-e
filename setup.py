@@ -32,8 +32,10 @@ setup(
     packages=[
         'bert_e',
         'bert_e.api',
+        'bert_e.lib',
         'bert_e.bin',
         'bert_e.git_host',
+        'bert_e.git_host.github',
         'bert_e.workflow',
         'bert_e.workflow.gitwaterflow',
     ],

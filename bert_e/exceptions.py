@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .template_loader import render
+from bert_e.lib.template_loader import render
 
 # When dont_repeat_if_in_history is None, Bert-E will look for the message
 # in the whole list of comments.

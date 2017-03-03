@@ -130,7 +130,7 @@ import re
 from collections import namedtuple
 from copy import copy
 
-from .utils import Dispatcher
+from .lib.dispatcher import Dispatcher
 
 
 class Error(Exception):

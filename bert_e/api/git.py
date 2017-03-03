@@ -20,8 +20,7 @@ from pipes import quote
 from shutil import rmtree
 from tempfile import mkdtemp
 
-from ..simplecmd import CommandError, cmd
-
+from bert_e.lib.simplecmd import CommandError, cmd
 
 LOG = logging.getLogger(__name__)
 

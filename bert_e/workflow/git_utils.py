@@ -15,7 +15,7 @@
 import logging
 
 from bert_e.api import git
-from bert_e.utils import RetryHandler
+from bert_e.lib.retry import RetryHandler
 
 LOG = logging.getLogger(__name__)
 

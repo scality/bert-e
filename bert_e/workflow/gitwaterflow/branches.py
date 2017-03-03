@@ -23,7 +23,7 @@ from functools import total_ordering
 
 from bert_e import exceptions as errors
 from bert_e.api import git
-from bert_e.template_loader import render
+from bert_e.lib.template_loader import render
 
 LOG = logging.getLogger(__name__)
 

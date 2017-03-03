@@ -21,9 +21,10 @@ from urllib.parse import quote_plus as quote
 from requests import HTTPError, Session
 from requests.auth import HTTPBasicAuth
 
+from bert_e.lib.lru_cache import LRUCache
+
 from . import base, factory
 from ..exceptions import TaskAPIError
-from ..utils import LRUCache
 
 MAX_PR_TITLE_LEN = 255
 

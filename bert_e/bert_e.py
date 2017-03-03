@@ -28,7 +28,8 @@ import yaml
 from .api.git import Repository as GitRepository
 from .exceptions import *
 from .git_host import bitbucket
-from .utils import SettingsDict, confirm
+from .lib.cli import confirm
+from .lib.settings_dict import SettingsDict
 from .workflow import gitwaterflow as gwf
 from .workflow.gitwaterflow.branches import *  # Temporary fix for the tests
 

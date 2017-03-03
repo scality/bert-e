@@ -19,8 +19,8 @@ This module implements automation of the GitWaterFlow by BertE.
 import logging
 
 from bert_e import exceptions as messages
+from bert_e.lib.cli import confirm
 from bert_e.reactor import Reactor, NotFound, NotPrivileged
-from bert_e.utils import confirm
 from ..git_utils import push, clone_git_repo
 from ..pr_utils import find_comment, send_comment, create_task
 from .branches import (

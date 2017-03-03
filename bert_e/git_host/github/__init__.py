@@ -19,7 +19,7 @@ from requests import HTTPError, Session
 from requests.auth import HTTPBasicAuth
 
 from bert_e.exceptions import TaskAPIError
-from bert_e.utils import LRUCache
+from bert_e.lib.lru_cache import LRUCache
 from . import schema
 from .. import base, factory
 

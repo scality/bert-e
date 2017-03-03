@@ -36,8 +36,8 @@ from ..api.git import Branch
 from ..exceptions import *
 from ..git_host import bitbucket as bitbucket_api
 from ..git_host import mock as bitbucket_api_mock
-from ..simplecmd import CommandError, cmd
-from ..utils import RetryHandler
+from ..lib.retry import RetryHandler
+from ..lib.simplecmd import CommandError, cmd
 from .mocks import jira as jira_api_mock
 
 

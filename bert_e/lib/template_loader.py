@@ -12,14 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os.path
+from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
 
+TEMPLATE_DIR = Path(__file__).parent.parent.absolute() / 'templates'
+
 
 def render(template, **kwargs):
-    abs_dir = os.path.dirname(os.path.realpath(__file__))
-    tfile = os.path.join(abs_dir, 'templates')
-    env = Environment(loader=FileSystemLoader(tfile),
+    env = Environment(loader=FileSystemLoader(str(TEMPLATE_DIR)),
                       undefined=StrictUndefined)
     return env.get_template(template).render(**kwargs)
