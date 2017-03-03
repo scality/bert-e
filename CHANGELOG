@@ -10,6 +10,7 @@ All notable changes to this project will be documented in this file.
 - Implement reset and force_reset commands
 # Changed
 - Refactoring: the bert_e.utils module became the bet_e.lib package
+- System tests now use the abstract git_host API
 
 ## [3.0.4] - 2017-02-16
 # Fixed

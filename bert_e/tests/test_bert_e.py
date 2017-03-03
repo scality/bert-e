@@ -27,17 +27,21 @@ from urllib.parse import quote_plus
 
 import requests
 
+from bert_e import exceptions as exns
+from bert_e.api import jira as jira_api
+from bert_e.api.git import Repository as GitRepository
+from bert_e.api.git import Branch
+from bert_e.bert_e import main as bert_e_main
+from bert_e.bert_e import STATUS
+from bert_e.git_host import bitbucket as bitbucket_api
+from bert_e.git_host import mock as bitbucket_api_mock
+from bert_e.git_host.base import NoSuchRepository
+from bert_e.git_host.factory import client_factory
+from bert_e.lib.retry import RetryHandler
+from bert_e.lib.simplecmd import CommandError, cmd
 from bert_e.workflow import gitwaterflow as gwf
+from bert_e.workflow.gitwaterflow import branches as gwfb
 
-from .. import bert_e
-from ..api import jira as jira_api
-from ..api.git import Repository as GitRepository
-from ..api.git import Branch
-from ..exceptions import *
-from ..git_host import bitbucket as bitbucket_api
-from ..git_host import mock as bitbucket_api_mock
-from ..lib.retry import RetryHandler
-from ..lib.simplecmd import CommandError, cmd
 from .mocks import jira as jira_api_mock
 
 
@@ -124,34 +128,34 @@ class QuickTest(unittest.TestCase):
     """Tests which don't need to interact with an external web services"""
 
     def feature_branch(self, name):
-        return bert_e.FeatureBranch(None, name)
+        return gwfb.FeatureBranch(None, name)
 
     def test_feature_branch_names(self):
-        with self.assertRaises(BranchNameInvalid):
+        with self.assertRaises(exns.BranchNameInvalid):
             self.feature_branch('user/4.3/TEST-0005')
 
-        with self.assertRaises(BranchNameInvalid):
+        with self.assertRaises(exns.BranchNameInvalid):
             self.feature_branch('TEST-0001-my-fix')
 
-        with self.assertRaises(BranchNameInvalid):
+        with self.assertRaises(exns.BranchNameInvalid):
             self.feature_branch('my-fix')
 
-        with self.assertRaises(BranchNameInvalid):
+        with self.assertRaises(exns.BranchNameInvalid):
             self.feature_branch('origin/feature/TEST-0001')
 
-        with self.assertRaises(BranchNameInvalid):
+        with self.assertRaises(exns.BranchNameInvalid):
             self.feature_branch('/feature/TEST-0001')
 
-        with self.assertRaises(BranchNameInvalid):
+        with self.assertRaises(exns.BranchNameInvalid):
             self.feature_branch('toto/TEST-0005')
 
-        with self.assertRaises(BranchNameInvalid):
+        with self.assertRaises(exns.BranchNameInvalid):
             self.feature_branch('release/4.3')
 
-        with self.assertRaises(BranchNameInvalid):
+        with self.assertRaises(exns.BranchNameInvalid):
             self.feature_branch('feature')
 
-        with self.assertRaises(BranchNameInvalid):
+        with self.assertRaises(exns.BranchNameInvalid):
             self.feature_branch('feature/')
 
         # valid names
@@ -173,31 +177,23 @@ class QuickTest(unittest.TestCase):
 
     def test_destination_branch_names(self):
 
-        with self.assertRaises(BranchNameInvalid):
-            bert_e.DevelopmentBranch(
-                repo=None,
-                name='feature-TEST-0005')
+        with self.assertRaises(exns.BranchNameInvalid):
+            gwfb.DevelopmentBranch(repo=None, name='feature-TEST-0005')
 
         # valid names
-        bert_e.DevelopmentBranch(
-            repo=None,
-            name='development/4.3')
-        bert_e.DevelopmentBranch(
-            repo=None,
-            name='development/5.1')
-        bert_e.DevelopmentBranch(
-            repo=None,
-            name='development/6.0')
+        gwfb.DevelopmentBranch(repo=None, name='development/4.3')
+        gwfb.DevelopmentBranch(repo=None, name='development/5.1')
+        gwfb.DevelopmentBranch(repo=None, name='development/6.0')
 
     def finalize_cascade(self, branches, tags, destination,
                          fixver, merge_paths=None):
-        c = bert_e.BranchCascade()
+        c = gwfb.BranchCascade()
 
         all_branches = [
-            bert_e.branch_factory(FakeGitRepo(), branch['name'])
+            gwfb.branch_factory(FakeGitRepo(), branch['name'])
             for branch in branches.values()]
         expected_dest = [
-            bert_e.branch_factory(FakeGitRepo(), branch['name'])
+            gwfb.branch_factory(FakeGitRepo(), branch['name'])
             for branch in branches.values() if not branch['ignore']]
         expected_ignored = [
             branch['name']
@@ -219,7 +215,7 @@ class QuickTest(unittest.TestCase):
                 for exp_branch, branch in zip(exp_path, path):
                     self.assertEqual(exp_branch, branch.name)
 
-        c.finalize(bert_e.branch_factory(FakeGitRepo(), destination))
+        c.finalize(gwfb.branch_factory(FakeGitRepo(), destination))
 
         self.assertEqual(c.dst_branches, expected_dest)
         self.assertEqual(c.ignored_branches, expected_ignored)
@@ -233,7 +229,7 @@ class QuickTest(unittest.TestCase):
         })
         tags = []
         fixver = []
-        with self.assertRaises(UnrecognizedBranchPattern):
+        with self.assertRaises(exns.UnrecognizedBranchPattern):
             self.finalize_cascade(branches, tags, destination, fixver)
 
     def test_branch_cascade_from_dev_with_master(self):
@@ -244,7 +240,7 @@ class QuickTest(unittest.TestCase):
         })
         tags = []
         fixver = []
-        with self.assertRaises(UnrecognizedBranchPattern):
+        with self.assertRaises(exns.UnrecognizedBranchPattern):
             self.finalize_cascade(branches, tags, destination, fixver)
 
     def test_branch_cascade_target_first_stab(self):
@@ -326,7 +322,7 @@ class QuickTest(unittest.TestCase):
         })
         tags = ['6.0.0']
         fixver = ['6.0.1']
-        with self.assertRaises(UnrecognizedBranchPattern):
+        with self.assertRaises(exns.UnrecognizedBranchPattern):
             self.finalize_cascade(branches, tags, destination, fixver)
 
     def test_branch_targetting_incorrect_stab_name(self):
@@ -337,7 +333,7 @@ class QuickTest(unittest.TestCase):
         })
         tags = ['6.0.0']
         fixver = ['6.0.1']
-        with self.assertRaises(UnrecognizedBranchPattern):
+        with self.assertRaises(exns.UnrecognizedBranchPattern):
             self.finalize_cascade(branches, tags, destination, fixver)
 
     def test_branch_dangling_stab(self):
@@ -348,7 +344,7 @@ class QuickTest(unittest.TestCase):
         })
         tags = ['4.3.17', '5.1.3']
         fixver = ['5.1.4']
-        with self.assertRaises(DevBranchDoesNotExist):
+        with self.assertRaises(exns.DevBranchDoesNotExist):
             self.finalize_cascade(branches, tags, destination, fixver)
 
     def test_branch_targetting_dangling_stab(self):
@@ -359,7 +355,7 @@ class QuickTest(unittest.TestCase):
         })
         tags = ['4.3.17', '5.1.3']
         fixver = ['4.3.18', '5.1.4']
-        with self.assertRaises(DevBranchDoesNotExist):
+        with self.assertRaises(exns.DevBranchDoesNotExist):
             self.finalize_cascade(branches, tags, destination, fixver)
 
     def test_branch_cascade_multi_stab_branches(self):
@@ -371,7 +367,7 @@ class QuickTest(unittest.TestCase):
         })
         tags = []
         fixver = []
-        with self.assertRaises(UnsupportedMultipleStabBranches):
+        with self.assertRaises(exns.UnsupportedMultipleStabBranches):
             self.finalize_cascade(branches, tags, destination, fixver)
 
     def test_branch_cascade_invalid_dev_branch(self):
@@ -381,7 +377,7 @@ class QuickTest(unittest.TestCase):
         })
         tags = []
         fixver = []
-        with self.assertRaises(UnrecognizedBranchPattern):
+        with self.assertRaises(exns.UnrecognizedBranchPattern):
             self.finalize_cascade(branches, tags, destination, fixver)
 
     def test_tags_without_stabilization(self):
@@ -442,25 +438,25 @@ class QuickTest(unittest.TestCase):
         fixver = ['6.1.5']
         c = self.finalize_cascade(branches, tags, destination,
                                   fixver, merge_paths)
-        with self.assertRaises(VersionMismatch):
+        with self.assertRaises(exns.VersionMismatch):
             c.validate()
 
         tags = ['6.1.4']
         fixver = ['6.1.5']
         c = self.finalize_cascade(branches, tags, destination, fixver)
         self.assertEqual(
-            c._cascade[(6, 1)][bert_e.DevelopmentBranch].micro, 6)
+            c._cascade[(6, 1)][gwfb.DevelopmentBranch].micro, 6)
         self.assertEqual(
-            c._cascade[(6, 1)][bert_e.StabilizationBranch].micro, 5)
+            c._cascade[(6, 1)][gwfb.StabilizationBranch].micro, 5)
 
         tags = ['6.1.5']
         fixver = []
-        with self.assertRaises(DeprecatedStabilizationBranch):
+        with self.assertRaises(exns.DeprecatedStabilizationBranch):
             self.finalize_cascade(branches, tags, destination, fixver)
 
         tags = ['6.1.6']
         fixver = []
-        with self.assertRaises(DeprecatedStabilizationBranch):
+        with self.assertRaises(exns.DeprecatedStabilizationBranch):
             self.finalize_cascade(branches, tags, destination, fixver)
 
     def test_retry_handler(self):
@@ -529,14 +525,14 @@ class BuildFailedTest(unittest.TestCase):
 
     def test_build_fail_with_build_url(self):
         build_url = 'http://host/path/to/the?build=url'
-        build_fail = BuildFailed(pr_id=1, build_url=build_url,
-                                 active_options=None)
+        build_fail = exns.BuildFailed(pr_id=1, build_url=build_url,
+                                      active_options=None)
         assert 'The [build]({}) did not succeed'.format(build_url) \
             in build_fail.msg
 
     def test_build_fail_with_url_to_none(self):
-        build_fail = BuildFailed(pr_id=1, build_url=None,
-                                 active_options=None)
+        build_fail = exns.BuildFailed(pr_id=1, build_url=None,
+                                      active_options=None)
         assert 'The build did not succeed' in build_fail.msg
 
 
@@ -562,51 +558,48 @@ class RepositoryTests(unittest.TestCase):
         warnings.simplefilter('ignore')
         # repo creator and reviewer
         self.creator = self.args.admin_username
-        client = bitbucket_api.Client(
-            self.args.admin_username,
-            self.args.admin_password,
-            "nobody@nowhere.com")
-        self.admin_bb = bitbucket_api.Repository(
-            client,
-            owner=self.args.owner,
-            repo_slug=('%s_%s' % (self.args.repo_prefix,
-                                  self.args.admin_username)),
-            is_private=True,
-            scm='git')
+        host = 'bitbucket' if RepositoryTests.args.disable_mock else 'mock'
+        client = client_factory(host, self.args.admin_username,
+                                self.args.admin_password, "nobody@nowhere.com")
         try:
-            if RepositoryTests.args.disable_mock:
-                time.sleep(5)  # don't be too agressive on API
-            self.admin_bb.delete()
-        except requests.exceptions.HTTPError as e:
-            if e.response.status_code != 404:
-                raise
+            client.delete_repository(
+                owner=self.args.owner,
+                slug=('%s_%s' % (self.args.repo_prefix,
+                                 self.args.admin_username)),
+            )
+        except NoSuchRepository:
+            pass
 
-        self.admin_bb.create()
+        self.admin_bb = client.create_repository(
+            owner=self.args.owner,
+            slug=('%s_%s' % (self.args.repo_prefix, self.args.admin_username))
+        )
 
         # unprivileged user connection
-        client = bitbucket_api.Client(
+        client = client_factory(
+            host,
             self.args.contributor_username,
             self.args.contributor_password,
-            "nobody@nowhere.com")
-        self.contributor_bb = bitbucket_api.Repository(
-            client,
+            "nobody@nowhere.com"
+        )
+        self.contributor_bb = client.get_repository(
             owner=self.args.owner,
-            repo_slug=('%s_%s' % (self.args.repo_prefix,
-                                  self.args.admin_username)),
+            slug=('%s_%s' % (self.args.repo_prefix,
+                             self.args.admin_username)),
         )
         # Bert-E may want to comment manually too
-        client = bitbucket_api.Client(
+        client = client_factory(
+            host,
             self.args.robot_username,
             self.args.robot_password,
             "nobody@nowhere.com")
-        self.robot_bb = bitbucket_api.Repository(
-            client,
+        self.robot_bb = client.get_repository(
             owner=self.args.owner,
-            repo_slug=('%s_%s' % (self.args.repo_prefix,
-                                  self.args.admin_username)),
+            slug=('%s_%s' % (self.args.repo_prefix,
+                             self.args.admin_username)),
         )
         self.gitrepo = GitRepository(
-            self.admin_bb.get_git_url(),
+            self.admin_bb.git_url,
             mask_pwd=quote_plus(self.args.admin_password)
         )
         initialize_git_repo(self.gitrepo,
@@ -619,7 +612,7 @@ class RepositoryTests(unittest.TestCase):
         self.admin_bb.delete()
         self.gitrepo.delete()
         # reset STATUS to default value to ensure test independance
-        bert_e.STATUS = {}
+        STATUS.clear()
 
     def create_pr(
             self,
@@ -661,15 +654,15 @@ class RepositoryTests(unittest.TestCase):
         sys.argv.append('dummy_jira_password')
         sys.argv.append(str(token))
         try:
-            bert_e.main()
-        except Queued as excp:
+            bert_e_main()
+        except exns.Queued as excp:
             queued_excp = excp
-        except SilentException as excp:
+        except exns.SilentException as excp:
             if backtrace:
                 raise
             else:
                 return 0
-        except TemplateException as excp:
+        except exns.TemplateException as excp:
             if backtrace:
                 raise
             else:
@@ -681,7 +674,7 @@ class RepositoryTests(unittest.TestCase):
             # token is a PR id, use its tip to filter on content
             # (caution: not necessarily the id of the main pr)
             pr = self.robot_bb.get_pull_request(pull_request_id=token)
-            sha1 = pr['source']['commit']['hash']
+            sha1 = pr.src_commit
         except ValueError:
             # token is a sha1, use it to filter on content
             sha1 = token
@@ -690,7 +683,7 @@ class RepositoryTests(unittest.TestCase):
                         .replace(" ", "") \
                         .replace("origin/", "") \
                         .split('\n')[:-1]:
-            branch = bert_e.branch_factory(self.gitrepo, qint)
+            branch = gwfb.branch_factory(self.gitrepo, qint)
             branch.checkout()
             sha1 = branch.get_latest_commit()
             self.set_build_status(sha1, 'SUCCESSFUL')
@@ -701,17 +694,17 @@ class RepositoryTests(unittest.TestCase):
         sys.argv.append('dummy_jira_password')
         sys.argv.append(str(token))
         try:
-            bert_e.main()
-        except Merged:
+            bert_e_main()
+        except exns.Merged:
             if backtrace:
-                raise SuccessMessage(
+                raise exns.SuccessMessage(
                     branches=queued_excp.branches,
                     ignored=queued_excp.ignored,
                     issue=queued_excp.issue,
                     author=queued_excp.author,
                     active_options=queued_excp.active_options)
             else:
-                return SuccessMessage.code
+                return exns.SuccessMessage.code
         except Exception:
             raise
 
@@ -737,7 +730,7 @@ class RepositoryTests(unittest.TestCase):
             admin=self.args.admin_username,
             robot=self.args.robot_username,
             owner=self.args.owner,
-            slug='%s_%s' % (self.args.repo_prefix, self.args.admin_username)
+            slug='%s_%s' % (self.args.repo_prefix, self.args.admin_username),
         )
         with open('test_settings.yml', 'w') as settings_file:
             settings_file.write(data)
@@ -751,18 +744,12 @@ class RepositoryTests(unittest.TestCase):
         sys.argv.append(self.args.robot_password)
         sys.argv.append('dummy_jira_password')
         sys.argv.append(str(token))
-        return bert_e.main()
+        return bert_e_main()
 
-    def set_build_status(self, sha1, state,
-                         key='pre-merge',
-                         name='Test build status',
-                         url='http://www.testurl.com'):
+    def set_build_status(self, sha1, state, key='pre-merge',
+                         name='Test build status', url='http://www.test.com'):
         self.robot_bb.set_build_status(
-            revision=sha1,
-            key=key,
-            state=state,
-            name=name,
-            url=url
+            revision=sha1, key=key, state=state, name=name, url=url
         )
 
     def get_build_status(self, sha1, key='pipeline'):
@@ -781,8 +768,7 @@ class RepositoryTests(unittest.TestCase):
                                   url='http://www.testurl.com'):
         pr = self.robot_bb.get_pull_request(pull_request_id=pr_id)
 
-        self.set_build_status(pr['source']['commit']['hash'],
-                              state, key, name, url)
+        self.set_build_status(pr.src_commit, state, key, name, url)
         # workaround laggy bitbucket
         if TestBertE.args.disable_mock:
             for _ in range(20):
@@ -794,7 +780,7 @@ class RepositoryTests(unittest.TestCase):
 
     def get_build_status_on_pr_id(self, pr_id, key='pipeline'):
         pr = self.robot_bb.get_pull_request(pull_request_id=pr_id)
-        return self.get_build_status(pr['source']['commit']['hash'], key)
+        return self.get_build_status(pr.src_commit, key)
 
 
 class TestBertE(RepositoryTests):
@@ -807,16 +793,14 @@ class TestBertE(RepositoryTests):
 
         """
         pr = self.create_pr('bugfix/TEST-0001', 'development/4.3')
-        retcode = self.handle(pr['id'], options=['bypass_jira_check'])
-        self.assertEqual(retcode, ApprovalRequired.code)
+        retcode = self.handle(pr.id, options=['bypass_jira_check'])
+        self.assertEqual(retcode, exns.ApprovalRequired.code)
         # check backtrace mode on the same error, and check same error happens
-        with self.assertRaises(ApprovalRequired):
-            self.handle(pr['id'],
-                        options=['bypass_jira_check'],
-                        backtrace=True)
+        with self.assertRaises(exns.ApprovalRequired):
+            self.handle(pr.id, options=['bypass_jira_check'], backtrace=True)
         # check success mode
-        retcode = self.handle(pr['id'], options=self.bypass_all)
-        self.assertEqual(retcode, SuccessMessage.code)
+        retcode = self.handle(pr.id, options=self.bypass_all)
+        self.assertEqual(retcode, exns.SuccessMessage.code)
 
         # check integration branches have been removed
         for version in ['4.3', '5.1', '6.0']:
@@ -825,16 +809,15 @@ class TestBertE(RepositoryTests):
             self.assertFalse(ret)
 
         # check what happens when trying to do it again
-        with self.assertRaises(NothingToDo):
-            self.handle(pr['id'],
-                        backtrace=True)
+        with self.assertRaises(exns.NothingToDo):
+            self.handle(pr.id, backtrace=True)
         # test the return code of a silent exception is 0
-        retcode = self.handle(pr['id'])
+        retcode = self.handle(pr.id)
         self.assertEqual(retcode, 0)
 
-        merged_pr = bert_e.STATUS.get('merged PRs', [])
+        merged_pr = STATUS.get('merged PRs', [])
         assert len(merged_pr) == 1
-        assert merged_pr[0]['id'] == pr['id']
+        assert merged_pr[0]['id'] == pr.id
         assert (merged_pr[0]['merge_time'] >
                 datetime.datetime.now() - datetime.timedelta(minutes=1))
         assert (merged_pr[0]['merge_time'] <
@@ -846,15 +829,11 @@ class TestBertE(RepositoryTests):
         create_branch(self.gitrepo, feature_branch, from_branch=from_branch,
                       file_=True)
         pr = self.contributor_bb.create_pull_request(
-            title='title',
-            name='name',
-            src_branch=feature_branch,
-            dst_branch='release/6.0',
-            close_source_branch=True,
-            description=''
+            title='title', name='name', src_branch=feature_branch,
+            dst_branch='release/6.0', close_source_branch=True, description=''
         )
-        with self.assertRaises(NotMyJob):
-            self.handle(pr['id'], backtrace=True)
+        with self.assertRaises(exns.NotMyJob):
+            self.handle(pr.id, backtrace=True)
 
         create_branch(self.gitrepo, 'feature/TEST-00001',
                       from_branch='development/4.3', file_=True)
@@ -866,8 +845,8 @@ class TestBertE(RepositoryTests):
                             'project/invalid',
                             'feature/invalid',
                             'hotfix/customer']:
-            create_branch(self.gitrepo, destination,
-                          from_branch='development/4.3', file_=True)
+            create_branch(self.gitrepo, destination, file_=True,
+                          from_branch='development/4.3')
             pr = self.contributor_bb.create_pull_request(
                 title='title',
                 name='name',
@@ -876,8 +855,8 @@ class TestBertE(RepositoryTests):
                 close_source_branch=True,
                 description=''
             )
-            with self.assertRaises(NotMyJob):
-                self.handle(pr['id'], backtrace=True)
+            with self.assertRaises(exns.NotMyJob):
+                self.handle(pr.id, backtrace=True)
 
     def test_conflict(self):
         pr1 = self.create_pr('bugfix/TEST-0006', 'development/5.1',
@@ -890,16 +869,14 @@ class TestBertE(RepositoryTests):
                              file_='toto.txt')
         # Start PR2 (create integration branches) first
 
-        self.handle(
-            pr2['id'], self.bypass_all_but(['bypass_author_approval'])
-        )
-        retcode = self.handle(pr1['id'], options=self.bypass_all)
-        self.assertEqual(retcode, SuccessMessage.code)
+        self.handle(pr2.id, self.bypass_all_but(['bypass_author_approval']))
+        retcode = self.handle(pr1.id, options=self.bypass_all)
+        self.assertEqual(retcode, exns.SuccessMessage.code)
 
         # Pursue PR2 (conflict on branch development/5.1 vs. w/ branch)
         try:
-            self.handle(pr2['id'], options=self.bypass_all, backtrace=True)
-        except Conflict as e:
+            self.handle(pr2.id, options=self.bypass_all, backtrace=True)
+        except exns.Conflict as e:
             self.assertIn(
                 "`w/5.1/bugfix/TEST-0006-other` with\ncontents from "
                 "`bugfix/TEST-0006-other` and `development/5.1`",
@@ -914,8 +891,8 @@ class TestBertE(RepositoryTests):
             self.fail("No conflict detected.")
 
         try:
-            self.handle(pr3['id'], options=self.bypass_all, backtrace=True)
-        except Conflict as e:
+            self.handle(pr3.id, options=self.bypass_all, backtrace=True)
+        except exns.Conflict as e:
             self.assertIn(
                 "`w/5.1/improvement/TEST-0006` with\ncontents from "
                 "`improvement/TEST-0006` and `development/5.1`",
@@ -929,10 +906,8 @@ class TestBertE(RepositoryTests):
             self.fail("No conflict detected.")
 
         try:
-            self.handle(pr4['id'],
-                        options=self.bypass_all,
-                        backtrace=True)
-        except Conflict as e:
+            self.handle(pr4.id, options=self.bypass_all, backtrace=True)
+        except exns.Conflict as e:
             self.assertIn(
                 "`w/5.1/improvement/TEST-0006-other` with\ncontents from "
                 "`w/4.3/improvement/TEST-0006-other` and "
@@ -966,17 +941,16 @@ class TestBertE(RepositoryTests):
 
         pr = self.create_pr(feature_branch, dst_branch)
 
-        with self.assertRaises(ApprovalRequired) as raised:
-            self.handle(pr['id'], options=['bypass_jira_check'],
-                        backtrace=True)
+        with self.assertRaises(exns.ApprovalRequired) as raised:
+            self.handle(pr.id, options=['bypass_jira_check'], backtrace=True)
         self.assertIn('the author', raised.exception.msg)
         self.assertIn('2 peers', raised.exception.msg)
 
         # test approval on sub pr has not effect
-        pr_child = self.admin_bb.get_pull_request(pull_request_id=pr['id'] + 1)
+        pr_child = self.admin_bb.get_pull_request(pull_request_id=pr.id + 1)
         pr_child.approve()
-        with self.assertRaises(ApprovalRequired) as raised:
-            self.handle(pr['id'] + 1, options=['bypass_jira_check'],
+        with self.assertRaises(exns.ApprovalRequired) as raised:
+            self.handle(pr.id + 1, options=['bypass_jira_check'],
                         backtrace=True)
         self.assertIn('the author', raised.exception.msg)
         self.assertIn('2 peers', raised.exception.msg)
@@ -994,8 +968,8 @@ required_peer_approvals: 1
 admins:
   - {admin}
 """ # noqa
-        with self.assertRaises(ApprovalRequired) as raised:
-            self.handle(pr['id'], options=['bypass_jira_check'],
+        with self.assertRaises(exns.ApprovalRequired) as raised:
+            self.handle(pr.id, options=['bypass_jira_check'],
                         settings=settings, backtrace=True)
         self.assertIn('the author', raised.exception.msg)
         self.assertIn('one peer', raised.exception.msg)
@@ -1014,8 +988,8 @@ required_peer_approvals: 0
 admins:
   - {admin}
 """ # noqa
-        with self.assertRaises(ApprovalRequired) as raised:
-            self.handle(pr['id'], options=['bypass_jira_check'],
+        with self.assertRaises(exns.ApprovalRequired) as raised:
+            self.handle(pr.id, options=['bypass_jira_check'],
                         settings=settings, backtrace=True)
         self.assertIn('the author', raised.exception.msg)
         self.assertNotIn('peer', raised.exception.msg)
@@ -1032,8 +1006,8 @@ admins:
         for feature_branch in ['bugfix/TEST-0008', 'bugfix/TEST-0008-label']:
             dst_branch = 'stabilization/4.3.18'
             pr = self.create_pr(feature_branch, dst_branch)
-            retcode = self.handle(pr['id'], options=['bypass_jira_check'])
-            self.assertEqual(retcode, ApprovalRequired.code)
+            retcode = self.handle(pr.id, options=['bypass_jira_check'])
+            self.assertEqual(retcode, exns.ApprovalRequired.code)
 
             # check existence of integration branches
             for version in ['4.3', '5.1', '6.0']:
@@ -1061,33 +1035,33 @@ admins:
                 close_source_branch=True,
                 description=''
             )
-            with self.assertRaises(UnrecognizedBranchPattern):
-                self.handle(pr['id'], backtrace=True)
+            with self.assertRaises(exns.UnrecognizedBranchPattern):
+                self.handle(pr.id, backtrace=True)
 
     def test_inclusion_of_jira_issue(self):
         pr = self.create_pr('bugfix/00066', 'development/4.3')
-        retcode = self.handle(pr['id'])
-        self.assertEqual(retcode, MissingJiraId.code)
+        retcode = self.handle(pr.id)
+        self.assertEqual(retcode, exns.MissingJiraId.code)
 
         pr = self.create_pr('bugfix/00067', 'development/6.0')
-        retcode = self.handle(pr['id'])
-        self.assertEqual(retcode, MissingJiraId.code)
+        retcode = self.handle(pr.id)
+        self.assertEqual(retcode, exns.MissingJiraId.code)
 
         pr = self.create_pr('improvement/i', 'development/4.3')
-        retcode = self.handle(pr['id'])
-        self.assertEqual(retcode, MissingJiraId.code)
+        retcode = self.handle(pr.id)
+        self.assertEqual(retcode, exns.MissingJiraId.code)
 
         pr = self.create_pr('bugfix/free_text', 'development/6.0')
-        retcode = self.handle(pr['id'])
-        self.assertEqual(retcode, MissingJiraId.code)
+        retcode = self.handle(pr.id)
+        self.assertEqual(retcode, exns.MissingJiraId.code)
 
         pr = self.create_pr('bugfix/free_text2', 'stabilization/6.0.0')
-        retcode = self.handle(pr['id'])
-        self.assertEqual(retcode, MissingJiraId.code)
+        retcode = self.handle(pr.id)
+        self.assertEqual(retcode, exns.MissingJiraId.code)
 
         pr = self.create_pr('bugfix/RONG-0001', 'development/6.0')
-        retcode = self.handle(pr['id'])
-        self.assertEqual(retcode, IncorrectJiraProject.code)
+        retcode = self.handle(pr.id)
+        self.assertEqual(retcode, exns.IncorrectJiraProject.code)
 
     def test_to_unrecognized_destination_branch(self):
         create_branch(self.gitrepo, 'master2',
@@ -1102,18 +1076,17 @@ admins:
             close_source_branch=True,
             description=''
         )
-        with self.assertRaises(UnrecognizedBranchPattern):
-            self.handle(pr['id'], backtrace=True)
+        with self.assertRaises(exns.UnrecognizedBranchPattern):
+            self.handle(pr.id, backtrace=True)
 
     def test_main_pr_retrieval(self):
         # create integration PRs first:
         pr = self.create_pr('bugfix/TEST-00066', 'development/4.3')
-        retcode = self.handle(pr['id'], options=['bypass_jira_check'])
-        self.assertEqual(retcode, ApprovalRequired.code)
+        retcode = self.handle(pr.id, options=['bypass_jira_check'])
+        self.assertEqual(retcode, exns.ApprovalRequired.code)
         # simulate a child pr update
-        retcode = self.handle(pr['id'] + 1,
-                              options=self.bypass_all)
-        self.assertEqual(retcode, SuccessMessage.code)
+        retcode = self.handle(pr.id + 1, options=self.bypass_all)
+        self.assertEqual(retcode, exns.SuccessMessage.code)
 
     def test_child_pr_without_parent(self):
         # simulate creation of an integration branch with Bert-E
@@ -1128,8 +1101,8 @@ admins:
             reviewers=[{'username': self.args.contributor_username}],
             description=''
         )
-        with self.assertRaises(ParentPullRequestNotFound):
-            self.handle(pr['id'], backtrace=True)
+        with self.assertRaises(exns.ParentPullRequestNotFound):
+            self.handle(pr.id, backtrace=True)
 
     def test_norepeat_strategy(self):
         def get_last_comment(pr):
@@ -1138,22 +1111,20 @@ admins:
             returns the md5 digest of the last comment for easier comparison.
 
             """
-            return md5(
-                list(pr.get_comments())[-1]['content']['raw'].encode()
-            ).digest()
+            return md5(list(pr.get_comments())[-1].text.encode()).digest()
 
         pr = self.create_pr('bugfix/TEST-01334', 'development/4.3',
                             file_='toto.txt')
 
         # Let Bert-E post its initial 'Hello' comment
-        self.handle(pr['id'])
+        self.handle(pr.id)
 
         # The help message should be displayed every time the user requests it
         help_msg = ''
         pr.add_comment('@%s help' % self.args.robot_username)
         try:
-            self.handle(pr['id'], backtrace=True)
-        except HelpMessage as ret:
+            self.handle(pr.id, backtrace=True)
+        except exns.HelpMessage as ret:
             help_msg = md5(ret.msg.encode()).digest()
 
         last_comment = get_last_comment(pr)
@@ -1166,7 +1137,7 @@ admins:
                             "message wasn't recorded.")
 
         pr.add_comment('@%s help' % self.args.robot_username)
-        self.handle(pr['id'])
+        self.handle(pr.id)
         last_comment = get_last_comment(pr)
         self.assertEqual(last_comment, help_msg,
                          "Robot didn't post a second help message.")
@@ -1174,9 +1145,8 @@ admins:
         # Let's have Bert-E yield an actual AuthorApproval error message
         author_msg = ''
         try:
-            self.handle(
-                pr['id'], options=['bypass_jira_check'], backtrace=True)
-        except ApprovalRequired as ret:
+            self.handle(pr.id, options=['bypass_jira_check'], backtrace=True)
+        except exns.ApprovalRequired as ret:
             author_msg = md5(ret.msg.encode()).digest()
 
         last_comment = get_last_comment(pr)
@@ -1189,19 +1159,19 @@ admins:
                             "message wasn't recorded.")
 
         # Bert-E should not repeat itself if the error is not fixed
-        self.handle(pr['id'], options=['bypass_jira_check'])
+        self.handle(pr.id, options=['bypass_jira_check'])
         last_comment = get_last_comment(pr)
         self.assertNotEqual(last_comment, author_msg,
                             "Robot repeated an error message when he "
                             "shouldn't have.")
 
         # Confront Bert-E to a different error (PeerApproval)
-        self.handle(pr['id'],
+        self.handle(pr.id,
                     options=['bypass_jira_check', 'bypass_author_approval'])
 
         # Re-produce the AuthorApproval error, Bert-E should re-send the
         # AuthorApproval message
-        self.handle(pr['id'], options=['bypass_jira_check'])
+        self.handle(pr.id, options=['bypass_jira_check'])
         last_comment = get_last_comment(pr)
         self.assertEqual(last_comment, author_msg,
                          "Robot didn't respond to second occurrence of the "
@@ -1211,40 +1181,36 @@ admins:
         feature_branch = 'bugfix/TEST-00001'
         integration_branch = 'w/5.1/bugfix/TEST-00001'
         pr = self.create_pr(feature_branch, 'development/4.3')
-        self.handle(pr['id'], options=['bypass_jira_check'])
+        self.handle(pr.id, options=['bypass_jira_check'])
         pr.add_comment("@{} reset".format(self.args.robot_username))
         self.gitrepo.cmd('git pull')
         add_file_to_branch(self.gitrepo, integration_branch,
                            'file_added_on_int_branch')
-        retcode = self.handle(pr['id'], options=['bypass_jira_check'])
-        self.assertEqual(retcode, ResetHistoryMismatch.code)
+        retcode = self.handle(pr.id, options=['bypass_jira_check'])
+        self.assertEqual(retcode, exns.ResetHistoryMismatch.code)
 
         # Try force reset
         pr.add_comment("@{} force_reset".format(self.args.robot_username))
-        retcode = self.handle(pr['id'], options=['bypass_jira_check'])
-        self.assertEqual(retcode, ResetComplete.code)
+        retcode = self.handle(pr.id, options=['bypass_jira_check'])
+        self.assertEqual(retcode, exns.ResetComplete.code)
 
         # Check that the work resumed normally
-        retcode = self.handle(pr['id'], options=['bypass_jira_check'])
-        self.assertEqual(retcode, ApprovalRequired.code)
+        retcode = self.handle(pr.id, options=['bypass_jira_check'])
+        self.assertEqual(retcode, exns.ApprovalRequired.code)
 
     def test_reset_command(self):
         pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
-        self.handle(pr['id'], options=['bypass_jira_check'])
+        self.handle(pr.id, options=['bypass_jira_check'])
         pr.add_comment("@{} reset".format(self.args.robot_username))
-        with self.assertRaises(ResetComplete):
-            retcode = self.handle(pr['id'], options=['bypass_jira_check'],
-                                  backtrace=True)
-            self.assertEqual(retcode, ResetComplete.code)
+        retcode = self.handle(pr.id, options=['bypass_jira_check'])
+        self.assertEqual(retcode, exns.ResetComplete.code)
 
     def test_force_reset_command(self):
         pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
-        self.handle(pr['id'], options=['bypass_jira_check'])
+        self.handle(pr.id, options=['bypass_jira_check'])
         pr.add_comment("@{} force_reset".format(self.args.robot_username))
-        with self.assertRaises(ResetComplete):
-            retcode = self.handle(pr['id'], options=['bypass_jira_check'],
-                                  backtrace=True)
-            self.assertEqual(retcode, ResetComplete.code)
+        retcode = self.handle(pr.id, options=['bypass_jira_check'])
+        self.assertEqual(retcode, exns.ResetComplete.code)
 
     def test_options_and_commands(self):
         pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
@@ -1255,61 +1221,61 @@ admins:
 
         # option: wait
         comment = pr.add_comment('@%s wait' % self.args.robot_username)
-        with self.assertRaises(NothingToDo):
-            self.handle(pr['id'], backtrace=True)
+        with self.assertRaises(exns.NothingToDo):
+            self.handle(pr.id, backtrace=True)
         comment.delete()
 
         # command: build
         pr.add_comment('@%s build' % self.args.robot_username)
-        retcode = self.handle(pr['id'])
-        self.assertEqual(retcode, CommandNotImplemented.code)
+        retcode = self.handle(pr.id)
+        self.assertEqual(retcode, exns.CommandNotImplemented.code)
 
         # command: clear
         pr.add_comment('@%s clear' % self.args.robot_username)
-        retcode = self.handle(pr['id'])
-        self.assertEqual(retcode, CommandNotImplemented.code)
+        retcode = self.handle(pr.id)
+        self.assertEqual(retcode, exns.CommandNotImplemented.code)
 
         # command: status
         pr.add_comment('@%s status' % self.args.robot_username)
-        retcode = self.handle(pr['id'])
-        self.assertEqual(retcode, StatusReport.code)
+        retcode = self.handle(pr.id)
+        self.assertEqual(retcode, exns.StatusReport.code)
 
         # mix of option and command
         pr.add_comment('@%s unanimity' % self.args.robot_username)
         pr.add_comment('@%s status' % self.args.robot_username)
-        retcode = self.handle(pr['id'])
-        self.assertEqual(retcode, StatusReport.code)
+        retcode = self.handle(pr.id)
+        self.assertEqual(retcode, exns.StatusReport.code)
 
         # test_help command
         pr.add_comment('@%s help' % self.args.robot_username)
-        retcode = self.handle(pr['id'])
-        self.assertEqual(retcode, HelpMessage.code)
+        retcode = self.handle(pr.id)
+        self.assertEqual(retcode, exns.HelpMessage.code)
 
         # test help command with inter comment
         pr.add_comment('@%s: help' % self.args.robot_username)
         pr.add_comment('an irrelevant comment')
-        retcode = self.handle(pr['id'])
-        self.assertEqual(retcode, HelpMessage.code)
+        retcode = self.handle(pr.id)
+        self.assertEqual(retcode, exns.HelpMessage.code)
 
         # test help command with inter comment from Bert-E
         pr.add_comment('@%s help' % self.args.robot_username)
         pr_bert_e = self.robot_bb.get_pull_request(
-            pull_request_id=pr['id'])
+            pull_request_id=pr.id)
         pr_bert_e.add_comment('this is my help already')
-        retcode = self.handle(pr['id'], options=['bypass_jira_check'])
-        self.assertEqual(retcode, ApprovalRequired.code)
+        retcode = self.handle(pr.id, options=['bypass_jira_check'])
+        self.assertEqual(retcode, exns.ApprovalRequired.code)
 
         # test unknown command
         comment = pr.add_comment('@%s helpp' % self.args.robot_username)
-        retcode = self.handle(pr['id'], options=['bypass_jira_check'])
-        self.assertEqual(retcode, UnknownCommand.code)
+        retcode = self.handle(pr.id, options=['bypass_jira_check'])
+        self.assertEqual(retcode, exns.UnknownCommand.code)
         comment.delete()
 
         # test command args
         pr.add_comment('@%s help some arguments --hehe' %
                        self.args.robot_username)
-        retcode = self.handle(pr['id'])
-        self.assertEqual(retcode, HelpMessage.code)
+        retcode = self.handle(pr.id)
+        self.assertEqual(retcode, exns.HelpMessage.code)
 
         # test incorrect address when setting options through comments
         pr.add_comment('@toto'  # toto is not Bert-E
@@ -1318,8 +1284,8 @@ admins:
                        ' bypass_tester_approval'
                        ' bypass_build_status'
                        ' bypass_jira_check')
-        retcode = self.handle(pr['id'], options=['bypass_jira_check'])
-        self.assertEqual(retcode, ApprovalRequired.code)
+        retcode = self.handle(pr.id, options=['bypass_jira_check'])
+        self.assertEqual(retcode, exns.ApprovalRequired.code)
 
         # test options set through deleted comment(self):
         comment = pr.add_comment(
@@ -1331,40 +1297,40 @@ admins:
             ' bypass_jira_check' % self.args.robot_username
         )
         comment.delete()
-        retcode = self.handle(pr['id'], options=['bypass_jira_check'])
-        self.assertEqual(retcode, ApprovalRequired.code)
+        retcode = self.handle(pr.id, options=['bypass_jira_check'])
+        self.assertEqual(retcode, exns.ApprovalRequired.code)
 
         # test no effect sub pr options
         sub_pr_admin = self.admin_bb.get_pull_request(
-            pull_request_id=pr['id'] + 1)
+            pull_request_id=pr.id + 1)
         sub_pr_admin.add_comment('@%s'
                                  ' bypass_author_approval'
                                  ' bypass_peer_approval'
                                  ' bypass_build_status'
                                  ' bypass_jira_check' %
                                  self.args.robot_username)
-        retcode = self.handle(pr['id'], options=['bypass_jira_check'])
-        self.assertEqual(retcode, ApprovalRequired.code)
+        retcode = self.handle(pr.id, options=['bypass_jira_check'])
+        self.assertEqual(retcode, exns.ApprovalRequired.code)
         # test RELENG-1335: BertE unvalid status command
 
         feature_branch = 'bugfix/TEST-007'
         dst_branch = 'development/4.3'
 
         pr = self.create_pr(feature_branch, dst_branch)
-        retcode = self.handle(pr['id'], options=['bypass_jira_check'])
-        self.assertEqual(retcode, ApprovalRequired.code)
+        retcode = self.handle(pr.id, options=['bypass_jira_check'])
+        self.assertEqual(retcode, exns.ApprovalRequired.code)
         pr.add_comment('@%s status?' % self.args.robot_username)
-        retcode = self.handle(pr['id'], options=[
+        retcode = self.handle(pr.id, options=[
             'bypass_jira_check',
             'bypass_author_approval',
             'bypass_tester_approval',
             'bypass_peer_approval'])
-        self.assertEqual(retcode, UnknownCommand.code)
+        self.assertEqual(retcode, exns.UnknownCommand.code)
 
     def test_bypass_options(self):
         # test bypass all approvals through an incorrect bitbucket comment
         pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
-        pr_admin = self.admin_bb.get_pull_request(pull_request_id=pr['id'])
+        pr_admin = self.admin_bb.get_pull_request(pull_request_id=pr.id)
         comment = pr_admin.add_comment(
             '@%s'
             ' bypass_author_aproval'  # a p is missing
@@ -1373,8 +1339,8 @@ admins:
             ' bypass_build_status'
             ' bypass_jira_check' % self.args.robot_username
         )
-        retcode = self.handle(pr['id'], options=['bypass_jira_check'])
-        self.assertEqual(retcode, UnknownCommand.code)
+        retcode = self.handle(pr.id, options=['bypass_jira_check'])
+        self.assertEqual(retcode, exns.UnknownCommand.code)
         comment.delete()
 
         # test bypass all approvals through unauthorized bitbucket comment
@@ -1386,8 +1352,8 @@ admins:
             ' bypass_build_status'
             ' bypass_jira_check' % self.args.robot_username
         )
-        retcode = self.handle(pr['id'], options=['bypass_jira_check'])
-        self.assertEqual(retcode, NotEnoughCredentials.code)
+        retcode = self.handle(pr.id, options=['bypass_jira_check'])
+        self.assertEqual(retcode, exns.NotEnoughCredentials.code)
         comment.delete()
 
         # test bypass all approvals through an unknown bitbucket comment
@@ -1400,8 +1366,8 @@ admins:
             ' mmm_never_seen_that_before'  # this is unknown
             ' bypass_jira_check' % self.args.robot_username
         )
-        retcode = self.handle(pr['id'], options=['bypass_jira_check'])
-        self.assertEqual(retcode, UnknownCommand.code)
+        retcode = self.handle(pr.id, options=['bypass_jira_check'])
+        self.assertEqual(retcode, exns.UnknownCommand.code)
         comment.delete()
 
         # test approvals through a single bitbucket comment
@@ -1411,12 +1377,12 @@ admins:
                              ' bypass_tester_approval'
                              ' bypass_build_status'
                              ' bypass_jira_check' % self.args.robot_username)
-        retcode = self.handle(pr['id'])
-        self.assertEqual(retcode, SuccessMessage.code)
+        retcode = self.handle(pr.id)
+        self.assertEqual(retcode, exns.SuccessMessage.code)
 
         # test bypass all approvals through bitbucket comment extra spaces
         pr = self.create_pr('bugfix/TEST-00002', 'development/4.3')
-        pr_admin = self.admin_bb.get_pull_request(pull_request_id=pr['id'])
+        pr_admin = self.admin_bb.get_pull_request(pull_request_id=pr.id)
         pr_admin.add_comment('  @%s  '
                              '   bypass_author_approval  '
                              '     bypass_peer_approval   '
@@ -1424,12 +1390,12 @@ admins:
                              '  bypass_build_status'
                              '   bypass_jira_check' %
                              self.args.robot_username)
-        retcode = self.handle(pr['id'])
-        self.assertEqual(retcode, SuccessMessage.code)
+        retcode = self.handle(pr.id)
+        self.assertEqual(retcode, exns.SuccessMessage.code)
 
         # test bypass all approvals through many comments
         pr = self.create_pr('bugfix/TEST-00003', 'development/4.3')
-        pr_admin = self.admin_bb.get_pull_request(pull_request_id=pr['id'])
+        pr_admin = self.admin_bb.get_pull_request(pull_request_id=pr.id)
         pr_admin.add_comment('@%s bypass_author_approval' %
                              self.args.robot_username)
         pr_admin.add_comment('@%s bypass_peer_approval' %
@@ -1440,71 +1406,66 @@ admins:
                              self.args.robot_username)
         pr_admin.add_comment('@%s bypass_jira_check' %
                              self.args.robot_username)
-        retcode = self.handle(pr['id'])
-        self.assertEqual(retcode, SuccessMessage.code)
+        retcode = self.handle(pr.id)
+        self.assertEqual(retcode, exns.SuccessMessage.code)
 
         # test bypass all approvals through mix comments and cmdline
         pr = self.create_pr('bugfix/TEST-00004', 'development/4.3')
-        pr_admin = self.admin_bb.get_pull_request(pull_request_id=pr['id'])
+        pr_admin = self.admin_bb.get_pull_request(pull_request_id=pr.id)
         pr_admin.add_comment('@%s'
                              ' bypass_author_approval'
                              ' bypass_peer_approval'
                              ' bypass_tester_approval' %
                              self.args.robot_username)
-        retcode = self.handle(pr['id'], options=['bypass_build_status',
-                                                 'bypass_jira_check'])
-        self.assertEqual(retcode, SuccessMessage.code)
+        retcode = self.handle(pr.id, options=['bypass_build_status',
+                                              'bypass_jira_check'])
+        self.assertEqual(retcode, exns.SuccessMessage.code)
 
         # test bypass author approval through comment
         pr = self.create_pr('bugfix/TEST-00005', 'development/4.3')
-        pr_admin = self.admin_bb.get_pull_request(pull_request_id=pr['id'])
+        pr_admin = self.admin_bb.get_pull_request(pull_request_id=pr.id)
         pr_admin.add_comment('@%s'
                              ' bypass_author_approval' %
                              self.args.robot_username)
         retcode = self.handle(
-            pr['id'],
-            options=self.bypass_all_but(['bypass_author_approval']))
-        self.assertEqual(retcode, SuccessMessage.code)
+            pr.id, options=self.bypass_all_but(['bypass_author_approval']))
+        self.assertEqual(retcode, exns.SuccessMessage.code)
 
         # test bypass peer approval through comment
         pr = self.create_pr('bugfix/TEST-00006', 'development/4.3')
-        pr_admin = self.admin_bb.get_pull_request(pull_request_id=pr['id'])
-        pr_admin.add_comment('@%s'
-                             ' bypass_peer_approval' %
+        pr_admin = self.admin_bb.get_pull_request(pull_request_id=pr.id)
+        pr_admin.add_comment('@%s bypass_peer_approval' %
                              self.args.robot_username)
-        retcode = self.handle(pr['id'],
+        retcode = self.handle(pr.id,
                               options=['bypass_author_approval',
                                        'bypass_tester_approval',
                                        'bypass_jira_check',
                                        'bypass_build_status'])
-        self.assertEqual(retcode, SuccessMessage.code)
+        self.assertEqual(retcode, exns.SuccessMessage.code)
 
         # test bypass jira check through comment
         pr = self.create_pr('bugfix/TEST-00007', 'development/4.3')
-        pr_admin = self.admin_bb.get_pull_request(pull_request_id=pr['id'])
-        pr_admin.add_comment('@%s'
-                             ' bypass_jira_check' %
+        pr_admin = self.admin_bb.get_pull_request(pull_request_id=pr.id)
+        pr_admin.add_comment('@%s bypass_jira_check' %
                              self.args.robot_username)
-        retcode = self.handle(pr['id'], options=['bypass_author_approval',
-                                                 'bypass_tester_approval',
-                                                 'bypass_peer_approval',
-                                                 'bypass_build_status'])
-        self.assertEqual(retcode, SuccessMessage.code)
+        retcode = self.handle(pr.id, options=['bypass_author_approval',
+                                              'bypass_tester_approval',
+                                              'bypass_peer_approval',
+                                              'bypass_build_status'])
+        self.assertEqual(retcode, exns.SuccessMessage.code)
 
         # test bypass build status through comment
         pr = self.create_pr('bugfix/TEST-00009', 'development/4.3')
-        pr_admin = self.admin_bb.get_pull_request(pull_request_id=pr['id'])
-        pr_admin.add_comment('@%s'
-                             ' bypass_build_status' %
+        pr_admin = self.admin_bb.get_pull_request(pull_request_id=pr.id)
+        pr_admin.add_comment('@%s bypass_build_status' %
                              self.args.robot_username)
         retcode = self.handle(
-            pr['id'],
-            options=self.bypass_all_but(['bypass_build_status']))
-        self.assertEqual(retcode, SuccessMessage.code)
+            pr.id, options=self.bypass_all_but(['bypass_build_status']))
+        self.assertEqual(retcode, exns.SuccessMessage.code)
 
         # test options lost in many comments
         pr = self.create_pr('bugfix/TEST-00010', 'development/4.3')
-        pr_admin = self.admin_bb.get_pull_request(pull_request_id=pr['id'])
+        pr_admin = self.admin_bb.get_pull_request(pull_request_id=pr.id)
         for i in range(5):
             pr.add_comment('random comment %s' % i)
         pr_admin.add_comment('@%s bypass_author_approval' %
@@ -1528,54 +1489,53 @@ admins:
         pr_admin.add_comment('@%s bypass_tester_approval' %
                              self.args.robot_username)
 
-        retcode = self.handle(pr['id'])
-        self.assertEqual(retcode, SuccessMessage.code)
+        retcode = self.handle(pr.id)
+        self.assertEqual(retcode, exns.SuccessMessage.code)
 
         # test bypass all approvals through bitbucket comment extra chars
         pr = self.create_pr('bugfix/TEST-00011', 'development/4.3')
-        pr_admin = self.admin_bb.get_pull_request(pull_request_id=pr['id'])
+        pr_admin = self.admin_bb.get_pull_request(pull_request_id=pr.id)
         pr_admin.add_comment('@%s:'
                              'bypass_author_approval,  '
                              '     bypass_peer_approval,,   '
                              ' bypass_tester_approval'
                              '  bypass_build_status-bypass_jira_check' %
                              self.args.robot_username)
-        retcode = self.handle(pr['id'])
-        self.assertEqual(retcode, SuccessMessage.code)
+        retcode = self.handle(pr.id)
+        self.assertEqual(retcode, exns.SuccessMessage.code)
 
         # test bypass branch prefix through comment
         pr = self.create_pr('feature/TEST-00012', 'development/4.3')
-        pr_admin = self.admin_bb.get_pull_request(pull_request_id=pr['id'])
+        pr_admin = self.admin_bb.get_pull_request(pull_request_id=pr.id)
         pr_admin.add_comment('@%s bypass_incompatible_branch' %
                              self.args.robot_username)
         retcode = self.handle(
-            pr['id'],
-            options=self.bypass_all_but(['bypass_incompatible_branch']))
-        self.assertEqual(retcode, SuccessMessage.code)
+            pr.id, options=self.bypass_all_but(['bypass_incompatible_branch']))
+        self.assertEqual(retcode, exns.SuccessMessage.code)
 
     def test_rebased_feature_branch(self):
         pr = self.create_pr('bugfix/TEST-00074', 'development/4.3')
-        with self.assertRaises(BuildNotStarted):
+        with self.assertRaises(exns.BuildNotStarted):
             retcode = self.handle(
-                pr['id'],
+                pr.id,
                 options=self.bypass_all_but(['bypass_build_status']),
                 backtrace=True)
 
         # create another PR and merge it entirely
         pr2 = self.create_pr('bugfix/TEST-00075', 'development/4.3')
-        retcode = self.handle(pr2['id'], options=self.bypass_all)
-        self.assertEqual(retcode, SuccessMessage.code)
+        retcode = self.handle(pr2.id, options=self.bypass_all)
+        self.assertEqual(retcode, exns.SuccessMessage.code)
 
         rebase_branch(self.gitrepo, 'bugfix/TEST-00075', 'development/4.3')
-        retcode = self.handle(pr['id'], options=self.bypass_all)
-        self.assertEqual(retcode, SuccessMessage.code)
+        retcode = self.handle(pr.id, options=self.bypass_all)
+        self.assertEqual(retcode, exns.SuccessMessage.code)
 
     def test_first_integration_branch_manually_updated(self):
         feature_branch = 'bugfix/TEST-0076'
         first_integration_branch = 'w/4.3/bugfix/TEST-0076'
         pr = self.create_pr(feature_branch, 'development/4.3')
-        with self.assertRaises(BuildNotStarted):
-            self.handle(pr['id'],
+        with self.assertRaises(exns.BuildNotStarted):
+            self.handle(pr.id,
                         options=self.bypass_all_but(['bypass_build_status']),
                         backtrace=True)
 
@@ -1583,9 +1543,9 @@ admins:
         add_file_to_branch(self.gitrepo, first_integration_branch,
                            'file_added_on_int_branch')
 
-        retcode = self.handle(pr['id'],
+        retcode = self.handle(pr.id,
                               options=['bypass_jira_check'])
-        self.assertEqual(retcode, BranchHistoryMismatch.code)
+        self.assertEqual(retcode, exns.BranchHistoryMismatch.code)
 
     def test_branches_not_self_contained(self):
         """Check that we can detect malformed git repositories."""
@@ -1596,8 +1556,8 @@ admins:
         add_file_to_branch(self.gitrepo, 'development/4.3',
                            'file_pushed_without_bert-e.txt', do_push=True)
 
-        with self.assertRaises(DevBranchesNotSelfContained):
-            self.handle(pr['id'], options=self.bypass_all)
+        with self.assertRaises(exns.DevBranchesNotSelfContained):
+            self.handle(pr.id, options=self.bypass_all)
 
     def test_missing_development_branch(self):
         """Check that we can detect malformed git repositories."""
@@ -1607,8 +1567,8 @@ admins:
         pr = self.create_pr(feature_branch, dst_branch)
         self.gitrepo.cmd('git push origin :development/6.0')
 
-        with self.assertRaises(DevBranchDoesNotExist):
-            self.handle(pr['id'], options=self.bypass_all)
+        with self.assertRaises(exns.DevBranchDoesNotExist):
+            self.handle(pr.id, options=self.bypass_all)
 
     def test_wrong_pr_destination(self):
         """Check what happens if a PR's destination doesn't exist anymore."""
@@ -1616,8 +1576,8 @@ admins:
 
         self.gitrepo.cmd('git push origin :development/5.1')
 
-        with self.assertRaises(WrongDestination):
-            self.handle(pr['id'], backtrace=True)
+        with self.assertRaises(exns.WrongDestination):
+            self.handle(pr.id, backtrace=True)
 
     def test_pr_skew_with_lagging_pull_request_data(self):
         # create hook
@@ -1636,14 +1596,14 @@ admins:
 
             pr = self.create_pr('bugfix/TEST-00081', 'development/6.0')
             # Create integration branch and child pr
-            with self.assertRaises(BuildNotStarted):
-                self.handle(pr['id'],
+            with self.assertRaises(exns.BuildNotStarted):
+                self.handle(pr.id,
                             options=self.bypass_all_but(
                                 ['bypass_build_status']),
                             backtrace=True)
 
             # Set build status on child pr
-            self.set_build_status_on_pr_id(pr['id'] + 1, 'SUCCESSFUL')
+            self.set_build_status_on_pr_id(pr.id + 1, 'SUCCESSFUL')
 
             # Add a new commit
             self.gitrepo.cmd('git checkout bugfix/TEST-00081')
@@ -1660,8 +1620,8 @@ admins:
             gwf.create_integration_pull_requests = _create_pull_requests2
 
             # Run Bert-E
-            with self.assertRaises(BuildNotStarted):
-                self.handle(pr['id'],
+            with self.assertRaises(exns.BuildNotStarted):
+                self.handle(pr.id,
                             options=self.bypass_all_but(
                                 ['bypass_build_status']),
                             backtrace=True)
@@ -1672,13 +1632,13 @@ admins:
     def test_pr_skew_with_new_external_commit(self):
         pr = self.create_pr('bugfix/TEST-00081', 'development/6.0')
         # Create integration branch and child pr
-        with self.assertRaises(BuildNotStarted):
-            self.handle(pr['id'],
+        with self.assertRaises(exns.BuildNotStarted):
+            self.handle(pr.id,
                         options=self.bypass_all_but(['bypass_build_status']),
                         backtrace=True)
 
         # Set build status on child pr
-        self.set_build_status_on_pr_id(pr['id'] + 1, 'SUCCESSFUL')
+        self.set_build_status_on_pr_id(pr.id + 1, 'SUCCESSFUL')
 
         # create hook
         try:
@@ -1700,14 +1660,14 @@ admins:
                 child_prs = real(*args, **kwargs)
                 if TestBertE.args.disable_mock:
                     # make 100% sure the PR is up-to-date (since BB lags):
-                    child_prs[0]['source']['commit']['hash'] = sha1
+                    child_prs[0].src_commit = sha1
                 return child_prs
 
             gwf.create_integration_pull_requests = _create_pull_requests
 
             # Run Bert-E
-            with self.assertRaises(PullRequestSkewDetected):
-                self.handle(pr['id'],
+            with self.assertRaises(exns.PullRequestSkewDetected):
+                self.handle(pr.id,
                             options=self.bypass_all_but(
                                 ['bypass_build_status']),
                             backtrace=True)
@@ -1717,164 +1677,164 @@ admins:
 
     def test_build_key_on_main_pr_has_no_effect(self):
         pr = self.create_pr('bugfix/TEST-00078', 'development/4.3')
-        with self.assertRaises(BuildNotStarted):
-            self.handle(pr['id'],
+        with self.assertRaises(exns.BuildNotStarted):
+            self.handle(pr.id,
                         options=self.bypass_all_but(['bypass_build_status']),
                         backtrace=True)
         # create another PR, so that integration PR will have different
         # commits than source PR
         pr2 = self.create_pr('bugfix/TEST-00079', 'development/4.3')
-        retcode = self.handle(pr2['id'], options=self.bypass_all)
-        self.assertEqual(retcode, SuccessMessage.code)
+        retcode = self.handle(pr2.id, options=self.bypass_all)
+        self.assertEqual(retcode, exns.SuccessMessage.code)
         # restart PR number 1 to update it with content of 2
-        with self.assertRaises(BuildNotStarted):
-            self.handle(pr['id'],
+        with self.assertRaises(exns.BuildNotStarted):
+            self.handle(pr.id,
                         options=self.bypass_all_but(['bypass_build_status']),
                         backtrace=True)
-        self.set_build_status_on_pr_id(pr['id'], 'FAILED')
-        self.set_build_status_on_pr_id(pr['id'] + 1, 'SUCCESSFUL')
-        self.set_build_status_on_pr_id(pr['id'] + 2, 'SUCCESSFUL')
-        self.set_build_status_on_pr_id(pr['id'] + 3, 'SUCCESSFUL')
+        self.set_build_status_on_pr_id(pr.id, 'FAILED')
+        self.set_build_status_on_pr_id(pr.id + 1, 'SUCCESSFUL')
+        self.set_build_status_on_pr_id(pr.id + 2, 'SUCCESSFUL')
+        self.set_build_status_on_pr_id(pr.id + 3, 'SUCCESSFUL')
         retcode = self.handle(
-            pr['id'],
+            pr.id,
             options=self.bypass_all_but(['bypass_build_status']))
-        self.assertEqual(retcode, SuccessMessage.code)
+        self.assertEqual(retcode, exns.SuccessMessage.code)
 
     def test_build_status(self):
         pr = self.create_pr('bugfix/TEST-00081', 'development/4.3')
 
         # test build not started
-        with self.assertRaises(BuildNotStarted):
-            self.handle(pr['id'],
+        with self.assertRaises(exns.BuildNotStarted):
+            self.handle(pr.id,
                         options=self.bypass_all_but(['bypass_build_status']),
                         backtrace=True)
 
         # test non related build key
-        self.set_build_status_on_pr_id(pr['id'] + 1, 'SUCCESSFUL',
+        self.set_build_status_on_pr_id(pr.id + 1, 'SUCCESSFUL',
                                        key='pipelin')
-        self.set_build_status_on_pr_id(pr['id'] + 2, 'SUCCESSFUL',
+        self.set_build_status_on_pr_id(pr.id + 2, 'SUCCESSFUL',
                                        key='pipelin')
-        self.set_build_status_on_pr_id(pr['id'] + 3, 'SUCCESSFUL',
+        self.set_build_status_on_pr_id(pr.id + 3, 'SUCCESSFUL',
                                        key='pipelin')
-        with self.assertRaises(BuildNotStarted):
-            self.handle(pr['id'],
+        with self.assertRaises(exns.BuildNotStarted):
+            self.handle(pr.id,
                         options=self.bypass_all_but(['bypass_build_status']),
                         backtrace=True)
 
         # test build status failed
-        self.set_build_status_on_pr_id(pr['id'] + 1, 'SUCCESSFUL')
-        self.set_build_status_on_pr_id(pr['id'] + 2, 'INPROGRESS')
-        self.set_build_status_on_pr_id(pr['id'] + 3, 'FAILED')
+        self.set_build_status_on_pr_id(pr.id + 1, 'SUCCESSFUL')
+        self.set_build_status_on_pr_id(pr.id + 2, 'INPROGRESS')
+        self.set_build_status_on_pr_id(pr.id + 3, 'FAILED')
         retcode = self.handle(
-            pr['id'],
+            pr.id,
             options=self.bypass_all_but(['bypass_build_status']))
-        self.assertEqual(retcode, BuildFailed.code)
+        self.assertEqual(retcode, exns.BuildFailed.code)
 
         # test build status inprogress
-        self.set_build_status_on_pr_id(pr['id'] + 1, 'SUCCESSFUL')
-        self.set_build_status_on_pr_id(pr['id'] + 2, 'INPROGRESS')
-        self.set_build_status_on_pr_id(pr['id'] + 3, 'SUCCESSFUL')
-        with self.assertRaises(BuildInProgress):
-            self.handle(pr['id'],
+        self.set_build_status_on_pr_id(pr.id + 1, 'SUCCESSFUL')
+        self.set_build_status_on_pr_id(pr.id + 2, 'INPROGRESS')
+        self.set_build_status_on_pr_id(pr.id + 3, 'SUCCESSFUL')
+        with self.assertRaises(exns.BuildInProgress):
+            self.handle(pr.id,
                         options=self.bypass_all_but(['bypass_build_status']),
                         backtrace=True)
 
         # test bypass tester approval through comment
         pr = self.create_pr('bugfix/TEST-00078', 'development/4.3')
-        pr_admin = self.admin_bb.get_pull_request(pull_request_id=pr['id'])
+        pr_admin = self.admin_bb.get_pull_request(pull_request_id=pr.id)
         pr_admin.add_comment('@%s bypass_tester_approval' %
                              self.args.robot_username)
 
-        retcode = self.handle(pr['id'], options=[
+        retcode = self.handle(pr.id, options=[
                               'bypass_author_approval',
                               'bypass_peer_approval',
                               'bypass_jira_check',
                               'bypass_build_status'])
-        self.assertEqual(retcode, SuccessMessage.code)
+        self.assertEqual(retcode, exns.SuccessMessage.code)
 
     def test_build_status_triggered_by_build_result(self):
         pr = self.create_pr('bugfix/TEST-00081', 'development/5.1')
-        with self.assertRaises(BuildNotStarted):
-            self.handle(pr['id'],
+        with self.assertRaises(exns.BuildNotStarted):
+            self.handle(pr.id,
                         options=self.bypass_all_but(['bypass_build_status']),
                         backtrace=True)
-        self.set_build_status_on_pr_id(pr['id'] + 1, 'FAILED', url='DEADBEEF')
-        self.set_build_status_on_pr_id(pr['id'] + 2, 'SUCCESSFUL')
+        self.set_build_status_on_pr_id(pr.id + 1, 'FAILED', url='DEADBEEF')
+        self.set_build_status_on_pr_id(pr.id + 2, 'SUCCESSFUL')
 
-        with self.assertRaises(BuildFailed) as err:
+        with self.assertRaises(exns.BuildFailed) as err:
 
             childpr = self.robot_bb.get_pull_request(
-                pull_request_id=pr['id'] + 1)
+                pull_request_id=pr.id + 1)
 
-            self.handle(childpr['source']['commit']['hash'],
-                        options=self.bypass_all_but(
-                        ['bypass_build_status']),
+            self.handle(childpr.src_commit,
+                        options=self.bypass_all_but(['bypass_build_status']),
                         backtrace=True)
             self.assertIn("(DEADBEEF)", err.msg)
 
-        self.set_build_status_on_pr_id(pr['id'] + 1, 'SUCCESSFUL')
+        self.set_build_status_on_pr_id(pr.id + 1, 'SUCCESSFUL')
 
-        retcode = self.handle(childpr['source']['commit']['hash'],
-                              options=self.bypass_all_but(
-                                  ['bypass_build_status']))
-        self.assertEqual(retcode, SuccessMessage.code)
+        retcode = self.handle(
+            childpr.src_commit,
+            options=self.bypass_all_but(['bypass_build_status'])
+        )
+        self.assertEqual(retcode, exns.SuccessMessage.code)
 
     def test_source_branch_history_changed(self):
         pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
-        with self.assertRaises(BuildNotStarted):
-            self.handle(pr['id'],
+        with self.assertRaises(exns.BuildNotStarted):
+            self.handle(pr.id,
                         options=self.bypass_all_but(['bypass_build_status']),
                         backtrace=True)
         # see what happens when the source branch is deleted
         self.gitrepo.cmd('git checkout development/4.3')
         self.gitrepo.cmd('git push origin :bugfix/TEST-00001')
         self.gitrepo.cmd('git branch -D bugfix/TEST-00001')
-        with self.assertRaises(NothingToDo):
-            self.handle(pr['id'],
+        with self.assertRaises(exns.NothingToDo):
+            self.handle(pr.id,
                         options=self.bypass_all,
                         backtrace=True)
         # recreate branch with a different history
         create_branch(self.gitrepo, 'bugfix/TEST-00001',
                       from_branch='development/4.3', file_="a_new_file")
         retcode = self.handle(
-            pr['id'],
+            pr.id,
             options=self.bypass_all_but(['bypass_build_status']))
-        self.assertEqual(retcode, BranchHistoryMismatch.code)
+        self.assertEqual(retcode, exns.BranchHistoryMismatch.code)
 
     def test_source_branch_commit_added_and_target_updated(self):
         pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
         pr2 = self.create_pr('bugfix/TEST-00002', 'development/4.3')
-        with self.assertRaises(BuildNotStarted):
-            self.handle(pr['id'],
+        with self.assertRaises(exns.BuildNotStarted):
+            self.handle(pr.id,
                         options=self.bypass_all_but(['bypass_build_status']),
                         backtrace=True)
 
         # Source branch is modified
         add_file_to_branch(self.gitrepo, 'bugfix/TEST-00001', 'some_file')
         # Another PR is merged
-        retcode = self.handle(pr2['id'], options=self.bypass_all)
-        self.assertEqual(retcode, SuccessMessage.code)
+        retcode = self.handle(pr2.id, options=self.bypass_all)
+        self.assertEqual(retcode, exns.SuccessMessage.code)
 
-        retcode = self.handle(pr['id'],
+        retcode = self.handle(pr.id,
                               options=self.bypass_all)
-        self.assertEqual(retcode, SuccessMessage.code)
+        self.assertEqual(retcode, exns.SuccessMessage.code)
 
     def test_source_branch_commit_added(self):
         pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
-        with self.assertRaises(BuildNotStarted):
-            self.handle(pr['id'],
+        with self.assertRaises(exns.BuildNotStarted):
+            self.handle(pr.id,
                         options=self.bypass_all_but(['bypass_build_status']),
                         backtrace=True)
         add_file_to_branch(self.gitrepo, 'bugfix/TEST-00001',
                            'file_added_on_source_branch')
-        retcode = self.handle(pr['id'],
+        retcode = self.handle(pr.id,
                               options=self.bypass_all)
-        self.assertEqual(retcode, SuccessMessage.code)
+        self.assertEqual(retcode, exns.SuccessMessage.code)
 
     def test_source_branch_forced_pushed(self):
         pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
-        with self.assertRaises(BuildNotStarted):
-            self.handle(pr['id'],
+        with self.assertRaises(exns.BuildNotStarted):
+            self.handle(pr.id,
                         options=self.bypass_all_but(['bypass_build_status']),
                         backtrace=True)
         create_branch(self.gitrepo, 'bugfix/TEST-00002',
@@ -1882,15 +1842,15 @@ admins:
                       file_="another_new_file", do_push=False)
         self.gitrepo.cmd(
             'git push -u -f origin bugfix/TEST-00002:bugfix/TEST-00001')
-        retcode = self.handle(pr['id'],
+        retcode = self.handle(pr.id,
                               options=self.bypass_all)
-        self.assertEqual(retcode, BranchHistoryMismatch.code)
+        self.assertEqual(retcode, exns.BranchHistoryMismatch.code)
 
     def test_integration_branch_and_source_branch_updated(self):
         pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
-        with self.assertRaises(BuildNotStarted):
+        with self.assertRaises(exns.BuildNotStarted):
             self.handle(
-                pr['id'],
+                pr.id,
                 options=self.bypass_all_but(['bypass_build_status']),
                 backtrace=True)
         first_integration_branch = 'w/4.3/bugfix/TEST-00001'
@@ -1899,15 +1859,15 @@ admins:
                            'file_added_on_int_branch')
         add_file_to_branch(self.gitrepo, 'bugfix/TEST-00001',
                            'file_added_on_source_branch')
-        retcode = self.handle(pr['id'],
+        retcode = self.handle(pr.id,
                               options=self.bypass_all)
-        self.assertEqual(retcode, BranchHistoryMismatch.code)
+        self.assertEqual(retcode, exns.BranchHistoryMismatch.code)
 
     def test_integration_branch_and_source_branch_force_updated(self):
         pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
-        with self.assertRaises(BuildNotStarted):
+        with self.assertRaises(exns.BuildNotStarted):
             self.handle(
-                pr['id'],
+                pr.id,
                 options=self.bypass_all_but(['bypass_build_status']),
                 backtrace=True)
         first_integration_branch = 'w/4.3/bugfix/TEST-00001'
@@ -1919,15 +1879,14 @@ admins:
                       file_="another_new_file", do_push=False)
         self.gitrepo.cmd(
             'git push -u -f origin bugfix/TEST-00002:bugfix/TEST-00001')
-        retcode = self.handle(pr['id'],
+        retcode = self.handle(pr.id,
                               options=self.bypass_all)
-        self.assertEqual(retcode, BranchHistoryMismatch.code)
+        self.assertEqual(retcode, exns.BranchHistoryMismatch.code)
 
     def successful_merge_into_stabilization_branch(self, branch_name,
                                                    expected_dest_branches):
         pr = self.create_pr('bugfix/TEST-00001', branch_name)
-        self.handle(pr['id'],
-                    options=self.bypass_all)
+        self.handle(pr.id, options=self.bypass_all)
         self.gitrepo.cmd('git pull -a --prune')
         expected_result = set(expected_dest_branches)
         result = set(self.gitrepo
@@ -1968,13 +1927,13 @@ admins:
     def test_success_message_content(self):
         pr = self.create_pr('bugfix/TEST-00001', 'stabilization/5.1.4')
         try:
-            self.handle(pr['id'], options=[
+            self.handle(pr.id, options=[
                 'bypass_build_status',
                 'bypass_tester_approval',
                 'bypass_peer_approval',
                 'bypass_author_approval'],
                 backtrace=True)
-        except SuccessMessage as e:
+        except exns.SuccessMessage as e:
             self.assertIn('* :heavy_check_mark: `stabilization/5.1.4`', e.msg)
             self.assertIn('* :heavy_check_mark: `development/5.1`', e.msg)
             self.assertIn('* :heavy_check_mark: `development/6.0`', e.msg)
@@ -1990,8 +1949,8 @@ admins:
 
         pr = self.create_pr(feature_branch, dst_branch,
                             reviewers=reviewers)
-        with self.assertRaises(ApprovalRequired) as raised:
-            self.handle(pr['id'],
+        with self.assertRaises(exns.ApprovalRequired) as raised:
+            self.handle(pr.id,
                         options=self.bypass_all + ['unanimity'],
                         backtrace=True)
         self.assertIn('author', raised.exception.msg)
@@ -2008,35 +1967,29 @@ admins:
 
         pr.add_comment('@%s unanimity' % self.args.robot_username)
 
-        with self.assertRaises(ApprovalRequired) as raised:
-            self.handle(pr['id'],
-                        options=['bypass_jira_check'],
-                        backtrace=True)
+        with self.assertRaises(exns.ApprovalRequired) as raised:
+            self.handle(pr.id, options=['bypass_jira_check'], backtrace=True)
         self.assertIn('unanimity', raised.exception.msg)
 
         # Author adds approval
         pr.approve()
-        with self.assertRaises(ApprovalRequired) as raised:
-            self.handle(pr['id'],
-                        options=['bypass_jira_check'],
-                        backtrace=True)
+        with self.assertRaises(exns.ApprovalRequired) as raised:
+            self.handle(pr.id, options=['bypass_jira_check'], backtrace=True)
         self.assertIn('unanimity', raised.exception.msg)
 
         # 1st reviewer adds approval
-        pr_peer = self.admin_bb.get_pull_request(pull_request_id=pr['id'])
+        pr_peer = self.admin_bb.get_pull_request(pull_request_id=pr.id)
         pr_peer.approve()
-        with self.assertRaises(ApprovalRequired) as raised:
-            self.handle(pr['id'],
-                        options=['bypass_jira_check'],
-                        backtrace=True)
+        with self.assertRaises(exns.ApprovalRequired) as raised:
+            self.handle(pr.id, options=['bypass_jira_check'], backtrace=True)
         self.assertIn('unanimity', raised.exception.msg)
 
         # 2nd reviewer adds approval
         pr_peer = self.robot_bb.get_pull_request(
-            pull_request_id=pr['id'])
+            pull_request_id=pr.id)
         pr_peer.approve()
-        with self.assertRaises(SuccessMessage) as raised:
-            self.handle(pr['id'],
+        with self.assertRaises(exns.SuccessMessage) as raised:
+            self.handle(pr.id,
                         options=['bypass_jira_check',
                                  'bypass_build_status'],
                         backtrace=True)
@@ -2050,29 +2003,29 @@ admins:
         comment_declined = blocked_pr.add_comment(
             '@%s after_pull_request=%s' % (
                 self.args.robot_username,
-                pr_declined['id']))
+                pr_declined.id))
 
-        retcode = self.handle(blocked_pr['id'], options=self.bypass_all)
-        self.assertEqual(retcode, AfterPullRequest.code)
+        retcode = self.handle(blocked_pr.id, options=self.bypass_all)
+        self.assertEqual(retcode, exns.AfterPullRequest.code)
 
         blocked_pr.add_comment('@%s unanimity after_pull_request=%s' % (
-            self.args.robot_username, pr_opened['id']))
+            self.args.robot_username, pr_opened.id))
 
-        retcode = self.handle(blocked_pr['id'], options=self.bypass_all)
-        self.assertEqual(retcode, AfterPullRequest.code)
+        retcode = self.handle(blocked_pr.id, options=self.bypass_all)
+        self.assertEqual(retcode, exns.AfterPullRequest.code)
 
         comment_declined.delete()
-        retcode = self.handle(blocked_pr['id'], options=self.bypass_all)
-        self.assertEqual(retcode, AfterPullRequest.code)
+        retcode = self.handle(blocked_pr.id, options=self.bypass_all)
+        self.assertEqual(retcode, exns.AfterPullRequest.code)
 
-        retcode = self.handle(pr_opened['id'], options=self.bypass_all)
-        self.assertEqual(retcode, SuccessMessage.code)
+        retcode = self.handle(pr_opened.id, options=self.bypass_all)
+        self.assertEqual(retcode, exns.SuccessMessage.code)
 
         if RepositoryTests.args.disable_mock:
             # take bitbucket laggyness into account
             time.sleep(10)
-        with self.assertRaises(ApprovalRequired) as raised:
-            self.handle(blocked_pr['id'], options=self.bypass_all,
+        with self.assertRaises(exns.ApprovalRequired) as raised:
+            self.handle(blocked_pr.id, options=self.bypass_all,
                         backtrace=True)
         self.assertIn('unanimity', raised.exception.msg)
 
@@ -2084,10 +2037,10 @@ admins:
         blocked_pr.add_comment(
             '@%s after_pull_request %s' % (
                 self.args.robot_username,
-                pr_declined['id']))
+                pr_declined.id))
 
-        retcode = self.handle(blocked_pr['id'], options=self.bypass_all)
-        self.assertEqual(retcode, IncorrectCommandSyntax.code)
+        retcode = self.handle(blocked_pr.id, options=self.bypass_all)
+        self.assertEqual(retcode, exns.IncorrectCommandSyntax.code)
 
     def test_after_pull_request_wrong_pr_id(self):
         blocked_pr = self.create_pr('bugfix/TEST-00003', 'development/4.3')
@@ -2095,8 +2048,8 @@ admins:
         blocked_pr.add_comment(
             '@%s after_pull_request=0' % (self.args.robot_username,))
 
-        retcode = self.handle(blocked_pr['id'], options=self.bypass_all)
-        self.assertEqual(retcode, IncorrectPullRequestNumber.code)
+        retcode = self.handle(blocked_pr.id, options=self.bypass_all)
+        self.assertEqual(retcode, exns.IncorrectPullRequestNumber.code)
 
     def test_bitbucket_lag_on_pr_status(self):
         """Bitbucket can be a bit long to update a merged PR's status.
@@ -2109,13 +2062,13 @@ admins:
             real = gwf.early_checks
 
             pr = self.create_pr('bugfix/TEST-00081', 'development/6.0')
-            retcode = self.handle(pr['id'], self.bypass_all)
-            self.assertEqual(retcode, SuccessMessage.code)
+            retcode = self.handle(pr.id, self.bypass_all)
+            self.assertEqual(retcode, exns.SuccessMessage.code)
 
             gwf.early_checks = lambda *args, **kwargs: None
 
-            with self.assertRaises(NothingToDo):
-                self.handle(pr['id'], self.bypass_all, backtrace=True)
+            with self.assertRaises(exns.NothingToDo):
+                self.handle(pr.id, self.bypass_all, backtrace=True)
 
         finally:
             gwf.early_checks = real
@@ -2133,18 +2086,18 @@ admins:
         )
 
         try:
-            retcode = self.handle(pr['id'], options=self.bypass_all)
+            retcode = self.handle(pr.id, options=self.bypass_all)
         except requests.HTTPError as err:
             self.fail("Error from bitbucket: %s" % err.response.text)
-        self.assertEqual(retcode, SuccessMessage.code)
+        self.assertEqual(retcode, exns.SuccessMessage.code)
 
     def test_main_pr_declined(self):
         """Check integration data (PR+branches) is deleted when original
         PR is declined."""
         pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
-        with self.assertRaises(BuildNotStarted):
+        with self.assertRaises(exns.BuildNotStarted):
             self.handle(
-                pr['id'],
+                pr.id,
                 options=self.bypass_all_but(['bypass_build_status']),
                 backtrace=True)
 
@@ -2152,17 +2105,17 @@ admins:
         branches = self.gitrepo.cmd(
             'git ls-remote origin w/*/bugfix/TEST-00001')
         assert len(branches)
-        pr_ = self.admin_bb.get_pull_request(pull_request_id=pr['id'] + 1)
-        assert pr_['state'] == 'OPEN'
-        pr_ = self.admin_bb.get_pull_request(pull_request_id=pr['id'] + 2)
-        assert pr_['state'] == 'OPEN'
-        pr_ = self.admin_bb.get_pull_request(pull_request_id=pr['id'] + 3)
-        assert pr_['state'] == 'OPEN'
+        pr_ = self.admin_bb.get_pull_request(pull_request_id=pr.id + 1)
+        assert pr_.status == 'OPEN'
+        pr_ = self.admin_bb.get_pull_request(pull_request_id=pr.id + 2)
+        assert pr_.status == 'OPEN'
+        pr_ = self.admin_bb.get_pull_request(pull_request_id=pr.id + 3)
+        assert pr_.status == 'OPEN'
 
         pr.decline()
-        with self.assertRaises(PullRequestDeclined):
+        with self.assertRaises(exns.PullRequestDeclined):
             self.handle(
-                pr['id'],
+                pr.id,
                 options=self.bypass_all_but(['bypass_build_status']),
                 backtrace=True)
 
@@ -2170,17 +2123,17 @@ admins:
         branches = self.gitrepo.cmd(
             'git ls-remote origin w/*/bugfix/TEST-00001')
         assert branches == ''
-        pr_ = self.admin_bb.get_pull_request(pull_request_id=pr['id'] + 1)
-        assert pr_['state'] == 'DECLINED'
-        pr_ = self.admin_bb.get_pull_request(pull_request_id=pr['id'] + 2)
-        assert pr_['state'] == 'DECLINED'
-        pr_ = self.admin_bb.get_pull_request(pull_request_id=pr['id'] + 3)
-        assert pr_['state'] == 'DECLINED'
+        pr_ = self.admin_bb.get_pull_request(pull_request_id=pr.id + 1)
+        assert pr_.status == 'DECLINED'
+        pr_ = self.admin_bb.get_pull_request(pull_request_id=pr.id + 2)
+        assert pr_.status == 'DECLINED'
+        pr_ = self.admin_bb.get_pull_request(pull_request_id=pr.id + 3)
+        assert pr_.status == 'DECLINED'
 
         # check nothing bad happens if called again
-        with self.assertRaises(NothingToDo):
+        with self.assertRaises(exns.NothingToDo):
             self.handle(
-                pr['id'],
+                pr.id,
                 options=self.bypass_all_but(['bypass_build_status']),
                 backtrace=True)
 
@@ -2194,8 +2147,8 @@ admins:
         self.gitrepo.cmd('git commit -m "something"')
         self.gitrepo.push('bugfix/TEST-0001')
 
-        self.handle(pr['id'],
-                    options=self.bypass_all_but(['bypass_build_status']))
+        self.handle(
+            pr.id, options=self.bypass_all_but(['bypass_build_status']))
 
         int_prs = list(self.contributor_bb.get_pull_requests(
             src_branch=[
@@ -2209,9 +2162,9 @@ admins:
         self.gitrepo.cmd('git reset HEAD~1 --hard')
         self.gitrepo.cmd('git push origin -f bugfix/TEST-0001')
 
-        res = self.handle(pr['id'], options=self.bypass_all)
+        res = self.handle(pr.id, options=self.bypass_all)
 
-        assert res == BranchHistoryMismatch.code
+        assert res == exns.BranchHistoryMismatch.code
 
         # Decline integration pull requests
         assert len(int_prs) == 3
@@ -2223,9 +2176,9 @@ admins:
                           ':w/5.1/bugfix/TEST-0001 '
                           ':w/6.0/bugfix/TEST-0001')
 
-        ret = self.handle(pr['id'], options=self.bypass_all)
+        ret = self.handle(pr.id, options=self.bypass_all)
 
-        assert ret == SuccessMessage.code
+        assert ret == exns.SuccessMessage.code
 
     def test_branch_name_escape(self):
         """Make sure git api support branch names with
@@ -2243,13 +2196,13 @@ admins:
         self.assertTrue(Branch(self.gitrepo, unescaped).exists())
 
     def test_input_tokens(self):
-        with self.assertRaises(UnsupportedTokenType):
+        with self.assertRaises(exns.UnsupportedTokenType):
             self.handle('toto')
 
-        with self.assertRaises(UnsupportedTokenType):
+        with self.assertRaises(exns.UnsupportedTokenType):
             self.handle('1a2b3c')  # short sha1
 
-        with self.assertRaises(UnsupportedTokenType):
+        with self.assertRaises(exns.UnsupportedTokenType):
             self.handle('/development/4.3')
 
     def test_conflict_due_to_update_order(self):
@@ -2264,20 +2217,20 @@ admins:
                              file_='toto.txt')
         pr3 = self.create_pr('bugfix/TEST-0007-unrelated', 'development/4.3')
 
-        self.handle(pr2['id'],
-                    options=self.bypass_all_but(['bypass_author_approval']))
+        self.handle(
+            pr2.id, options=self.bypass_all_but(['bypass_author_approval']))
 
         # Merge the first Pull Request
-        retcode = self.handle(pr1['id'], options=self.bypass_all)
-        self.assertEqual(retcode, SuccessMessage.code)
+        retcode = self.handle(pr1.id, options=self.bypass_all)
+        self.assertEqual(retcode, exns.SuccessMessage.code)
 
-        self.handle(pr3['id'],
-                    options=self.bypass_all_but(['bypass_author_approval']))
+        self.handle(
+            pr3.id, options=self.bypass_all_but(['bypass_author_approval']))
 
         # Conflict on branch 'w/5.1/bugfix/TEST-0006-other'
         try:
-            self.handle(pr2['id'], options=self.bypass_all, backtrace=True)
-        except Conflict as err:
+            self.handle(pr2.id, options=self.bypass_all, backtrace=True)
+        except exns.Conflict as err:
             self.assertIn('`w/5.1/bugfix/TEST-0006-other` with', err.msg)
         else:
             self.fail('No conflict detected')
@@ -2293,10 +2246,10 @@ admins:
         self.gitrepo.push('w/5.1/bugfix/TEST-0006-other')
 
         # Conflict should be resolved and PR merged
-        retcode = self.handle(pr2['id'], options=self.bypass_all)
-        self.assertEqual(retcode, SuccessMessage.code)
+        retcode = self.handle(pr2.id, options=self.bypass_all)
+        self.assertEqual(retcode, exns.SuccessMessage.code)
 
-        retcode = self.handle(pr3['id'], options=self.bypass_all)
+        retcode = self.handle(pr3.id, options=self.bypass_all)
 
     def test_settings(self):
         # test with no peer approvals set to 0
@@ -2313,14 +2266,11 @@ required_peer_approvals: 0
 admins:
   - {admin}
 """ # noqa
-        with self.assertRaises(BuildNotStarted):
+        with self.assertRaises(exns.BuildNotStarted):
             self.handle(
-                pr['id'],
-                options=[
-                    'bypass_author_approval',
-                ],
-                backtrace=True,
-                settings=settings)
+                pr.id, options=['bypass_author_approval'], backtrace=True,
+                settings=settings
+            )
 
         # test with incorrect settings file
         pr = self.create_pr('bugfix/TEST-00002', 'development/4.3')
@@ -2334,14 +2284,11 @@ commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
 build_key
 required_peer_approvals: 0
 """ # noqa
-        with self.assertRaises(IncorrectSettingsFile):
+        with self.assertRaises(exns.IncorrectSettingsFile):
             self.handle(
-                pr['id'],
-                options=[
-                    'bypass_author_approval',
-                ],
-                backtrace=True,
-                settings=settings)
+                pr.id, options=['bypass_author_approval'], backtrace=True,
+                settings=settings
+            )
 
         # test with different build key
         pr = self.create_pr('bugfix/TEST-00003', 'development/6.0')
@@ -2358,21 +2305,15 @@ required_peer_approvals: 0
 admins:
   - {admin}
 """ # noqa
-        self.set_build_status_on_pr_id(pr['id'], 'SUCCESSFUL')
-        with self.assertRaises(BuildNotStarted):
+        self.set_build_status_on_pr_id(pr.id, 'SUCCESSFUL')
+        with self.assertRaises(exns.BuildNotStarted):
             self.handle(
-                pr['id'],
-                options=[
-                    'bypass_author_approval',
-                ],
-                backtrace=True,
+                pr.id, options=['bypass_author_approval'], backtrace=True,
                 settings=settings)
-        self.set_build_status_on_pr_id(pr['id'], 'SUCCESSFUL',
-                                       key='toto')
-        retcode = self.handle(pr['id'],
-                              options=['bypass_author_approval'],
-                              settings=settings)
-        self.assertEqual(retcode, SuccessMessage.code)
+        self.set_build_status_on_pr_id(pr.id, 'SUCCESSFUL', key='toto')
+        retcode = self.handle(
+            pr.id, options=['bypass_author_approval'], settings=settings)
+        self.assertEqual(retcode, exns.SuccessMessage.code)
 
         # test missing mandatory setting
         pr = self.create_pr('bugfix/TEST-00004', 'development/4.3')
@@ -2387,25 +2328,21 @@ required_peer_approvals: 2
 admins:
   - {admin}
 """ # noqa
-        with self.assertRaises(MissingMandatorySetting):
+        with self.assertRaises(exns.MissingMandatorySetting):
             self.handle(
-                pr['id'],
-                options=[
-                    'bypass_author_approval',
-                ],
-                backtrace=True,
+                pr.id, options=['bypass_author_approval'], backtrace=True,
                 settings=settings)
 
     def test_task_list_creation(self):
         pr = self.create_pr('feature/death-ray', 'development/6.0')
         try:
-            self.handle(pr['id'])
+            self.handle(pr.id)
         except requests.HTTPError as err:
             self.fail("Error from bitbucket: %s" % err.response.text)
         # retrieving tasks from private bitbucket API only works for admin
-        pr_admin = self.admin_bb.get_pull_request(pull_request_id=pr['id'])
+        pr_admin = self.admin_bb.get_pull_request(pull_request_id=pr.id)
         self.assertEqual(len(list(pr_admin.get_tasks())), 2)
-        init_comment = list(pr.get_comments())[0]['content']['raw']
+        init_comment = pr.comments[0].text
         assert 'task' in init_comment
 
     def test_task_list_missing(self):
@@ -2423,12 +2360,12 @@ admins:
   - {admin}
 """ # noqa
         try:
-            self.handle(pr['id'], settings=settings)
+            self.handle(pr.id, settings=settings)
         except requests.HTTPError as err:
             self.fail("Error from bitbucket: %s" % err.response.text)
-        pr_admin = self.admin_bb.get_pull_request(pull_request_id=pr['id'])
+        pr_admin = self.admin_bb.get_pull_request(pull_request_id=pr.id)
         self.assertEqual(len(list(pr_admin.get_tasks())), 0)
-        init_comment = list(pr.get_comments())[0]['content']['raw']
+        init_comment = pr.comments[0].text
         assert 'task' not in init_comment
 
     def test_task_list_funky(self):
@@ -2462,10 +2399,10 @@ tasks:
   - 3
 """ # noqa
         try:
-            self.handle(pr['id'], settings=settings)
+            self.handle(pr.id, settings=settings)
         except requests.HTTPError as err:
             self.fail("Error from bitbucket: %s" % err.response.text)
-        pr_admin = self.admin_bb.get_pull_request(pull_request_id=pr['id'])
+        pr_admin = self.admin_bb.get_pull_request(pull_request_id=pr.id)
         self.assertEqual(len(list(pr_admin.get_tasks())), 15)
 
     def test_task_list_illegal(self):
@@ -2484,8 +2421,8 @@ admins:
 tasks:
   - ['a task in a list']
 """ # noqa
-        with self.assertRaises(IncorrectSettingsFile):
-            self.handle(pr['id'], backtrace=True, settings=settings)
+        with self.assertRaises(exns.IncorrectSettingsFile):
+            self.handle(pr.id, backtrace=True, settings=settings)
 
     def test_task_list_incompatible_api_update_create(self):
         try:
@@ -2494,10 +2431,10 @@ tasks:
 
             pr = self.create_pr('feature/death-ray', 'development/6.0')
             try:
-                self.handle(pr['id'])
+                self.handle(pr.id)
             except requests.HTTPError as err:
                 self.fail("Error from bitbucket: %s" % err.response.text)
-            pr_admin = self.admin_bb.get_pull_request(pull_request_id=pr['id'])
+            pr_admin = self.admin_bb.get_pull_request(pull_request_id=pr.id)
             self.assertEqual(len(list(pr_admin.get_tasks())), 0)
 
         finally:
@@ -2510,11 +2447,11 @@ tasks:
 
             pr = self.create_pr('feature/death-ray', 'development/6.0')
             try:
-                self.handle(pr['id'])
+                self.handle(pr.id)
             except requests.HTTPError as err:
                 self.fail("Error from bitbucket: %s" % err.response.text)
-            pr_admin = self.admin_bb.get_pull_request(pull_request_id=pr['id'])
-            with self.assertRaises(TaskAPIError):
+            pr_admin = self.admin_bb.get_pull_request(pull_request_id=pr.id)
+            with self.assertRaises(exns.TaskAPIError):
                 len(list(pr_admin.get_tasks()))
 
         finally:
@@ -2536,10 +2473,10 @@ class TestQueueing(RepositoryTests):
         super().setUp()
 
     def queue_branch(self, name):
-        return bert_e.QueueBranch(self.gitrepo, name)
+        return gwfb.QueueBranch(self.gitrepo, name)
 
     def qint_branch(self, name):
-        return bert_e.QueueIntegrationBranch(self.gitrepo, name)
+        return gwfb.QueueIntegrationBranch(self.gitrepo, name)
 
     def submit_problem(self, problem, build_key='pipeline'):
         """Create a repository with dev, int and q branches ready."""
@@ -2548,8 +2485,8 @@ class TestQueueing(RepositoryTests):
             pr_ = self.create_pr(problem[pr]['src'], problem[pr]['dst'])
 
             # run Bert-E until creation of q branches
-            retcode = self.handle(pr_['id'], options=self.bypass_all)
-            self.assertEqual(retcode, Queued.code)
+            retcode = self.handle(pr_.id, options=self.bypass_all)
+            self.assertEqual(retcode, exns.Queued.code)
 
             # set build status on q branches
             if problem[pr]['dst'] == 'development/4.3':
@@ -2576,7 +2513,7 @@ class TestQueueing(RepositoryTests):
             else:
                 raise Exception('invalid dst branch name')
 
-            qbranches = [branch.format(pr=pr_['id'], name=problem[pr]['src'])
+            qbranches = [branch.format(pr=pr_.id, name=problem[pr]['src'])
                          for branch in branches]
 
             self.gitrepo.cmd('git fetch')
@@ -2608,50 +2545,50 @@ class TestQueueing(RepositoryTests):
                     .split('\n')[:-1])
 
     def feed_queue_collection(self, qbranches):
-        qc = bert_e.QueueCollection(
+        qc = gwfb.QueueCollection(
             self.robot_bb,
             'pipeline',
             merge_paths=[  # see initialize_git_repo
-                [bert_e.branch_factory(FakeGitRepo(), 'development/4.3'),
-                 bert_e.branch_factory(FakeGitRepo(), 'development/5.1'),
-                 bert_e.branch_factory(FakeGitRepo(), 'development/6.0')],
+                [gwfb.branch_factory(FakeGitRepo(), 'development/4.3'),
+                 gwfb.branch_factory(FakeGitRepo(), 'development/5.1'),
+                 gwfb.branch_factory(FakeGitRepo(), 'development/6.0')],
 
-                [bert_e.branch_factory(FakeGitRepo(), 'stabilization/4.3.18'),
-                 bert_e.branch_factory(FakeGitRepo(), 'development/4.3'),
-                 bert_e.branch_factory(FakeGitRepo(), 'development/5.1'),
-                 bert_e.branch_factory(FakeGitRepo(), 'development/6.0')],
+                [gwfb.branch_factory(FakeGitRepo(), 'stabilization/4.3.18'),
+                 gwfb.branch_factory(FakeGitRepo(), 'development/4.3'),
+                 gwfb.branch_factory(FakeGitRepo(), 'development/5.1'),
+                 gwfb.branch_factory(FakeGitRepo(), 'development/6.0')],
 
-                [bert_e.branch_factory(FakeGitRepo(), 'stabilization/5.1.4'),
-                 bert_e.branch_factory(FakeGitRepo(), 'development/5.1'),
-                 bert_e.branch_factory(FakeGitRepo(), 'development/6.0')],
+                [gwfb.branch_factory(FakeGitRepo(), 'stabilization/5.1.4'),
+                 gwfb.branch_factory(FakeGitRepo(), 'development/5.1'),
+                 gwfb.branch_factory(FakeGitRepo(), 'development/6.0')],
 
-                [bert_e.branch_factory(FakeGitRepo(), 'stabilization/6.0.0'),
-                 bert_e.branch_factory(FakeGitRepo(), 'development/6.0')],
+                [gwfb.branch_factory(FakeGitRepo(), 'stabilization/6.0.0'),
+                 gwfb.branch_factory(FakeGitRepo(), 'development/6.0')],
             ])
         for qbranch in qbranches:
-            qc._add_branch(bert_e.branch_factory(self.gitrepo, qbranch))
+            qc._add_branch(gwfb.branch_factory(self.gitrepo, qbranch))
         return qc
 
     def test_queue_branch(self):
-        with self.assertRaises(BranchNameInvalid):
+        with self.assertRaises(exns.BranchNameInvalid):
             self.queue_branch("q/4.3/feature/RELENG-001-plop")
 
-        qbranch = bert_e.branch_factory(FakeGitRepo(), "q/5.1")
-        self.assertEqual(type(qbranch), bert_e.QueueBranch)
+        qbranch = gwfb.branch_factory(FakeGitRepo(), "q/5.1")
+        self.assertEqual(type(qbranch), gwfb.QueueBranch)
         self.assertEqual(qbranch.version, "5.1")
         self.assertEqual(qbranch.major, 5)
         self.assertEqual(qbranch.minor, 1)
 
     def test_qint_branch(self):
-        with self.assertRaises(BranchNameInvalid):
+        with self.assertRaises(exns.BranchNameInvalid):
             self.qint_branch("q/6.3")
 
-        with self.assertRaises(BranchNameInvalid):
+        with self.assertRaises(exns.BranchNameInvalid):
             self.qint_branch("q/6.2/feature/RELENG-001-plop")
 
-        qint_branch = bert_e.branch_factory(FakeGitRepo(),
-                                            "q/10/6.2/feature/RELENG-001-plop")
-        self.assertEqual(type(qint_branch), bert_e.QueueIntegrationBranch)
+        qint_branch = gwfb.branch_factory(FakeGitRepo(),
+                                          "q/10/6.2/feature/RELENG-001-plop")
+        self.assertEqual(type(qint_branch), gwfb.QueueIntegrationBranch)
         self.assertEqual(qint_branch.version, "6.2")
         self.assertEqual(qint_branch.pr_id, 10)
         self.assertEqual(qint_branch.major, 6)
@@ -2689,16 +2626,16 @@ class TestQueueing(RepositoryTests):
         """This is the solution when nothing can be merged."""
         return OrderedDict([
             ('4.3', {
-                bert_e.QueueBranch: self.queue_branch('q/4.3'),
-                bert_e.QueueIntegrationBranch: []
+                gwfb.QueueBranch: self.queue_branch('q/4.3'),
+                gwfb.QueueIntegrationBranch: []
             }),
             ('5.1', {
-                bert_e.QueueBranch: self.queue_branch('q/5.1'),
-                bert_e.QueueIntegrationBranch: []
+                gwfb.QueueBranch: self.queue_branch('q/5.1'),
+                gwfb.QueueIntegrationBranch: []
             }),
             ('6.0', {
-                bert_e.QueueBranch: self.queue_branch('q/6.0'),
-                bert_e.QueueIntegrationBranch: []
+                gwfb.QueueBranch: self.queue_branch('q/6.0'),
+                gwfb.QueueIntegrationBranch: []
             }),
         ])
 
@@ -2707,23 +2644,23 @@ class TestQueueing(RepositoryTests):
         """This is the solution to the standard problem."""
         return OrderedDict([
             ('4.3', {
-                bert_e.QueueBranch: self.queue_branch('q/4.3'),
-                bert_e.QueueIntegrationBranch: [
+                gwfb.QueueBranch: self.queue_branch('q/4.3'),
+                gwfb.QueueIntegrationBranch: [
                     self.qint_branch('q/10/4.3/improvement/bar2'),
                     self.qint_branch('q/1/4.3/improvement/bar')
                 ]
             }),
             ('5.1', {
-                bert_e.QueueBranch: self.queue_branch('q/5.1'),
-                bert_e.QueueIntegrationBranch: [
+                gwfb.QueueBranch: self.queue_branch('q/5.1'),
+                gwfb.QueueIntegrationBranch: [
                     self.qint_branch('q/10/5.1/improvement/bar2'),
                     self.qint_branch('q/7/5.1/bugfix/bar'),
                     self.qint_branch('q/1/5.1/improvement/bar')
                 ]
             }),
             ('6.0', {
-                bert_e.QueueBranch: self.queue_branch('q/6.0'),
-                bert_e.QueueIntegrationBranch: [
+                gwfb.QueueBranch: self.queue_branch('q/6.0'),
+                gwfb.QueueIntegrationBranch: [
                     self.qint_branch('q/10/6.0/improvement/bar2'),
                     self.qint_branch('q/7/6.0/bugfix/bar'),
                     self.qint_branch('q/5/6.0/feature/foo'),
@@ -2754,9 +2691,9 @@ class TestQueueing(RepositoryTests):
         problem = deepcopy(self.standard_problem)
         problem[4]['status'][2] = {}
         solution = deepcopy(self.standard_solution)
-        solution['4.3'][bert_e.QueueIntegrationBranch].pop(0)
-        solution['5.1'][bert_e.QueueIntegrationBranch].pop(0)
-        solution['6.0'][bert_e.QueueIntegrationBranch].pop(0)
+        solution['4.3'][gwfb.QueueIntegrationBranch].pop(0)
+        solution['5.1'][gwfb.QueueIntegrationBranch].pop(0)
+        solution['6.0'][gwfb.QueueIntegrationBranch].pop(0)
         qbranches = self.submit_problem(problem)
         qc = self.feed_queue_collection(qbranches)
         qc.finalize()
@@ -2769,9 +2706,9 @@ class TestQueueing(RepositoryTests):
         problem = deepcopy(self.standard_problem)
         problem[4]['status'][2] = {'pipeline': 'FAILED'}
         solution = deepcopy(self.standard_solution)
-        solution['4.3'][bert_e.QueueIntegrationBranch].pop(0)
-        solution['5.1'][bert_e.QueueIntegrationBranch].pop(0)
-        solution['6.0'][bert_e.QueueIntegrationBranch].pop(0)
+        solution['4.3'][gwfb.QueueIntegrationBranch].pop(0)
+        solution['5.1'][gwfb.QueueIntegrationBranch].pop(0)
+        solution['6.0'][gwfb.QueueIntegrationBranch].pop(0)
         qbranches = self.submit_problem(problem)
         qc = self.feed_queue_collection(qbranches)
         qc.finalize()
@@ -2784,9 +2721,9 @@ class TestQueueing(RepositoryTests):
         problem = deepcopy(self.standard_problem)
         problem[4]['status'][2] = {'other': 'SUCCESSFUL'}
         solution = deepcopy(self.standard_solution)
-        solution['4.3'][bert_e.QueueIntegrationBranch].pop(0)
-        solution['5.1'][bert_e.QueueIntegrationBranch].pop(0)
-        solution['6.0'][bert_e.QueueIntegrationBranch].pop(0)
+        solution['4.3'][gwfb.QueueIntegrationBranch].pop(0)
+        solution['5.1'][gwfb.QueueIntegrationBranch].pop(0)
+        solution['6.0'][gwfb.QueueIntegrationBranch].pop(0)
         qbranches = self.submit_problem(problem)
         qc = self.feed_queue_collection(qbranches)
         qc.finalize()
@@ -2871,7 +2808,7 @@ class TestQueueing(RepositoryTests):
         qbranches = self.submit_problem(self.standard_problem)
         qc = self.feed_queue_collection(qbranches)
         qc.finalize()
-        with self.assertRaises(QueuesNotValidated):
+        with self.assertRaises(exns.QueuesNotValidated):
             qc.mergeable_prs == [1, 5, 7, 10]
 
     def assert_error_codes(self, excp, errors):
@@ -2885,9 +2822,9 @@ class TestQueueing(RepositoryTests):
         qbranches.remove('q/5.1')
         qc = self.feed_queue_collection(qbranches)
         qc.finalize()
-        with self.assertRaises(IncoherentQueues) as excp:
+        with self.assertRaises(exns.IncoherentQueues) as excp:
             qc.validate()
-        self.assert_error_codes(excp, [MasterQueueMissing])
+        self.assert_error_codes(excp, [exns.MasterQueueMissing])
 
     def test_validation_updated_dev(self):
         qbranches = self.submit_problem(self.standard_problem)
@@ -2895,19 +2832,19 @@ class TestQueueing(RepositoryTests):
                            'file_pushed_without_bert-e.txt', do_push=True)
         qc = self.feed_queue_collection(qbranches)
         qc.finalize()
-        with self.assertRaises(IncoherentQueues) as excp:
+        with self.assertRaises(exns.IncoherentQueues) as excp:
             qc.validate()
-        self.assert_error_codes(excp, [MasterQueueLateVsDev,
-                                       QueueInclusionIssue])
+        self.assert_error_codes(excp, [exns.MasterQueueLateVsDev,
+                                       exns.QueueInclusionIssue])
 
     def test_validation_no_integration_queues(self):
         self.submit_problem(self.standard_problem)
         branches = ['q/4.3', 'q/5.1', 'q/6.0']
         qc = self.feed_queue_collection(branches)
         qc.finalize()
-        with self.assertRaises(IncoherentQueues) as excp:
+        with self.assertRaises(exns.IncoherentQueues) as excp:
             qc.validate()
-        self.assert_error_codes(excp, [MasterQueueNotInSync])
+        self.assert_error_codes(excp, [exns.MasterQueueNotInSync])
 
     def test_validation_masterq_on_dev(self):
         qbranches = self.submit_problem(self.standard_problem)
@@ -2915,10 +2852,10 @@ class TestQueueing(RepositoryTests):
         self.gitrepo.cmd('git reset --hard development/6.0')
         qc = self.feed_queue_collection(qbranches)
         qc.finalize()
-        with self.assertRaises(IncoherentQueues) as excp:
+        with self.assertRaises(exns.IncoherentQueues) as excp:
             qc.validate()
-        self.assert_error_codes(excp, [MasterQueueLateVsInt,
-                                       QueueInclusionIssue])
+        self.assert_error_codes(excp, [exns.MasterQueueLateVsInt,
+                                       exns.QueueInclusionIssue])
 
     def test_validation_masterq_late(self):
         qbranches = self.submit_problem(self.standard_problem)
@@ -2926,10 +2863,10 @@ class TestQueueing(RepositoryTests):
         self.gitrepo.cmd('git reset --hard HEAD~')
         qc = self.feed_queue_collection(qbranches)
         qc.finalize()
-        with self.assertRaises(IncoherentQueues) as excp:
+        with self.assertRaises(exns.IncoherentQueues) as excp:
             qc.validate()
-        self.assert_error_codes(excp, [MasterQueueLateVsInt,
-                                       QueueInclusionIssue])
+        self.assert_error_codes(excp, [exns.MasterQueueLateVsInt,
+                                       exns.QueueInclusionIssue])
 
     def test_validation_masterq_younger(self):
         qbranches = self.submit_problem(self.standard_problem)
@@ -2937,9 +2874,9 @@ class TestQueueing(RepositoryTests):
                            'file_pushed_without_bert-e.txt', do_push=True)
         qc = self.feed_queue_collection(qbranches)
         qc.finalize()
-        with self.assertRaises(IncoherentQueues) as excp:
+        with self.assertRaises(exns.IncoherentQueues) as excp:
             qc.validate()
-        self.assert_error_codes(excp, [MasterQueueYoungerThanInt])
+        self.assert_error_codes(excp, [exns.MasterQueueYoungerThanInt])
 
     def test_validation_masterq_diverged(self):
         qbranches = self.submit_problem(self.standard_problem)
@@ -2949,10 +2886,10 @@ class TestQueueing(RepositoryTests):
                            'file_pushed_without_bert-e.txt', do_push=False)
         qc = self.feed_queue_collection(qbranches)
         qc.finalize()
-        with self.assertRaises(IncoherentQueues) as excp:
+        with self.assertRaises(exns.IncoherentQueues) as excp:
             qc.validate()
-        self.assert_error_codes(excp, [MasterQueueDiverged,
-                                       QueueInclusionIssue])
+        self.assert_error_codes(excp, [exns.MasterQueueDiverged,
+                                       exns.QueueInclusionIssue])
 
     def test_validation_vertical_inclusion(self):
         qbranches = self.submit_problem(self.standard_problem)
@@ -2960,10 +2897,10 @@ class TestQueueing(RepositoryTests):
                            'file_pushed_without_bert-e.txt', do_push=True)
         qc = self.feed_queue_collection(qbranches)
         qc.finalize()
-        with self.assertRaises(IncoherentQueues) as excp:
+        with self.assertRaises(exns.IncoherentQueues) as excp:
             qc.validate()
-        self.assert_error_codes(excp, [MasterQueueLateVsInt,
-                                       QueueInclusionIssue])
+        self.assert_error_codes(excp, [exns.MasterQueueLateVsInt,
+                                       exns.QueueInclusionIssue])
 
     def test_validation_with_missing_first_intq(self):
         self.skipTest("skipping until completeness check is implemented")
@@ -2971,18 +2908,19 @@ class TestQueueing(RepositoryTests):
         qbranches.remove('q/1/4.3/improvement/bar')
         qc = self.feed_queue_collection(qbranches)
         qc.finalize()
-        with self.assertRaises(IncoherentQueues) as excp:
+        with self.assertRaises(exns.IncoherentQueues) as excp:
             qc.validate()
-        self.assert_error_codes(excp, [QueueIncomplete])
+        self.assert_error_codes(excp, [exns.QueueIncomplete])
 
     def test_validation_with_missing_middle_intq(self):
         qbranches = self.submit_problem(self.standard_problem)
         qbranches.remove('q/1/5.1/improvement/bar')
         qc = self.feed_queue_collection(qbranches)
         qc.finalize()
-        with self.assertRaises(IncoherentQueues) as excp:
+        with self.assertRaises(exns.IncoherentQueues) as excp:
             qc.validate()
-        self.assert_error_codes(excp, [QueueInconsistentPullRequestsOrder])
+        self.assert_error_codes(excp,
+                                [exns.QueueInconsistentPullRequestsOrder])
 
     def test_validation_with_stabilization_branch(self):
         status = {'pipeline': 'SUCCESSFUL', 'other': 'FAILED'}
@@ -2998,28 +2936,28 @@ class TestQueueing(RepositoryTests):
         })
         solution = OrderedDict([
             ('4.3', {
-                bert_e.QueueBranch: self.queue_branch('q/4.3'),
-                bert_e.QueueIntegrationBranch: [
+                gwfb.QueueBranch: self.queue_branch('q/4.3'),
+                gwfb.QueueIntegrationBranch: [
                     self.qint_branch('q/10/4.3/bugfix/last')
                 ]
             }),
             ('5.1', {
-                bert_e.QueueBranch: self.queue_branch('q/5.1'),
-                bert_e.QueueIntegrationBranch: [
+                gwfb.QueueBranch: self.queue_branch('q/5.1'),
+                gwfb.QueueIntegrationBranch: [
                     self.qint_branch('q/10/5.1/bugfix/last'),
                     self.qint_branch('q/6/5.1/bugfix/foo'),
                     self.qint_branch('q/1/5.1/bugfix/bar')
                 ]
             }),
             ('5.1.4', {
-                bert_e.QueueBranch: self.queue_branch('q/5.1.4'),
-                bert_e.QueueIntegrationBranch: [
+                gwfb.QueueBranch: self.queue_branch('q/5.1.4'),
+                gwfb.QueueIntegrationBranch: [
                     self.qint_branch('q/6/5.1.4/bugfix/foo')
                 ]
             }),
             ('6.0', {
-                bert_e.QueueBranch: self.queue_branch('q/6.0'),
-                bert_e.QueueIntegrationBranch: [
+                gwfb.QueueBranch: self.queue_branch('q/6.0'),
+                gwfb.QueueIntegrationBranch: [
                     self.qint_branch('q/10/6.0/bugfix/last'),
                     self.qint_branch('q/6/6.0/bugfix/foo'),
                     self.qint_branch('q/4/6.0/feature/foo'),
@@ -3037,7 +2975,7 @@ class TestQueueing(RepositoryTests):
 
     def test_system_nominal_case(self):
         pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
-        retcode = self.handle(pr['id'], options=self.bypass_all_but(
+        retcode = self.handle(pr.id, options=self.bypass_all_but(
             ['bypass_build_status']))
 
         # add a commit to w/5.1 branch
@@ -3051,8 +2989,8 @@ class TestQueueing(RepositoryTests):
                          .cmd('git rev-parse w/5.1/bugfix/TEST-00001') \
                          .rstrip()
 
-        retcode = self.handle(pr['id'], options=self.bypass_all)
-        self.assertEqual(retcode, Queued.code)
+        retcode = self.handle(pr.id, options=self.bypass_all)
+        self.assertEqual(retcode, exns.Queued.code)
 
         # get the new sha1 on w/6.0 (set_build_status_on_pr_id won't detect the
         # new commit in mocked mode)
@@ -3077,23 +3015,19 @@ class TestQueueing(RepositoryTests):
             assert self.gitrepo.remote_branch_exists(branch)
 
         # set build status
-        self.set_build_status_on_pr_id(pr['id'] + 1, 'SUCCESSFUL')
+        self.set_build_status_on_pr_id(pr.id + 1, 'SUCCESSFUL')
         self.set_build_status(sha1=sha1_w_5_1, state='SUCCESSFUL')
         self.set_build_status(sha1=sha1_w_6_0, state='FAILED')
-        with self.assertRaises(NothingToDo):
-            self.handle(pr['id'], options=self.bypass_all, backtrace=True)
+        with self.assertRaises(exns.NothingToDo):
+            self.handle(pr.id, options=self.bypass_all, backtrace=True)
 
-        with self.assertRaises(NothingToDo):
-            self.handle(pr['source']['commit']['hash'],
-                        options=self.bypass_all,
-                        backtrace=True)
+        with self.assertRaises(exns.NothingToDo):
+            self.handle(pr.src_commit, options=self.bypass_all, backtrace=True)
         self.set_build_status(sha1=sha1_w_6_0, state='SUCCESSFUL')
-        with self.assertRaises(Merged):
-            self.handle(pr['source']['commit']['hash'],
-                        options=self.bypass_all,
-                        backtrace=True)
+        with self.assertRaises(exns.Merged):
+            self.handle(pr.src_commit, options=self.bypass_all, backtrace=True)
 
-        status = bert_e.STATUS.get('merge queue', OrderedDict())
+        status = STATUS.get('merge queue', OrderedDict())
         assert 1 in status
         assert len(status[1]) == 3
         versions = tuple(version for version, _ in status[1])
@@ -3104,115 +3038,110 @@ class TestQueueing(RepositoryTests):
         for branch in expected_branches:
             assert not self.gitrepo.remote_branch_exists(branch, True)
         for dev in ['development/4.3', 'development/5.1', 'development/6.0']:
-            branch = bert_e.branch_factory(self.gitrepo, dev)
+            branch = gwfb.branch_factory(self.gitrepo, dev)
             branch.checkout()
             self.gitrepo.cmd('git pull origin %s', dev)
-            assert branch.includes_commit(pr['source']['commit']['hash'])
+            assert branch.includes_commit(pr.src_commit)
             if dev == 'development/4.3':
                 assert not branch.includes_commit(sha1_w_5_1)
             else:
                 assert branch.includes_commit(sha1_w_5_1)
                 self.gitrepo.cmd('cat abc')
 
-        last_comment = list(pr.get_comments())[-1]['content']['raw']
+        last_comment = pr.comments[-1].text
         assert 'I have successfully merged' in last_comment
-        merged_pr = bert_e.STATUS.get('merged PRs', [])
+        merged_pr = STATUS.get('merged PRs', [])
         assert len(merged_pr) == 1
         assert merged_pr[0]['id'] == 1
 
     def test_system_missing_integration_queue_before_in_queue(self):
         pr1 = self.create_pr('bugfix/TEST-00001', 'development/4.3')
-        retcode = self.handle(pr1['id'], options=self.bypass_all)
-        self.assertEqual(retcode, Queued.code)
+        retcode = self.handle(pr1.id, options=self.bypass_all)
+        self.assertEqual(retcode, exns.Queued.code)
 
         pr2 = self.create_pr('bugfix/TEST-00002', 'development/4.3')
 
         self.gitrepo.cmd('git push origin :q/1/5.1/bugfix/TEST-00001')
 
-        retcode = self.handle(pr2['id'], options=self.bypass_all)
-        self.assertEqual(retcode, QueueOutOfOrder.code)
+        retcode = self.handle(pr2.id, options=self.bypass_all)
+        self.assertEqual(retcode, exns.QueueOutOfOrder.code)
 
-        retcode = self.handle(pr2['source']['commit']['hash'],
+        retcode = self.handle(pr2.src_commit,
                               options=self.bypass_all)
-        self.assertEqual(retcode, QueueOutOfOrder.code)
+        self.assertEqual(retcode, exns.QueueOutOfOrder.code)
 
-        with self.assertRaises(IncoherentQueues) as excp:
-            self.handle(pr1['source']['commit']['hash'],
-                        options=self.bypass_all)
+        with self.assertRaises(exns.IncoherentQueues) as excp:
+            self.handle(pr1.src_commit, options=self.bypass_all)
         self.assert_error_codes(excp, [
-            MasterQueueNotInSync,
-            QueueInconsistentPullRequestsOrder
+            exns.MasterQueueNotInSync,
+            exns.QueueInconsistentPullRequestsOrder
         ])
 
     def test_reconstruction(self):
         pr1 = self.create_pr('bugfix/TEST-00001', 'development/4.3')
-        retcode = self.handle(pr1['id'], options=self.bypass_all)
-        self.assertEqual(retcode, Queued.code)
+        retcode = self.handle(pr1.id, options=self.bypass_all)
+        self.assertEqual(retcode, exns.Queued.code)
 
         pr2 = self.create_pr('bugfix/TEST-00002', 'development/4.3')
-        retcode = self.handle(pr2['id'], options=self.bypass_all)
-        self.assertEqual(retcode, Queued.code)
+        retcode = self.handle(pr2.id, options=self.bypass_all)
+        self.assertEqual(retcode, exns.Queued.code)
 
-        with self.assertRaises(NothingToDo):
-            self.handle(pr1['id'], options=self.bypass_all, backtrace=True)
+        with self.assertRaises(exns.NothingToDo):
+            self.handle(pr1.id, options=self.bypass_all, backtrace=True)
 
         # delete all q branches
         self.gitrepo.cmd('git fetch')
-        dev = bert_e.branch_factory(self.gitrepo, 'development/4.3')
+        dev = gwfb.branch_factory(self.gitrepo, 'development/4.3')
         dev.checkout()
         for qbranch in self.get_qbranches():
-            branch = bert_e.branch_factory(self.gitrepo, qbranch)
+            branch = gwfb.branch_factory(self.gitrepo, qbranch)
             branch.checkout()  # get locally
             dev.checkout()  # move away
             branch.remove(do_push=True)
 
-        retcode = self.handle(pr1['id'], options=self.bypass_all)
-        self.assertEqual(retcode, Queued.code)
+        retcode = self.handle(pr1.id, options=self.bypass_all)
+        self.assertEqual(retcode, exns.Queued.code)
 
-        retcode = self.handle(pr2['id'], options=self.bypass_all)
-        self.assertEqual(retcode, Queued.code)
+        retcode = self.handle(pr2.id, options=self.bypass_all)
+        self.assertEqual(retcode, exns.Queued.code)
 
     def test_decline_queued_pull_request(self):
         pr = self.create_pr('bugfix/TEST-00001', 'development/6.0')
-        retcode = self.handle(pr['id'], options=self.bypass_all)
-        self.assertEqual(retcode, Queued.code)
+        retcode = self.handle(pr.id, options=self.bypass_all)
+        self.assertEqual(retcode, exns.Queued.code)
 
-        self.set_build_status_on_pr_id(pr['id'] + 1, 'SUCCESSFUL')
+        self.set_build_status_on_pr_id(pr.id + 1, 'SUCCESSFUL')
         pr.decline()
 
-        with self.assertRaises(PullRequestDeclined):
-            self.handle(pr['id'], options=self.bypass_all, backtrace=True)
+        with self.assertRaises(exns.PullRequestDeclined):
+            self.handle(pr.id, options=self.bypass_all, backtrace=True)
 
         # and yet it will merge
-        with self.assertRaises(Merged):
-            self.handle(pr['source']['commit']['hash'],
-                        options=self.bypass_all,
-                        backtrace=True)
+        with self.assertRaises(exns.Merged):
+            self.handle(pr.src_commit, options=self.bypass_all, backtrace=True)
 
     def test_lose_integration_branches_after_queued(self):
         pr = self.create_pr('bugfix/TEST-00001', 'development/6.0')
-        retcode = self.handle(pr['id'], options=self.bypass_all)
-        self.assertEqual(retcode, Queued.code)
+        retcode = self.handle(pr.id, options=self.bypass_all)
+        self.assertEqual(retcode, exns.Queued.code)
 
-        self.set_build_status_on_pr_id(pr['id'] + 1, 'SUCCESSFUL')
+        self.set_build_status_on_pr_id(pr.id + 1, 'SUCCESSFUL')
 
         # delete integration branch
         self.gitrepo.cmd('git fetch')
-        dev = bert_e.branch_factory(self.gitrepo, 'development/6.0')
-        intb = bert_e.branch_factory(self.gitrepo, 'w/6.0/bugfix/TEST-00001')
+        dev = gwfb.branch_factory(self.gitrepo, 'development/6.0')
+        intb = gwfb.branch_factory(self.gitrepo, 'w/6.0/bugfix/TEST-00001')
         intb.dst_branch = dev
         intb.checkout()
         intb.remove(do_push=True)
 
         # and yet it will merge
-        with self.assertRaises(Merged):
-            self.handle(pr['source']['commit']['hash'],
-                        options=self.bypass_all,
-                        backtrace=True)
+        with self.assertRaises(exns.Merged):
+            self.handle(pr.src_commit, options=self.bypass_all, backtrace=True)
 
     def set_build_status_on_branch_tip(self, branch_name, status):
         self.gitrepo.cmd('git fetch')
-        branch = bert_e.branch_factory(self.gitrepo, branch_name)
+        branch = gwfb.branch_factory(self.gitrepo, branch_name)
         branch.checkout()
         sha1 = branch.get_latest_commit()
         self.set_build_status(sha1, status)
@@ -3221,18 +3150,18 @@ class TestQueueing(RepositoryTests):
     def test_delete_all_integration_queues_of_one_pull_request(self):
         self.skipTest("skipping until completeness check is implemented")
         pr1 = self.create_pr('bugfix/TEST-00001', 'development/6.0')
-        retcode = self.handle(pr1['id'], options=self.bypass_all)
-        self.assertEqual(retcode, Queued.code)
+        retcode = self.handle(pr1.id, options=self.bypass_all)
+        self.assertEqual(retcode, exns.Queued.code)
 
         pr2 = self.create_pr('bugfix/TEST-00002', 'development/6.0')
-        retcode = self.handle(pr2['id'], options=self.bypass_all)
-        self.assertEqual(retcode, Queued.code)
+        retcode = self.handle(pr2.id, options=self.bypass_all)
+        self.assertEqual(retcode, exns.Queued.code)
 
         # delete integration queues of pr1
         self.gitrepo.cmd('git fetch')
-        dev = bert_e.branch_factory(self.gitrepo, 'development/6.0')
-        intq1 = bert_e.branch_factory(self.gitrepo,
-                                      'q/1/6.0/bugfix/TEST-00001')
+        dev = gwfb.branch_factory(self.gitrepo, 'development/6.0')
+        intq1 = gwfb.branch_factory(
+            self.gitrepo, 'q/1/6.0/bugfix/TEST-00001')
         intq1.checkout()
         dev.checkout()
         intq1.remove(do_push=True)
@@ -3240,40 +3169,36 @@ class TestQueueing(RepositoryTests):
         sha1 = self.set_build_status_on_branch_tip(
             'q/3/6.0/bugfix/TEST-00002', 'SUCCESSFUL')
 
-        with self.assertRaises(IncoherentQueues):
-            self.handle(sha1,
-                        options=self.bypass_all,
-                        backtrace=True)
+        with self.assertRaises(exns.IncoherentQueues):
+            self.handle(sha1, options=self.bypass_all, backtrace=True)
 
         # check the content of pr1 is not merged
         dev.checkout()
         self.gitrepo.cmd('git pull origin development/6.0')
-        assert not dev.includes_commit(pr1['source']['commit']['hash'])
+        assert not dev.includes_commit(pr1.src_commit)
 
     def test_delete_main_queues(self):
         pr = self.create_pr('bugfix/TEST-00001', 'development/6.0')
-        retcode = self.handle(pr['id'], options=self.bypass_all)
-        self.assertEqual(retcode, Queued.code)
+        retcode = self.handle(pr.id, options=self.bypass_all)
+        self.assertEqual(retcode, exns.Queued.code)
 
         # delete main queue branch
         self.gitrepo.cmd('git fetch')
-        dev = bert_e.branch_factory(self.gitrepo, 'development/6.0')
-        intq1 = bert_e.branch_factory(self.gitrepo, 'q/6.0')
+        dev = gwfb.branch_factory(self.gitrepo, 'development/6.0')
+        intq1 = gwfb.branch_factory(self.gitrepo, 'q/6.0')
         intq1.checkout()
         dev.checkout()
         intq1.remove(do_push=True)
 
-        with self.assertRaises(IncoherentQueues):
-            self.handle(pr['source']['commit']['hash'],
-                        options=self.bypass_all,
-                        backtrace=True)
+        with self.assertRaises(exns.IncoherentQueues):
+            self.handle(pr.src_commit, options=self.bypass_all, backtrace=True)
 
     def test_feature_branch_augmented_after_queued(self):
         pr = self.create_pr('bugfix/TEST-00001', 'development/6.0')
-        retcode = self.handle(pr['id'], options=self.bypass_all)
-        self.assertEqual(retcode, Queued.code)
+        retcode = self.handle(pr.id, options=self.bypass_all)
+        self.assertEqual(retcode, exns.Queued.code)
 
-        old_sha1 = pr['source']['commit']['hash']
+        old_sha1 = pr.src_commit
 
         # Add a new commit
         self.gitrepo.cmd('git fetch')
@@ -3284,22 +3209,20 @@ class TestQueueing(RepositoryTests):
         sha1 = Branch(self.gitrepo, 'bugfix/TEST-00001').get_latest_commit()
         self.gitrepo.cmd('git push origin')
 
-        with self.assertRaises(NothingToDo):
-            self.handle(pr['id'], options=self.bypass_all, backtrace=True)
+        with self.assertRaises(exns.NothingToDo):
+            self.handle(pr.id, options=self.bypass_all, backtrace=True)
 
-        self.set_build_status_on_pr_id(pr['id'] + 1, 'SUCCESSFUL')
+        self.set_build_status_on_pr_id(pr.id + 1, 'SUCCESSFUL')
 
-        with self.assertRaises(Merged):
-            self.handle(old_sha1,
-                        options=self.bypass_all,
-                        backtrace=True)
+        with self.assertRaises(exns.Merged):
+            self.handle(old_sha1, options=self.bypass_all, backtrace=True)
 
-        last_comment = list(pr.get_comments())[-1]['content']['raw']
+        last_comment = pr.comments[-1].text
         assert 'Partial merge' in last_comment
         assert sha1 in last_comment
 
-        retcode = self.handle(pr['id'], options=self.bypass_all)
-        self.assertEqual(retcode, Queued.code)
+        retcode = self.handle(pr.id, options=self.bypass_all)
+        self.assertEqual(retcode, exns.Queued.code)
 
         # check additional commit still here
         self.gitrepo.cmd('git fetch')
@@ -3312,10 +3235,10 @@ class TestQueueing(RepositoryTests):
 
     def test_feature_branch_rewritten_after_queued(self):
         pr = self.create_pr('bugfix/TEST-00001', 'development/6.0')
-        retcode = self.handle(pr['id'], options=self.bypass_all)
-        self.assertEqual(retcode, Queued.code)
+        retcode = self.handle(pr.id, options=self.bypass_all)
+        self.assertEqual(retcode, exns.Queued.code)
 
-        old_sha1 = pr['source']['commit']['hash']
+        old_sha1 = pr.src_commit
 
         # rewrite history of feature branch
         self.gitrepo.cmd('git fetch')
@@ -3323,28 +3246,26 @@ class TestQueueing(RepositoryTests):
         self.gitrepo.cmd('git commit --amend -m "rewritten log"')
         self.gitrepo.cmd('git push -f origin')
 
-        with self.assertRaises(NothingToDo):
-            self.handle(pr['id'], options=self.bypass_all, backtrace=True)
+        with self.assertRaises(exns.NothingToDo):
+            self.handle(pr.id, options=self.bypass_all, backtrace=True)
 
-        self.set_build_status_on_pr_id(pr['id'] + 1, 'SUCCESSFUL')
+        self.set_build_status_on_pr_id(pr.id + 1, 'SUCCESSFUL')
 
-        with self.assertRaises(Merged):
-            self.handle(old_sha1,
-                        options=self.bypass_all,
-                        backtrace=True)
+        with self.assertRaises(exns.Merged):
+            self.handle(old_sha1, options=self.bypass_all, backtrace=True)
 
-        last_comment = list(pr.get_comments())[-1]['content']['raw']
+        last_comment = pr.comments[-1].text
         assert 'Partial merge' in last_comment
 
-        retcode = self.handle(pr['id'], options=self.bypass_all)
-        self.assertEqual(retcode, Queued.code)
+        retcode = self.handle(pr.id, options=self.bypass_all)
+        self.assertEqual(retcode, exns.Queued.code)
 
     def test_integration_branch_augmented_after_queued(self):
         pr = self.create_pr('bugfix/TEST-00001', 'development/6.0')
-        retcode = self.handle(pr['id'], options=self.bypass_all)
-        self.assertEqual(retcode, Queued.code)
+        retcode = self.handle(pr.id, options=self.bypass_all)
+        self.assertEqual(retcode, exns.Queued.code)
 
-        self.set_build_status_on_pr_id(pr['id'] + 1, 'SUCCESSFUL')
+        self.set_build_status_on_pr_id(pr.id + 1, 'SUCCESSFUL')
 
         # Add a new commit
         self.gitrepo.cmd('git fetch')
@@ -3356,11 +3277,11 @@ class TestQueueing(RepositoryTests):
                       'w/6.0/bugfix/TEST-00001').get_latest_commit()
         self.gitrepo.cmd('git push origin')
 
-        with self.assertRaises(Merged):
-            self.handle(pr['id'], options=self.bypass_all, backtrace=True)
+        with self.assertRaises(exns.Merged):
+            self.handle(pr.id, options=self.bypass_all, backtrace=True)
 
-        with self.assertRaises(NothingToDo):
-            self.handle(pr['id'], options=self.bypass_all, backtrace=True)
+        with self.assertRaises(exns.NothingToDo):
+            self.handle(pr.id, options=self.bypass_all, backtrace=True)
 
         self.gitrepo.cmd('git fetch')
         # Check the additional commit was not merged
@@ -3370,8 +3291,8 @@ class TestQueueing(RepositoryTests):
     def test_integration_branches_dont_follow_dev(self):
         pr1 = self.create_pr('bugfix/TEST-00001', 'development/4.3')
         # create integration branches but don't queue yet
-        retcode = self.handle(pr1['id'], options=self.bypass_all_but(
-            ['bypass_build_status']))
+        retcode = self.handle(
+            pr1.id, options=self.bypass_all_but(['bypass_build_status']))
 
         # get the sha1's of integration branches
         self.gitrepo.cmd('git fetch')
@@ -3385,18 +3306,17 @@ class TestQueueing(RepositoryTests):
 
         # merge some other work
         pr2 = self.create_pr('bugfix/TEST-00002', 'development/5.1')
-        retcode = self.handle(pr2['id'], options=self.bypass_all)
-        self.assertEqual(retcode, Queued.code)
-        self.set_build_status_on_pr_id(pr2['id'] + 1, 'SUCCESSFUL')
-        self.set_build_status_on_pr_id(pr2['id'] + 2, 'SUCCESSFUL')
-        with self.assertRaises(Merged):
-            self.handle(pr2['source']['commit']['hash'],
-                        options=self.bypass_all,
-                        backtrace=True)
+        retcode = self.handle(pr2.id, options=self.bypass_all)
+        self.assertEqual(retcode, exns.Queued.code)
+        self.set_build_status_on_pr_id(pr2.id + 1, 'SUCCESSFUL')
+        self.set_build_status_on_pr_id(pr2.id + 2, 'SUCCESSFUL')
+        with self.assertRaises(exns.Merged):
+            self.handle(
+                pr2.src_commit, options=self.bypass_all, backtrace=True)
 
         # rerun on pr1, hope w branches don't get updated
-        retcode = self.handle(pr1['id'], options=self.bypass_all_but(
-            ['bypass_build_status']))
+        retcode = self.handle(
+            pr1.id, options=self.bypass_all_but(['bypass_build_status']))
 
         # verify
         self.gitrepo.cmd('git fetch')
@@ -3411,12 +3331,12 @@ class TestQueueing(RepositoryTests):
 
     def test_new_dev_branch_appears(self):
         pr = self.create_pr('bugfix/TEST-00001', 'stabilization/5.1.4')
-        retcode = self.handle(pr['id'], options=self.bypass_all)
-        self.assertEqual(retcode, Queued.code)
+        retcode = self.handle(pr.id, options=self.bypass_all)
+        self.assertEqual(retcode, exns.Queued.code)
 
-        self.set_build_status_on_pr_id(pr['id'] + 1, 'SUCCESSFUL')
-        self.set_build_status_on_pr_id(pr['id'] + 2, 'SUCCESSFUL')
-        self.set_build_status_on_pr_id(pr['id'] + 3, 'SUCCESSFUL')
+        self.set_build_status_on_pr_id(pr.id + 1, 'SUCCESSFUL')
+        self.set_build_status_on_pr_id(pr.id + 2, 'SUCCESSFUL')
+        self.set_build_status_on_pr_id(pr.id + 3, 'SUCCESSFUL')
 
         # introduce a new version, but not its queue branch
         self.gitrepo.cmd('git fetch')
@@ -3424,27 +3344,23 @@ class TestQueueing(RepositoryTests):
         self.gitrepo.cmd('git checkout -b development/6.3')
         self.gitrepo.cmd('git push -u origin development/6.3')
 
-        with self.assertRaises(IncoherentQueues):
-            self.handle(pr['source']['commit']['hash'],
-                        options=self.bypass_all,
-                        backtrace=True)
+        with self.assertRaises(exns.IncoherentQueues):
+            self.handle(pr.src_commit, options=self.bypass_all, backtrace=True)
 
     def test_dev_branch_decommissioned(self):
         pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
-        retcode = self.handle(pr['id'], options=self.bypass_all)
-        self.assertEqual(retcode, Queued.code)
+        retcode = self.handle(pr.id, options=self.bypass_all)
+        self.assertEqual(retcode, exns.Queued.code)
 
-        self.set_build_status_on_pr_id(pr['id'] + 1, 'SUCCESSFUL')
-        self.set_build_status_on_pr_id(pr['id'] + 2, 'SUCCESSFUL')
-        self.set_build_status_on_pr_id(pr['id'] + 3, 'SUCCESSFUL')
+        self.set_build_status_on_pr_id(pr.id + 1, 'SUCCESSFUL')
+        self.set_build_status_on_pr_id(pr.id + 2, 'SUCCESSFUL')
+        self.set_build_status_on_pr_id(pr.id + 3, 'SUCCESSFUL')
 
         # delete a middle dev branch
         self.gitrepo.cmd('git push origin :development/5.1')
 
-        with self.assertRaises(IncoherentQueues):
-            self.handle(pr['source']['commit']['hash'],
-                        options=self.bypass_all,
-                        backtrace=True)
+        with self.assertRaises(exns.IncoherentQueues):
+            self.handle(pr.src_commit, options=self.bypass_all, backtrace=True)
 
     def prs_in_queue(self):
         self.gitrepo.cmd('git fetch --prune')
@@ -3462,11 +3378,11 @@ class TestQueueing(RepositoryTests):
         self.gitrepo.cmd('git push -u origin development/5.2')
 
         pr = self.create_pr('bugfix/TEST-00001', 'development/5.2')
-        retcode = self.handle(pr['id'], options=self.bypass_all)
-        self.assertEqual(retcode, Queued.code)
+        retcode = self.handle(pr.id, options=self.bypass_all)
+        self.assertEqual(retcode, exns.Queued.code)
 
-        self.set_build_status_on_pr_id(pr['id'] + 1, 'SUCCESSFUL')
-        self.set_build_status_on_pr_id(pr['id'] + 2, 'SUCCESSFUL')
+        self.set_build_status_on_pr_id(pr.id + 1, 'SUCCESSFUL')
+        self.set_build_status_on_pr_id(pr.id + 2, 'SUCCESSFUL')
 
         # introduce a new stab, but not its queue branches
         self.gitrepo.cmd('git fetch')
@@ -3475,15 +3391,13 @@ class TestQueueing(RepositoryTests):
         self.gitrepo.cmd('git push -u origin stabilization/5.2.0')
 
         pr2 = self.create_pr('bugfix/TEST-00002', 'stabilization/5.2.0')
-        retcode = self.handle(pr2['id'], options=self.bypass_all)
-        self.assertEqual(retcode, Queued.code)
+        retcode = self.handle(pr2.id, options=self.bypass_all)
+        self.assertEqual(retcode, exns.Queued.code)
 
         assert self.prs_in_queue() == set([1, 4])
 
-        with self.assertRaises(Merged):
-            self.handle(pr['source']['commit']['hash'],
-                        options=self.bypass_all,
-                        backtrace=True)
+        with self.assertRaises(exns.Merged):
+            self.handle(pr.src_commit, options=self.bypass_all, backtrace=True)
 
         assert self.prs_in_queue() == set([4])
 
@@ -3494,25 +3408,24 @@ class TestQueueing(RepositoryTests):
         self.set_build_status_on_branch_tip(
             'q/4/6.0/bugfix/TEST-00002', 'SUCCESSFUL')
 
-        with self.assertRaises(Merged):
-            self.handle(pr2['source']['commit']['hash'],
-                        options=self.bypass_all,
+        with self.assertRaises(exns.Merged):
+            self.handle(pr2.src_commit, options=self.bypass_all,
                         backtrace=True)
 
         assert self.prs_in_queue() == set([])
 
     def test_multi_branch_queues(self):
         pr1 = self.create_pr('bugfix/TEST-00001', 'development/4.3')
-        retcode = self.handle(pr1['id'], options=self.bypass_all)
-        self.assertEqual(retcode, Queued.code)
+        retcode = self.handle(pr1.id, options=self.bypass_all)
+        self.assertEqual(retcode, exns.Queued.code)
 
         pr5 = self.create_pr('bugfix/TEST-00002', 'stabilization/5.1.4')
-        retcode = self.handle(pr5['id'], options=self.bypass_all)
-        self.assertEqual(retcode, Queued.code)
+        retcode = self.handle(pr5.id, options=self.bypass_all)
+        self.assertEqual(retcode, exns.Queued.code)
 
         pr9 = self.create_pr('bugfix/TEST-00003', 'development/4.3')
-        retcode = self.handle(pr9['id'], options=self.bypass_all)
-        self.assertEqual(retcode, Queued.code)
+        retcode = self.handle(pr9.id, options=self.bypass_all)
+        self.assertEqual(retcode, exns.Queued.code)
 
         assert self.prs_in_queue() == set([1, 5, 9])
 
@@ -3534,27 +3447,21 @@ class TestQueueing(RepositoryTests):
             'q/9/5.1/bugfix/TEST-00003', 'SUCCESSFUL')
         sha1 = self.set_build_status_on_branch_tip(
             'q/9/6.0/bugfix/TEST-00003', 'SUCCESSFUL')
-        with self.assertRaises(NothingToDo):
-            self.handle(sha1,
-                        options=self.bypass_all,
-                        backtrace=True)
+        with self.assertRaises(exns.NothingToDo):
+            self.handle(sha1, options=self.bypass_all, backtrace=True)
         assert self.prs_in_queue() == set([1, 5, 9])
 
         self.set_build_status_on_branch_tip(
             'q/1/6.0/bugfix/TEST-00001', 'SUCCESSFUL')
-        with self.assertRaises(Merged):
-            self.handle(sha1,
-                        options=self.bypass_all,
-                        backtrace=True)
+        with self.assertRaises(exns.Merged):
+            self.handle(sha1, options=self.bypass_all, backtrace=True)
         assert self.prs_in_queue() == set([5, 9])
 
         pr13 = self.create_pr('bugfix/TEST-00004', 'stabilization/5.1.4')
-        retcode = self.handle(pr13['id'], options=self.bypass_all)
-        self.assertEqual(retcode, Queued.code)
-        with self.assertRaises(NothingToDo):
-            self.handle(sha1,
-                        options=self.bypass_all,
-                        backtrace=True)
+        retcode = self.handle(pr13.id, options=self.bypass_all)
+        self.assertEqual(retcode, exns.Queued.code)
+        with self.assertRaises(exns.NothingToDo):
+            self.handle(sha1, options=self.bypass_all, backtrace=True)
         assert self.prs_in_queue() == set([5, 9, 13])
 
         self.set_build_status_on_branch_tip(
@@ -3563,34 +3470,30 @@ class TestQueueing(RepositoryTests):
             'q/13/5.1/bugfix/TEST-00004', 'SUCCESSFUL')
         self.set_build_status_on_branch_tip(
             'q/13/6.0/bugfix/TEST-00004', 'FAILED')
-        with self.assertRaises(NothingToDo):
-            self.handle(sha1,
-                        options=self.bypass_all,
-                        backtrace=True)
+        with self.assertRaises(exns.NothingToDo):
+            self.handle(sha1, options=self.bypass_all, backtrace=True)
         assert self.prs_in_queue() == set([5, 9, 13])
 
         pr17 = self.create_pr('bugfix/TEST-00005', 'development/6.0')
-        retcode = self.handle(pr17['id'], options=self.bypass_all)
-        self.assertEqual(retcode, Queued.code)
+        retcode = self.handle(pr17.id, options=self.bypass_all)
+        self.assertEqual(retcode, exns.Queued.code)
         assert self.prs_in_queue() == set([5, 9, 13, 17])
 
         self.set_build_status_on_branch_tip(
             'q/17/6.0/bugfix/TEST-00005', 'SUCCESSFUL')
 
-        with self.assertRaises(Merged):
-            self.handle(sha1,
-                        options=self.bypass_all,
-                        backtrace=True)
+        with self.assertRaises(exns.Merged):
+            self.handle(sha1, options=self.bypass_all, backtrace=True)
         assert self.prs_in_queue() == set([])
 
     def test_multi_branch_queues_2(self):
         pr1 = self.create_pr('bugfix/TEST-00001', 'development/4.3')
-        retcode = self.handle(pr1['id'], options=self.bypass_all)
-        self.assertEqual(retcode, Queued.code)
+        retcode = self.handle(pr1.id, options=self.bypass_all)
+        self.assertEqual(retcode, exns.Queued.code)
 
         pr5 = self.create_pr('bugfix/TEST-00002', 'development/6.0')
-        retcode = self.handle(pr5['id'], options=self.bypass_all)
-        self.assertEqual(retcode, Queued.code)
+        retcode = self.handle(pr5.id, options=self.bypass_all)
+        self.assertEqual(retcode, exns.Queued.code)
 
         assert self.prs_in_queue() == set([1, 5])
 
@@ -3602,31 +3505,25 @@ class TestQueueing(RepositoryTests):
             'q/1/6.0/bugfix/TEST-00001', 'SUCCESSFUL')
         sha1 = self.set_build_status_on_branch_tip(
             'q/5/6.0/bugfix/TEST-00002', 'FAILED')
-        with self.assertRaises(Merged):
-            self.handle(sha1,
-                        options=self.bypass_all,
-                        backtrace=True)
+        with self.assertRaises(exns.Merged):
+            self.handle(sha1, options=self.bypass_all, backtrace=True)
         assert self.prs_in_queue() == set([5])
 
     def test_queue_conflict(self):
         pr1 = self.create_pr('bugfix/TEST-0006', 'development/6.0',
                              file_='toto.txt')
-        retcode = self.handle(pr1['id'], options=self.bypass_all)
-        self.assertEqual(retcode, Queued.code)
+        retcode = self.handle(pr1.id, options=self.bypass_all)
+        self.assertEqual(retcode, exns.Queued.code)
 
         pr2 = self.create_pr('bugfix/TEST-0006-other', 'development/6.0',
                              file_='toto.txt')
-        with self.assertRaises(QueueConflict):
-            self.handle(pr2['id'],
-                        options=self.bypass_all,
-                        backtrace=True)
+        with self.assertRaises(exns.QueueConflict):
+            self.handle(pr2.id, options=self.bypass_all, backtrace=True)
 
     def test_nothing_to_do_unknown_sha1(self):
         sha1 = "f" * 40
-        with self.assertRaises(NothingToDo):
-            self.handle(sha1,
-                        options=self.bypass_all,
-                        backtrace=True)
+        with self.assertRaises(exns.NothingToDo):
+            self.handle(sha1, options=self.bypass_all, backtrace=True)
 
 
 def main():

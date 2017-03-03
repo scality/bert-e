@@ -72,9 +72,12 @@ class Client(Session, base.AbstractClient):
         if owner is None:
             owner = self.login
         try:
-            return Repository.get(self, repo_slug=slug, owner=owner)
+            repo = Repository.get(self, repo_slug=slug, owner=owner)
         except HTTPError as err:
             raise base.NoSuchRepository('/'.join((owner, slug))) from err
+
+        repo['repo_slug'] = slug
+        return repo
 
     def create_repository(self, slug, owner=None, scm='git', is_private=True):
         """Create a Bitbucket Repository"""
