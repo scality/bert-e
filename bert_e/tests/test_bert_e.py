@@ -2201,13 +2201,13 @@ admins:
 
     def test_input_tokens(self):
         with self.assertRaises(exns.UnsupportedTokenType):
-            self.handle('toto')
+            self.handle('toto', backtrace=True)
 
         with self.assertRaises(exns.UnsupportedTokenType):
-            self.handle('1a2b3c')  # short sha1
+            self.handle('1a2b3c', backtrace=True)  # short sha1
 
         with self.assertRaises(exns.UnsupportedTokenType):
-            self.handle('/development/4.3')
+            self.handle('/development/4.3', backtrace=True)
 
     def test_conflict_due_to_update_order(self):
         """Reproduce the case where a conflict coming from another Pull-Request

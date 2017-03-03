@@ -24,8 +24,6 @@ from jira.exceptions import JIRAError
 from bert_e import exceptions
 from bert_e.api import jira as jira_api
 
-from .commands import get_active_options
-
 
 def jira_checks(job):
     """Performs consistency checks against associated Jira issue."""
@@ -63,7 +61,7 @@ def get_jira_issue(job):
     except JIRAError as err:
         if err.status_code == 404:
             raise exceptions.JiraIssueNotFound(
-                issue=job.issue_id, active_options=get_active_options(job)
+                issue=job.issue_id, active_options=job.active_options
             ) from err
         raise
 
@@ -87,7 +85,7 @@ def check_issue_reference(job) -> bool:
             if not dst_branch.allow_ticketless_pr:
                 raise exceptions.MissingJiraId(
                     source_branch=src_branch.name, dest_branch=dst_branch.name,
-                    active_options=get_active_options(job)
+                    active_options=job.active_options
                 )
         return False
     return True
@@ -105,7 +103,7 @@ def check_project(job, issue):
     if job.git.src_branch.jira_project not in job.settings.jira_keys:
         raise exceptions.IncorrectJiraProject(
             issue=issue, expected_project=', '.join(job.settings.jira_keys),
-            active_options=get_active_options(job)
+            active_options=job.active_options
         )
 
 
@@ -121,7 +119,7 @@ def check_issue_type(job, issue):
 
     if issuetype == 'Sub-task':
         raise exceptions.SubtaskIssueNotSupported(
-            issue=issue, pairs=prefixes, active_options=get_active_options(job)
+            issue=issue, pairs=prefixes, active_options=job.active_options
         )
 
 
@@ -140,5 +138,5 @@ def check_fix_versions(job, issue):
         raise exceptions.IncorrectFixVersion(
             issue=issue, issue_versions=issue_versions,
             expect_versions=expected_versions,
-            active_options=get_active_options(job)
+            active_options=job.active_options
         )

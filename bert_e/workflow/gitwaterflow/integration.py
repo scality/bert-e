@@ -24,7 +24,6 @@ from bert_e.api import git
 from ..git_utils import octopus_merge, push
 from ..pr_utils import send_comment
 from .branches import branch_factory
-from .commands import get_active_options
 
 
 def create_integration_branches(job):
@@ -63,7 +62,7 @@ def update_integration_branches(job, wbranches):
         if not src.includes_commit(commit):
             raise exceptions.BranchHistoryMismatch(
                 commit=commit, integration_branch=prev, feature_branch=src,
-                development_branch=dst, active_options=get_active_options(job)
+                development_branch=dst, active_options=job.active_options
             )
 
     def update(wbranch, source, origin=False):
@@ -74,7 +73,7 @@ def update_integration_branches(job, wbranches):
             raise exceptions.Conflict(
                 source=source, wbranch=wbranch, dev_branch=job.git.dst_branch,
                 feature_branch=job.git.src_branch, origin=origin, empty=empty,
-                active_options=get_active_options(job)
+                active_options=job.active_options
             ) from err
 
     update(prev, job.git.src_branch, True)
@@ -106,7 +105,7 @@ def create_integration_pull_requests(job, wbranches):
             exceptions.IntegrationPullRequestsCreated(
                 bert_e=job.settings.robot_username, pr=job.pull_request,
                 child_prs=prs, ignored=job.git.cascade.ignored_branches,
-                active_options=get_active_options(job)
+                active_options=job.active_options
             )
         )
     return prs

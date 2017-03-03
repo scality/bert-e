@@ -14,25 +14,23 @@
 # limitations under the License.
 
 import argparse
-import itertools
 import logging
-import re
 from collections import OrderedDict, deque
 from datetime import datetime
 from os.path import exists
-from types import SimpleNamespace
 from urllib.parse import quote_plus
 
 from .api.git import Repository as GitRepository
-from .exceptions import *
-from .git_host.factory import client_factory
-from .lib.cli import confirm
-from .lib.settings_dict import SettingsDict
+from .exceptions import (SilentException, TemplateException,
+                         UnsupportedTokenType)
+from .git_host import client_factory
+from .job import CommitJob, JobDispatcher, PullRequestJob
 from .settings import setup_settings
 from .workflow import gitwaterflow as gwf
-from .workflow.gitwaterflow.branches import *  # Temporary fix for the tests
+from .workflow.gitwaterflow.branches import QueueIntegrationBranch
+from .workflow.pr_utils import send_comment
 
-SHA1_LENGHT = [12, 40]
+SHA1_LENGTH = [12, 40]
 
 # This variable is used to get an introspectable status that the server can
 # display.
@@ -42,7 +40,7 @@ STATUS = {}
 LOG = logging.getLogger(__name__)
 
 
-class BertE:
+class BertE(JobDispatcher):
     def __init__(self, settings):
         self.settings = settings
         self.client = client_factory(
@@ -61,23 +59,25 @@ class BertE:
             self.project_repo.git_url,
             mask_pwd=quote_plus(settings.robot_password)
         )
-
-        # This is a temporary namespace utility.
-        # TODO: Create actual job classes.
-
-        self.job = SimpleNamespace(
-            pull_request=None,
-            project_repo=None,
-            git=SimpleNamespace(
-                repo=None,
-                src_branch=None,
-                dst_branch=None,
-                cascade=None
-            ),
-            settings=SettingsDict({}, settings)
-        )
         self.tmpdir = self.git_repo.tmp_directory
         gwf.setup({key: True for key in settings.cmd_line_options})
+
+    def process(self, job):
+        """High-level job-processing method."""
+        # The git repo is now a long-running instance, but the implementation
+        # can't handle this yet, so we explicitely reset the repo before any
+        # new run.
+        self.git_repo.reset()
+        try:
+            return self.dispatch(job)
+        except SilentException as err:
+            self._process_error(err)
+            return 0  # SilentExceptions should always return 0
+
+        except TemplateException as err:
+            if hasattr(job, 'pull_request'):
+                send_comment(self.settings, job.pull_request, err)
+            return self._process_error(err)
 
     def handle_token(self, token):
         """Determine the resolution path based on the input id.
@@ -93,165 +93,36 @@ class BertE:
 
         """
         self.token = token
+        if len(self.token) in SHA1_LENGTH:
+            return self._handle_sha1(self.token)
         try:
-            if len(self.token) in SHA1_LENGHT:
-                branches = self.git_repo.get_branches_from_sha1(self.token)
-                for branch in branches:
-                    if self.settings.use_queue and isinstance(
-                            branch_factory(self.git_repo, branch),
-                            QueueIntegrationBranch):
-                        return self.handle_merge_queues()   # queued
+            int(self.token)
+        except ValueError:
+            pass
+        else:
+            # it is probably a pull request id
+            return self._handle_pull_request(self.token)
+        return self._process_error(UnsupportedTokenType(self.token))
 
-                return self.handle_pull_request_from_sha1(self.token)
+    def _process_error(self, error):
+        if self.settings.backtrace:
+            raise error from error
+        LOG.info('Exception raised: %d', error.code)
+        if not self.settings.quiet:
+            print('%d - %s' % (0, error.__class__.__name__))
+        return error.code
 
-            try:
-                int(self.token)
-            except ValueError:
-                pass
-            else:
-                # it is probably a pull request id
-                return self.handle_pull_request(self.token)
-
-            raise UnsupportedTokenType(self.token)
-
-        except SilentException as excp:
-            if self.settings.backtrace:
-                raise
-
-            logging.info('Exception raised: %d', excp.code)
-            if not self.settings.quiet:
-                print('%d - %s' % (0, excp.__class__.__name__))
-            return 0
-
-    def handle_pull_request(self, pr_id):
+    def _handle_pull_request(self, pr_id):
         """Entry point to handle a pull request id."""
-        job = self.new_job()
-        self.initialize_pull_request(job, int(pr_id))
-
-        try:
-            gwf.handle_pull_request(job)
-        except TemplateException as excp:
-            self.send_comment(excp)
-
-            if self.settings.backtrace:
-                raise excp
-
-            logging.info('Exception raised: %d %s', excp.code, excp.__class__)
-            if not self.settings.quiet:
-                print('%d - %s' % (excp.code, excp.__class__.__name__))
-            return excp.code
-
-    def handle_pull_request_from_sha1(self, sha1):
-        """Entry point to handle a pull request from a sha1."""
-        pr = self.get_integration_pull_request_from_sha1(sha1)
-        if not pr:
-            raise NothingToDo('Could not find the PR corresponding to'
-                              ' sha1: %s' % sha1)
-        return self.handle_pull_request(pr.id)
-
-    def handle_merge_queues(self):
-        """Entry point to handle queues following a build status update."""
-        job = self.new_job()
-        gwf.queueing.handle_merge_queues(job)
-
-    def get_integration_pull_request_from_sha1(self, sha1):
-        """Get the oldest open integration pull request containing given
-        commit.
-
-        """
-        git_repo = GitRepository(
-            self.project_repo.git_url,
-            mask_pwd=quote_plus(self.settings.robot_password))
-        candidates = [b for b in git_repo.get_branches_from_sha1(sha1)
-                      if b.startswith('w/')]
-        if not candidates:
-            return
-        prs = list(
-            pr for pr in self.project_repo.get_pull_requests(
-                src_branch=candidates,
-                author=self.settings['robot_username'])
-            if pr.status == 'OPEN'
-        )
-        if not prs:
-            return
-        return min(prs, key=lambda pr: pr.id)
-
-    def find_comment(self, username=None, startswith=None, max_history=None):
-        # check last commits
-        job = self.job
-        comments = reversed(job.pull_request.comments)
-        if max_history not in (None, -1):
-            comments = itertools.islice(comments, 0, max_history)
-        for comment in comments:
-            u = comment.author
-            raw = comment.text
-            # python3
-            if isinstance(username, str) and u != username:
-                continue
-            if startswith and not raw.startswith(startswith):
-                if max_history == -1:
-                    return
-                continue
-            return comment
-
-    def _send_msg(self, msg, dont_repeat_if_in_history=10):
-        if self.settings.no_comment:
-            logging.debug('not sending message due to no_comment being True.')
-            return
-
-        # Apply no-repeat strategy
-        if dont_repeat_if_in_history:
-            if self.find_comment(
-                    username=self.settings['robot_username'],
-                    startswith=msg,
-                    max_history=dont_repeat_if_in_history):
-                raise CommentAlreadyExists(
-                    'The same comment has already been posted '
-                    'in the past. Nothing to do here!'
-                )
-
-        if self.settings.interactive:
-            print('%s\n' % msg)
-            if not confirm('Do you want to send this comment?'):
-                return
-
-        logging.debug('SENDING MSG %s', msg)
-        return self.job.pull_request.add_comment(msg)
-
-    def send_comment(self, msg):
-        try:
-            return self._send_msg(str(msg), msg.dont_repeat_if_in_history)
-        except CommentAlreadyExists:
-            logging.info("Comment '%s' already posted", msg.__class__.__name__)
-
-    def new_job(self):
-        job = self.job = SimpleNamespace(
+        job = PullRequestJob(
             bert_e=self,
-            pull_request=None,
-            project_repo=None,
-            git=SimpleNamespace(
-                repo=None,
-                src_branch=None,
-                dst_branch=None,
-                cascade=None
-            ),
-            settings=SettingsDict({}, self.settings)
+            pull_request=self.project_repo.get_pull_request(int(pr_id))
         )
-        job.project_repo = self.project_repo
-        job.git.repo = self.git_repo
-        job.git.cascade = BranchCascade()
-        return job
+        return self.process(job)
 
-    def initialize_pull_request(self, job, pr_id):
-        repo = job.project_repo
-        pull_request = repo.get_pull_request(pr_id)
-        if pull_request.author == self.settings['robot_username']:
-            res = re.search('(?P<pr_id>\d+)', pull_request.description)
-            if not res:
-                raise ParentPullRequestNotFound(pull_request.id)
-            pull_request_id = int(res.group('pr_id'))
-            pull_request = repo.get_pull_request(pull_request_id)
-        job.pull_request = pull_request
+    def _handle_sha1(self, sha1):
+        """Entry point to handle a sha1 hash."""
+        return self.process(CommitJob(bert_e=self, commit=sha1))
 
     def add_merged_pr(self, pr_id):
         """Add pr_id to the list of merged pull requests.
@@ -307,7 +178,7 @@ def setup_parser():
     parser.add_argument(
         'token', type=str,
         help="The ID of the pull request or sha1 (%s characters) "
-             "to analyse" % SHA1_LENGHT)
+             "to analyse" % SHA1_LENGTH)
     parser.add_argument(
         '--disable-queues', action='store_true', default=False,
         help="Deactivate optimistic merge queue (legacy mode)")

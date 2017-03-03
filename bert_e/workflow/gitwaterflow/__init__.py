@@ -17,17 +17,19 @@ This module implements automation of the GitWaterFlow by BertE.
 
 """
 import logging
+import re
 
 from bert_e import exceptions as messages
+from bert_e.job import handler, CommitJob, PullRequestJob, QueuesJob
 from bert_e.lib.cli import confirm
 from bert_e.reactor import Reactor, NotFound, NotPrivileged
 from ..git_utils import push, clone_git_repo
 from ..pr_utils import find_comment, send_comment, create_task
 from .branches import (
-    branch_factory, build_branch_cascade,
-    is_cascade_consumer, is_cascade_producer
+    branch_factory, build_branch_cascade, is_cascade_consumer,
+    is_cascade_producer, BranchCascade
 )
-from .commands import setup, get_active_options  # noqa
+from .commands import setup  # noqa
 from .integration import (create_integration_branches,
                           create_integration_pull_requests,
                           merge_integration_branches,
@@ -39,18 +41,22 @@ from . import queueing
 LOG = logging.getLogger(__name__)
 
 
-def handle_pull_request(job):
+@handler(PullRequestJob)
+def handle_pull_request(job: PullRequestJob):
     """Analyse and handle a pull request that has just been updated."""
+    if job.pull_request.author == job.settings.robot_username:
+        return handle_parent_pull_request(job, job.pull_request)
+    job.git.cascade = job.git.cascade or BranchCascade()
     early_checks(job)
     send_greetings(job)
-
     src = job.git.src_branch = branch_factory(job.git.repo,
                                               job.pull_request.src_branch)
     dst = job.git.dst_branch = branch_factory(job.git.repo,
                                               job.pull_request.dst_branch)
 
     handle_comments(job)
-    LOG.debug("Running with active options: %r", get_active_options(job))
+    LOG.debug("Running with active options: %r", job.active_options)
+
     check_dependencies(job)
 
     # Now we're actually going to work on the repository. Let's clone it.
@@ -78,7 +84,7 @@ def handle_pull_request(job):
     wbranches = list(create_integration_branches(job))
     use_queue = job.settings.use_queue
     if use_queue and queueing.already_in_queue(job, wbranches):
-        job.bert_e.handle_merge_queues()
+        queueing.handle_merge_queues(QueuesJob(bert_e=job.bert_e))
 
     in_sync = check_in_sync(job, wbranches)
 
@@ -124,7 +130,7 @@ def handle_pull_request(job):
             queueing.validate_queues(job)
         except messages.IncoherentQueues as err:
             raise messages.QueueOutOfOrder(
-                active_options=get_active_options(job)) from err
+                active_options=job.active_options) from err
         # Enter the merge queue!
         queueing.add_to_queue(job, wbranches)
         job.git.cascade.validate()
@@ -133,7 +139,7 @@ def handle_pull_request(job):
             ignored=job.git.cascade.ignored_branches,
             issue=job.git.src_branch.jira_issue_key,
             author=job.pull_request.author_display_name,
-            active_options=get_active_options(job))
+            active_options=job.active_options)
 
     else:
         merge_integration_branches(job, wbranches)
@@ -144,7 +150,50 @@ def handle_pull_request(job):
             ignored=job.git.cascade.ignored_branches,
             issue=job.git.src_branch.jira_issue_key,
             author=job.pull_request.author_display_name,
-            active_options=get_active_options(job))
+            active_options=job.active_options)
+
+
+@handler(CommitJob)
+def handle_commit(job: CommitJob):
+    """Handle a job triggered by an updated build status."""
+    if job.settings.use_queue:
+        qbranch = any(
+            b.startswith('q/') for b in
+            job.git.repo.get_branches_from_sha1(job.commit)
+        )
+        if qbranch:
+            return queueing.handle_merge_queues(QueuesJob(bert_e=job.bert_e))
+
+    candidates = [b for b in job.git.repo.get_branches_from_sha1(job.commit)
+                  if b.startswith('w/')]
+    if not candidates:
+        raise messages.NothingToDo(
+            'Could not find the pull request for commit {}' .format(job.commit)
+        )
+    prs = list(
+        job.project_repo.get_pull_requests(
+            src_branch=candidates,
+            author=job.settings.robot_username)
+    )
+    if not prs:
+        raise messages.NothingToDo(
+            'Could not find the pull request for commit {}' .format(job.commit)
+        )
+    return handle_parent_pull_request(job, min(prs, key=lambda pr: pr.id))
+
+
+def handle_parent_pull_request(job, integration_pr):
+    """Handle the parent of an integration pull request."""
+    ids = re.findall('\d+', integration_pr.description)
+    if not ids:
+        raise messages.ParentPullRequestNotFound(integration_pr.id)
+    parent_id, *_ = ids
+    return handle_pull_request(
+        PullRequestJob(
+            bert_e=job.bert_e,
+            pull_request=job.project_repo.get_pull_request(int(parent_id))
+        )
+    )
 
 
 def early_checks(job):
@@ -160,7 +209,7 @@ def early_checks(job):
 
     if not job.git.repo.remote_branch_exists(dst):
         raise messages.WrongDestination(dst_branch=dst,
-                                        active_options=get_active_options(job))
+                                        active_options=job.active_options)
 
 
 def send_greetings(job):
@@ -176,7 +225,7 @@ def send_greetings(job):
     comment = send_comment(
         job.settings, job.pull_request, messages.InitMessage(
             bert_e=username, author=job.pull_request.author_display_name,
-            status={}, active_options=get_active_options(job), tasks=tasks
+            status={}, active_options=job.active_options, tasks=tasks
         )
     )
 
@@ -212,12 +261,12 @@ def handle_comments(job):
             reactor.handle_options(job, text, prefix, privileged)
         except NotFound as err:
             raise messages.UnknownCommand(
-                active_options=get_active_options(job), command=err.keyword,
+                active_options=job.active_options, command=err.keyword,
                 author=author, comment=text
             ) from err
         except NotPrivileged as err:
             raise messages.NotEnoughCredentials(
-                active_options=get_active_options(job), command=err.keyword,
+                active_options=job.active_options, command=err.keyword,
                 author=author, self_pr=(author == pr_author), comment=text
             ) from err
         except TypeError as err:
@@ -237,12 +286,12 @@ def handle_comments(job):
             reactor.handle_commands(job, text, prefix, privileged)
         except NotFound as err:
             raise messages.UnknownCommand(
-                active_options=get_active_options(job), command=err.keyword,
+                active_options=job.active_options, command=err.keyword,
                 author=author, comment=text
             ) from err
         except NotPrivileged as err:
             raise messages.NotEnoughCredentials(
-                active_options=get_active_options(job), command=err.keyword,
+                active_options=job.active_options, command=err.keyword,
                 author=author, self_pr=(author == pr_author), comment=text
             ) from err
 
@@ -268,7 +317,7 @@ def check_branch_compatibility(job):
             raise messages.IncompatibleSourceBranchPrefix(
                 source=src_branch,
                 destination=job.git.dst_branch,
-                active_options=get_active_options(job)
+                active_options=job.active_options
             )
 
 
@@ -306,7 +355,7 @@ def check_dependencies(job):
     if len(after_prs) != len(merged):
         raise messages.AfterPullRequest(
             opened_prs=opened, declined_prs=declined,
-            active_options=get_active_options(job)
+            active_options=job.active_options
         )
 
 
@@ -469,7 +518,7 @@ def check_approvals(job):
             required_peer_approvals=required_peer_approvals,
             requires_tester_approval=bool(testers),
             requires_unanimity=requires_unanimity,
-            active_options=get_active_options(job)
+            active_options=job.active_options
         )
 
 
@@ -505,7 +554,7 @@ def check_build_status(job, child_prs):
         raise messages.BuildFailed(
             pr_id=worst.id,
             build_url=job.project_repo.get_build_url(worst.src_commit, key),
-            active_options=get_active_options(job)
+            active_options=job.active_options
         )
     elif worst_status == 'NOTSTARTED':
         raise messages.BuildNotStarted()

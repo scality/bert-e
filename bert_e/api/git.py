@@ -28,10 +28,8 @@ LOG = logging.getLogger(__name__)
 class Repository(object):
     def __init__(self, url, mask_pwd=''):
         self._url = url
-        self.tmp_directory = mkdtemp()
-        self.cmd_directory = self.tmp_directory
-        self._remote_heads = defaultdict(set)
-        self._remote_branches = dict()
+        self.tmp_directory = None
+        self.reset()
         self._mask_pwd = mask_pwd
 
     def __enter__(self):
@@ -39,6 +37,14 @@ class Repository(object):
 
     def __exit__(self, type_, value, tb):
         self.delete()
+
+    def reset(self):
+        if self.tmp_directory:
+            self.delete()
+        self.tmp_directory = mkdtemp()
+        self.cmd_directory = self.tmp_directory
+        self._remote_heads = defaultdict(set)
+        self._remote_branches = dict()
 
     def delete(self):
         rmtree(self.tmp_directory)

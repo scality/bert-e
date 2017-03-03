@@ -28,12 +28,6 @@ from .branches import branch_factory, build_branch_cascade
 from ..git_utils import clone_git_repo, push
 
 
-# TODO: When jobs are implemented as proper classes, this function should
-# become a method of Job objects.
-def get_active_options(job):
-    return [key for key, val in job.settings.maps[0].items() if val]
-
-
 @Reactor.option(default=set())
 def after_pull_request(job, pr_id=None, **kwargs):
     """Wait for the given pull request id to be merged before continuing with
@@ -58,14 +52,14 @@ def print_help(job, *args):
     """Print Bert-E's manual in the pull request."""
     raise HelpMessage(
         options=Reactor.get_options(), commands=Reactor.get_commands(),
-        active_options=get_active_options(job)
+        active_options=job.active_options
     )
 
 
 @Reactor.command
 def status(job):
     """Print Bert-E's current status in the pull request ```TBA```"""
-    raise StatusReport(status={}, active_options=get_active_options(job))
+    raise StatusReport(status={}, active_options=job.active_options)
 
 
 @Reactor.command("build", "Re-start a fresh build ```TBA```")
@@ -73,7 +67,7 @@ def status(job):
 @Reactor.command("clear",
                  "Remove all comments from Bert-E from the history ```TBA```")
 def not_implemented(job):
-    raise CommandNotImplemented(active_options=get_active_options(job))
+    raise CommandNotImplemented(active_options=job.active_options)
 
 
 def _reset(job, force=False):
@@ -97,7 +91,7 @@ def _reset(job, force=False):
     if len(children) == 0:
         for branch in wbranches:
             branch.remove(do_push=True)
-        raise ResetComplete(active_options=get_active_options(job))
+        raise ResetComplete(active_options=job.active_options)
 
     # Check that the first integration branch contains commits from its
     # source and destination branch only.
@@ -110,7 +104,7 @@ def _reset(job, force=False):
                 history_mismatch = ResetHistoryMismatch(
                     commit=commit, integration_branch=child,
                     feature_branch=src, development_branch=dst,
-                    active_options=get_active_options(job)
+                    active_options=job.active_options
                 )
 
     if history_mismatch and not force:
@@ -126,7 +120,7 @@ def _reset(job, force=False):
         # decline integration pull requests:
         for pr in wprs:
             pr.decline()
-        raise ResetComplete(active_options=get_active_options(job))
+        raise ResetComplete(active_options=job.active_options)
 
 
 @Reactor.command

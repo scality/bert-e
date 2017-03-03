@@ -18,23 +18,26 @@ from copy import deepcopy
 
 from bert_e import exceptions
 from bert_e.api import git
+from bert_e.job import handler as job_handler
+from bert_e.job import QueuesJob
 
 from ..git_utils import clone_git_repo, octopus_merge, push
 from ..pr_utils import send_comment
-from .branches import (DevelopmentBranch, IntegrationBranch, QueueBranch,
-                       QueueCollection, QueueIntegrationBranch, branch_factory)
-from .commands import get_active_options
+from .branches import (BranchCascade, DevelopmentBranch, IntegrationBranch,
+                       QueueBranch, QueueCollection, QueueIntegrationBranch,
+                       branch_factory)
 from .integration import create_integration_branches
 
 LOG = logging.getLogger(__name__)
 
 
+@job_handler(QueuesJob)
 def handle_merge_queues(job):
     """Check merge queue and fast-forward development branches to the most
     recent stable state.
 
     """
-    cascade = job.git.cascade
+    cascade = job.git.cascade = job.git.cascade or BranchCascade()
     clone_git_repo(job)
     cascade.build(job.git.repo)
     queues = validate_queues(job)
@@ -130,7 +133,7 @@ def add_to_queue(job, wbranches):
             to_push.append(qint)
     except git.MergeFailedException as err:
         raise exceptions.QueueConflict(
-            active_options=get_active_options(job)) from err
+            active_options=job.active_options) from err
 
     push(job.git.repo, to_push)
 
@@ -156,10 +159,9 @@ def merge_queues(queues):
 
 def close_queued_pull_request(job, pr_id, cascade):
     """Close queued pull requests that have been merged."""
-    job.bert_e.initialize_pull_request(job, int(pr_id))
     job.git.cascade = cascade
     repo = job.git.repo
-    pull_request = job.pull_request
+    pull_request = job.project_repo.get_pull_request(int(pr_id))
     src = job.git.src_branch = branch_factory(repo, pull_request.src_branch)
     dst = job.git.dst_branch = branch_factory(repo, pull_request.dst_branch)
     job.git.cascade.finalize(dst)
@@ -167,11 +169,11 @@ def close_queued_pull_request(job, pr_id, cascade):
     if dst.includes_commit(src.get_latest_commit()):
         # Everything went fine, send a success message
         send_comment(
-            job.settings, job.pull_request, exceptions.SuccessMessage(
+            job.settings, pull_request, exceptions.SuccessMessage(
                 branches=job.git.cascade.dst_branches,
                 ignored=job.git.cascade.ignored_branches,
                 issue=src.jira_issue_key,
-                author=job.pull_request.author_display_name,
+                author=pull_request.author_display_name,
                 active_options=[])
         )
 
@@ -182,7 +184,7 @@ def close_queued_pull_request(job, pr_id, cascade):
         # naturally.
         commits = src.get_commit_diff(dst)
         send_comment(
-            job.settings, job.pull_request, exceptions.PartialMerge(
+            job.settings, pull_request, exceptions.PartialMerge(
                 commits=commits, branches=job.git.cascade.dst_branches,
                 active_options=[])
         )
