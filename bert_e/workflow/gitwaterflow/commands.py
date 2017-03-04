@@ -25,7 +25,7 @@ from bert_e.exceptions import (
 )
 from bert_e.reactor import Reactor
 from .branches import branch_factory, build_branch_cascade
-from ..git_utils import clone_git_repo
+from ..git_utils import clone_git_repo, push
 
 
 # TODO: When jobs are implemented as proper classes, this function should
@@ -107,16 +107,19 @@ def _reset(job, force=False):
                     active_options=get_active_options(job)
                 )
 
-    if force:
-        # Erase anyway
-        for branch in wbranches:
-            branch.remove(do_push=True)
-        raise ResetComplete(active_options=get_active_options(job))
-    elif history_mismatch is not None:
+    if history_mismatch and not force:
         raise history_mismatch
     else:
+        wprs = job.project_repo.get_pull_requests(
+            src_branch=[b.name for b in wbranches],
+            author=job.settings.robot_username
+        )
         for branch in wbranches:
-            branch.remove(do_push=True)
+            branch.remove(do_push=False)
+        push(job.git.repo, prune=True)
+        # decline integration pull requests:
+        for pr in wprs:
+            pr.decline()
         raise ResetComplete(active_options=get_active_options(job))
 
 

@@ -1212,24 +1212,21 @@ admins:
         integration_branch = 'w/5.1/bugfix/TEST-00001'
         pr = self.create_pr(feature_branch, 'development/4.3')
         self.handle(pr['id'], options=['bypass_jira_check'])
-        pr.add_comment("@{} force_reset".format(self.args.robot_username))
-        self.gitrepo.cmd('git pull')
-        add_file_to_branch(self.gitrepo, integration_branch,
-                           'file_added_on_int_branch')
-        retcode = self.handle(pr['id'], options=['bypass_jira_check'])
-        self.assertEqual(retcode, ResetComplete.code)
-
-    def test_reset_command_with_history_mismatch(self):
-        feature_branch = 'bugfix/TEST-00001'
-        integration_branch = 'w/5.1/bugfix/TEST-00001'
-        pr = self.create_pr(feature_branch, 'development/4.3')
-        self.handle(pr['id'], options=['bypass_jira_check'])
         pr.add_comment("@{} reset".format(self.args.robot_username))
         self.gitrepo.cmd('git pull')
         add_file_to_branch(self.gitrepo, integration_branch,
                            'file_added_on_int_branch')
         retcode = self.handle(pr['id'], options=['bypass_jira_check'])
         self.assertEqual(retcode, ResetHistoryMismatch.code)
+
+        # Try force reset
+        pr.add_comment("@{} force_reset".format(self.args.robot_username))
+        retcode = self.handle(pr['id'], options=['bypass_jira_check'])
+        self.assertEqual(retcode, ResetComplete.code)
+
+        # Check that the work resumed normally
+        retcode = self.handle(pr['id'], options=['bypass_jira_check'])
+        self.assertEqual(retcode, ApprovalRequired.code)
 
     def test_reset_command(self):
         pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
