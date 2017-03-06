@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 # Copyright 2016 Scality
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,46 +18,16 @@ launches, Bert-E accordingly.
 import json
 import logging
 import os
-import sys
-from collections import deque, namedtuple
-from datetime import datetime
 from functools import wraps
 
 from flask import Flask, Response, render_template, request
-from raven.contrib.flask import Sentry
 
-from . import bert_e, exceptions
-from .exceptions import BertE_Exception, InternalException
-from .git_host.bitbucket import BUILD_STATUS_CACHE
+from .job import CommitJob, PullRequestJob
+from .git_host.bitbucket import BUILD_STATUS_CACHE, PullRequest
 
-if sys.version_info.major < 3:
-    import Queue as queue
-else:
-    import queue
-
-
+BERTE = None
 APP = Flask(__name__)
-FIFO = queue.Queue()
-DONE = deque(maxlen=1000)
-CODE_NAMES = {}
-
-try:
-    SENTRY = Sentry(APP, logging=True, level=logging.INFO,
-                    dsn=os.environ['SENTRY_DSN'])
-except KeyError:
-    SENTRY = None
-
-Job = namedtuple('Job', ('repo_owner', 'repo_slug',
-                         'revision', 'start_time', 'repo_settings'))
-
-# Populate code names.
-for name in dir(exceptions):
-    obj = getattr(exceptions, name)
-    if not isinstance(obj, type):
-        continue
-    if not issubclass(obj, exceptions.BertE_Exception):
-        continue
-    CODE_NAMES[obj.code] = name
+LOG = logging.getLogger(__name__)
 
 
 @APP.template_filter('pr_url')
@@ -78,53 +46,7 @@ def build_url_filter(sha1):
 def bert_e_launcher():
     """Basic worker loop that waits for Bert-E jobs and launches them."""
     while True:
-        bert_e_worker_job()
-
-
-def bert_e_worker_job():
-    """Insights of the worker loop.
-
-    This is defined as a separate function to make it testable.
-
-    """
-    bb_pwd = os.environ['BERT_E_BB_PWD']
-    jira_pwd = os.environ['BERT_E_JIRA_PWD']
-    job = FIFO.get()
-    sys.argv[:] = []
-    bert_e.STATUS['current job'] = job
-    sys.argv.extend([
-        'bert_e',
-        '-v',
-        '--backtrace'
-    ])
-    sys.argv.extend([
-        job.repo_settings,
-        bb_pwd,
-        jira_pwd,
-        str(job.revision)
-    ])
-    try:
-        bert_e.main()
-    except Exception as err:
-        # with '--backtrace', all instances will raise
-        retcode = getattr(err, 'code', None)
-        status = CODE_NAMES.get(retcode, type(err).__name__)
-        details = None
-
-        if not isinstance(err, (BertE_Exception, InternalException)):
-            logging.error("Bert-E job %s finished with an error: %s",
-                          job, err)
-            details = str(err)
-            if SENTRY:
-                SENTRY.captureException()
-    finally:
-        FIFO.task_done()
-
-        logging.debug("It took the server %s to handle job %s:%s",
-                      datetime.now() - job.start_time,
-                      job.repo_slug, job.revision)
-        DONE.appendleft({'job': job, 'status': status, 'details': details})
-        bert_e.STATUS.pop('current job')
+        BERTE.process_task()
 
 
 def check_auth(username, password):
@@ -160,10 +82,10 @@ def display_queue():
     if output_mode is None:
         output_mode = 'html'
 
-    current_job = bert_e.STATUS.get('current job', None)
-    merged_prs = bert_e.STATUS.get('merged PRs', [])
-    queue_data = bert_e.STATUS.get('merge queue', None)
-    pending_jobs = FIFO.queue
+    current_job = BERTE.status.get('current job', None)
+    merged_prs = BERTE.status.get('merged PRs', [])
+    queue_data = BERTE.status.get('merge queue', None)
+    pending_jobs = BERTE.task_queue.queue
 
     queue_lines = []
     versions = set()
@@ -195,14 +117,14 @@ def display_queue():
 
     return render_template(
         file_template,
-        owner=APP.config['REPOSITORY_OWNER'],
-        slug=APP.config['REPOSITORY_SLUG'],
+        owner=BERTE.project_repo.owner,
+        slug=BERTE.project_repo.slug,
         current_job=current_job,
         merged_prs=merged_prs,
         queue_lines=queue_lines,
         versions=versions,
         pending_jobs=pending_jobs,
-        completed_jobs=DONE
+        completed_jobs=BERTE.tasks_done
     ), 200, {'Content-Type': output_mimetype}
 
 
@@ -218,35 +140,27 @@ def parse_bitbucket_webhook():
     repo_slug = json_data['repository']['name']
 
     if repo_owner != APP.config['REPOSITORY_OWNER']:
-        logging.error('received repo_owner (%s) incompatible with settings' %
-                      repo_owner)
+        LOG.error('received repo_owner (%s) incompatible with settings',
+                  repo_owner)
         return Response('Internal Server Error', 500)
 
     if repo_slug != APP.config['REPOSITORY_SLUG']:
-        logging.error('received repo_slug (%s) incompatible with settings' %
-                      repo_slug)
+        LOG.error('received repo_slug (%s) incompatible with settings',
+                  repo_slug)
         return Response('Internal Server Error', 500)
 
-    repo_settings = APP.config.get('SETTINGS_FILE')
-    revision = None
+    job = None
     if entity == 'repo':
-        revision = handle_repo_event(event, json_data)
+        job = handle_repo_event(event, json_data)
     if entity == 'pullrequest':
-        revision = handle_pullrequest_event(event, json_data)
+        job = handle_pullrequest_event(event, json_data)
 
-    if not revision:
-        logging.debug('Nothing to do')
+    if not job:
+        LOG.debug('Nothing to do')
         return Response('OK', 200)
 
-    job = Job(repo_owner, repo_slug, revision, datetime.now(), repo_settings)
-
-    if any(filter(lambda j: j[:3] == job[:3], FIFO.queue)):
-        logging.info('%s/%s:%s already in queue. Skipping.', *(job[:3]))
-        return Response('OK', 200)
-
-    logging.info('Queuing job %s', job)
-    FIFO.put(job)
-
+    LOG.info('Adding job %r', job)
+    BERTE.task_queue.put(job)
     return Response('OK', 200)
 
 
@@ -273,9 +187,10 @@ def handle_repo_event(event, json_data):
         # Ignore notifications that the build started
         if build_status == 'INPROGRESS':
             return
-        logging.info('The build status of commit <%s> has been updated: %s',
-                     commit_sha1, commit_url)
-        return commit_sha1
+
+        LOG.info('The build status of commit <%s> has been updated: %s',
+                 commit_sha1, commit_url)
+        return CommitJob(bert_e=BERTE, commit=commit_sha1, url=commit_url)
 
 
 def handle_pullrequest_event(event, json_data):
@@ -285,5 +200,7 @@ def handle_pullrequest_event(event, json_data):
 
     """
     pr_id = json_data['pullrequest']['id']
-    logging.info('The pull request <%s> has been updated', pr_id)
-    return str(pr_id)
+    pr_url = json_data['pullrequest']['links']['html']['href']
+    pr = PullRequest(BERTE.client, **json_data['pullrequest'])
+    LOG.info('The pull request <%s> has been updated', pr_id)
+    return PullRequestJob(bert_e=BERTE, pull_request=pr, url=pr_url)

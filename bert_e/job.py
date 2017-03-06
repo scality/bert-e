@@ -18,6 +18,7 @@ possibly short-lived information needed to process it.
 
 """
 
+from datetime import datetime, timedelta
 from types import SimpleNamespace
 from typing import Callable
 
@@ -27,16 +28,41 @@ from bert_e.lib.settings_dict import SettingsDict
 
 class Job:
     """Generic job class."""
-    def __init__(self, bert_e, settings={}):
+    def __init__(self, bert_e, settings={}, url=''):
         self.bert_e = bert_e
         self.settings = SettingsDict(settings, bert_e.settings)
+        self.start_time = datetime.now()
+        self.end_time = None
+        self.status = ''
+        self.details = ''
+        self.url = url
+
+    def complete(self):
+        self.end_time = datetime.now()
+
+    @property
+    def duration(self) -> timedelta:
+        if not self.end_time:
+            return datetime.now() - self.start_time
+        else:
+            return self.end_time - self.start_time
 
     @property
     def active_options(self):
         return [key for key, val in self.settings.maps[0].items() if val]
 
     def __str__(self):
-        return repr(self)
+        return "Generic Job"
+
+    def __repr__(self):
+        return "{}({})".format(
+            self.__class__.__name__,
+            ''.join(
+                str(self),
+                ', start_time={}'.format(self.start_time),
+                ', url={}'.format(self.url) if self.url else ''
+            )
+        )
 
 
 class RepoJob(Job):
@@ -58,9 +84,7 @@ class PullRequestJob(RepoJob):
         self.git.dst_branch = None
 
     def __str__(self):
-        return "PullRequestJob(repo={}/{}, id={})".format(
-            self.project_repo.owner, self.project_repo.slug,
-            self.pull_request.id)
+        return str(self.pull_request.id)
 
 
 class CommitJob(RepoJob):
@@ -68,6 +92,9 @@ class CommitJob(RepoJob):
     def __init__(self, commit, **kwargs):
         super().__init__(**kwargs)
         self.commit = commit
+
+    def __str__(self):
+        return str(self.commit)
 
 
 class QueuesJob(RepoJob):
