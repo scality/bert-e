@@ -2076,6 +2076,28 @@ admins:
                         backtrace=True)
         self.assertIn('unanimity', raised.exception.msg)
 
+    def test_after_pull_request_wrong_syntax(self):
+        pr_declined = self.create_pr('bugfix/TEST-00002', 'development/4.3')
+        pr_declined.decline()
+        blocked_pr = self.create_pr('bugfix/TEST-00003', 'development/4.3')
+
+        blocked_pr.add_comment(
+            '@%s after_pull_request %s' % (
+                self.args.robot_username,
+                pr_declined['id']))
+
+        retcode = self.handle(blocked_pr['id'], options=self.bypass_all)
+        self.assertEqual(retcode, IncorrectCommandSyntax.code)
+
+    def test_after_pull_request_wrong_pr_id(self):
+        blocked_pr = self.create_pr('bugfix/TEST-00003', 'development/4.3')
+
+        blocked_pr.add_comment(
+            '@%s after_pull_request=0' % (self.args.robot_username,))
+
+        retcode = self.handle(blocked_pr['id'], options=self.bypass_all)
+        self.assertEqual(retcode, IncorrectPullRequestNumber.code)
+
     def test_bitbucket_lag_on_pr_status(self):
         """Bitbucket can be a bit long to update a merged PR's status.
 

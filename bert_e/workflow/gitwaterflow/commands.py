@@ -21,7 +21,7 @@ BertE through comments in the pull requests.
 
 from bert_e.exceptions import (
     ResetHistoryMismatch, CommandNotImplemented, ResetComplete, HelpMessage,
-    StatusReport
+    StatusReport, IncorrectCommandSyntax
 )
 from bert_e.reactor import Reactor
 from .branches import branch_factory, build_branch_cascade
@@ -35,15 +35,21 @@ def get_active_options(job):
 
 
 @Reactor.option(default=set())
-def after_pull_request(job, pr_id, **kwargs):
+def after_pull_request(job, pr_id=None, **kwargs):
     """Wait for the given pull request id to be merged before continuing with
     the current one.
 
     """
+    if pr_id is None:
+        raise IncorrectCommandSyntax(
+            robot_username=job.bert_e.client.login,
+            active_options=get_active_options(job))
+
     try:
         int(pr_id)
     except ValueError:
         return
+
     job.settings.after_pull_request.add(pr_id)
 
 

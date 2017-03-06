@@ -220,6 +220,10 @@ def handle_comments(job):
                 active_options=get_active_options(job), command=err.keyword,
                 author=author, self_pr=(author == pr_author), comment=text
             ) from err
+        except TypeError as err:
+            raise messages.IncorrectCommandSyntax(
+                extra_message=str(err), active_options=get_active_options(job)
+            ) from err
 
     # Handle commands
     # Look for commands in comments posted after BertE's last message.
@@ -274,6 +278,8 @@ def check_dependencies(job):
     Raises:
         AfterPullRequest: if the current pull request depends on other open
                           pull requests to be merged.
+        NothingToDo: if the wait option is set then nothing will be checked.
+
 
     """
     if job.settings.wait:
@@ -284,12 +290,18 @@ def check_dependencies(job):
     if not after_prs:
         return
 
-    prs = [job.project_repo.get_pull_request(int(pr_id))
-           for pr_id in after_prs]
+    prs = []
+    for pr_id in after_prs:
+        try:
+            prs.append(job.project_repo.get_pull_request(int(pr_id)))
+        except Exception as err:
+            raise messages.IncorrectPullRequestNumber(
+                pr_id=pr_id, active_options=get_active_options(job)
+            ) from err
 
-    opened = [p for p in prs if p.status == 'OPEN']
-    merged = [p for p in prs if p.status == 'MERGED']
-    declined = [p for p in prs if p.status == 'DECLINED']
+        opened = [p for p in prs if p.status == 'OPEN']
+        merged = [p for p in prs if p.status == 'MERGED']
+        declined = [p for p in prs if p.status == 'DECLINED']
 
     if len(after_prs) != len(merged):
         raise messages.AfterPullRequest(

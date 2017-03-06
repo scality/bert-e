@@ -203,6 +203,16 @@ class ResetHistoryMismatch(TemplateException):
     template = "reset_history_mismatch.md"
 
 
+class IncorrectCommandSyntax(TemplateException):
+    code = 130
+    template = "incorrect_command_syntax.md"
+
+
+class IncorrectPullRequestNumber(TemplateException):
+    code = 131
+    template = "incorrect_pull_request_number.md"
+
+
 # internal exceptions
 class UnableToSendEmail(InternalException):
     code = 201
