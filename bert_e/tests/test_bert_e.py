@@ -954,8 +954,13 @@ class TestBertE(RepositoryTests):
         with self.assertRaises(exns.ApprovalRequired) as raised:
             self.handle(pr.id + 1, options=['bypass_jira_check'],
                         backtrace=True)
-        self.assertIn('the author', raised.exception.msg)
-        self.assertIn('2 peers', raised.exception.msg)
+
+        # Check that a message was posted on the main PR, not the integration
+        # PR
+        self.assertEqual(list(pr_child.get_comments()), [])
+        comment = list(pr.get_comments())[-1]
+        self.assertIn('the author', comment.text)
+        self.assertIn('2 peers', comment.text)
 
         # test message with a single peer approval required
         settings = """

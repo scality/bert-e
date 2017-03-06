@@ -46,6 +46,57 @@ def handle_pull_request(job: PullRequestJob):
     """Analyse and handle a pull request that has just been updated."""
     if job.pull_request.author == job.settings.robot_username:
         return handle_parent_pull_request(job, job.pull_request)
+    try:
+        _handle_pull_request(job)
+    except messages.TemplateException as err:
+        send_comment(job.settings, job.pull_request, err)
+        raise
+
+
+@handler(CommitJob)
+def handle_commit(job: CommitJob):
+    """Handle a job triggered by an updated build status."""
+    if job.settings.use_queue:
+        qbranch = any(
+            b.startswith('q/') for b in
+            job.git.repo.get_branches_from_sha1(job.commit)
+        )
+        if qbranch:
+            return queueing.handle_merge_queues(QueuesJob(bert_e=job.bert_e))
+
+    candidates = [b for b in job.git.repo.get_branches_from_sha1(job.commit)
+                  if b.startswith('w/')]
+    if not candidates:
+        raise messages.NothingToDo(
+            'Could not find the pull request for commit {}' .format(job.commit)
+        )
+    prs = list(
+        job.project_repo.get_pull_requests(
+            src_branch=candidates,
+            author=job.settings.robot_username)
+    )
+    if not prs:
+        raise messages.NothingToDo(
+            'Could not find the pull request for commit {}' .format(job.commit)
+        )
+    return handle_parent_pull_request(job, min(prs, key=lambda pr: pr.id))
+
+
+def handle_parent_pull_request(job, integration_pr):
+    """Handle the parent of an integration pull request."""
+    ids = re.findall('\d+', integration_pr.description)
+    if not ids:
+        raise messages.ParentPullRequestNotFound(integration_pr.id)
+    parent_id, *_ = ids
+    return handle_pull_request(
+        PullRequestJob(
+            bert_e=job.bert_e,
+            pull_request=job.project_repo.get_pull_request(int(parent_id))
+        )
+    )
+
+
+def _handle_pull_request(job: PullRequestJob):
     job.git.cascade = job.git.cascade or BranchCascade()
     early_checks(job)
     send_greetings(job)
@@ -153,49 +204,6 @@ def handle_pull_request(job: PullRequestJob):
             active_options=job.active_options)
 
 
-@handler(CommitJob)
-def handle_commit(job: CommitJob):
-    """Handle a job triggered by an updated build status."""
-    if job.settings.use_queue:
-        qbranch = any(
-            b.startswith('q/') for b in
-            job.git.repo.get_branches_from_sha1(job.commit)
-        )
-        if qbranch:
-            return queueing.handle_merge_queues(QueuesJob(bert_e=job.bert_e))
-
-    candidates = [b for b in job.git.repo.get_branches_from_sha1(job.commit)
-                  if b.startswith('w/')]
-    if not candidates:
-        raise messages.NothingToDo(
-            'Could not find the pull request for commit {}' .format(job.commit)
-        )
-    prs = list(
-        job.project_repo.get_pull_requests(
-            src_branch=candidates,
-            author=job.settings.robot_username)
-    )
-    if not prs:
-        raise messages.NothingToDo(
-            'Could not find the pull request for commit {}' .format(job.commit)
-        )
-    return handle_parent_pull_request(job, min(prs, key=lambda pr: pr.id))
-
-
-def handle_parent_pull_request(job, integration_pr):
-    """Handle the parent of an integration pull request."""
-    ids = re.findall('\d+', integration_pr.description)
-    if not ids:
-        raise messages.ParentPullRequestNotFound(integration_pr.id)
-    parent_id, *_ = ids
-    return handle_pull_request(
-        PullRequestJob(
-            bert_e=job.bert_e,
-            pull_request=job.project_repo.get_pull_request(int(parent_id))
-        )
-    )
-
-
 def early_checks(job):
     """Early checks to filter out pull requests where no action is needed."""
     status = job.pull_request.status
@@ -271,7 +279,7 @@ def handle_comments(job):
             ) from err
         except TypeError as err:
             raise messages.IncorrectCommandSyntax(
-                extra_message=str(err), active_options=get_active_options(job)
+                extra_message=str(err), active_options=job.active_options
             ) from err
 
     # Handle commands
@@ -345,7 +353,7 @@ def check_dependencies(job):
             prs.append(job.project_repo.get_pull_request(int(pr_id)))
         except Exception as err:
             raise messages.IncorrectPullRequestNumber(
-                pr_id=pr_id, active_options=get_active_options(job)
+                pr_id=pr_id, active_options=job.active_options
             ) from err
 
         opened = [p for p in prs if p.status == 'OPEN']

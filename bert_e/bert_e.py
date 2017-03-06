@@ -28,7 +28,6 @@ from .job import CommitJob, JobDispatcher, PullRequestJob
 from .settings import setup_settings
 from .workflow import gitwaterflow as gwf
 from .workflow.gitwaterflow.branches import QueueIntegrationBranch
-from .workflow.pr_utils import send_comment
 
 SHA1_LENGTH = [12, 40]
 
@@ -54,7 +53,6 @@ class BertE(JobDispatcher):
             slug=settings.repository_slug
         )
         settings['use_queue'] = not settings.disable_queues
-        self.token = None
         self.git_repo = GitRepository(
             self.project_repo.git_url,
             mask_pwd=quote_plus(settings.robot_password)
@@ -75,12 +73,13 @@ class BertE(JobDispatcher):
             return 0  # SilentExceptions should always return 0
 
         except TemplateException as err:
-            if hasattr(job, 'pull_request'):
-                send_comment(self.settings, job.pull_request, err)
             return self._process_error(err)
 
     def handle_token(self, token):
         """Determine the resolution path based on the input id.
+
+        This method is kept inside the BertE class for backward compatibility
+        with the legacy Bert-E API (calling sys.argv/main()).
 
         Args:
           - token (str):
@@ -92,17 +91,16 @@ class BertE(JobDispatcher):
             - a Bert-E return code
 
         """
-        self.token = token
-        if len(self.token) in SHA1_LENGTH:
-            return self._handle_sha1(self.token)
+        if len(token) in SHA1_LENGTH:
+            return self._handle_sha1(token)
         try:
-            int(self.token)
+            int(token)
         except ValueError:
             pass
         else:
             # it is probably a pull request id
-            return self._handle_pull_request(self.token)
-        return self._process_error(UnsupportedTokenType(self.token))
+            return self._handle_pull_request(token)
+        return self._process_error(UnsupportedTokenType(token))
 
     def _process_error(self, error):
         if self.settings.backtrace:

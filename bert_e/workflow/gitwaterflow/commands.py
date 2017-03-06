@@ -37,7 +37,7 @@ def after_pull_request(job, pr_id=None, **kwargs):
     if pr_id is None:
         raise IncorrectCommandSyntax(
             robot_username=job.bert_e.client.login,
-            active_options=get_active_options(job))
+            active_options=job.active_options)
 
     try:
         int(pr_id)
