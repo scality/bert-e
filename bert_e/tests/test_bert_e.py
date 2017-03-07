@@ -1213,6 +1213,30 @@ admins:
         pr.add_comment("@{} reset".format(self.args.robot_username))
         retcode = self.handle(pr.id, options=['bypass_jira_check'])
         self.assertEqual(retcode, exns.ResetComplete.code)
+        # Check what happens if doing it again
+        pr.add_comment("@{} reset".format(self.args.robot_username))
+        with self.assertRaises(exns.ResetComplete):
+            self.handle(pr.id, backtrace=True)
+
+    def test_reset_command_and_bb_fails(self):
+        pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
+        self.handle(pr.id, options=['bypass_jira_check'])
+
+        def fake_decline(self):
+            raise Exception("couldn't decline")
+
+        decline_real = type(pr).decline
+        type(pr).decline = fake_decline
+
+        try:
+            pr.add_comment("@{} reset".format(self.args.robot_username))
+            try:
+                self.handle(pr.id, options=['bypass_jira_check'],
+                            backtrace=True)
+            except exns.ResetComplete as err:
+                self.assertIn("I couldn't decline", err.msg)
+        finally:
+            type(pr).decline = decline_real
 
     def test_force_reset_command(self):
         pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')

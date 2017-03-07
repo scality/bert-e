@@ -90,12 +90,16 @@ def _reset(job, force=False):
 
     if len(children) == 0:
         for branch in wbranches:
+            if not branch.exists():
+                continue
             branch.remove(do_push=True)
         raise ResetComplete(active_options=job.active_options)
 
     # Check that the first integration branch contains commits from its
     # source and destination branch only.
     history_mismatch = None
+    wbranches = [b for b in wbranches if b.exists()]
+    children = [b for b in children if b.exists()]
     for child in children:
         src, dst = child.src_branch, child.dst_branch
         for commit in child.get_commit_diff(dst):
@@ -110,17 +114,25 @@ def _reset(job, force=False):
     if history_mismatch and not force:
         raise history_mismatch
     else:
-        wprs = job.project_repo.get_pull_requests(
-            src_branch=[b.name for b in wbranches],
-            author=job.settings.robot_username
-        )
+        if not wbranches:
+            wprs = []
+        else:
+            wprs = job.project_repo.get_pull_requests(
+                src_branch=[b.name for b in wbranches],
+                author=job.settings.robot_username
+            )
         for branch in wbranches:
             branch.remove(do_push=False)
         push(job.git.repo, prune=True)
         # decline integration pull requests:
+        error_prs = []
         for pr in wprs:
-            pr.decline()
-        raise ResetComplete(active_options=job.active_options)
+            try:
+                pr.decline()
+            except Exception:
+                error_prs.append(pr)
+        raise ResetComplete(couldnt_decline=error_prs,
+                            active_options=job.active_options)
 
 
 @Reactor.command

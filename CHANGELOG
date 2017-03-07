@@ -1,11 +1,15 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
-## [3.0.5] - 2017-03-02
+## [3.0.6] - 2017-03-07
+# Fixed
+- Reset: do not crash when bitbucket fails
+- Reset: check existence of branches
+
+## [3.0.5] - 2017-03-06
 # Added
 - Implement GitHub API
 - Git Host API allows to filter on pull request status
-- Reset and force_reset commands
 - Add explicit message when using a command with a wrong syntax
 - Implement reset and force_reset commands
 # Changed

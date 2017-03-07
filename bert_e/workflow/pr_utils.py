@@ -91,7 +91,7 @@ def send_comment(settings, pull_request: AbstractPullRequest,
         return _send_comment(settings, pull_request, str(comment),
                              comment.dont_repeat_if_in_history)
     except exceptions.CommentAlreadyExists:
-        LOG.info("Comment '{}' already posted", comment.__class__.__name__)
+        LOG.info("Comment '%s' already posted", comment.__class__.__name__)
 
 
 def create_task(settings, task: str, comment: AbstractComment):
