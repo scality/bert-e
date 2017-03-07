@@ -1,6 +1,10 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [3.0.7] - 2017-03-08
+# Changed
+- Refactoring: BertE is now a long-living job dispatching service.
+
 ## [3.0.6] - 2017-03-07
 # Fixed
 - Reset: do not crash when bitbucket fails
