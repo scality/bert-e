@@ -18,11 +18,12 @@ import logging
 from collections import OrderedDict, deque
 from datetime import datetime
 from os.path import exists
+from queue import Queue
 from urllib.parse import quote_plus
 
 from .api.git import Repository as GitRepository
-from .exceptions import (SilentException, TemplateException,
-                         UnsupportedTokenType)
+from .exceptions import (BertE_Exception, InternalException, SilentException,
+                         TemplateException, UnsupportedTokenType)
 from .git_host import client_factory
 from .job import CommitJob, JobDispatcher, PullRequestJob
 from .settings import setup_settings
@@ -30,12 +31,6 @@ from .workflow import gitwaterflow as gwf
 from .workflow.gitwaterflow.branches import QueueIntegrationBranch
 
 SHA1_LENGTH = [12, 40]
-
-# This variable is used to get an introspectable status that the server can
-# display.
-STATUS = {}
-
-
 LOG = logging.getLogger(__name__)
 
 
@@ -59,6 +54,36 @@ class BertE(JobDispatcher):
         )
         self.tmpdir = self.git_repo.tmp_directory
         gwf.setup({key: True for key in settings.cmd_line_options})
+
+        self.task_queue = Queue()
+        self.tasks_done = deque(maxlen=1000)
+        self.status = {}  # TODO: implement a proper status class
+
+    def process_task(self):
+        """Pop one task off of the task queue and process it.
+
+        This method is called in an infinite loop and a dedicated thread when
+        BertE is being run as a server.
+
+        """
+        job = self.status['current job'] = self.task_queue.get()
+
+        try:
+            self.process(job)
+        except Exception as err:
+            job.status = type(err).__name__
+            job.details = None
+
+            if not isinstance(err, (BertE_Exception, InternalException)):
+                LOG.error("Job %s finished with an error: %s", job, err)
+                job.details = str(err)
+        finally:
+            job.complete()
+            self.task_queue.task_done()
+            LOG.info("It took Bert-E %s to handle job %s (%s)",
+                     datetime.now() - job.start_time, job, job.status)
+            self.tasks_done.appendleft(job)
+            self.status.pop('current job')
 
     def process(self, job):
         """High-level job-processing method."""
@@ -129,7 +154,7 @@ class BertE(JobDispatcher):
         requests' IDs.
 
         """
-        merged_prs = STATUS.setdefault('merged PRs', deque(maxlen=10))
+        merged_prs = self.status.setdefault('merged PRs', deque(maxlen=10))
         merged_prs.append({'id': pr_id, 'merge_time': datetime.now()})
 
     def update_queue_status(self, queue_collection):
@@ -157,7 +182,7 @@ class BertE(JobDispatcher):
             for branch in queue[qib]:
                 status[branch.pr_id].append((version,
                                              branch.get_latest_commit()))
-        STATUS['merge queue'] = status
+        self.status['merge queue'] = status
 
 
 def setup_parser():

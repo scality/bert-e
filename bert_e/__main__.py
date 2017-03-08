@@ -16,10 +16,12 @@
 
 import argparse
 import logging
+import os
 from threading import Thread
 
-from . import bert_e
-from .server import APP, bert_e_launcher
+from . import server
+from .bert_e import BertE
+from .settings import setup_settings
 
 
 def serve():
@@ -40,19 +42,19 @@ def serve():
 
     args = parser.parse_args()
 
+    settings = setup_settings(args.settings_file)
+    settings['robot_password'] = os.environ['BERT_E_BB_PWD']
+    settings['jira_password'] = os.environ['BERT_E_JIRA_PWD']
+    settings['backtrace'] = True
+
+    server.BERTE = BertE(settings)
+
     logging.basicConfig(level=logging.DEBUG if args.verbose else logging.INFO)
-    worker = Thread(target=bert_e_launcher)
+    worker = Thread(target=server.bert_e_launcher)
     worker.daemon = True
     worker.start()
 
-    settings = bert_e.setup_settings(args.settings_file)
-
-    APP.config['SETTINGS_FILE'] = args.settings_file
-    APP.config['PULL_REQUEST_BASE_URL'] = settings['pull_request_base_url']
-    APP.config['COMMIT_BASE_URL'] = settings['commit_base_url']
-    APP.config['REPOSITORY_OWNER'] = settings['repository_owner']
-    APP.config['REPOSITORY_SLUG'] = settings['repository_slug']
-    APP.run(host=args.host, port=args.port, debug=args.verbose)
+    return server.APP.run(host=args.host, port=args.port, debug=args.verbose)
 
 
 if __name__ == '__main__':

@@ -15,39 +15,55 @@
 import base64
 import json
 import os
+import pathlib
 import unittest
-from collections import OrderedDict
+from collections import OrderedDict, deque
 from copy import deepcopy
 from datetime import datetime
+from queue import Queue
+from types import SimpleNamespace
 
+from .. import job as berte_job
 from .. import bert_e, server
 from ..git_host import bitbucket as bitbucket_api
-from ..git_host.mock import Client as MockClient
-from ..git_host.mock import Repository as MockRepository
+from ..git_host import mock as mock_api
+from ..lib.settings_dict import SettingsDict
 from .test_server_data import COMMENT_CREATED, COMMIT_STATUS_CREATED
 
-bitbucket_api.Client = MockClient
-bitbucket_api.Repository = MockRepository
+bitbucket_api.PullRequest = mock_api.PullRequest
+SETTINGS_FILE = (pathlib.Path(__file__).parent.parent.parent /
+                 'settings.sample.yml')
+
+
+class MockBertE(bert_e.BertE):
+    def __init__(self, *args, **kwargs):
+        self.client = mock_api.Client("login", "password", "email")
+        self.project_repo = SimpleNamespace(
+            owner='test_owner',
+            slug='test_repo'
+        )
+        self.settings = SettingsDict
+        self.git_repo = SimpleNamespace()
+        self.task_queue = Queue()
+        self.tasks_done = deque(maxlen=1000)
+        self.status = {}
 
 
 class TestWebhookListener(unittest.TestCase):
     def setUp(self):
-        server.APP.config['SETTINGS_FILE'] = '/bert-e/test_owner/test_repo'
-        server.APP.config['PULL_REQUEST_BASE_URL'] = \
+        server.BERTE = MockBertE()
+        server.BERTE.settings.pull_request_base_url = \
             'https://bitbucket.org/foo/bar/pull-requests/{pr_id}'
-        server.APP.config['COMMIT_BASE_URL'] = \
+        server.BERTE.settings.commit_base_url = \
             'https://bitbucket.org/foo/bar/commits/{commit_id}'
-        server.APP.config['REPOSITORY_OWNER'] = 'test_user'
-        server.APP.config['REPOSITORY_SLUG'] = 'test_repo'
 
     def handle_post(self, event_type, data):
-        os.environ['BERT_E_PWD'] = 'dummy'
         os.environ['WEBHOOK_LOGIN'] = 'dummy'
         os.environ['WEBHOOK_PWD'] = 'dummy'
 
-        server.APP.config['REPOSITORY_OWNER'] = \
+        server.BERTE.project_repo.owner = \
             data['repository']['owner']['username']
-        server.APP.config['REPOSITORY_SLUG'] = data['repository']['name']
+        server.BERTE.project_repo.slug = data['repository']['name']
 
         app = server.APP.test_client()
         auth = ''.join(
@@ -62,16 +78,16 @@ class TestWebhookListener(unittest.TestCase):
     def test_comment_added(self):
         resp = self.handle_post('pullrequest:comment_created', COMMENT_CREATED)
         self.assertEqual(200, resp.status_code)
-        self.assertEqual(server.FIFO.unfinished_tasks, 1)
+        self.assertEqual(server.BERTE.task_queue.unfinished_tasks, 1)
 
-        job = server.FIFO.get()
-        self.assertEqual(job.repo_owner, u'test_owner')
-        self.assertEqual(job.repo_slug, u'test_repo')
-        self.assertEqual(job.repo_settings, u'/bert-e/test_owner/test_repo')
-        self.assertEqual(job.revision, '1')
+        job = server.BERTE.task_queue.get()
+        self.assertEqual(job.project_repo.owner, 'test_owner')
+        self.assertEqual(job.project_repo.slug, 'test_repo')
+        # self.assertEqual(job.repo_settings, u'/bert-e/test_owner/test_repo')
+        self.assertEqual(job.pull_request.id, 1)
 
-        server.FIFO.task_done()
-        self.assertEqual(server.FIFO.unfinished_tasks, 0)
+        server.BERTE.task_queue.task_done()
+        self.assertEqual(server.BERTE.task_queue.unfinished_tasks, 0)
 
     def test_build_status_filtered(self):
         data = deepcopy(COMMIT_STATUS_CREATED)
@@ -79,18 +95,18 @@ class TestWebhookListener(unittest.TestCase):
         resp = self.handle_post('repo:commit_status_created', data)
 
         self.assertEqual(200, resp.status_code)
-        self.assertEqual(server.FIFO.unfinished_tasks, 0)
+        self.assertEqual(server.BERTE.task_queue.unfinished_tasks, 0)
 
         data['commit_status']['state'] = 'SUCCESS'
         resp = self.handle_post('repo:commit_status_created', data)
-        self.assertEqual(server.FIFO.unfinished_tasks, 1)
+        self.assertEqual(server.BERTE.task_queue.unfinished_tasks, 1)
 
         # consume job
-        server.FIFO.get()
-        server.FIFO.task_done()
+        server.BERTE.task_queue.get()
+        server.BERTE.task_queue.task_done()
 
     def test_bert_e_status(self):
-        bert_e.STATUS['merge queue'] = OrderedDict([
+        server.BERTE.status['merge queue'] = OrderedDict([
             ('10', [('4.3', '0033deadbeef'), ('6.0', '13370badf00d')])
         ])
         bitbucket_api.BUILD_STATUS_CACHE['pre-merge'].set('0033deadbeef',
@@ -98,7 +114,7 @@ class TestWebhookListener(unittest.TestCase):
         bitbucket_api.BUILD_STATUS_CACHE['pre-merge'].set('0033deadbeef-build',
                                                           'fakeurl')
 
-        bert_e.STATUS['merged PRs'] = [
+        server.BERTE.status['merged PRs'] = [
             {'id': 1, 'merge_time': datetime(2016, 12, 9, 14, 54, 20, 123456)},
             {'id': 2, 'merge_time': datetime(2016, 12, 9, 14, 54, 21, 123456)},
             {'id': 3, 'merge_time': datetime(2016, 12, 8, 14, 54, 22, 123456)}
@@ -151,7 +167,7 @@ class TestWebhookListener(unittest.TestCase):
                ' href="url2">FAILED</a></td>' in res.data.decode()
 
         # Everything is merged, the queue status shouldn't appear anymore
-        bert_e.STATUS['merged PRs'].append({
+        server.BERTE.status['merged PRs'].append({
             'id': 10,
             'merge_time': datetime(2016, 12, 9, 14, 54, 20, 123456)
         })
@@ -168,7 +184,7 @@ class TestWebhookListener(unittest.TestCase):
         assert 'Merge queue status:' not in data
 
     def test_merge_queue_print(self):
-        bert_e.STATUS['merge queue'] = OrderedDict([
+        server.BERTE.status['merge queue'] = OrderedDict([
             (4472, [
                 ('6.4', '4472/6.4'),
                 ('6.3', '4472/6.3'),
@@ -212,7 +228,7 @@ class TestWebhookListener(unittest.TestCase):
             '  #5773        FAILED                                                 \n', # noqa
             '  #6050      SUCCESSFUL                                               \n', # noqa
             '  #6086        FAILED       SUCCESSFUL     SUCCESSFUL                 \n', # noqa
-            '  #5095      SUCCESSFUL                                               \n'  # noqa
+            '  #5095      SUCCESSFUL'  # noqa
         )
 
         app = server.APP.test_client()
@@ -220,7 +236,7 @@ class TestWebhookListener(unittest.TestCase):
         data = res.data.decode()
 
         for exp in expected:
-            assert exp in data
+            self.assertIn(exp, data)
 
         expected = (
             '<h3>Merge queue status:</h3>\n'
@@ -278,14 +294,14 @@ class TestWebhookListener(unittest.TestCase):
         res = app.get('/')
         data = res.data.decode()
         for exp in expected:
-            assert exp in data
+            self.assertIn(exp, data)
 
     def test_current_job_print(self):
-        job = server.Job("test_owner", "test_repo",
-                         "456deadbeef12345678901234567890123456789",
-                         datetime(2016, 12, 8, 14, 54, 20, 123456),
-                         "/dev/null")
-        bert_e.STATUS['current job'] = job
+        job = berte_job.CommitJob(
+            bert_e=server.BERTE,
+            commit="456deadbeef12345678901234567890123456789")
+        job.start_time = datetime(2016, 12, 8, 14, 54, 20, 123456)
+        server.BERTE.status['current job'] = job
 
         app = server.APP.test_client()
         res = app.get('/?output=txt')
@@ -295,16 +311,24 @@ class TestWebhookListener(unittest.TestCase):
                ' - 456deadbeef12345678901234567890123456789' in data
 
     def test_pending_jobs_print(self):
+        job = berte_job.CommitJob(
+            bert_e=server.BERTE,
+            commit="123deadbeef12345678901234567890123456789",
+            url=("https://bitbucket.org/foo/bar/commits/"
+                 "123deadbeef12345678901234567890123456789")
+        )
+        job.start_time = datetime(2016, 12, 8, 14, 54, 18, 123456)
+        server.BERTE.task_queue.put(job)
 
-        job = server.Job("test_owner", "test_repo",
-                         "123deadbeef12345678901234567890123456789",
-                         datetime(2016, 12, 8, 14, 54, 18, 123456),
-                         "/dev/null")
-        server.FIFO.put(job)
-        job = server.Job("test_owner", "test_repo", "666",
-                         datetime(2016, 12, 8, 14, 54, 19, 123456),
-                         "/dev/null")
-        server.FIFO.put(job)
+        job = berte_job.PullRequestJob(
+            bert_e=server.BERTE,
+            pull_request=SimpleNamespace(id=666),
+            url="https://bitbucket.org/foo/bar/pull-requests/666"
+        )
+        job.start_time = datetime(2016, 12, 8, 14, 54, 19, 123456)
+        job.status = 'NothingToDo'
+        job.details = 'details'
+        server.BERTE.task_queue.put(job)
 
         expected = (
             '2 pending jobs:',
@@ -318,7 +342,7 @@ class TestWebhookListener(unittest.TestCase):
         data = res.data.decode()
 
         for exp in expected:
-            assert exp in data
+            self.assertIn(exp, data)
 
         expected = (
             '<h3>2 pending jobs:</h3>',
@@ -334,21 +358,29 @@ class TestWebhookListener(unittest.TestCase):
         res = app.get('/')
         data = res.data.decode()
         for exp in expected:
-            assert exp in data
+            self.assertIn(exp, data)
 
     def test_completed_jobs_print(self):
 
-        job = server.Job("test_owner", "test_repo",
-                         "123deadbeef12345678901234567890123456789",
-                         datetime(2016, 12, 8, 14, 54, 18, 123456),
-                         "/dev/null")
-        server.DONE.appendleft({
-            'job': job, 'status': "NothingToDo", 'details': None})
-        job = server.Job("test_owner", "test_repo", "666",
-                         datetime(2016, 12, 8, 14, 54, 19, 123456),
-                         "/dev/null")
-        server.DONE.appendleft({
-            'job': job, 'status': "NothingToDo", 'details': "details"})
+        job = berte_job.CommitJob(
+            bert_e=server.BERTE,
+            commit="123deadbeef12345678901234567890123456789",
+            url=("https://bitbucket.org/foo/bar/commits/"
+                 "123deadbeef12345678901234567890123456789")
+        )
+        job.start_time = datetime(2016, 12, 8, 14, 54, 18, 123456)
+        job.status = 'NothingToDo'
+        server.BERTE.tasks_done.appendleft(job)
+
+        job = berte_job.PullRequestJob(
+            bert_e=server.BERTE,
+            pull_request=SimpleNamespace(id=666),
+            url="https://bitbucket.org/foo/bar/pull-requests/666"
+        )
+        job.start_time = datetime(2016, 12, 8, 14, 54, 19, 123456)
+        job.status = 'NothingToDo'
+        job.details = 'details'
+        server.BERTE.tasks_done.appendleft(job)
 
         expected = (
             'Completed jobs:',
@@ -362,7 +394,7 @@ class TestWebhookListener(unittest.TestCase):
         res = app.get('/?output=txt')
         data = res.data.decode()
         for exp in expected:
-            assert exp in data
+            self.assertIn(exp, data)
 
         expected = (
             '<h3>Completed jobs:</h3>',
@@ -377,31 +409,7 @@ class TestWebhookListener(unittest.TestCase):
         res = app.get('/')
         data = res.data.decode()
         for exp in expected:
-            assert exp in data
-
-    def test_unpredictible_exception_handling(self):
-        os.environ['BERT_E_BB_PWD'] = 'plop'
-        os.environ['BERT_E_JIRA_PWD'] = 'plop'
-        main_real = bert_e.main
-
-        class NastyError(Exception):
-            pass
-
-        def main_patched():
-            raise NastyError
-
-        bert_e.main = main_patched
-
-        server.FIFO.put(server.Job(
-            "test_owner", "test_repo", "666",
-            datetime(2016, 12, 8, 14, 54, 19, 123456),
-            "/dev/null"))
-        try:
-            server.bert_e_worker_job()
-        except:
-            self.fail("Loop shouldn't crash")
-        finally:
-            bert_e.main = main_real
+            self.assertIn(exp, data)
 
 
 if __name__ == '__main__':

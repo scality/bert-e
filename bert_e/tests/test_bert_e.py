@@ -13,7 +13,6 @@
 # limitations under the License.
 
 import argparse
-import datetime
 import logging
 import re
 import sys
@@ -32,13 +31,15 @@ from bert_e.api import jira as jira_api
 from bert_e.api.git import Repository as GitRepository
 from bert_e.api.git import Branch
 from bert_e.bert_e import main as bert_e_main
-from bert_e.bert_e import STATUS
+from bert_e.bert_e import BertE
 from bert_e.git_host import bitbucket as bitbucket_api
 from bert_e.git_host import mock as bitbucket_api_mock
 from bert_e.git_host.base import NoSuchRepository
 from bert_e.git_host.factory import client_factory
+from bert_e.job import CommitJob, PullRequestJob
 from bert_e.lib.retry import RetryHandler
 from bert_e.lib.simplecmd import CommandError, cmd
+from bert_e.settings import setup_settings
 from bert_e.workflow import gitwaterflow as gwf
 from bert_e.workflow.gitwaterflow import branches as gwfb
 
@@ -612,8 +613,6 @@ class RepositoryTests(unittest.TestCase):
             time.sleep(5)  # don't be too agressive on API
         self.admin_bb.delete()
         self.gitrepo.delete()
-        # reset STATUS to default value to ensure test independance
-        STATUS.clear()
 
     def create_pr(
             self,
@@ -816,14 +815,6 @@ class TestBertE(RepositoryTests):
         # test the return code of a silent exception is 0
         retcode = self.handle(pr.id)
         self.assertEqual(retcode, 0)
-
-        merged_pr = STATUS.get('merged PRs', [])
-        assert len(merged_pr) == 1
-        assert merged_pr[0]['id'] == pr.id
-        assert (merged_pr[0]['merge_time'] >
-                datetime.datetime.now() - datetime.timedelta(minutes=1))
-        assert (merged_pr[0]['merge_time'] <
-                datetime.datetime.now() + datetime.timedelta(minutes=1))
 
     def test_not_my_job_cases(self):
         feature_branch = 'feature/TEST-00002'
@@ -3067,11 +3058,6 @@ class TestQueueing(RepositoryTests):
         with self.assertRaises(exns.Merged):
             self.handle(pr.src_commit, options=self.bypass_all, backtrace=True)
 
-        status = STATUS.get('merge queue', OrderedDict())
-        assert 1 in status
-        assert len(status[1]) == 3
-        versions = tuple(version for version, _ in status[1])
-        assert versions == ('6.0', '5.1', '4.3')
         # check validity of repo and branches
         for branch in ['q/4.3', 'q/5.1', 'q/6.0']:
             assert self.gitrepo.remote_branch_exists(branch)
@@ -3090,9 +3076,6 @@ class TestQueueing(RepositoryTests):
 
         last_comment = pr.comments[-1].text
         assert 'I have successfully merged' in last_comment
-        merged_pr = STATUS.get('merged PRs', [])
-        assert len(merged_pr) == 1
-        assert merged_pr[0]['id'] == 1
 
     def test_system_missing_integration_queue_before_in_queue(self):
         pr1 = self.create_pr('bugfix/TEST-00001', 'development/4.3')
@@ -3564,6 +3547,112 @@ class TestQueueing(RepositoryTests):
         sha1 = "f" * 40
         with self.assertRaises(exns.NothingToDo):
             self.handle(sha1, options=self.bypass_all, backtrace=True)
+
+
+class TaskQueueTests(RepositoryTests):
+    def init_berte(self, options=[], backtrace=True, **all_settings):
+        data = DEFAULT_SETTINGS.format(
+            admin=self.args.admin_username,
+            robot=self.args.robot_username,
+            owner=self.args.owner,
+            slug='%s_%s' % (self.args.repo_prefix, self.args.admin_username),
+            host='bitbucket' if self.args.disable_mock else 'mock'
+        )
+        with open('test_settings.yml', 'w') as settings_file:
+            settings_file.write(data)
+        settings = setup_settings('test_settings.yml')
+        settings['robot_password'] = self.args.robot_password
+        settings['jira_password'] = 'dummy_jira_password'
+        settings['cmd_line_options'] = options
+        settings['backtrace'] = backtrace
+        settings.update(all_settings)
+        self.berte = BertE(settings)
+
+    def add_pr_task(self, pr, **settings):
+        job = PullRequestJob(
+            bert_e=self.berte, pull_request=pr,
+            url=self.berte.settings.pull_request_base_url.format(pr_id=pr.id),
+            settings=settings
+        )
+        self.berte.task_queue.put(job)
+        return job
+
+    def add_sha1_task(self, sha1, **settings):
+        job = CommitJob(
+            bert_e=self.berte, commit=sha1,
+            url=self.berte.settings.commit_base_url.format(commit_id=sha1),
+            settings=settings
+        )
+        self.berte.task_queue.put(job)
+        return job
+
+    def test_berte_worker_job_never_crashes(self):
+        self.init_berte()
+        pr = self.create_pr('bugfix/TEST-0001', 'development/6.0')
+        self.add_pr_task(pr)
+        real_process = BertE.process
+
+        def fake_process(self, job):
+            raise Exception("Something went wrong!!!")
+
+        try:
+            BertE.process = fake_process
+            self.berte.process_task()
+        except Exception:
+            self.fail("BertE.process_task should never fail")
+        finally:
+            BertE.process = real_process
+
+    def test_status_no_queue(self):
+        self.init_berte(options=self.bypass_all, disable_queues=True)
+        pr_titles = ['bugfix/TEST-1', 'bugfix/TEST-2', 'bugfix/TEST-3']
+        prs = [self.create_pr(title, 'development/4.3') for title in pr_titles]
+        jobs = [self.add_pr_task(pr) for pr in prs]
+        for _ in jobs:
+            self.berte.process_task()
+
+        merged_prs = self.berte.status.get('merged PRs', [])
+        self.assertEquals(len(merged_prs), 3)
+        for merged, job in zip(merged_prs, jobs):
+            assert merged['id'] == job.pull_request.id
+            assert job.start_time < merged['merge_time'] < job.end_time
+
+    def test_status_with_queue(self):
+        self.init_berte(options=self.bypass_all)
+        pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
+        self.add_pr_task(pr)
+        self.berte.process_task()
+        # check expected branches exist
+        self.gitrepo.cmd('git fetch --prune')
+        expected_branches = [
+            'q/1/4.3/bugfix/TEST-00001',
+            'q/1/5.1/bugfix/TEST-00001',
+            'q/1/6.0/bugfix/TEST-00001',
+            'w/4.3/bugfix/TEST-00001',
+            'w/5.1/bugfix/TEST-00001',
+            'w/6.0/bugfix/TEST-00001'
+        ]
+        for branch in expected_branches:
+            assert self.gitrepo.remote_branch_exists(branch)
+
+        sha1_q_6_0 = self.gitrepo._remote_branches['q/6.0']
+
+        self.add_sha1_task(sha1_q_6_0)
+        self.berte.process_task()
+
+        status = self.berte.status.get('merge queue', OrderedDict())
+        assert 1 in status
+        assert len(status[1]) == 3
+        versions = tuple(version for version, _ in status[1])
+        for _, sha1 in status[1]:
+            self.set_build_status(sha1=sha1, state='SUCCESSFUL')
+        assert versions == ('6.0', '5.1', '4.3')
+        self.add_sha1_task(sha1_q_6_0)
+        self.berte.process_task()
+
+        merged_pr = self.berte.status.get('merged PRs', [])
+        self.assertEqual(len(merged_pr), 1)
+        assert merged_pr[0]['id'] == 1
 
 
 def main():
