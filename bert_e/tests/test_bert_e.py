@@ -30,7 +30,8 @@ from bert_e import exceptions as exns
 from bert_e.api import jira as jira_api
 from bert_e.api.git import Repository as GitRepository
 from bert_e.api.git import Branch
-from bert_e.bert_e import main as bert_e_main, BertE
+from bert_e.bert_e import main as bert_e_main
+from bert_e.bert_e import BertE
 from bert_e.git_host import bitbucket as bitbucket_api
 from bert_e.git_host import mock as bitbucket_api_mock
 from bert_e.git_host.base import NoSuchRepository

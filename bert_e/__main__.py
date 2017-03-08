@@ -19,9 +19,9 @@ import logging
 import os
 from threading import Thread
 
+from . import server
 from .bert_e import BertE
 from .settings import setup_settings
-from . import server
 
 
 def serve():
@@ -54,14 +54,7 @@ def serve():
     worker.daemon = True
     worker.start()
 
-    app = server.APP
-
-    app.config['SETTINGS_FILE'] = args.settings_file
-    app.config['PULL_REQUEST_BASE_URL'] = settings['pull_request_base_url']
-    app.config['COMMIT_BASE_URL'] = settings['commit_base_url']
-    app.config['REPOSITORY_OWNER'] = settings['repository_owner']
-    app.config['REPOSITORY_SLUG'] = settings['repository_slug']
-    app.run(host=args.host, port=args.port, debug=args.verbose)
+    return server.APP.run(host=args.host, port=args.port, debug=args.verbose)
 
 
 if __name__ == '__main__':

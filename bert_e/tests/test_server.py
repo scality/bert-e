@@ -17,17 +17,18 @@ import json
 import os
 import pathlib
 import unittest
-from collections import deque, OrderedDict
+from collections import OrderedDict, deque
 from copy import deepcopy
 from datetime import datetime
 from queue import Queue
 from types import SimpleNamespace
 
-from .. import bert_e, server, job as berte_job
-from ..git_host import bitbucket as bitbucket_api, mock as mock_api
-
+from .. import job as berte_job
+from .. import bert_e, server
+from ..git_host import bitbucket as bitbucket_api
+from ..git_host import mock as mock_api
+from ..lib.settings_dict import SettingsDict
 from .test_server_data import COMMENT_CREATED, COMMIT_STATUS_CREATED
-
 
 bitbucket_api.PullRequest = mock_api.PullRequest
 SETTINGS_FILE = (pathlib.Path(__file__).parent.parent.parent /
@@ -41,7 +42,7 @@ class MockBertE(bert_e.BertE):
             owner='test_owner',
             slug='test_repo'
         )
-        self.settings = {}
+        self.settings = SettingsDict
         self.git_repo = SimpleNamespace()
         self.task_queue = Queue()
         self.tasks_done = deque(maxlen=1000)
@@ -50,23 +51,19 @@ class MockBertE(bert_e.BertE):
 
 class TestWebhookListener(unittest.TestCase):
     def setUp(self):
-        server.APP.config['SETTINGS_FILE'] = str(SETTINGS_FILE)
         server.BERTE = MockBertE()
-        server.APP.config['PULL_REQUEST_BASE_URL'] = \
+        server.BERTE.settings.pull_request_base_url = \
             'https://bitbucket.org/foo/bar/pull-requests/{pr_id}'
-        server.APP.config['COMMIT_BASE_URL'] = \
+        server.BERTE.settings.commit_base_url = \
             'https://bitbucket.org/foo/bar/commits/{commit_id}'
-        server.APP.config['REPOSITORY_OWNER'] = 'test_user'
-        server.APP.config['REPOSITORY_SLUG'] = 'test_repo'
 
     def handle_post(self, event_type, data):
-        os.environ['BERT_E_PWD'] = 'dummy'
         os.environ['WEBHOOK_LOGIN'] = 'dummy'
         os.environ['WEBHOOK_PWD'] = 'dummy'
 
-        server.APP.config['REPOSITORY_OWNER'] = \
+        server.BERTE.project_repo.owner = \
             data['repository']['owner']['username']
-        server.APP.config['REPOSITORY_SLUG'] = data['repository']['name']
+        server.BERTE.project_repo.slug = data['repository']['name']
 
         app = server.APP.test_client()
         auth = ''.join(

@@ -22,8 +22,8 @@ from functools import wraps
 
 from flask import Flask, Response, render_template, request
 
-from .job import CommitJob, PullRequestJob
 from .git_host.bitbucket import BUILD_STATUS_CACHE, PullRequest
+from .job import CommitJob, PullRequestJob
 
 BERTE = None
 APP = Flask(__name__)
@@ -32,10 +32,11 @@ LOG = logging.getLogger(__name__)
 
 @APP.template_filter('pr_url')
 def pr_url_filter(id_or_revision):
+    config = BERTE.settings
     if len(str(id_or_revision)) in [12, 40]:
-        return APP.config['COMMIT_BASE_URL'].format(commit_id=id_or_revision)
+        return config.commit_base_url.format(commit_id=id_or_revision)
     else:
-        return APP.config['PULL_REQUEST_BASE_URL'].format(pr_id=id_or_revision)
+        return config.pull_request_base_url.format(pr_id=id_or_revision)
 
 
 @APP.template_filter('build_url')
@@ -139,12 +140,12 @@ def parse_bitbucket_webhook():
     repo_owner = json_data['repository']['owner']['username']
     repo_slug = json_data['repository']['name']
 
-    if repo_owner != APP.config['REPOSITORY_OWNER']:
+    if repo_owner != BERTE.project_repo.owner:
         LOG.error('received repo_owner (%s) incompatible with settings',
                   repo_owner)
         return Response('Internal Server Error', 500)
 
-    if repo_slug != APP.config['REPOSITORY_SLUG']:
+    if repo_slug != BERTE.project_repo.slug:
         LOG.error('received repo_slug (%s) incompatible with settings',
                   repo_slug)
         return Response('Internal Server Error', 500)
