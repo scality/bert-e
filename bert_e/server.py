@@ -157,7 +157,7 @@ def parse_bitbucket_webhook():
         job = handle_pullrequest_event(event, json_data)
 
     if not job:
-        LOG.debug('Nothing to do')
+        LOG.debug('Ignoring unhandled event %s:%s', entity, event)
         return Response('OK', 200)
 
     LOG.info('Adding job %r', job)
