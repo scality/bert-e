@@ -93,7 +93,8 @@ def _reset(job, force=False):
             if not branch.exists():
                 continue
             branch.remove(do_push=True)
-        raise ResetComplete(active_options=job.active_options)
+        raise ResetComplete(couldnt_decline=[],
+                            active_options=job.active_options)
 
     # Check that the first integration branch contains commits from its
     # source and destination branch only.
