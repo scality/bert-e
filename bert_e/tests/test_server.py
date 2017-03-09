@@ -308,7 +308,7 @@ class TestWebhookListener(unittest.TestCase):
         data = res.data.decode()
 
         assert 'Current job: [2016-12-08 14:54:20]' \
-               ' - 456deadbeef12345678901234567890123456789' in data
+               ' - Commit 456deadbeef12345678901234567890123456789' in data
 
     def test_pending_jobs_print(self):
         job = berte_job.CommitJob(
@@ -332,9 +332,9 @@ class TestWebhookListener(unittest.TestCase):
 
         expected = (
             '2 pending jobs:',
-            '* [2016-12-08 14:54:18] - 123deadbeef'
+            '* [2016-12-08 14:54:18] - Commit 123deadbeef'
             '12345678901234567890123456789',
-            '* [2016-12-08 14:54:19] - 666'
+            '* [2016-12-08 14:54:19] - PR #666'
         )
 
         app = server.APP.test_client()
@@ -348,10 +348,10 @@ class TestWebhookListener(unittest.TestCase):
             '<h3>2 pending jobs:</h3>',
             '<li>[2016-12-08 14:54:18] - <a href='
             '"https://bitbucket.org/foo/bar/commits/123deadbeef123456789'
-            '01234567890123456789">123deadbeef12345678901234567890123456'
-            '789</a></li>',
+            '01234567890123456789">Commit '
+            '123deadbeef12345678901234567890123456789</a></li>',
             '<li>[2016-12-08 14:54:19] - <a href='
-            '"https://bitbucket.org/foo/bar/pull-requests/666">666</a></'
+            '"https://bitbucket.org/foo/bar/pull-requests/666">PR #666</a></'
             'li>'
         )
 
@@ -385,9 +385,9 @@ class TestWebhookListener(unittest.TestCase):
         expected = (
             'Completed jobs:',
             '* [2016-12-08 14:54:19] - '
-            '666 -> NothingToDo\ndetails',
+            'PR #666 -> NothingToDo\ndetails',
             '* [2016-12-08 14:54:18] - '
-            '123deadbeef12345678901234567890123456789 -> NothingToDo'
+            'Commit 123deadbeef12345678901234567890123456789 -> NothingToDo'
         )
 
         app = server.APP.test_client()
@@ -399,11 +399,12 @@ class TestWebhookListener(unittest.TestCase):
         expected = (
             '<h3>Completed jobs:</h3>',
             '<li>[2016-12-08 14:54:19] - <a href="https://bitbucket.org/f'
-            'oo/bar/pull-requests/666">666</a> -> NothingToDo<p>details</'
+            'oo/bar/pull-requests/666">PR #666</a> -> NothingToDo<p>details</'
             'p></li>',
             '<li>[2016-12-08 14:54:18] - <a href="https://bitbucket.org/f'
-            'oo/bar/commits/123deadbeef12345678901234567890123456789">123'
-            'deadbeef12345678901234567890123456789</a> -> NothingToDo</li>'
+            'oo/bar/commits/123deadbeef12345678901234567890123456789">'
+            'Commit 123deadbeef12345678901234567890123456789</a> '
+            '-> NothingToDo</li>'
         )
 
         res = app.get('/')
