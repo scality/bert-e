@@ -84,7 +84,7 @@ class PullRequestJob(RepoJob):
         self.git.dst_branch = None
 
     def __str__(self):
-        return str(self.pull_request.id)
+        return "PR #{}".format(self.pull_request.id)
 
 
 class CommitJob(RepoJob):
@@ -94,7 +94,7 @@ class CommitJob(RepoJob):
         self.commit = commit
 
     def __str__(self):
-        return str(self.commit)
+        return "Commit {}".format(self.commit)
 
 
 class QueuesJob(RepoJob):
