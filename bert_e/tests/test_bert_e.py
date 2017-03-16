@@ -560,7 +560,7 @@ class RepositoryTests(unittest.TestCase):
         warnings.simplefilter('ignore')
         # repo creator and reviewer
         self.creator = self.args.admin_username
-        host = 'bitbucket' if RepositoryTests.args.disable_mock else 'mock'
+        host = RepositoryTests.args.git_host
         client = client_factory(host, self.args.admin_username,
                                 self.args.admin_password, "nobody@nowhere.com")
         try:
@@ -606,12 +606,16 @@ class RepositoryTests(unittest.TestCase):
         )
         initialize_git_repo(self.gitrepo,
                             self.args.admin_username,
-                            "nobody@nowhere.com")
+                            "bert-e@scality.com")
 
     def tearDown(self):
-        if RepositoryTests.args.disable_mock:
-            time.sleep(5)  # don't be too agressive on API
-        self.admin_bb.delete()
+        if RepositoryTests.args.git_host != 'mock':
+            time.sleep(3)  # don't be too agressive on API
+            self.admin_bb.client.delete_repository(owner=self.admin_bb.owner,
+                                                   slug=self.admin_bb.slug)
+        else:
+            self.admin_bb.delete()
+
         self.gitrepo.delete()
 
     def create_pr(
@@ -731,7 +735,7 @@ class RepositoryTests(unittest.TestCase):
             robot=self.args.robot_username,
             owner=self.args.owner,
             slug='%s_%s' % (self.args.repo_prefix, self.args.admin_username),
-            host='bitbucket' if self.args.disable_mock else 'mock'
+            host=self.args.git_host
         )
         with open('test_settings.yml', 'w') as settings_file:
             settings_file.write(data)
@@ -748,9 +752,10 @@ class RepositoryTests(unittest.TestCase):
         return bert_e_main()
 
     def set_build_status(self, sha1, state, key='pre-merge',
-                         name='Test build status', url='http://www.test.com'):
+                         name='Test build status',
+                         url='https://www.test.com/build'):
         self.robot_bb.set_build_status(
-            revision=sha1, key=key, state=state, name=name, url=url
+            revision=sha1, key=key, state=state, url=url
         )
 
     def get_build_status(self, sha1, key='pipeline'):
@@ -766,12 +771,12 @@ class RepositoryTests(unittest.TestCase):
     def set_build_status_on_pr_id(self, pr_id, state,
                                   key='pre-merge',
                                   name='Test build status',
-                                  url='http://www.testurl.com'):
+                                  url='https://www.testurl.com/build/1'):
         pr = self.robot_bb.get_pull_request(pull_request_id=pr_id)
 
         self.set_build_status(pr.src_commit, state, key, name, url)
         # workaround laggy bitbucket
-        if TestBertE.args.disable_mock:
+        if TestBertE.args.git_host != 'mock':
             for _ in range(20):
                 time.sleep(5)
                 if self.get_build_status_on_pr_id(pr_id, key=key) != state:
@@ -933,10 +938,15 @@ class TestBertE(RepositoryTests):
         dst_branch = 'development/4.3'
 
         pr = self.create_pr(feature_branch, dst_branch)
+        github = self.args.git_host == 'github'
 
         with self.assertRaises(exns.ApprovalRequired) as raised:
             self.handle(pr.id, options=['bypass_jira_check'], backtrace=True)
-        self.assertIn('the author', raised.exception.msg)
+
+        # Github doesn't support author approvals
+        if not github:
+            self.assertIn('the author', raised.exception.msg)
+
         self.assertIn('2 peers', raised.exception.msg)
 
         # test approval on sub pr has not effect
@@ -950,7 +960,10 @@ class TestBertE(RepositoryTests):
         # PR
         self.assertEqual(list(pr_child.get_comments()), [])
         comment = list(pr.get_comments())[-1]
-        self.assertIn('the author', comment.text)
+
+        if not github:
+            self.assertIn('the author', comment.text)
+
         self.assertIn('2 peers', comment.text)
 
         # test message with a single peer approval required
@@ -970,9 +983,15 @@ admins:
         with self.assertRaises(exns.ApprovalRequired) as raised:
             self.handle(pr.id, options=['bypass_jira_check'],
                         settings=settings, backtrace=True)
-        self.assertIn('the author', raised.exception.msg)
+
+        if not github:
+            self.assertIn('the author', raised.exception.msg)
         self.assertIn('one peer', raised.exception.msg)
         self.assertNotIn('2 peers', raised.exception.msg)
+
+        if github:
+            # Stop here for github as author approval is deactivated
+            return
 
         # test message with no peer approval required
         settings = """
@@ -1238,10 +1257,6 @@ admins:
 
     def test_options_and_commands(self):
         pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
-
-        # add lots of inactive comments to check paging
-        for _ in range(1, 30):
-            pr.add_comment('no so useful')
 
         # option: wait
         comment = pr.add_comment('@%s wait' % self.args.robot_username)
@@ -1682,7 +1697,7 @@ admins:
                     'git rev-parse w/6.0/bugfix/TEST-00081')
 
                 child_prs = real(*args, **kwargs)
-                if TestBertE.args.disable_mock:
+                if TestBertE.args.git_host != 'mock':
                     # make 100% sure the PR is up-to-date (since BB lags):
                     child_prs[0].src_commit = sha1
                 return child_prs
@@ -1782,7 +1797,11 @@ admins:
             self.handle(pr.id,
                         options=self.bypass_all_but(['bypass_build_status']),
                         backtrace=True)
-        self.set_build_status_on_pr_id(pr.id + 1, 'FAILED', url='DEADBEEF')
+        self.set_build_status_on_pr_id(
+            pr.id + 1, 'FAILED',
+            # github enforces valid build urls
+            url='https://builds/test.com/DEADBEEF'
+        )
         self.set_build_status_on_pr_id(pr.id + 2, 'SUCCESSFUL')
 
         with self.assertRaises(exns.BuildFailed) as err:
@@ -1793,7 +1812,7 @@ admins:
             self.handle(childpr.src_commit,
                         options=self.bypass_all_but(['bypass_build_status']),
                         backtrace=True)
-            self.assertIn("(DEADBEEF)", err.msg)
+            self.assertIn('https://builds/test.com/DEADBEEF', err.msg)
 
         self.set_build_status_on_pr_id(pr.id + 1, 'SUCCESSFUL')
 
@@ -1967,6 +1986,10 @@ admins:
 
     def test_unanimity_option(self):
         """Test unanimity by passing option to bert-e"""
+
+        if self.args.git_host == 'github':
+            self.skipTest("Unanimity doesn't work on GitHub")
+
         feature_branch = 'bugfix/TEST-0076'
         dst_branch = 'development/4.3'
         reviewers = [self.creator]
@@ -1983,6 +2006,9 @@ admins:
 
     def test_unanimity_required_all_approval(self):
         """Test unanimity with all approval required"""
+
+        if self.args.git_host == 'github':
+            self.skipTest("Unanimity doesn't work on GitHub")
 
         feature_branch = 'bugfix/TEST-007'
         dst_branch = 'development/4.3'
@@ -2032,7 +2058,7 @@ admins:
         retcode = self.handle(blocked_pr.id, options=self.bypass_all)
         self.assertEqual(retcode, exns.AfterPullRequest.code)
 
-        blocked_pr.add_comment('@%s unanimity after_pull_request=%s' % (
+        blocked_pr.add_comment('@%s after_pull_request=%s' % (
             self.args.robot_username, pr_opened.id))
 
         retcode = self.handle(blocked_pr.id, options=self.bypass_all)
@@ -2045,13 +2071,13 @@ admins:
         retcode = self.handle(pr_opened.id, options=self.bypass_all)
         self.assertEqual(retcode, exns.SuccessMessage.code)
 
-        if RepositoryTests.args.disable_mock:
+        if self.args.git_host != 'mock':
             # take bitbucket laggyness into account
             time.sleep(10)
-        with self.assertRaises(exns.ApprovalRequired) as raised:
+
+        with self.assertRaises(exns.SuccessMessage):
             self.handle(blocked_pr.id, options=self.bypass_all,
                         backtrace=True)
-        self.assertIn('unanimity', raised.exception.msg)
 
     def test_after_pull_request_wrong_syntax(self):
         pr_declined = self.create_pr('bugfix/TEST-00002', 'development/4.3')
@@ -2362,6 +2388,9 @@ admins:
                 settings=settings)
 
     def test_task_list_creation(self):
+        if self.args.git_host == 'github':
+            self.skipTest("Tasks are not supported on GitHub")
+
         pr = self.create_pr('feature/death-ray', 'development/6.0')
         try:
             self.handle(pr.id)
@@ -2374,6 +2403,9 @@ admins:
         assert 'task' in init_comment
 
     def test_task_list_missing(self):
+        if self.args.git_host == 'github':
+            self.skipTest("Tasks are not supported on GitHub")
+
         pr = self.create_pr('feature/death-ray', 'development/6.0')
         settings = """
 repository_owner: {owner}
@@ -2398,6 +2430,9 @@ admins:
         assert 'task' not in init_comment
 
     def test_task_list_funky(self):
+        if self.args.git_host == 'github':
+            self.skipTest("Tasks are not supported on GitHub")
+
         pr = self.create_pr('feature/death-ray', 'development/6.0')
         settings = """
 repository_owner: {owner}
@@ -2436,6 +2471,9 @@ tasks:
         self.assertEqual(len(list(pr_admin.get_tasks())), 15)
 
     def test_task_list_illegal(self):
+        if self.args.git_host == 'github':
+            self.skipTest("Tasks are not supported on GitHub")
+
         pr = self.create_pr('feature/death-ray', 'development/6.0')
         settings = """
 repository_owner: {owner}
@@ -2456,6 +2494,9 @@ tasks:
             self.handle(pr.id, backtrace=True, settings=settings)
 
     def test_task_list_incompatible_api_update_create(self):
+        if self.args.git_host == 'github':
+            self.skipTest("Tasks are not supported on GitHub")
+
         try:
             real = bitbucket_api.Task.add_url
             bitbucket_api.Task.add_url = 'https://bitbucket.org/plouf'
@@ -2472,6 +2513,9 @@ tasks:
             bitbucket_api.Task.add_url = real
 
     def test_task_list_incompatible_api_update_list(self):
+        if self.args.git_host == 'github':
+            self.skipTest("Tasks are not supported on GitHub")
+
         try:
             real = bitbucket_api.Task.list_url
             bitbucket_api.Task.list_url = 'https://bitbucket.org/plouf'
@@ -3556,7 +3600,7 @@ class TaskQueueTests(RepositoryTests):
             robot=self.args.robot_username,
             owner=self.args.owner,
             slug='%s_%s' % (self.args.repo_prefix, self.args.admin_username),
-            host='bitbucket' if self.args.disable_mock else 'mock'
+            host=self.args.git_host
         )
         with open('test_settings.yml', 'w') as settings_file:
             settings_file.write(data)
@@ -3569,12 +3613,16 @@ class TaskQueueTests(RepositoryTests):
         self.berte = BertE(settings)
 
     def add_pr_task(self, pr, **settings):
+        client = pr.client
+        pr.client = self.berte.client
         job = PullRequestJob(
-            bert_e=self.berte, pull_request=pr,
+            bert_e=self.berte, pull_request=deepcopy(pr),
             url=self.berte.settings.pull_request_base_url.format(pr_id=pr.id),
             settings=settings
         )
+        pr.client = client
         self.berte.task_queue.put(job)
+
         return job
 
     def add_sha1_task(self, sha1, **settings):
@@ -3678,8 +3726,8 @@ def main():
                         help='Verbose mode')
     parser.add_argument('--failfast', action='store_true', default=False,
                         help='Return on first failure')
-    parser.add_argument('--disable-mock', action='store_true', default=False,
-                        help='Disables the bitbucket mock (slower tests)')
+    parser.add_argument('--git-host', default='mock',
+                        help='Choose the git host to run tests (slower tests)')
     parser.add_argument('--disable-queues', action='store_true', default=False,
                         help='deactivate queue feature during tests')
     RepositoryTests.args = parser.parse_args()
@@ -3699,7 +3747,7 @@ def main():
         sys.exit('Cannot use the same login for normal user and robot, '
                  'please specify another login.')
 
-    if not RepositoryTests.args.disable_mock:
+    if RepositoryTests.args.git_host == 'mock':
         bitbucket_api.Client = bitbucket_api_mock.Client
         bitbucket_api.Repository = bitbucket_api_mock.Repository
         bitbucket_api.Task = bitbucket_api_mock.Task
