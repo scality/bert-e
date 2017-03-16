@@ -693,6 +693,7 @@ class PullRequest(GithubObject, base.AbstractPullRequest):
         else:
             return 'DECLINED'
 
+    @property
     def url(self) -> str:
         return self.data['html_url']
 

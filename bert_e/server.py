@@ -230,7 +230,7 @@ def parse_github_webhook():
         job = handle_github_pr_event(BERTE.client, json_data)
     elif event == 'issue_comment':
         job = handle_github_issue_comment(BERTE.client, json_data)
-    elif event == 'pull_request_review_event':
+    elif event == 'pull_request_review':
         job = handle_github_pr_review_event(BERTE.client, json_data)
     elif event == 'status':
         job = handle_github_status_event(BERTE.client, json_data)

@@ -57,11 +57,11 @@ class Job:
     def __repr__(self):
         return "{}({})".format(
             self.__class__.__name__,
-            ''.join(
+            ''.join((
                 str(self),
                 ', start_time={}'.format(self.start_time),
                 ', url={}'.format(self.url) if self.url else ''
-            )
+            ))
         )
 
 

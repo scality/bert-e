@@ -110,6 +110,10 @@ class BertE(JobDispatcher):
         except TemplateException as err:
             return self._process_error(err)
 
+        except Exception as err:
+            LOG.exception("Exception raised: %s", err)
+            raise
+
     def handle_token(self, token):
         """Determine the resolution path based on the input id.
 
@@ -140,7 +144,7 @@ class BertE(JobDispatcher):
     def _process_error(self, error):
         if self.settings.backtrace:
             raise error from error
-        LOG.info('Exception raised: %d', error.code)
+        LOG.info("Exception raised: %d", error.code)
         if not self.settings.quiet:
             print('%d - %s' % (0, error.__class__.__name__))
         return error.code
