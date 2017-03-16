@@ -71,9 +71,7 @@ def handle_commit(job: CommitJob):
             'Could not find the pull request for commit {}' .format(job.commit)
         )
     prs = list(
-        job.project_repo.get_pull_requests(
-            src_branch=candidates,
-            author=job.settings.robot_username)
+        job.project_repo.get_pull_requests(src_branch=candidates)
     )
     if not prs:
         raise messages.NothingToDo(
@@ -385,9 +383,9 @@ def handle_declined_pull_request(job):
     wbranch_names = ['w/{}/{}'.format(b.version, src_branch)
                      for b in dst_branches]
 
-    open_prs = list(job.project_repo.get_pull_requests(
-        src_branch=wbranch_names, author=job.settings.robot_username
-    ))
+    open_prs = list(
+        job.project_repo.get_pull_requests(src_branch=wbranch_names)
+    )
 
     for name, dst_branch in zip(wbranch_names, dst_branches):
         for pr in open_prs:

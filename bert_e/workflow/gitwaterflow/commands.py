@@ -119,9 +119,7 @@ def _reset(job, force=False):
             wprs = []
         else:
             wprs = job.project_repo.get_pull_requests(
-                src_branch=[b.name for b in wbranches],
-                author=job.settings.robot_username
-            )
+                src_branch=[b.name for b in wbranches])
         for branch in wbranches:
             branch.remove(do_push=False)
         push(job.git.repo, prune=True)

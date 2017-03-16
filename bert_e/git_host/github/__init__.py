@@ -545,8 +545,8 @@ class Repository(GithubObject, base.AbstractRepository):
         )
 
     def get_pull_requests(self, author=None, src_branch=None, status='OPEN'):
-        if src_branch is not None and author is None:
-            author = self.client.org or self.client.login
+        if author is None:
+            author = self.owner
 
         query_state = {
             'OPEN': 'open',
