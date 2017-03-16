@@ -7,7 +7,9 @@ Waiting for approval
 {% block message %}
 The following approvals are needed before I can proceed with the merge:
 
+{% if requires_author_approval %}
 * the author
+{% endif %}
 {% if required_peer_approvals == 1 %}
 * one peer
 {% elif required_peer_approvals > 1 %}

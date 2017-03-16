@@ -48,6 +48,16 @@ class BertE(JobDispatcher):
             slug=settings.repository_slug
         )
         settings['use_queue'] = not settings.disable_queues
+
+        if settings.repository_host == 'github':
+            # Github doesn't support author approvals nor tasks
+            if settings['need_author_approval']:
+                LOG.warning("Disabling author_approval on GitHub repo")
+                settings['need_author_approval'] = False
+            if settings['tasks']:
+                LOG.warning("Disabling tasks on GitHub repo")
+                settings['tasks'] = []
+
         self.git_repo = GitRepository(
             self.project_repo.git_url,
             mask_pwd=quote_plus(settings.robot_password)

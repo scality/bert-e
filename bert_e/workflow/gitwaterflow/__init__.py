@@ -475,7 +475,8 @@ def check_approvals(job):
     current_peer_approvals = 0
     if job.settings.bypass_peer_approval:
         current_peer_approvals = required_peer_approvals
-    approved_by_author = job.settings.bypass_author_approval
+    approved_by_author = (not job.settings.need_author_approval or
+                          job.settings.bypass_author_approval)
     approved_by_tester = job.settings.bypass_tester_approval
     requires_unanimity = job.settings.unanimity
     is_unanimous = True
@@ -524,6 +525,7 @@ def check_approvals(job):
             required_peer_approvals=required_peer_approvals,
             requires_tester_approval=bool(testers),
             requires_unanimity=requires_unanimity,
+            requires_author_approval=job.settings.need_author_approval,
             active_options=job.active_options
         )
 
