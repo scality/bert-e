@@ -1,4 +1,4 @@
-#{% block title %}{% endblock %}#
+# {% block title %}{% endblock %}
 
 {% block message %}
 {% endblock %}
