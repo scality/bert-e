@@ -139,7 +139,7 @@ class PullRequest(Schema):
     state = fields.Str()
     title = fields.Str()
     body = fields.Str(allow_none=True)
-    assignee = fields.Nested(User, allow_none=True)
+    user = fields.Nested(User, allow_none=True)
     head = fields.Nested(Branch)  # source branch
     base = fields.Nested(Branch)  # destination branch
     created_at = fields.DateTime()
@@ -170,6 +170,7 @@ class Comment(Schema):
     created_at = fields.DateTime()
     updated_at = fields.DateTime(allow_none=True)
     user = fields.Nested(User)
+    url = fields.Url()
 
 
 class CreateComment(Schema):

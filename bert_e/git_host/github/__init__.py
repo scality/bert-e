@@ -641,12 +641,11 @@ class PullRequest(GithubObject, base.AbstractPullRequest):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._comments = None
         self._reviews = None
 
     @property
-    def id(self) -> str:
-        return str(self.data['number'])
+    def id(self) -> int:
+        return int(self.data['number'])
 
     @property
     def title(self) -> str:
@@ -654,12 +653,11 @@ class PullRequest(GithubObject, base.AbstractPullRequest):
 
     @property
     def author(self) -> str:
-        return self.data.get('assignee', self.data['head']['user'])['login']
+        return self.data['user']['login']
 
     @property
     def author_display_name(self) -> str:
-        user = self.data.get('assignee', self.data['head']['user'])
-        return user.get('name', user['login'])
+        return self.data['user'].get('name', self.author)
 
     @property
     def description(self) -> str:
@@ -700,9 +698,7 @@ class PullRequest(GithubObject, base.AbstractPullRequest):
 
     @property
     def comments(self):
-        if not self._comments:
-            self._comments = self.get_comments()
-        return list(self._comments)
+        return list(self.get_comments())
 
     @property
     def repo(self):
