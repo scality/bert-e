@@ -56,6 +56,10 @@ class AbstractComment(metaclass=ABCMeta):
 
         """
 
+    @abstractmethod
+    def delete(self) -> None:
+        """Delete the comment."""
+
     @property
     @abstractmethod
     def author(self) -> str:

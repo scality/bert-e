@@ -767,6 +767,9 @@ class Comment(GithubObject, base.AbstractComment):
     def id(self) -> int:
         return self.data['id']
 
+    def delete(self) -> None:
+        self.client.delete(self.data['url'])
+
 
 class Review(GithubObject):
     LIST_URL = '/repos/{owner}/{repo}/pulls/{number}/reviews'
