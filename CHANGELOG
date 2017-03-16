@@ -1,6 +1,14 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [3.0.8] - 2017-03-16
+# Added
+- Bert-E supports GitHub (except for tasks, author approvals and unanimity option)
+- Comment.delete() is specified in the abstract githost API + the github implementation
+- need_author_approval optional configuration key (defaulting to true)
+# Changed
+- Pull request author is optional during filtered scans, with sensible default values
+
 ## [3.0.7] - 2017-03-08
 # Changed
 - Refactoring: BertE is now a long-living job dispatching service.

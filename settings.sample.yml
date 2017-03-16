@@ -69,6 +69,14 @@ build_key: pre-merge
 #
 required_peer_approvals: 2
 
+# need_author_approval [OPTIONAL]:
+#   Pull Requests need to be approved by their authors to be merged.
+#   NOT SUPPORTED ON GITHUB
+#
+#   values: true or false
+#   default value: true
+#
+need_author_approcal: true
 
 # jira_account_url [OPTIONAL]:
 #   The url of the Jira account.
@@ -124,6 +132,7 @@ admins:
 
 # tasks [OPTIONAL]:
 #   The list of tasks to create by default on the bitbucket pull request
+#   NOT SUPPORTED ON GITHUB.
 #
 #   default value: empty
 #   empty: no task is created by default

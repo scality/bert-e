@@ -58,7 +58,7 @@ specific messages.
 
     * check that all conflicts have been resolved
     * check that reviewers have approved the pull request
-    * check that the author has approved the pull request
+    * check that the author has approved the pull request (skipped on GitHub)
     * check that the build status is green
 
 Comments
@@ -111,12 +111,13 @@ __Bert-E__.
 | options name              | description              | requires admin rights? |
 |:------------------------- |:------------------------ |:----------------------:|
 | after_pull_request        | Wait for the given pull request id to be merged before continuing with the current one. May be used like this: @bert-e after_pull_request=<pr_id_1> ... | no
-| bypass_author_approval    | Bypass the pull request author's approval   | yes
+| bypass_author_approval    | Bypass the pull request author's approval (**This
+option has no effect on GitHub** where author approvals are not supported)   | yes
 | bypass_build_status       | Bypass the build and test status| yes | bypass_incompatible_branch | Bypass the check on the source branch prefix | yes
 | bypass_jira_check         | Bypass the Jira issue check| yes |
 | bypass_peer_approval      | Bypass the pull request peer's approval | yes
 | bypass_tester_approval    | Bypass the pull request tester's approval | yes
-| unanimity                 | Change review acceptance criteria from `one reviewer at least` to `all reviewers` | no
+| unanimity                 | Change review acceptance criteria from `one reviewer at least` to `all reviewers` (**this feature is not supported on GitHub**) | no
 | wait                      | Instruct __Bert-E__ not to run until further notice | no
 
 > **Example: Unanimity option**
@@ -131,7 +132,7 @@ __Bert-E__.
 > @bert-e unanimity
 >
 > If later, the developer changes his mind, and believes only one reviewer is
-> enough, he/she should delete his/her comment. 
+> enough, he/she should delete his/her comment.
 
 (option available in __Bert-E__ >= 1.0.1)
 
@@ -147,7 +148,7 @@ __Bert-E__ will ignore the comment that contains it.
 To obtain the list of existing commands, send the following command to
 __Bert-E__:
 
-    @bert-e help 
+    @bert-e help
 
 | command name          | description              | requires admin rights? |
 |:--------------------- |:------------------------ |:----------------------:|
@@ -169,7 +170,7 @@ On the Git project, the name of the integration branches follow the format:
 
 where:
 
-* *version*: the version of the target _development/..._ branch 
+* *version*: the version of the target _development/..._ branch
 * *name_of_source_branch*: the name of the source branch (for example:
   feature/KEY-12345, bugfix/KEY-12345)
 
