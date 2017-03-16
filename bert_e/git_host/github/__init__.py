@@ -630,6 +630,10 @@ class Status(GithubObject):
     def description(self):
         return self.data['description']
 
+    @property
+    def key(self):
+        return self.data['context']
+
 
 class PullRequest(GithubObject, base.AbstractPullRequest):
     LIST_URL = '/repos/{owner}/{repo}/pulls'
@@ -688,6 +692,9 @@ class PullRequest(GithubObject, base.AbstractPullRequest):
             return 'MERGED'
         else:
             return 'DECLINED'
+
+    def url(self) -> str:
+        return self.data['html_url']
 
     def add_comment(self, msg: str):
         url = self.data['comments_url']
@@ -786,3 +793,58 @@ class Review(GithubObject):
     @property
     def approved(self) -> str:
         return self.data['state'].lower() == 'approved'
+
+
+class PullRequestEvent(GithubObject):
+    SCHEMA = schema.PullRequestEvent
+
+    @property
+    def action(self) -> str:
+        return self.data['action']
+
+    @property
+    def pull_request(self) -> PullRequest:
+        return PullRequest(client=self.client, _validate=False,
+                           **self.data['pull_request'])
+
+
+class IssueCommentEvent(GithubObject):
+    SCHEMA = schema.IssueCommentEvent
+
+    @property
+    def pull_request(self) -> PullRequest:
+        """Get the PullRequest associated with this issue comment event."""
+        pr_dict = self.data['issue'].get('pull_request')
+        if pr_dict:
+            try:
+                return PullRequest.get(client=self.client, url=pr_dict['url'])
+            except HTTPError:
+                LOG.error("No pull request at url %s", pr_dict['url'])
+        LOG.debug("Issue #%d is not a pull request",
+                  self.data['issue']['number'])
+
+
+class PullRequestReviewEvent(GithubObject):
+    SCHEMA = schema.PullRequestReviewEvent
+
+    @property
+    def pull_request(self) -> PullRequest:
+        return PullRequest(client=self.client, _validate=False,
+                           **self.data['pull_request'])
+
+
+class StatusEvent(GithubObject):
+    SCHEMA = schema.StatusEvent
+
+    @property
+    def commit(self) -> str:
+        return self.data['sha']
+
+    @property
+    def status(self) -> Status:
+        return Status(
+            client=self.client, state=self.data['state'],
+            target_url=self.data.get('target_url'),
+            description=self.data.get('description'),
+            context=self.data['context']
+        )

@@ -22,6 +22,7 @@ from functools import wraps
 
 from flask import Flask, Response, render_template, request
 
+from .git_host import github
 from .git_host.bitbucket import BUILD_STATUS_CACHE, PullRequest
 from .job import CommitJob, PullRequestJob
 
@@ -205,3 +206,78 @@ def handle_pullrequest_event(event, json_data):
     pr = PullRequest(BERTE.client, **json_data['pullrequest'])
     LOG.info('The pull request <%s> has been updated', pr_id)
     return PullRequestJob(bert_e=BERTE, pull_request=pr, url=pr_url)
+
+
+@APP.route('/github', methods=['POST'])
+@requires_auth
+def parse_github_webhook():
+    if BERTE.settings.repository_host != 'github':
+        LOG.error('Received github webhook but Bert-E is configured for %s',
+                  BERTE.settings.repository_host)
+        return Response('Internal Server Error', 500)
+
+    json_data = json.loads(request.data.decode())
+    full_name = json_data.get('repository', {}).get('full_name')
+    if full_name != BERTE.project_repo.full_name:
+        LOG.debug("Received webhook for %s whereas I'm handling %s. Ignoring",
+                  full_name, BERTE.project_repo.full_name)
+        return Response('Internal Server Error', 500)
+
+    event = request.headers.get('X-Github-Event')
+    job = None
+    LOG.debug("Received '%s' event", event)
+    if event == 'pull_request':
+        job = handle_github_pr_event(BERTE.client, json_data)
+    elif event == 'issue_comment':
+        job = handle_github_issue_comment(BERTE.client, json_data)
+    elif event == 'pull_request_review_event':
+        job = handle_github_pr_review_event(BERTE.client, json_data)
+    elif event == 'status':
+        job = handle_github_status_event(BERTE.client, json_data)
+
+    if job is None:
+        LOG.debug('Ignoring event.')
+        return Response('OK', 200)
+
+    LOG.info('Adding job %r', job)
+    BERTE.task_queue.put(job)
+    return Response('Accepted', 202)
+
+
+def handle_github_pr_event(client, json_data):
+    event = github.PullRequestEvent(client=client, **json_data)
+    pr = event.pull_request
+    if event.action != "closed":
+        return PullRequestJob(bert_e=BERTE, pull_request=pr, url=pr.url)
+    else:
+        LOG.debug('PR #%s closed, ignoring event', pr.id)
+
+
+def handle_github_issue_comment(client, json_data):
+    event = github.IssueCommentEvent(client=client, **json_data)
+    pr = event.pull_request
+    if pr:
+        return PullRequestJob(bert_e=BERTE, pull_request=pr, url=pr.url)
+
+
+def handle_github_pr_review_event(client, json_data):
+    event = github.PullRequestReviewEvent(client=client, **json_data)
+    pr = event.pull_request
+    LOG.debug("A review was submitted or dismissed on pull request #%d", pr.id)
+    return PullRequestJob(bert_e=BERTE, pull_request=pr, url=pr.url)
+
+
+def handle_github_status_event(client, json_data):
+    event = github.StatusEvent(client=client, **json_data)
+    status = event.status
+    LOG.debug("New build status on commit %s", event.commit)
+    cached = github.BUILD_STATUS_CACHE[status.key].get(event.commit)
+    if not cached or cached.state != 'SUCCESSFUL':
+        github.BUILD_STATUS_CACHE[status.key].set(event.commit, status)
+
+    if status.state == 'INPROGRESS':
+        LOG.debug("The build just started on %s, ignoring event", event.commit)
+        return
+
+    commit_url = json_data['commit']['html_url']
+    return CommitJob(bert_e=BERTE, commit=event.commit, url=commit_url)

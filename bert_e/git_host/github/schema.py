@@ -134,6 +134,7 @@ class Branch(Schema):
 class PullRequest(Schema):
     number = fields.Int(required=True)
     url = fields.Url()
+    html_url = fields.Url()
     comments_url = fields.Url()
     review_comments_url = fields.Url()
     state = fields.Str()
@@ -194,3 +195,34 @@ class DraftReview(Schema):
 class CreateReview(Schema):
     body = fields.Str(allow_none=True)
     event = fields.Str()
+
+
+class PullRequestEvent(Schema):
+    action = fields.Str(required=True)
+    number = fields.Int()
+    pull_request = fields.Nested(PullRequest)
+
+
+class Issue(Schema):
+    number = fields.Int()
+    title = fields.Str()
+    # If this dict is present and non-empty, then the issue is a pull request.
+    pull_request = fields.Dict(optional=True, default={})
+
+
+class IssueCommentEvent(Schema):
+    action = fields.Str()
+    issue = fields.Nested(Issue)
+
+
+class PullRequestReviewEvent(Schema):
+    action = fields.Str()
+    pull_request = fields.Nested(PullRequest)
+
+
+class StatusEvent(Schema):
+    sha = fields.Str()
+    state = fields.Str()
+    context = fields.Str()
+    description = fields.Str(allow_none=True)
+    target_url = fields.Str(allow_none=True)
