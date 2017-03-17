@@ -17,6 +17,8 @@ import os
 import signal
 import subprocess
 
+LOG = logging.getLogger(__name__)
+
 
 class CommandError(Exception):
     """An error or timeout occured during the execution of a command."""
@@ -44,15 +46,10 @@ def cmd(command, shell=True, stderr=subprocess.STDOUT, timeout=300, **kwargs):
         return data.replace(pwd, '***') if pwd else data
 
     kwargs.update({'shell': shell, 'stderr': stderr})
-    if logging.getLogger().isEnabledFor(logging.DEBUG):
-        logging.debug('[%s] %s',
-                      kwargs.get('cwd', os.getcwd()), mask_pwd(command))
-        try:
-            return _do_cmd(command, timeout, **kwargs)
-        except CommandError:
-            logging.exception("An exception occured while calling '%s'",
-                              command)
-            raise
+    if LOG.isEnabledFor(logging.DEBUG):
+        LOG.debug('[%s] %s', kwargs.get('cwd', os.getcwd()), mask_pwd(command))
+        return _do_cmd(command, timeout, **kwargs)
+
     else:
         with open(os.devnull, 'wb') as devnull:
             kwargs['stderr'] = devnull
@@ -78,6 +75,8 @@ def _do_cmd(command, timeout, **kwargs):
             output, _ = proc.communicate(timeout=timeout)
             output = mask_pwd(output)
             if proc.returncode != 0:
+                LOG.debug("[%s] {returned %d}",
+                          kwargs.get('cwd', os.getcwd()), proc.returncode)
                 raise CommandError(
                     'Command %s returned with code %d: %s' %
                     (mask_pwd(command), proc.returncode, output)
@@ -86,6 +85,7 @@ def _do_cmd(command, timeout, **kwargs):
         except subprocess.TimeoutExpired as err:
             os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
             proc.communicate()
+            LOG.debug("[%s] {timed out}", kwargs.get('cwd', os.getcwd()))
             raise CommandError(
                 "Command %s timed out." % mask_pwd(command)) from err
         except CommandError:
