@@ -153,6 +153,8 @@ __Bert-E__:
 | command name          | description              | requires admin rights? |
 |:--------------------- |:------------------------ |:----------------------:|
 | help                  | Print __Bert-E__'s manual in the pull request | yes
+| reset                 | Let __Bert-E__ reset the integration branches associated to the current pull request with a warning if the developer manually modified one of the the integration branches | no
+| force_reset           | Let __Bert-E__ reset the integration branches associated to the current pull request **without warning**. | no
 
 Integration branches and integration pull requests
 --------------------------------------------------
