@@ -24,6 +24,8 @@ def octopus_merge(dst: git.Branch, src1: git.Branch, src2: git.Branch):
     """Try a 3-way octopus merge.
 
     If it fails, try merging sources in opposite order.
+    If it still fails try a poor man's 3-way merge by doing two consecutive
+    2-way merges.
 
     Raises:
         git.MergeFailedException: if there is an actual conflict.
@@ -35,6 +37,30 @@ def octopus_merge(dst: git.Branch, src1: git.Branch, src2: git.Branch):
         try:
             dst.reset(False)
             dst.merge(src2, src1)
+        except git.MergeFailedException:
+            dst.reset(False)
+            consecutive_merge(dst, src1, src2)
+        except Exception:
+            raise err
+
+
+def consecutive_merge(dst: git.Branch, src1: git.Branch, src2: git.Branch):
+    """Poor man's 3-way merge using two consecutive 2-way merges.
+
+    If it fails, try merging sources in opposite order.
+
+    Raises:
+        git.MergeFailedException: if there is an actual conflict.
+
+    """
+    try:
+        dst.merge(src1)
+        dst.merge(src2)
+    except git.MergeFailedException as err:
+        try:
+            dst.reset(False)
+            dst.merge(src2)
+            dst.merge(src1)
         except git.MergeFailedException:
             raise
         except Exception:

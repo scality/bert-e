@@ -40,7 +40,7 @@ from bert_e.job import CommitJob, PullRequestJob
 from bert_e.lib.retry import RetryHandler
 from bert_e.lib.simplecmd import CommandError, cmd
 from bert_e.settings import setup_settings
-from bert_e.workflow import gitwaterflow as gwf
+from bert_e.workflow import gitwaterflow as gwf, git_utils
 from bert_e.workflow.gitwaterflow import branches as gwfb
 
 from .mocks import jira as jira_api_mock
@@ -2768,6 +2768,22 @@ class TestQueueing(RepositoryTests):
         assert qc.mergeable_prs == [1, 5, 7, 10]
         assert qc.mergeable_queues == self.standard_solution
 
+    def test_queueing_standard_problem_without_octopus(self):
+        # monkey patch to skip octopus merge in favor of regular 2-way merges
+        octopus_merge = git_utils.octopus_merge
+        git_utils.octopus_merge = git_utils.consecutive_merge
+
+        try:
+            qbranches = self.submit_problem(self.standard_problem)
+            qc = self.feed_queue_collection(qbranches)
+            qc.finalize()
+            qc.validate()
+            assert qc._queues == self.standard_solution
+            assert qc.mergeable_prs == [1, 5, 7, 10]
+            assert qc.mergeable_queues == self.standard_solution
+        finally:
+            git_utils.octopus_merge = octopus_merge
+
     def test_queueing_last_pr_build_not_started(self):
         problem = deepcopy(self.standard_problem)
         problem[4]['status'][2] = {}
@@ -3707,6 +3723,48 @@ class TaskQueueTests(RepositoryTests):
         merged_pr = self.berte.status.get('merged PRs', [])
         self.assertEqual(len(merged_pr), 1)
         assert merged_pr[0]['id'] == 1
+
+    def test_status_with_queue_without_octopus(self):
+        # monkey patch to skip octopus merge in favor of regular 2-way merges
+        octopus_merge = git_utils.octopus_merge
+        git_utils.octopus_merge = git_utils.consecutive_merge
+
+        try:
+            self.init_berte(options=self.bypass_all)
+            pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
+            self.add_pr_task(pr)
+            self.berte.process_task()
+            # check expected branches exist
+            self.gitrepo.cmd('git fetch --prune')
+            expected_branches = [
+                'q/1/4.3/bugfix/TEST-00001',
+                'q/1/5.1/bugfix/TEST-00001',
+                'q/1/6.0/bugfix/TEST-00001',
+                'w/4.3/bugfix/TEST-00001',
+                'w/5.1/bugfix/TEST-00001',
+                'w/6.0/bugfix/TEST-00001'
+            ]
+            for branch in expected_branches:
+                assert self.gitrepo.remote_branch_exists(branch)
+
+            sha1_q_6_0 = self.gitrepo._remote_branches['q/6.0']
+
+            self.add_sha1_task(sha1_q_6_0)
+            self.berte.process_task()
+
+            status = self.berte.status.get('merge queue', OrderedDict())
+            versions = tuple(version for version, _ in status[1])
+            for _, sha1 in status[1]:
+                self.set_build_status(sha1=sha1, state='SUCCESSFUL')
+            assert versions == ('6.0', '5.1', '4.3')
+            self.add_sha1_task(sha1_q_6_0)
+            self.berte.process_task()
+
+            merged_pr = self.berte.status.get('merged PRs', [])
+            self.assertEqual(len(merged_pr), 1)
+            assert merged_pr[0]['id'] == 1
+        finally:
+            git_utils.octopus_merge = octopus_merge
 
 
 def main():
