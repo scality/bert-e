@@ -1279,6 +1279,12 @@ admins:
         retcode = self.handle(pr.id)
         self.assertEqual(retcode, exns.StatusReport.code)
 
+        # command: status and garbage
+        pr.add_comment('@%s status some arguments --hehe' %
+                       self.args.robot_username)
+        retcode = self.handle(pr.id)
+        self.assertEqual(retcode, exns.StatusReport.code)
+
         # mix of option and command
         pr.add_comment('@%s unanimity' % self.args.robot_username)
         pr.add_comment('@%s status' % self.args.robot_username)

@@ -57,7 +57,7 @@ def print_help(job, *args):
 
 
 @Reactor.command
-def status(job):
+def status(job, *args):
     """Print Bert-E's current status in the pull request ```TBA```"""
     raise StatusReport(status={}, active_options=job.active_options)
 
