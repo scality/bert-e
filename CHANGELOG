@@ -8,6 +8,8 @@ All notable changes to this project will be documented in this file.
 - need_author_approval optional configuration key (defaulting to true)
 # Changed
 - Pull request author is optional during filtered scans, with sensible default values
+# Fixed
+- Bert-E does not crash when an argument is given to the status command in pull requets
 
 ## [3.0.7] - 2017-03-08
 # Changed
