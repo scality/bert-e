@@ -118,9 +118,14 @@ def display_queue():
         output_mimetype = 'text/html'
         file_template = 'status.html'
 
+    try:
+        bert_e_version = pkg_resources.require("bert-e")[0].version
+    except Exception:
+        bert_e_version = 'unset_version'
+
     return render_template(
         file_template,
-        bert_e_version=pkg_resources.require("bert-e")[0].version,
+        bert_e_version=bert_e_version,
         owner=BERTE.project_repo.owner,
         slug=BERTE.project_repo.slug,
         current_job=current_job,
