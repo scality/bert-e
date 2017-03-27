@@ -1,4 +1,5 @@
-Bert-E status page for {{ owner }}/{{ slug }}
+Bert-E {{ bert_e_version }}
+Status page for {{ owner }}/{{ slug }}
 
 {%- if current_job %}
 

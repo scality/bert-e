@@ -1,20 +1,10 @@
 #!/usr/bin/env python3
 
-import sys
 from os.path import abspath, dirname, join
-from subprocess import PIPE, Popen
 
 from setuptools import setup
 
 CWD = dirname(abspath(__file__))
-
-
-def version():
-    p = Popen(['git', 'describe', '--tags', '--always'], stdout=PIPE, cwd=CWD)
-    out = p.communicate()[0]
-    if sys.version_info[0] > 2:
-        out = out.decode()
-    return out.strip()
 
 
 def requires():
@@ -24,7 +14,12 @@ def requires():
 
 setup(
     name='bert-e',
-    version=version(),
+    use_scm_version={
+        'local_scheme': 'dirty-tag'
+    },
+    setup_requires=[
+        'setuptools_scm'
+    ],
     description='Scality\'s automated branch merging tool',
     url='https://bitbucket.org/scality/bert-e',
     license='Apache',

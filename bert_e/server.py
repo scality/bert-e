@@ -18,6 +18,7 @@ launches, Bert-E accordingly.
 import json
 import logging
 import os
+import pkg_resources
 from functools import wraps
 
 from flask import Flask, Response, render_template, request
@@ -119,6 +120,7 @@ def display_queue():
 
     return render_template(
         file_template,
+        bert_e_version=pkg_resources.require("bert-e")[0].version,
         owner=BERTE.project_repo.owner,
         slug=BERTE.project_repo.slug,
         current_job=current_job,
