@@ -135,7 +135,7 @@ def _reset(job, force=False):
 
 
 @Reactor.command
-def force_reset(job):
+def force_reset(job, *args):
     """Delete integration branches & pull requests, and restart merge process
     from the beginning.
     """
@@ -143,7 +143,7 @@ def force_reset(job):
 
 
 @Reactor.command
-def reset(job):
+def reset(job, *args):
     """Try to remove integration branches unless there are commits on them
     which do not appear on the source branch.
     """

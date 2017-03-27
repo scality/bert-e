@@ -1285,13 +1285,37 @@ admins:
         retcode = self.handle(pr.id)
         self.assertEqual(retcode, exns.StatusReport.code)
 
+        # command: reset
+        pr.add_comment('@%s reset' %
+                       self.args.robot_username)
+        retcode = self.handle(pr.id)
+        self.assertEqual(retcode, exns.ResetComplete.code)
+
+        # command: reset and garbage
+        pr.add_comment('@%s reset some arguments --hehe' %
+                       self.args.robot_username)
+        retcode = self.handle(pr.id)
+        self.assertEqual(retcode, exns.ResetComplete.code)
+
+        # command: force reset
+        pr.add_comment('@%s force_reset' %
+                       self.args.robot_username)
+        retcode = self.handle(pr.id)
+        self.assertEqual(retcode, exns.ResetComplete.code)
+
+        # command: force reset and garbage
+        pr.add_comment('@%s force_reset some arguments --hehe' %
+                       self.args.robot_username)
+        retcode = self.handle(pr.id)
+        self.assertEqual(retcode, exns.ResetComplete.code)
+
         # mix of option and command
         pr.add_comment('@%s unanimity' % self.args.robot_username)
         pr.add_comment('@%s status' % self.args.robot_username)
         retcode = self.handle(pr.id)
         self.assertEqual(retcode, exns.StatusReport.code)
 
-        # test_help command
+        # test help command
         pr.add_comment('@%s help' % self.args.robot_username)
         retcode = self.handle(pr.id)
         self.assertEqual(retcode, exns.HelpMessage.code)
