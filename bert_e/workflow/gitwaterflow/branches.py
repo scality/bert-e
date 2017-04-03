@@ -114,8 +114,7 @@ class IntegrationBranch(GWFBranch):
                 continue
             return pr
 
-    def get_or_create_pull_request(self, parent_pr, open_prs, bitbucket_repo,
-                                   first=False):
+    def get_or_create_pull_request(self, parent_pr, open_prs, bitbucket_repo):
         title = 'INTEGRATION [PR#%s > %s] %s' % (
             parent_pr.id, self.dst_branch.name, parent_pr.title
         )
@@ -131,8 +130,7 @@ class IntegrationBranch(GWFBranch):
         if not pr:
             description = render('pull_request_description.md',
                                  pr=parent_pr,
-                                 branch=self.name,
-                                 first=first)
+                                 branch=self.name)
             pr = bitbucket_repo.create_pull_request(
                 title=title,
                 name='name',
@@ -147,6 +145,22 @@ class IntegrationBranch(GWFBranch):
         # make sure we are not on the branch to remove
         self.dst_branch.checkout()
         super().remove(do_push)
+
+
+class GhostIntegrationBranch(IntegrationBranch):
+    pattern = FeatureBranch.pattern
+
+    def __init__(self, repo, name, dst_branch):
+        self.version = dst_branch.version
+        self.major = dst_branch.major
+        self.minor = dst_branch.minor
+        super().__init__(repo, name)
+
+    def get_or_create_pull_request(self, parent_pr, open_prs, bitbucket_repo):
+        return self.get_pull_request_from_list(open_prs), False
+
+    def remove(self, do_push=False):
+        pass  # Never delete the source branch
 
 
 class QueueBranch(GWFBranch):

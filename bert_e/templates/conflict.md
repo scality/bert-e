@@ -5,14 +5,10 @@ Conflict during merge
 {% endblock %}
 
 {% block message %}
-A conflict has been raised during the {{ "creation" if empty else "update" }} of integration branch `{{ wbranch.name }}` with
-contents from `{{ source.name }}` and `{{ wbranch.dst_branch.name }}`.
-
-{% if empty -%}
-**I have not created the integration branch.**
-{%- endif %}
-
 {% if origin %}
+There is a conflict between your branch `{{ feature_branch.name }}` and the
+destination branch `{{ wbranch.dst_branch.name }}`.
+
 Please resolve the conflict on **the feature branch** (`{{ feature_branch.name }}`).
 
 ```
@@ -33,8 +29,17 @@ delete all `w/*` branches related to this pull request
 Once done, please **decline the old integration pull requests** and comment
 this pull request to resume the merge process.
 {% endif%}
-{% else %} {%- if not empty -%} Please
-resolve the conflict on **the integration branch** (`{{ wbranch.name }}`).
+{% else %}
+A conflict has been raised during the {{ "creation" if empty else "update" }} of
+integration branch `{{ wbranch.name }}` with contents from `{{ source.name }}`
+and `{{ wbranch.dst_branch.name }}`.
+
+{% if empty -%}
+**I have not created the integration branch.**
+{%- endif %}
+
+{%- if not empty -%}
+Please resolve the conflict on **the integration branch** (`{{ wbranch.name }}`).
 {%- endif -%}
 
 

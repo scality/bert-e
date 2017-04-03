@@ -1,7 +1,9 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
-## [3.0.11] - 2017-04-13
+## [3.0.11] - 2017-04-14
+# Changed
+- No longer create integration branch/pull request for the first destination branch
 # Fixed
 - Random options were showed as active in the robot's greetings message.
 - Don't display "wrong destination branch" message in case of a failed git ls-remote
