@@ -44,8 +44,7 @@ Here are the steps to resolve this conflict:
 #!bash
  $ git fetch
  {% if empty -%}
- $ git checkout origin/{{ wbranch.dst_branch.name }}
- $ git checkout -B {{ wbranch.name }}
+ $ git checkout -B {{ wbranch.name }} origin/{{ wbranch.dst_branch.name }}
 {%- else -%}
  $ git checkout {{ wbranch.name }}
  $ git merge origin/{{ wbranch.dst_branch.name }}
