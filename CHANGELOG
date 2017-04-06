@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 ## [3.0.11] - 2017-04-06
 # Fixed
 - Random options were showed as active in the robot's greetings message.
+- Don't display "wrong destination branch" message in case of a failed git ls-remote
 
 ## [3.0.10] - 2017-03-27
 # Added

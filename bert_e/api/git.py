@@ -107,10 +107,7 @@ class Repository(object):
             return
         self._remote_heads = defaultdict(set)
         self._remote_branches = dict()
-        try:
-            output = self.cmd('git ls-remote --heads %s', self._url)
-        except CommandError:
-            return
+        output = self.cmd('git ls-remote --heads %s', self._url)
 
         for line in output.splitlines():
             sha, branch = line.split()
