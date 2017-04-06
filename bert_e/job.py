@@ -28,7 +28,8 @@ from bert_e.lib.settings_dict import SettingsDict
 
 class Job:
     """Generic job class."""
-    def __init__(self, bert_e, settings={}, url=''):
+    def __init__(self, bert_e, settings=None, url=''):
+        settings = settings or {}
         self.bert_e = bert_e
         self.settings = SettingsDict(settings, bert_e.settings)
         self.start_time = datetime.now()
