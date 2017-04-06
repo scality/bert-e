@@ -1,6 +1,10 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [3.0.11] - 2017-04-06
+# Fixed
+- Random options were showed as active in the robot's greetings message.
+
 ## [3.0.10] - 2017-03-27
 # Added
 - better scm version support in setup.py and version display in status page
