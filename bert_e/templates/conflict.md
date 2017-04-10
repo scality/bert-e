@@ -18,7 +18,7 @@ Please resolve the conflict on **the feature branch** (`{{ feature_branch.name }
 ```
 #!bash
  $ git fetch
- $ git checkout {{ feature_branch.name }}
+ $ git checkout origin/{{ feature_branch.name }}
  $ git merge origin/{{ dev_branch.name }}
  $ # <intense conflict resolution>
  $ git push origin HEAD:{{ feature_branch.name }}
