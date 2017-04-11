@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 # Fixed
 - Random options were showed as active in the robot's greetings message.
 - Don't display "wrong destination branch" message in case of a failed git ls-remote
+- Commit link points to the build in the robot's completed job queue.
 
 ## [3.0.10] - 2017-03-27
 # Added

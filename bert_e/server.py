@@ -197,9 +197,10 @@ def handle_repo_event(event, json_data):
         if build_status == 'INPROGRESS':
             return
 
-        LOG.info('The build status of commit <%s> has been updated: %s',
-                 commit_sha1, commit_url)
-        return CommitJob(bert_e=BERTE, commit=commit_sha1, url=commit_url)
+        LOG.info('The build status of commit <%s> has been updated to %s. '
+                 'More information at %s',
+                 commit_sha1, build_status, build_url)
+        return CommitJob(bert_e=BERTE, commit=commit_sha1, url=build_url)
 
 
 def handle_pullrequest_event(event, json_data):
