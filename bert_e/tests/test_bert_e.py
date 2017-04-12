@@ -3667,7 +3667,7 @@ class TaskQueueTests(RepositoryTests):
             settings=settings
         )
         pr.client = client
-        self.berte.task_queue.put(job)
+        self.berte.put_job(job)
 
         return job
 
@@ -3677,8 +3677,42 @@ class TaskQueueTests(RepositoryTests):
             url=self.berte.settings.commit_base_url.format(commit_id=sha1),
             settings=settings
         )
-        self.berte.task_queue.put(job)
+        self.berte.put_job(job)
         return job
+
+    def test_berte_duplicate_pr_job(self):
+        self.init_berte()
+        pr = self.create_pr('bugfix/TEST-0001', 'development/6.0')
+        self.add_pr_task(pr)
+        self.add_pr_task(pr)
+
+        self.assertEqual(len(self.berte.task_queue.queue), 1)
+
+    def test_berte_duplicate_sha1_job(self):
+        self.init_berte()
+        self.init_berte(options=self.bypass_all)
+        pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
+        self.add_pr_task(pr)
+        self.berte.process_task()
+        # check expected branches exist
+        self.gitrepo.cmd('git fetch --prune')
+        expected_branches = [
+            'q/1/4.3/bugfix/TEST-00001',
+            'q/1/5.1/bugfix/TEST-00001',
+            'q/1/6.0/bugfix/TEST-00001',
+            'w/4.3/bugfix/TEST-00001',
+            'w/5.1/bugfix/TEST-00001',
+            'w/6.0/bugfix/TEST-00001'
+        ]
+        for branch in expected_branches:
+            assert self.gitrepo.remote_branch_exists(branch)
+
+        sha1_q_6_0 = self.gitrepo._remote_branches['q/6.0']
+
+        self.add_sha1_task(sha1_q_6_0)
+        self.add_sha1_task(sha1_q_6_0)
+
+        self.assertEqual(len(self.berte.task_queue.queue), 1)
 
     def test_berte_worker_job_never_crashes(self):
         self.init_berte()

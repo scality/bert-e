@@ -87,6 +87,11 @@ class PullRequestJob(RepoJob):
     def __str__(self):
         return "PR #{}".format(self.pull_request.id)
 
+    def __eq__(self, other):
+        return type(other) is PullRequestJob and \
+            self.project_repo.full_name == other.project_repo.full_name and \
+            self.pull_request.id == other.pull_request.id
+
 
 class CommitJob(RepoJob):
     """Job triggered when a commit status was updated."""
@@ -96,6 +101,11 @@ class CommitJob(RepoJob):
 
     def __str__(self):
         return "Commit {}".format(self.commit)
+
+    def __eq__(self, other):
+        return type(other) is CommitJob and \
+            self.project_repo.full_name == other.project_repo.full_name and \
+            self.commit == other.commit
 
 
 class QueuesJob(RepoJob):

@@ -95,6 +95,16 @@ class BertE(JobDispatcher):
             self.tasks_done.appendleft(job)
             self.status.pop('current job')
 
+    def put_job(self, job):
+        """Put a job and ensure there is not any similar job in the
+        tasks queue.
+        """
+        if job not in self.task_queue.queue:
+            self.task_queue.put(job)
+            LOG.info('Adding job %r', job)
+        else:
+            LOG.info('Job %r already present in the queue. Skipping.')
+
     def process(self, job):
         """High-level job-processing method."""
         # The git repo is now a long-running instance, but the implementation

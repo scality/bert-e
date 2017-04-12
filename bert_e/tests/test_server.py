@@ -318,7 +318,7 @@ class TestWebhookListener(unittest.TestCase):
                  "123deadbeef12345678901234567890123456789")
         )
         job.start_time = datetime(2016, 12, 8, 14, 54, 18, 123456)
-        server.BERTE.task_queue.put(job)
+        server.BERTE.put_job(job)
 
         job = berte_job.PullRequestJob(
             bert_e=server.BERTE,
@@ -328,7 +328,7 @@ class TestWebhookListener(unittest.TestCase):
         job.start_time = datetime(2016, 12, 8, 14, 54, 19, 123456)
         job.status = 'NothingToDo'
         job.details = 'details'
-        server.BERTE.task_queue.put(job)
+        server.BERTE.put_job(job)
 
         expected = (
             '2 pending jobs:',

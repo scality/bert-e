@@ -168,8 +168,7 @@ def parse_bitbucket_webhook():
         LOG.debug('Ignoring unhandled event %s:%s', entity, event)
         return Response('OK', 200)
 
-    LOG.info('Adding job %r', job)
-    BERTE.task_queue.put(job)
+    BERTE.put_job(job)
     return Response('OK', 200)
 
 
@@ -247,8 +246,7 @@ def parse_github_webhook():
         LOG.debug('Ignoring event.')
         return Response('OK', 200)
 
-    LOG.info('Adding job %r', job)
-    BERTE.task_queue.put(job)
+    BERTE.put_job(job)
     return Response('Accepted', 202)
 
 
