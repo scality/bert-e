@@ -1,8 +1,10 @@
-# README #
+# README
 
-Scality's automated branch merging tool. Version 2.0.
+Scality's automated branch merging tool. Version 3.0.
 
-### How to install? ###
+### How to install?
+
+Make sure you are using Python version 3.5 or above.
 
 ```
 #!bash
@@ -10,85 +12,6 @@ $ mkdir bert-e && cd bert-e
 $ virtualenv venv
 $ source venv/bin/activate
 $ pip install git+ssh://git@bitbucket.org/scality/bert-e.git
-```
-
-### How do I ask Bert-E to merge a pull request? ###
-
-```
-#!bash
-usage: bert_e [-h] [--disable-queues] [--option CMD_LINE_OPTIONS]
-              [--interactive] [--no-comment] [-v] [--backtrace]
-              [--quiet]
-              settings bitbucket_password jira_password token
-
-Merges bitbucket pull requests.
-
-positional arguments:
-  settings              Path to project settings file
-  bitbucket_password    Bert-E's Bitbucket account password
-  jira_password         Bert-E's Jira account password
-  token                 The ID of the pull request or sha1 ([12, 40]
-                        characters) to analyse
-
-optional arguments:
-  -h, --help            show this help message and exit
-  --disable-queues      Deactivate optimistic merge queue (legacy mode)
-  --option CMD_LINE_OPTIONS, -o CMD_LINE_OPTIONS
-                        Activate additional options
-  --interactive         Ask before merging or sending comments
-  --no-comment          Do not add any comment to the pull request page
-  -v                    Verbose mode
-  --backtrace           Show backtrace instead of return code on console
-  --quiet               Don't print return codes on the console
-
-```
-
-### How to launch tests? ###
-
-You should check that you have set a password to your bitbucket account.
-If the text input `Old password` doesn't appear here:
-`https://bitbucket.org/account/password/change/<your_login>/`, you must set a password.
-
-```
-#!bash
-$ python -m bert_e.tests.test_bert_e <owner> \
-                                     <bert_e_username> <bert_e_password> \
-                                     <eva_username> <eva_password> \
-                                     <your_login> <your_password>
-.............................................................s........
-----------------------------------------------------------------------
-Ran 103 tests in 152.139s
-
-OK (skipped=2)
-
-
-$ python -m bert_e.tests.test_bert_e --help
-usage: test_bert_e.py [-h] [--repo-prefix REPO_PREFIX] [-v] [--failfast]
-                      [--disable-mock] [--disable-queues]
-                      owner bert_e_username bert_e_password eva_username
-                      eva_password your_login your_password
-                      [tests [tests ...]]
-
-Launches Bert-E tests.
-
-positional arguments:
-  owner                 Owner of test repository (aka Bitbucket team)
-  bert_e_username       Bert-E's username [for Jira and Bitbucket]
-  bert_e_password       Bert-E's password [for Jira and Bitbucket]
-  eva_username          Eva's username [for Bitbucket]
-  eva_password          Eva's password [for Bitbucket]
-  your_login            Your Bitbucket login
-  your_password         Your Bitbucket password
-  tests                 run only these tests
-
-optional arguments:
-  -h, --help            show this help message and exit
-  --repo-prefix REPO_PREFIX
-                        Prefix of the test repository
-  -v                    Verbose mode
-  --failfast            Return on first failure
-  --disable-mock        Disables the bitbucket mock (slower tests)
-  --disable-queues      deactivate queue feature during tests
 ```
 
 ### How do I launch the standalone webhook listener (server.py) ?
@@ -111,7 +34,7 @@ optional arguments:
 
 First you have to export the following environment variables:
 
-* `BERT_E_BB_PWD` Bert-E's password on Bitbucket.
+* `BERT_E_BB_PWD` Bert-E's password on Bitbucket or Github.
 * `BERT_E_JIRA_PWD` Bert-E's password on Jira.
 * `WEBHOOK_LOGIN`, `WEBHOOK_PWD` The HTTP BasicAuth credentials used to
   authenticate the requests sent to server.py by Bitbucket.
@@ -134,6 +57,54 @@ The server is now listening for webhooks on
 You can access the monitoring page without authentication on
 `http://localhost:8080/`.
 
+
+### How to launch tests?
+
+You should check that you have set a password to your bitbucket account.
+If the text input `Old password` doesn't appear here:
+`https://bitbucket.org/account/password/change/<your_login>/`, you must set a password.
+
+```
+#!bash
+$ python -m bert_e.tests.test_bert_e <owner> \
+                                     <bert_e_username> <bert_e_password> \
+                                     <eva_username> <eva_password> \
+                                     <your_login> <your_password>
+.............................................................s........
+----------------------------------------------------------------------
+Ran 103 tests in 152.139s
+
+OK (skipped=2)
+
+
+$ python -m bert_e.tests.test_bert_e --help
+usage: test_bert_e.py [-h] [--repo-prefix REPO_PREFIX] [-v] [--failfast]
+                      [--git-host GIT_HOST] [--disable-queues]
+                      owner robot_username robot_password contributor_username
+                      contributor_password admin_username admin_password
+                      [tests [tests ...]]
+
+Launches Bert-E tests.
+
+positional arguments:
+  owner                 Owner of test repository (aka Bitbucket/GitHub team)
+  robot_username        Robot Bitbucket/GitHub username
+  robot_password        Robot Bitbucket/GitHub password
+  contributor_username  Contributor Bitbucket/GitHub username
+  contributor_password  Contributor Bitbucket/GitHub password
+  admin_username        Privileged user Bitbucket/GitHub username
+  admin_password        Privileged user Bitbucket/GitHub password
+  tests                 run only these tests
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --repo-prefix REPO_PREFIX
+                        Prefix of the test repository
+  -v                    Verbose mode
+  --failfast            Return on first failure
+  --git-host GIT_HOST   Choose the git host to run tests (slower tests)
+  --disable-queues      deactivate queue feature during tests
+```
 
 ### How to Launch Static Checker File?
 

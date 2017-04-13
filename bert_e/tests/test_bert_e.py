@@ -3827,20 +3827,21 @@ class TaskQueueTests(RepositoryTests):
 
 def main():
     parser = argparse.ArgumentParser(description='Launches Bert-E tests.')
-    parser.add_argument('owner',
-                        help='Owner of test repository (aka Bitbucket team)')
+    parser.add_argument(
+        'owner',
+        help='Owner of test repository (aka Bitbucket/GitHub team)')
     parser.add_argument('robot_username',
-                        help='Robot Bitbucket username')
+                        help='Robot Bitbucket/GitHub username')
     parser.add_argument('robot_password',
-                        help='Robot Bitbucket password')
+                        help='Robot Bitbucket/GitHub password')
     parser.add_argument('contributor_username',
-                        help='Contributor Bitbucket username')
+                        help='Contributor Bitbucket/GitHub username')
     parser.add_argument('contributor_password',
-                        help='Contributor Bitbucket password')
+                        help='Contributor Bitbucket/GitHub password')
     parser.add_argument('admin_username',
-                        help='Privileged user Bitbucket username')
+                        help='Privileged user Bitbucket/GitHub username')
     parser.add_argument('admin_password',
-                        help='Privileged user Bitbucket password')
+                        help='Privileged user Bitbucket/GitHub password')
     parser.add_argument('tests', nargs='*', help='run only these tests')
     parser.add_argument('--repo-prefix', default="_test_bert_e",
                         help='Prefix of the test repository')
