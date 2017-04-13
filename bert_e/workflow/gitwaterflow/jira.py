@@ -18,6 +18,7 @@ likely to become a plugin in the future (when other ticket systems are
 supported).
 
 """
+import re
 
 from jira.exceptions import JIRAError
 
@@ -134,7 +135,11 @@ def check_fix_versions(job, issue):
     issue_versions = set(version.name for version in issue.fields.fixVersions)
     expected_versions = set(job.git.cascade.target_versions)
 
-    if issue_versions != expected_versions:
+    # Ignore suffixed versions such as "5.1.9_hf7" in that check
+    vfilter = re.compile('^\d+\.\d+\.\d+$')
+    checked_versions = set(v for v in issue_versions if vfilter.match(v))
+
+    if checked_versions != expected_versions:
         raise exceptions.IncorrectFixVersion(
             issue=issue, issue_versions=issue_versions,
             expect_versions=expected_versions,

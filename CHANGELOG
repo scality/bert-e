@@ -1,12 +1,13 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
-## [3.0.11] - 2017-04-12
+## [3.0.11] - 2017-04-13
 # Fixed
 - Random options were showed as active in the robot's greetings message.
 - Don't display "wrong destination branch" message in case of a failed git ls-remote
 - Commit link points to the build in the robot's completed job queue.
 - Prevent from putting duplicate jobs in the task queue
+- Ignore suffixed versions (such as "5.1.9_hf3") in JIRA fixVersion field
 
 ## [3.0.10] - 2017-03-27
 # Added
