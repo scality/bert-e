@@ -18,9 +18,9 @@
 import requests
 
 from . import base
-from ..api.git import Branch as GitBranch
-from ..api.git import Repository as GitRepository
 from ..exceptions import TaskAPIError
+from ..lib.git import Branch as GitBranch
+from ..lib.git import Repository as GitRepository
 from .factory import api_client
 
 

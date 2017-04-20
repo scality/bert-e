@@ -23,7 +23,7 @@ import re
 from jira.exceptions import JIRAError
 
 from bert_e import exceptions
-from bert_e.api import jira as jira_api
+from bert_e.lib import jira as jira_api
 
 
 def jira_checks(job):

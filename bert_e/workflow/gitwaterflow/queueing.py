@@ -17,9 +17,9 @@ import logging
 from copy import deepcopy
 
 from bert_e import exceptions
-from bert_e.api import git
 from bert_e.job import handler as job_handler
 from bert_e.job import QueuesJob
+from bert_e.lib import git
 
 from ..git_utils import clone_git_repo, octopus_merge, push
 from ..pr_utils import send_comment

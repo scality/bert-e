@@ -21,11 +21,11 @@ from os.path import exists
 from queue import Queue
 from urllib.parse import quote_plus
 
-from .api.git import Repository as GitRepository
 from .exceptions import (BertE_Exception, InternalException, SilentException,
                          TemplateException, UnsupportedTokenType)
 from .git_host import client_factory
 from .job import CommitJob, JobDispatcher, PullRequestJob
+from .lib.git import Repository as GitRepository
 from .settings import setup_settings
 from .workflow import gitwaterflow as gwf
 from .workflow.gitwaterflow.branches import QueueIntegrationBranch

@@ -27,9 +27,6 @@ from urllib.parse import quote_plus
 import requests
 
 from bert_e import exceptions as exns
-from bert_e.api import jira as jira_api
-from bert_e.api.git import Repository as GitRepository
-from bert_e.api.git import Branch
 from bert_e.bert_e import main as bert_e_main
 from bert_e.bert_e import BertE
 from bert_e.git_host import bitbucket as bitbucket_api
@@ -37,10 +34,14 @@ from bert_e.git_host import mock as bitbucket_api_mock
 from bert_e.git_host.base import NoSuchRepository
 from bert_e.git_host.factory import client_factory
 from bert_e.job import CommitJob, PullRequestJob
+from bert_e.lib import jira as jira_api
+from bert_e.lib.git import Repository as GitRepository
+from bert_e.lib.git import Branch
 from bert_e.lib.retry import RetryHandler
 from bert_e.lib.simplecmd import CommandError, cmd
 from bert_e.settings import setup_settings
-from bert_e.workflow import gitwaterflow as gwf, git_utils
+from bert_e.workflow import gitwaterflow as gwf
+from bert_e.workflow import git_utils
 from bert_e.workflow.gitwaterflow import branches as gwfb
 
 from .mocks import jira as jira_api_mock

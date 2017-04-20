@@ -14,7 +14,7 @@
 """Git utility functions."""
 import logging
 
-from bert_e.api import git
+from bert_e.lib import git
 from bert_e.lib.retry import RetryHandler
 
 LOG = logging.getLogger(__name__)

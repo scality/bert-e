@@ -19,8 +19,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from bert_e.api.git import Repository as GitRepository
 from bert_e.git_host import NoSuchRepository, RepositoryExists, client_factory
+from bert_e.lib.git import Repository as GitRepository
 
 
 def github_client_args():

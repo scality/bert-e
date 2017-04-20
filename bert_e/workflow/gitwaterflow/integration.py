@@ -19,7 +19,7 @@ extension.
 
 """
 from bert_e import exceptions
-from bert_e.api import git
+from bert_e.lib import git
 
 from ..git_utils import octopus_merge, push
 from ..pr_utils import send_comment
