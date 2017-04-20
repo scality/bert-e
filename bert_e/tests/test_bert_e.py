@@ -677,11 +677,12 @@ class RepositoryTests(unittest.TestCase):
             int(token)
             # token is a PR id, use its tip to filter on content
             pr = self.robot_bb.get_pull_request(pull_request_id=token)
-            if pr.author == 'robot_username':
+            if pr.author == self.args.robot_username:
                 # Get main PR
                 id = int(re.findall('\d+', pr.description)[0])
                 pr = self.robot_bb.get_pull_request(pull_request_id=id)
             sha1 = pr.src_commit
+
         except ValueError:
             # token is a sha1, use it to filter on content
             sha1 = token
