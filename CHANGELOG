@@ -1,9 +1,13 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
-## [3.0.11] - 2017-04-14
+## [3.1.0] - 2017-04-21
 # Changed
 - No longer create integration branch/pull request for the first destination branch
+# Added
+- BertE can block when a pull request diverges too much from its destination branch
+
+## [3.0.11] - 2017-04-14
 # Fixed
 - Random options were showed as active in the robot's greetings message.
 - Don't display "wrong destination branch" message in case of a failed git ls-remote
