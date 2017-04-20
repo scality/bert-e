@@ -197,7 +197,7 @@ class Branch(object):
     def get_commit_diff(self, source_branch, ignore_merges=True):
         log = self.repo.cmd('git log %s --pretty="%%H %%P" %s..%s',
                             '--no-merges' if ignore_merges else '',
-                            source_branch.name, self.name,
+                            source_branch, self.name,
                             universal_newlines=True)
         return (Commit(self.repo, sha1, parents)
                 for sha1, *parents
@@ -264,6 +264,9 @@ class Branch(object):
     def __repr__(self):
         return self.name
 
+    def __str__(self):
+        return self.name
+
 
 class Commit(object):
     def __init__(self, repo, sha1, parents=None):
@@ -282,8 +285,8 @@ class Commit(object):
     def parents(self):
         if self._parents is None:
             self._parents = []
-            for info in self._repo.cmd('git cat-file -p %s',self.sha1,
-                                      universal_newlines=True).splitlines():
+            for info in self._repo.cmd('git cat-file -p %s', self.sha1,
+                                       universal_newlines=True).splitlines():
                 try:
                     key, value = info.split(maxsplit=1)
                 except ValueError:

@@ -127,6 +127,9 @@ def _handle_pull_request(job: PullRequestJob):
     if dst.includes_commit(src):
         raise messages.NothingToDo()
 
+    # Reject PRs that are too old
+    check_commit_diff(job)
+
     build_branch_cascade(job)
     job.git.cascade.validate()
 
@@ -308,6 +311,30 @@ def handle_comments(job):
                 active_options=job.active_options, command=err.keyword,
                 author=author, self_pr=(author == pr_author), comment=text
             ) from err
+
+
+def check_commit_diff(job):
+    """Check for divergence between a PR's source and destination branches.
+
+    raises:
+        SourceBranchTooOld: if the branches have diverged.
+
+    """
+    threshold = job.settings.max_commit_diff
+    LOG.debug('max_commit_diff: %d', job.settings.max_commit_diff)
+    if threshold < 1:
+        # Feature is deactivated (default)
+        return
+
+    commits = list(job.git.dst_branch.get_commit_diff(job.git.src_branch))
+    LOG.debug('commit_diff: %d', len(commits))
+    if len(commits) > threshold:
+        raise messages.SourceBranchTooOld(
+            src_branch=job.git.src_branch.name,
+            dst_branch=job.git.dst_branch.name,
+            threshold=threshold,
+            active_options=job.active_options
+        )
 
 
 def check_branch_compatibility(job):

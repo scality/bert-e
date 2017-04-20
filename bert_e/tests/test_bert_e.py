@@ -1023,7 +1023,8 @@ admins:
             dst_branch = 'stabilization/4.3.18'
             pr = self.create_pr(feature_branch, dst_branch)
             with self.assertRaises(exns.ApprovalRequired):
-                self.handle(pr.id, options=['bypass_jira_check'], backtrace=True)
+                self.handle(pr.id, options=['bypass_jira_check'],
+                            backtrace=True)
 
             # check existence of integration branches
             for version in ['4.3', '5.1', '6.0']:
@@ -1495,9 +1496,10 @@ admins:
                              ' bypass_author_approval' %
                              self.args.robot_username)
         with self.assertRaises(exns.SuccessMessage):
-            self.handle(pr.id,
-                        options=self.bypass_all_but(['bypass_author_approval']),
-                        backtrace=True)
+            self.handle(
+                pr.id, options=self.bypass_all_but(['bypass_author_approval']),
+                backtrace=True
+            )
 
         # test bypass peer approval through comment
         pr = self.create_pr('bugfix/TEST-00006', 'development/4.3')
@@ -1586,9 +1588,10 @@ admins:
         pr_admin.add_comment('@%s bypass_incompatible_branch' %
                              self.args.robot_username)
         with self.assertRaises(exns.SuccessMessage):
-            self.handle(pr.id,
-                        options=self.bypass_all_but(['bypass_incompatible_branch']),
-                        backtrace=True)
+            self.handle(
+                pr.id,
+                options=self.bypass_all_but(['bypass_incompatible_branch']),
+                backtrace=True)
 
     def test_rebased_feature_branch(self):
         pr = self.create_pr('bugfix/TEST-00074', 'development/4.3')
@@ -2529,6 +2532,18 @@ tasks:
         finally:
             bitbucket_api.Task.list_url = real
 
+    def test_branches_have_diverged(self):
+        settings = DEFAULT_SETTINGS + 'max_commit_diff: 5'
+        pr = self.create_pr('feature/time-warp', 'development/6.0')
+
+        for idx in range(6):
+            tpr = self.create_pr('feature/%s' % idx, 'development/6.0')
+            self.handle(tpr.id, options=self.bypass_all, settings=settings)
+
+        with self.assertRaises(exns.SourceBranchTooOld):
+            self.handle(pr.id, backtrace=True, settings=settings,
+                        options=self.bypass_all)
+
 
 class TestQueueing(RepositoryTests):
     """Tests which validate all things related to the merge queue.
@@ -3356,7 +3371,8 @@ class TestQueueing(RepositoryTests):
         self.gitrepo.cmd('touch abc')
         self.gitrepo.cmd('git add abc')
         self.gitrepo.cmd('git commit -m "add new file"')
-        sha1 = Branch(self.gitrepo, 'w/6.0/bugfix/TEST-00001').get_latest_commit()
+        sha1 = Branch(self.gitrepo,
+                      'w/6.0/bugfix/TEST-00001').get_latest_commit()
         self.gitrepo.cmd('git push origin')
 
         with self.assertRaises(exns.Merged):
@@ -3478,7 +3494,8 @@ class TestQueueing(RepositoryTests):
         self.assertEqual(self.prs_in_queue(), {pr1.id, pr2.id})
 
         with self.assertRaises(exns.Merged):
-            self.handle(pr1.src_commit, options=self.bypass_all, backtrace=True)
+            self.handle(pr1.src_commit, options=self.bypass_all,
+                        backtrace=True)
 
         self.assertEqual(self.prs_in_queue(), {pr2.id})
 
@@ -3711,7 +3728,8 @@ class TaskQueueTests(RepositoryTests):
         self.assertEquals(len(merged_prs), 3)
         for merged, job in zip(merged_prs, jobs):
             self.assertEqual(merged['id'], job.pull_request.id)
-            self.assertTrue(job.start_time < merged['merge_time'] < job.end_time)
+            self.assertTrue(
+                job.start_time < merged['merge_time'] < job.end_time)
 
     def test_status_with_queue(self):
         self.init_berte(options=self.bypass_all)

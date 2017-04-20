@@ -213,6 +213,11 @@ class IncorrectPullRequestNumber(TemplateException):
     template = "incorrect_pull_request_number.md"
 
 
+class SourceBranchTooOld(TemplateException):
+    code = 132
+    template = "source_branch_too_old.md"
+
+
 # internal exceptions
 class UnableToSendEmail(InternalException):
     code = 201

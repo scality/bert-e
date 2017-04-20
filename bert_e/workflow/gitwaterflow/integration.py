@@ -56,9 +56,6 @@ def update_integration_branches(job, wbranches):
     """
     feature_branch, *children = wbranches
 
-    # TODO(akim) check oldness of branch
-    # TODO(akim) don't auto update feature branch
-
     # Check for history mismatch. If a merge commit comes neither from the dev
     # branch nor from the original feature branch, it likely means the feature
     # branch has been rebased
