@@ -65,19 +65,39 @@ def update_integration_branches(job, wbranches):
     prev = feature_branch
     for wbranch in children:
         prev_set = set(prev.get_commit_diff(prev.dst_branch, False))
-        dst_set = set(wbranch.dst_branch.get_commit_diff(prev.dst_branch,
-                                                         False))
-        wbranch_set = set(wbranch.get_commit_diff(wbranch.dst_branch,
-                                                  False)) - prev_set # TODO(akim) This set include too much commits when the feature branch was rebased to exclude one or more commits
-        wparents_set = set(parent
-                           for commit in wbranch_set
-                           for parent in commit.parents)
-        if not wparents_set <= prev_set | dst_set | wbranch_set:
+        dst_set = set(
+            wbranch.dst_branch.get_commit_diff(prev.dst_branch, False)
+        )
+        wbranch_set = set(
+            wbranch.get_commit_diff(wbranch.dst_branch, False)
+        ) - prev_set
+
+        # Special case: detect branch reset to prior commit
+        # Any non-merge commit on the wbranch must have been made from a
+        # previous commit of this wbranch. If the parent doesn't belong to the
+        # wbranch, then we are in trouble.
+        for rev in wbranch_set:
+            if rev.is_merge or rev.parents[0] in wbranch_set:
+                continue
             raise exceptions.BranchHistoryMismatch(
                 integration_branch=wbranch, feature_branch=feature_branch,
-                development_branch=wbranch.dst_branch, commit='tofix', # TODO(akim) find good commit for template
+                development_branch=wbranch.dst_branch, commit=rev,
                 active_options=job.active_options
             )
+
+        # Broader case. All commits on the integration branch must have its
+        # parents from:
+        # * the wbranch,
+        # * the previous integration branch,
+        # * the target development branch.
+        acceptable_parents = prev_set | dst_set | wbranch_set
+        for rev in wbranch_set:
+            if not all(p in acceptable_parents for p in rev.parents):
+                raise exceptions.BranchHistoryMismatch(
+                    integration_branch=wbranch, feature_branch=feature_branch,
+                    development_branch=wbranch.dst_branch, commit=rev,
+                    active_options=job.active_options
+                )
         prev = wbranch
 
     def update(wbranch, source, origin=False):
