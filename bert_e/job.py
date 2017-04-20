@@ -21,6 +21,7 @@ possibly short-lived information needed to process it.
 from datetime import datetime, timedelta
 from types import SimpleNamespace
 from typing import Callable
+from uuid import uuid4 as uuid
 
 from bert_e.lib.dispatcher import Dispatcher
 from bert_e.lib.settings_dict import SettingsDict
@@ -30,6 +31,7 @@ class Job:
     """Generic job class."""
     def __init__(self, bert_e, settings=None, url=''):
         settings = settings or {}
+        self.id = uuid()
         self.bert_e = bert_e
         self.settings = SettingsDict(settings, bert_e.settings)
         self.start_time = datetime.now()
@@ -53,7 +55,7 @@ class Job:
         return [key for key, val in self.settings.maps[0].items() if val]
 
     def __str__(self):
-        return "Generic Job"
+        return '{}(id={})'.format(type(self).__name__, self.id)
 
     def __repr__(self):
         return "{}({})".format(
@@ -64,6 +66,9 @@ class Job:
                 ', url={}'.format(self.url) if self.url else ''
             ))
         )
+
+    def __eq__(self, other):
+        return isinstance(other, Job) and other.id == self.id
 
 
 class RepoJob(Job):
