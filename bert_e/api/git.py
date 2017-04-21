@@ -195,15 +195,20 @@ class Branch(object):
             self.push()
 
     def get_commit_diff(self, source_branch, ignore_merges=True):
-        log = self.repo.cmd('git log %s --pretty="%%H %%aN %%P" %s..%s',
-                            '--no-merges' if ignore_merges else '',
-                            source_branch, self.name,
-                            universal_newlines=True)
-        return (Commit(self.repo, sha1, author, parents)
-                for sha1, author, *parents
-                in (line.split()
-                    for line
-                    in log.splitlines()))
+        # Since we get the author name and that it can use an exotic encoding
+        # we use universal_newlines=False to get raw output and we decode it
+        # with a 'backslashreplace' error recovery strategy
+        log = self.repo.cmd(
+            'git log %s --pretty="%%H %%aN %%P" %s..%s',
+            '--no-merges' if ignore_merges else '', source_branch, self.name,
+            universal_newlines=False)
+        return (
+            Commit(self.repo, sha1, author, parents)
+            for sha1, author, *parents in (
+                line.split() for line in
+                log.decode('utf-8', 'backslashreplace').splitlines()
+            )
+        )
 
     def includes_commit(self, commit):
         try:

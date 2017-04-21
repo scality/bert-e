@@ -64,12 +64,15 @@ def _do_cmd(command, timeout, **kwargs):
     pwd = kwargs.pop('mask_pwd', None)
 
     def mask_pwd(data):
-        return data.replace(pwd, '***') if pwd else data
+        if isinstance(data, str):
+            return data.replace(pwd, '***') if pwd else data
+        else:
+            return data.replace(pwd.encode(), b'***') if pwd else data
 
     # http://stackoverflow.com/questions/36952245/subprocess-timeout-failure
     kwargs['stdout'] = subprocess.PIPE
     kwargs['preexec_fn'] = os.setsid
-    kwargs['universal_newlines'] = True
+    kwargs.setdefault('universal_newlines', True)
     with subprocess.Popen(command, **kwargs) as proc:
         try:
             output, _ = proc.communicate(timeout=timeout)
