@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 ## [3.1.0] - 2017-04-21
 # Changed
 - No longer create integration branch/pull request for the first destination branch
+- Lossy resets are detected in a cleaner and more reliable way
 # Added
 - BertE can block when a pull request diverges too much from its destination branch
 
