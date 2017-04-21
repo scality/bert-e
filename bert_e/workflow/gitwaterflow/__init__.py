@@ -164,7 +164,7 @@ def _handle_pull_request(job: PullRequestJob):
         # builds on the CI server and possibly an overwrite of artifacts, since
         # empty integration w/x.y branches basically point at their target
         # development/x.y branches.
-        to_push = [branch for branch in wbranches
+        to_push = [branch for branch in wbranches[1:]
                    if list(branch.get_commit_diff(branch.dst_branch))]
         if to_push:
             push(job.git.repo, to_push)
