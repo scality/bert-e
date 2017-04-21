@@ -77,23 +77,18 @@ def handle_commit(job: CommitJob):
             'Could not find the pull request for commit {}' .format(job.commit)
         )
     pr = min(prs, key=lambda pr: pr.id)
-    if pr.src_branch.startswith('w/'):
-        return handle_parent_pull_request(job, pr)
-    else:
-        return handle_pull_request(
-            PullRequestJob(
-                bert_e=job.bert_e,
-                pull_request=pr,
-            )
-        )
+    return handle_parent_pull_request(job, pr, pr.src_branch.startswith('/w'))
 
 
-def handle_parent_pull_request(job, integration_pr):
+def handle_parent_pull_request(job, child_pr, is_child=True):
     """Handle the parent of an integration pull request."""
-    ids = re.findall('\d+', integration_pr.description)
-    if not ids:
-        raise messages.ParentPullRequestNotFound(integration_pr.id)
-    parent_id, *_ = ids
+    if is_child:
+        ids = re.findall('\d+', child_pr.description)
+        if not ids:
+            raise messages.ParentPullRequestNotFound(child_pr.id)
+        parent_id, *_ = ids
+    else:
+        parent_id = child_pr.id
     return handle_pull_request(
         PullRequestJob(
             bert_e=job.bert_e,
