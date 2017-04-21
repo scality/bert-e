@@ -198,9 +198,9 @@ class ResetComplete(TemplateException):
     template = "reset_complete.md"
 
 
-class ResetHistoryMismatch(TemplateException):
+class LossyResetWarning(TemplateException):
     code = 129
-    template = "reset_history_mismatch.md"
+    template = "lossy_reset.md"
 
 
 class IncorrectCommandSyntax(TemplateException):

@@ -23,11 +23,25 @@ from bert_e.api import git
 
 from ..git_utils import octopus_merge, push
 from ..pr_utils import send_comment
-from .branches import branch_factory, GhostIntegrationBranch
+from .branches import (branch_factory, build_branch_cascade,
+                       GhostIntegrationBranch)
+
+
+def get_integration_branches(job):
+    """Get existing integration branches created by the robot."""
+    build_branch_cascade(job)  # Does nothing if the cascade already exists
+    src = job.git.src_branch
+    for dst in job.git.cascade.dst_branches:
+        name = "w/{}/{}".format(dst.version, src)
+        branch = branch_factory(job.git.repo, name)
+        branch.src_branch, branch.dst_branch = src, dst
+        if branch.exists():
+            yield branch
 
 
 def create_integration_branches(job):
     """Create integration branches if they do not exist."""
+    build_branch_cascade(job)
     src = job.git.src_branch
     branch = GhostIntegrationBranch(job.git.src_branch.repo,
                                     job.git.src_branch.name,

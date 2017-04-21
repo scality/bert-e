@@ -1,7 +1,7 @@
 {% extends "message.md" %}
 
 {% block title -%}
-Reset warning
+Lossy reset warning
 {% endblock %}
 
 {% block message %}

@@ -195,12 +195,12 @@ class Branch(object):
             self.push()
 
     def get_commit_diff(self, source_branch, ignore_merges=True):
-        log = self.repo.cmd('git log %s --pretty="%%H %%P" %s..%s',
+        log = self.repo.cmd('git log %s --pretty="%%H %%aN %%P" %s..%s',
                             '--no-merges' if ignore_merges else '',
                             source_branch, self.name,
                             universal_newlines=True)
-        return (Commit(self.repo, sha1, parents)
-                for sha1, *parents
+        return (Commit(self.repo, sha1, author, parents)
+                for sha1, author, *parents
                 in (line.split()
                     for line
                     in log.splitlines()))
@@ -269,11 +269,12 @@ class Branch(object):
 
 
 class Commit(object):
-    def __init__(self, repo, sha1, parents=None):
+    def __init__(self, repo, sha1, author=None, parents=None):
         self._repo = repo
         self.sha1 = sha1
+        self.author = author
         try:
-            self._parents = [Commit(parent) for parent in parents]
+            self._parents = [Commit(repo, parent) for parent in parents]
         except TypeError:
             self._parents = None
 

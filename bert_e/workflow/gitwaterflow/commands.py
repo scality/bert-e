@@ -20,11 +20,11 @@ BertE through comments in the pull requests.
 """
 
 from bert_e.exceptions import (
-    ResetHistoryMismatch, CommandNotImplemented, ResetComplete, HelpMessage,
+    CommandNotImplemented, LossyResetWarning, ResetComplete, HelpMessage,
     StatusReport, IncorrectCommandSyntax
 )
 from bert_e.reactor import Reactor
-from .branches import branch_factory, build_branch_cascade
+from .integration import get_integration_branches
 from ..git_utils import clone_git_repo, push
 
 
@@ -75,63 +75,42 @@ def _reset(job, force=False):
     and remotely.
     """
     clone_git_repo(job)
-    build_branch_cascade(job)
-    wbranches = []
+    wbranches = list(get_integration_branches(job))
 
-    # Get different integration branches from cascade
-    src = job.git.src_branch
-    for dst in job.git.cascade.dst_branches:
-        name = "w/{}/{}".format(dst.version, src)
-        branch = branch_factory(job.git.repo, name)
-        branch.src_branch, branch.dst_branch = src, dst
-        wbranches.append(branch)
-
-    first, *children = wbranches
-
-    if len(children) == 0:
-        for branch in wbranches:
-            if not branch.exists():
-                continue
-            branch.remove(do_push=True)
+    if not wbranches:
         raise ResetComplete(couldnt_decline=[],
                             active_options=job.active_options)
 
-    # Check that the first integration branch contains commits from its
-    # source and destination branch only.
-    history_mismatch = None
-    wbranches = [b for b in wbranches if b.exists()]
-    children = [b for b in children if b.exists()]
-    for child in children:
-        src, dst = child.src_branch, child.dst_branch
-        for commit in child.get_commit_diff(dst):
-            if not src.includes_commit(commit) and not \
-                    first.includes_commit(commit):
-                history_mismatch = ResetHistoryMismatch(
-                    commit=commit, integration_branch=child,
-                    feature_branch=src, development_branch=dst,
-                    active_options=job.active_options
-                )
+    lossy_reset = None
+    for branch in wbranches:
+        src, dst = branch.src_branch, branch.dst_branch
+        feature = set(src.get_commit_diff(dst))
 
-    if history_mismatch and not force:
-        raise history_mismatch
-    else:
-        if not wbranches:
-            wprs = []
-        else:
-            wprs = job.project_repo.get_pull_requests(
-                src_branch=[b.name for b in wbranches])
-        for branch in wbranches:
-            branch.remove(do_push=False)
-        push(job.git.repo, prune=True)
-        # decline integration pull requests:
-        error_prs = []
-        for pr in wprs:
-            try:
-                pr.decline()
-            except Exception:
-                error_prs.append(pr)
-        raise ResetComplete(couldnt_decline=error_prs,
-                            active_options=job.active_options)
+        # wcommits: commits that belong to the integration branches but not
+        # the feature or development branches.
+        wcommits = set(branch.get_commit_diff(dst)) - feature
+        if any(rev.author != job.settings.robot_username for rev in wcommits):
+            lossy_reset = LossyResetWarning(active_options=job.active_options)
+
+    if lossy_reset and not force:
+        raise lossy_reset
+
+    wprs = job.project_repo.get_pull_requests(
+        src_branch=[b.name for b in wbranches]
+    )
+    for branch in wbranches:
+        branch.remove(do_push=False)
+    push(job.git.repo, prune=True)
+
+    # decline integration pull requests:
+    error_prs = []
+    for pr in wprs:
+        try:
+            pr.decline()
+        except Exception:
+            error_prs.append(pr)
+    raise ResetComplete(couldnt_decline=error_prs,
+                        active_options=job.active_options)
 
 
 @Reactor.command
