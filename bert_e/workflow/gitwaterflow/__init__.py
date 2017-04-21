@@ -59,13 +59,12 @@ def handle_commit(job: CommitJob):
     if job.settings.use_queue:
         qbranch = any(
             b.startswith('q/') for b in
-            job.git.repo.get_branches_from_sha1(job.commit)
+            job.git.repo.get_branches_from_commit(job.commit)
         )
         if qbranch:
             return queueing.handle_merge_queues(QueuesJob(bert_e=job.bert_e))
 
-    candidates = [b for b in job.git.repo.get_branches_from_sha1(job.commit)
-                  if b.startswith('w/')]
+    candidates = [b for b in job.git.repo.get_branches_from_commit(job.commit)]
     if not candidates:
         raise messages.NothingToDo(
             'Could not find the pull request for commit {}' .format(job.commit)
@@ -77,7 +76,16 @@ def handle_commit(job: CommitJob):
         raise messages.NothingToDo(
             'Could not find the pull request for commit {}' .format(job.commit)
         )
-    return handle_parent_pull_request(job, min(prs, key=lambda pr: pr.id))
+    pr = min(prs, key=lambda pr: pr.id)
+    if pr.src_branch.startswith('w/'):
+        return handle_parent_pull_request(job, pr)
+    else:
+        return handle_pull_request(
+            PullRequestJob(
+                bert_e=job.bert_e,
+                pull_request=pr,
+            )
+        )
 
 
 def handle_parent_pull_request(job, integration_pr):
@@ -119,6 +127,9 @@ def _handle_pull_request(job: PullRequestJob):
     if dst.includes_commit(src):
         raise messages.NothingToDo()
 
+    # Reject PRs that are too old
+    check_commit_diff(job)
+
     build_branch_cascade(job)
     job.git.cascade.validate()
 
@@ -154,7 +165,7 @@ def _handle_pull_request(job: PullRequestJob):
         # empty integration w/x.y branches basically point at their target
         # development/x.y branches.
         to_push = [branch for branch in wbranches
-                   if branch.get_commit_diff(branch.dst_branch)]
+                   if list(branch.get_commit_diff(branch.dst_branch))]
         if to_push:
             push(job.git.repo, to_push)
 
@@ -300,6 +311,30 @@ def handle_comments(job):
                 active_options=job.active_options, command=err.keyword,
                 author=author, self_pr=(author == pr_author), comment=text
             ) from err
+
+
+def check_commit_diff(job):
+    """Check for divergence between a PR's source and destination branches.
+
+    raises:
+        SourceBranchTooOld: if the branches have diverged.
+
+    """
+    threshold = job.settings.max_commit_diff
+    LOG.debug('max_commit_diff: %d', job.settings.max_commit_diff)
+    if threshold < 1:
+        # Feature is deactivated (default)
+        return
+
+    commits = list(job.git.dst_branch.get_commit_diff(job.git.src_branch))
+    LOG.debug('commit_diff: %d', len(commits))
+    if len(commits) > threshold:
+        raise messages.SourceBranchTooOld(
+            src_branch=job.git.src_branch.name,
+            dst_branch=job.git.dst_branch.name,
+            threshold=threshold,
+            active_options=job.active_options
+        )
 
 
 def check_branch_compatibility(job):
@@ -560,9 +595,9 @@ def check_build_status(job, child_prs):
     worst_status = statuses[worst.src_branch]
     if worst_status in ('FAILED', 'STOPPED'):
         raise messages.BuildFailed(
-            pr_id=worst.id,
+            active_options=job.active_options,
+            branch=worst.src_branch,
             build_url=job.project_repo.get_build_url(worst.src_commit, key),
-            active_options=job.active_options
         )
     elif worst_status == 'NOTSTARTED':
         raise messages.BuildNotStarted()

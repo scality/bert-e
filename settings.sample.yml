@@ -139,3 +139,11 @@ admins:
 tasks:
   - do this
   - do that
+
+
+# max_commit_diff [OPTIONAL]:
+#   If > 0, the robot refuses to work on pull requests that have diverged with
+#   their destination branch by more that `max_commit_diff` commits.
+#
+#   default value: 0 (the feature is inactive)
+max_commit_diff: 100

@@ -23,13 +23,18 @@ from bert_e.api import git
 
 from ..git_utils import octopus_merge, push
 from ..pr_utils import send_comment
-from .branches import branch_factory
+from .branches import branch_factory, GhostIntegrationBranch
 
 
 def create_integration_branches(job):
     """Create integration branches if they do not exist."""
     src = job.git.src_branch
-    for dst in job.git.cascade.dst_branches:
+    branch = GhostIntegrationBranch(job.git.src_branch.repo,
+                                    job.git.src_branch.name,
+                                    job.git.dst_branch)
+    branch.src_branch, branch.dst_branch = src, job.git.cascade.dst_branches[0]
+    yield branch
+    for dst in job.git.cascade.dst_branches[1:]:
         name = "w/{}/{}".format(dst.version, src)
         branch = branch_factory(job.git.repo, name)
         branch.src_branch, branch.dst_branch = src, dst
@@ -49,24 +54,51 @@ def update_integration_branches(job, wbranches):
         Conflict: if a conflict is detected during the update.
 
     """
-    prev, *children = wbranches
-    # Check that the first integration branch contains commits from its
-    # source and destination branch only.
-    src, dst = prev.src_branch, prev.dst_branch
+    feature_branch, *children = wbranches
 
-    # Always get new commits compared to the destination (i.e. obtain the list
-    # of commits from the source branch), because the destination may grow very
-    # fast during the lifetime of the source branch. A long list is very slow
-    # to process due to the loop.
-    for commit in prev.get_commit_diff(dst):
-        if not src.includes_commit(commit):
+    # Check for history mismatch. If a merge commit comes neither from the dev
+    # branch nor from the original feature branch, it likely means the feature
+    # branch has been rebased
+    prev = feature_branch
+    for wbranch in children:
+        prev_set = set(prev.get_commit_diff(prev.dst_branch, False))
+        dst_set = set(
+            wbranch.dst_branch.get_commit_diff(prev.dst_branch, False)
+        )
+        wbranch_set = set(
+            wbranch.get_commit_diff(wbranch.dst_branch, False)
+        ) - prev_set
+
+        # Special case: detect branch reset to prior commit
+        # Any non-merge commit on the wbranch must have been made from a
+        # previous commit of this wbranch. If the parent doesn't belong to the
+        # wbranch, then we are in trouble.
+        for rev in wbranch_set:
+            if rev.is_merge or rev.parents[0] in wbranch_set:
+                continue
             raise exceptions.BranchHistoryMismatch(
-                commit=commit, integration_branch=prev, feature_branch=src,
-                development_branch=dst, active_options=job.active_options
+                integration_branch=wbranch, feature_branch=feature_branch,
+                development_branch=wbranch.dst_branch, commit=rev,
+                active_options=job.active_options
             )
 
+        # Broader case. All commits on the integration branch must have its
+        # parents from:
+        # * the wbranch,
+        # * the previous integration branch,
+        # * the target development branch.
+        acceptable_parents = prev_set | dst_set | wbranch_set
+        for rev in wbranch_set:
+            if not all(p in acceptable_parents for p in rev.parents):
+                raise exceptions.BranchHistoryMismatch(
+                    integration_branch=wbranch, feature_branch=feature_branch,
+                    development_branch=wbranch.dst_branch, commit=rev,
+                    active_options=job.active_options
+                )
+        prev = wbranch
+
     def update(wbranch, source, origin=False):
-        empty = not wbranch.get_commit_diff(wbranch.dst_branch)
+        empty = not list(wbranch.get_commit_diff(wbranch.dst_branch))
         try:
             octopus_merge(wbranch, wbranch.dst_branch, source)
         except git.MergeFailedException as err:
@@ -76,6 +108,7 @@ def update_integration_branches(job, wbranches):
                 active_options=job.active_options
             ) from err
 
+    prev = feature_branch
     update(prev, job.git.src_branch, True)
     for branch in children:
         update(branch, prev)
@@ -94,16 +127,16 @@ def create_integration_pull_requests(job, wbranches):
         # FIXME: git branches shouldn't be allowed to interact to create
         # pull requests: that's an undesirable coupling.
         wbranch.get_or_create_pull_request(
-            job.pull_request, open_prs, job.project_repo, idx == 0
+            job.pull_request, open_prs, job.project_repo
         )
-        for idx, wbranch in enumerate(wbranches)
+        for wbranch in wbranches
     ))
     if any(created):
         send_comment(
             job.settings, job.pull_request,
             exceptions.IntegrationPullRequestsCreated(
                 bert_e=job.settings.robot_username, pr=job.pull_request,
-                child_prs=prs, ignored=job.git.cascade.ignored_branches,
+                child_prs=prs[1:], ignored=job.git.cascade.ignored_branches,
                 active_options=job.active_options
             )
         )

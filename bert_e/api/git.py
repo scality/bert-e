@@ -129,10 +129,10 @@ class Repository(object):
         self._get_remote_branches(refresh_cache)
         return name in self._remote_branches
 
-    def get_branches_from_sha1(self, sha1, refresh_cache=False):
-        """Get branches corresponding to given sha1."""
+    def get_branches_from_commit(self, commit, refresh_cache=False):
+        """Get branches corresponding to given commit."""
         self._get_remote_branches(refresh_cache)
-        return self._remote_heads[sha1[:12]]
+        return self._remote_heads[('%s' % commit)[:12]]
 
     def checkout(self, name):
         try:
@@ -194,16 +194,21 @@ class Branch(object):
         if do_push:
             self.push()
 
-    def get_commit_diff(self, source_branch):
-        log = self.repo.cmd('git log --no-merges --pretty=%%H %s..%s',
-                            source_branch.name, self.name,
+    def get_commit_diff(self, source_branch, ignore_merges=True):
+        log = self.repo.cmd('git log %s --pretty="%%H %%P" %s..%s',
+                            '--no-merges' if ignore_merges else '',
+                            source_branch, self.name,
                             universal_newlines=True)
-        return log.splitlines()
+        return (Commit(self.repo, sha1, parents)
+                for sha1, *parents
+                in (line.split()
+                    for line
+                    in log.splitlines()))
 
-    def includes_commit(self, sha1):
+    def includes_commit(self, commit):
         try:
             self.repo.cmd('git merge-base --is-ancestor %s %s',
-                          sha1, self.name)
+                          commit, self.name)
         except CommandError:
             return False
         return True
@@ -253,8 +258,51 @@ class Branch(object):
         except PushFailedException as err:
             raise RemoveFailedException() from err
 
+    def __contains__(self, commit):
+        return self.includes_commit(commit)
+
     def __repr__(self):
         return self.name
+
+    def __str__(self):
+        return self.name
+
+
+class Commit(object):
+    def __init__(self, repo, sha1, parents=None):
+        self._repo = repo
+        self.sha1 = sha1
+        try:
+            self._parents = [Commit(parent) for parent in parents]
+        except TypeError:
+            self._parents = None
+
+    @property
+    def is_merge(self):
+        return len(self.parents) > 1
+
+    @property
+    def parents(self):
+        if self._parents is None:
+            self._parents = []
+            for info in self._repo.cmd('git cat-file -p %s', self.sha1,
+                                       universal_newlines=True).splitlines():
+                try:
+                    key, value = info.split(maxsplit=1)
+                except ValueError:
+                    continue
+                if key == 'parent':
+                    self._parents.append(Commit(self._repo, value))
+        return self._parents
+
+    def __repr__(self):
+        return str(self.sha1)
+
+    def __hash__(self):
+        return hash(self.sha1)
+
+    def __eq__(self, other):
+        return isinstance(other, Commit) and self.sha1 == other.sha1
 
 
 class GitException(Exception):

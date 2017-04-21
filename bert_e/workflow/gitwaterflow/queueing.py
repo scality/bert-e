@@ -182,7 +182,7 @@ def close_queued_pull_request(job, pr_id, cascade):
         # message will wake Bert-E up on the Pull Request, and the queues
         # have disappeared, so the normal pre-queuing workflow will restart
         # naturally.
-        commits = src.get_commit_diff(dst)
+        commits = list(src.get_commit_diff(dst))
         send_comment(
             job.settings, pull_request, exceptions.PartialMerge(
                 commits=commits, branches=job.git.cascade.dst_branches,

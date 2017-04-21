@@ -41,6 +41,8 @@ class SettingsSchema(Schema):
     testers = fields.List(fields.Str(), missing=[])
     tasks = fields.List(fields.Str(), missing=[])
 
+    max_commit_diff = fields.Int(missing=0)
+
     # Settings coming from CLI arguments
     robot_password = fields.Str(missing='')
     jira_password = fields.Str(missing='')
