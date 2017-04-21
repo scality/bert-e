@@ -346,7 +346,7 @@ class PullRequestController(Controller, base.AbstractPullRequest):
 
     @src_commit.setter
     def src_commit(self, sha1):
-        self['source']['commit']['hash'] = sha1
+        self['source']['commit'] = {'hash': sha1}
 
     @property
     def dst_branch(self):
