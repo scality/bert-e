@@ -26,7 +26,7 @@ from ..pr_utils import send_comment
 from .branches import (BranchCascade, DevelopmentBranch, IntegrationBranch,
                        QueueBranch, QueueCollection, QueueIntegrationBranch,
                        branch_factory)
-from .integration import create_integration_branches
+from .integration import get_integration_branches
 
 LOG = logging.getLogger(__name__)
 
@@ -191,7 +191,7 @@ def close_queued_pull_request(job, pr_id, cascade):
 
     # Remove integration branches (potentially let Bert-E rebuild them if
     # the merge was partial)
-    wbranches = list(create_integration_branches(job))
+    wbranches = list(get_integration_branches(job))
 
     # Checkout destination branch so we are not on a w/* branch when
     # deleting it.

@@ -815,8 +815,13 @@ class TestBertE(RepositoryTests):
         # check integration branches have been removed
         for version in ['5.1', '6.0']:
             remote = 'w/%s/%s' % (version, 'bugfix/TEST-0001')
-            self.assertFalse(self.gitrepo.remote_branch_exists(remote),
+            self.assertFalse(self.gitrepo.remote_branch_exists(remote, True),
                              'branch %s shouldn\'t exist' % remote)
+
+        # check feature branch still exists (the robot should not delete it)
+        self.assertTrue(
+            self.gitrepo.remote_branch_exists('bugfix/TEST-0001', True)
+        )
 
         # check what happens when trying to do it again
         with self.assertRaises(exns.NothingToDo):
@@ -1200,7 +1205,7 @@ admins:
         self.gitrepo.cmd('git pull')
         add_file_to_branch(self.gitrepo, integration_branch,
                            'file_added_on_int_branch')
-        with self.assertRaises(exns.ResetHistoryMismatch):
+        with self.assertRaises(exns.LossyResetWarning):
             self.handle(pr.id, options=['bypass_jira_check'], backtrace=True)
 
         # Try force reset
