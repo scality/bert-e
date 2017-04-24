@@ -123,7 +123,6 @@ def update_integration_branches(job, wbranches):
             ) from err
 
     prev = feature_branch
-    update(prev, job.git.src_branch, True)
     for branch in children:
         update(branch, prev)
         prev = branch
