@@ -195,19 +195,12 @@ class Branch(object):
             self.push()
 
     def get_commit_diff(self, source_branch, ignore_merges=True):
-        # Since we get the author name and that it can use an exotic encoding
-        # we use universal_newlines=False to get raw output and we decode it
-        # with a 'backslashreplace' error recovery strategy
         log = self.repo.cmd(
-            'git log %s --pretty="%%H %%aN %%P" %s..%s',
-            '--no-merges' if ignore_merges else '', source_branch, self.name,
-            universal_newlines=False)
+            'git log %s --pretty="%%H %%P" %s..%s',
+            '--no-merges' if ignore_merges else '', source_branch, self.name)
         return (
-            Commit(self.repo, sha1, author, parents)
-            for sha1, author, *parents in (
-                line.split() for line in
-                log.decode('utf-8', 'backslashreplace').splitlines()
-            )
+            Commit(self.repo, sha1, parents=parents)
+            for sha1, *parents in (line.split() for line in log.splitlines())
         )
 
     def includes_commit(self, commit):
@@ -231,10 +224,11 @@ class Branch(object):
     def checkout(self):
         self.repo.checkout(self.name)
 
-    def reset(self, do_checkout=True):
+    def reset(self, do_checkout=True, origin=True):
         if do_checkout:
             self.checkout()
-        self.repo.cmd('git reset --hard origin/%s', self.name)
+        self.repo.cmd('git reset --hard %s',
+                      'origin/' + self.name if origin else self.name)
 
     def push(self):
         self.repo.push(self.name)
@@ -277,11 +271,25 @@ class Commit(object):
     def __init__(self, repo, sha1, author=None, parents=None):
         self._repo = repo
         self.sha1 = sha1
-        self.author = author
+        self._author = author
         try:
             self._parents = [Commit(repo, parent) for parent in parents]
         except TypeError:
             self._parents = None
+
+    @property
+    def author(self):
+        if not self._author:
+            # Author names can contain non-ascii characters in pretty much
+            # any encoding. Hence the use of 'universal_newlines=False' and an
+            # explicit decoding that escapes symbols from unknown encodings.
+            self._author = (
+                self._repo.cmd('git show --pretty="%%aN" %s', self.sha1,
+                               universal_newlines=False)
+                .decode('utf-8', 'backslashreplace')
+                .strip()
+            )
+        return self._author
 
     @property
     def is_merge(self):
@@ -291,8 +299,8 @@ class Commit(object):
     def parents(self):
         if self._parents is None:
             self._parents = []
-            for info in self._repo.cmd('git cat-file -p %s', self.sha1,
-                                       universal_newlines=True).splitlines():
+            for info in (self._repo.cmd('git cat-file -p %s', self.sha1)
+                         .splitlines()):
                 try:
                     key, value = info.split(maxsplit=1)
                 except ValueError:
