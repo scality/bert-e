@@ -111,21 +111,45 @@ def update_integration_branches(job, wbranches):
                 )
         prev = wbranch
 
-    def update(wbranch, source, origin=False):
+    def update(wbranch, source):
         empty = not list(wbranch.get_commit_diff(wbranch.dst_branch))
         try:
             octopus_merge(wbranch, wbranch.dst_branch, source)
         except git.MergeFailedException as err:
             raise exceptions.Conflict(
                 source=source, wbranch=wbranch, dev_branch=job.git.dst_branch,
-                feature_branch=job.git.src_branch, origin=origin, empty=empty,
+                feature_branch=job.git.src_branch, origin=False, empty=empty,
                 active_options=job.active_options
             ) from err
 
     prev = feature_branch
-    for branch in children:
+
+    # Explicitely check conflicts between the feature branch and its
+    # destination
+    check_conflict(job, prev.dst_branch, prev)
+
+    for idx, branch in enumerate(children):
         update(branch, prev)
         prev = branch
+
+
+def check_conflict(job, dst: git.Branch, src: git.Branch):
+    """Check conflict between the source and destination branches of a PR."""
+    # Create a temporary branch starting off from the destination branch, only
+    # to check for conflicts
+    wtmp = git.Branch(job.git.repo, 'w/{}'.format(dst))
+    try:
+        wtmp.create(dst, do_push=False)
+        wtmp.merge(src)
+    except git.MergeFailedException as err:
+        wtmp.reset(False, False)
+        raise exceptions.Conflict(
+            source=src, wbranch=src, dev_branch=dst, feature_branch=src,
+            origin=True, empty=False, active_options=job.active_options
+        ) from err
+    finally:
+        dst.checkout()
+        wtmp.remove()
 
 
 def create_integration_pull_requests(job, wbranches):
@@ -158,10 +182,16 @@ def create_integration_pull_requests(job, wbranches):
 
 def merge_integration_branches(job, wbranches):
     """Merge integration branches into their target development branches."""
-    for wbranch in wbranches:
-        wbranch.dst_branch.merge(wbranch, force_commit=False)
+    first, *children = wbranches
+    first.dst_branch.merge(first)
+    prev = first
+    for wbranch in children:
+        # The octopus merge makes sure that the merge leaves the development
+        # branches self-contained.
+        octopus_merge(wbranch.dst_branch, prev.dst_branch, wbranch)
+        prev = wbranch
 
-    for wbranch in wbranches:
+    for wbranch in children:
         try:
             wbranch.remove()
         except git.RemoveFailedException:
