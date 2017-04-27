@@ -24,8 +24,8 @@ from bert_e.lib import git
 from ..git_utils import clone_git_repo, octopus_merge, push
 from ..pr_utils import send_comment
 from .branches import (BranchCascade, DevelopmentBranch, IntegrationBranch,
-                       QueueBranch, QueueCollection, QueueIntegrationBranch,
-                       branch_factory)
+                       QueueBranch, QueueIntegrationBranch,
+                       branch_factory, build_queue_collection)
 from .integration import get_integration_branches
 
 LOG = logging.getLogger(__name__)
@@ -40,7 +40,8 @@ def handle_merge_queues(job):
     cascade = job.git.cascade = job.git.cascade or BranchCascade()
     clone_git_repo(job)
     cascade.build(job.git.repo)
-    queues = validate_queues(job)
+    queues = build_queue_collection(job)
+    queues.validate()
 
     # Update the queue status
     job.bert_e.update_queue_status(queues)
@@ -95,15 +96,6 @@ def already_in_queue(job, wbranches):
     return any(
         get_queue_integration_branch(job, pr_id, w).exists() for w in wbranches
     )
-
-
-def validate_queues(job):
-    """Retrieve the state of the current queue and make sure it is coherent."""
-    queues = QueueCollection(job.project_repo, job.settings.build_key,
-                             job.git.cascade.get_merge_paths())
-    queues.build(job.git.repo)
-    queues.validate()
-    return queues
 
 
 def add_to_queue(job, wbranches):

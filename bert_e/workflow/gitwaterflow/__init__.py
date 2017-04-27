@@ -182,7 +182,8 @@ def _handle_pull_request(job: PullRequestJob):
     if job.settings.use_queue:
         # validate current state of queues
         try:
-            queueing.validate_queues(job)
+            queues = queueing.build_queue_collection(job)
+            queues.validate()
         except messages.IncoherentQueues as err:
             raise messages.QueueOutOfOrder(
                 active_options=job.active_options) from err

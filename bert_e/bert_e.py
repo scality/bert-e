@@ -200,8 +200,8 @@ class BertE(JobDispatcher):
         qib = QueueIntegrationBranch
         status = OrderedDict()
         # initialize status dict
-        for branch in reversed(queues[list(queues.keys())[-1]][qib]):
-            status[branch.pr_id] = []
+        for pr_id in queue_collection.queued_prs:
+            status[pr_id] = []
         for version, queue in reversed(queues.items()):
             for branch in queue[qib]:
                 status[branch.pr_id].append((version,

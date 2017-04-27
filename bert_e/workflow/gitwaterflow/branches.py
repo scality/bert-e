@@ -544,6 +544,15 @@ class QueueCollection(object):
             self._queues[version][
                 QueueIntegrationBranch].sort(reverse=True)
 
+    @property
+    def queued_prs(self):
+        """Ordered list of queued PR IDs (oldest first)."""
+        if not self._queues:
+            return []
+        last_entry = self._queues[list(self._queues.keys())[-1]]
+        return list(reversed([branch.pr_id for branch in
+                              last_entry[QueueIntegrationBranch]]))
+
 
 class BranchCascade(object):
     def __init__(self):
@@ -793,9 +802,21 @@ def build_branch_cascade(job):
     cascade = job.git.cascade
     if cascade.dst_branches:
         # Do not rebuild cascade
-        return
+        return cascade
     cascade.build(job.git.repo, job.git.dst_branch)
     LOG.debug(cascade.dst_branches)
+    return cascade
+
+
+def build_queue_collection(job):
+    """Initialize the queue collection."""
+    cascade = job.git.cascade = job.git.cascade or BranchCascade()
+    if not cascade._cascade:
+        cascade.build(job.git.repo)
+    queues = QueueCollection(job.project_repo, job.settings.build_key,
+                             cascade.get_merge_paths())
+    queues.build(job.git.repo)
+    return queues
 
 
 def is_cascade_producer(branch_name: str) -> bool:

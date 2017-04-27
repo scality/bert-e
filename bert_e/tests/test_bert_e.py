@@ -2768,6 +2768,7 @@ class TestQueueing(RepositoryTests):
         qc.finalize()
         qc.validate()
         self.assertEqual(qc._queues, self.standard_solution)
+        self.assertEqual(qc.queued_prs, [1, 4, 5, 7])
         self.assertEqual(qc.mergeable_prs, [1, 4, 5, 7])
         self.assertEqual(qc.mergeable_queues, self.standard_solution)
 
@@ -2777,6 +2778,7 @@ class TestQueueing(RepositoryTests):
         qc.finalize()
         qc.validate()
         self.assertEqual(qc._queues, self.standard_solution)
+        self.assertEqual(qc.queued_prs, [1, 4, 5, 7])
         self.assertEqual(qc.mergeable_prs, [1, 4, 5, 7])
         self.assertEqual(qc.mergeable_queues, self.standard_solution)
 
@@ -2791,6 +2793,7 @@ class TestQueueing(RepositoryTests):
             qc.finalize()
             qc.validate()
             self.assertEqual(qc._queues, self.standard_solution)
+            self.assertEqual(qc.queued_prs, [1, 4, 5, 7])
             self.assertEqual(qc.mergeable_prs, [1, 4, 5, 7])
             self.assertEqual(qc.mergeable_queues, self.standard_solution)
         finally:
@@ -2808,6 +2811,7 @@ class TestQueueing(RepositoryTests):
         qc.finalize()
         qc.validate()
         self.assertEqual(qc._queues, self.standard_solution)
+        self.assertEqual(qc.queued_prs, [1, 4, 5, 7])
         self.assertEqual(qc.mergeable_prs, [1, 4, 5])
         self.assertEqual(qc.mergeable_queues, solution)
 
@@ -2823,6 +2827,7 @@ class TestQueueing(RepositoryTests):
         qc.finalize()
         qc.validate()
         self.assertEqual(qc._queues, self.standard_solution)
+        self.assertEqual(qc.queued_prs, [1, 4, 5, 7])
         self.assertEqual(qc.mergeable_prs, [1, 4, 5])
         self.assertEqual(qc.mergeable_queues, solution)
 
@@ -2838,6 +2843,7 @@ class TestQueueing(RepositoryTests):
         qc.finalize()
         qc.validate()
         self.assertEqual(qc._queues, self.standard_solution)
+        self.assertEqual(qc.queued_prs, [1, 4, 5, 7])
         self.assertEqual(qc.mergeable_prs, [1, 4, 5])
         self.assertEqual(qc.mergeable_queues, solution)
 
@@ -2851,6 +2857,7 @@ class TestQueueing(RepositoryTests):
         qc.finalize()
         qc.validate()
         self.assertEqual(qc._queues, self.standard_solution)
+        self.assertEqual(qc.queued_prs, [1, 4, 5, 7])
         self.assertEqual(qc.mergeable_prs, [1, 4, 5, 7])
         self.assertEqual(qc.mergeable_queues, self.standard_solution)
 
@@ -2864,6 +2871,7 @@ class TestQueueing(RepositoryTests):
         qc.finalize()
         qc.validate()
         self.assertEqual(qc._queues, self.standard_solution)
+        self.assertEqual(qc.queued_prs, [1, 4, 5, 7])
         self.assertEqual(qc.mergeable_prs, [])
         self.assertEqual(qc.mergeable_queues, self.empty_solution)
 
@@ -2877,6 +2885,7 @@ class TestQueueing(RepositoryTests):
         qc.finalize()
         qc.validate()
         self.assertEqual(qc._queues, self.standard_solution)
+        self.assertEqual(qc.queued_prs, [1, 4, 5, 7])
         self.assertEqual(qc.mergeable_prs, [])
         self.assertEqual(qc.mergeable_queues, self.empty_solution)
 
@@ -2890,6 +2899,7 @@ class TestQueueing(RepositoryTests):
         qc.finalize()
         qc.validate()
         self.assertEqual(qc._queues, self.standard_solution)
+        self.assertEqual(qc.queued_prs, [1, 4, 5, 7])
         self.assertEqual(qc.mergeable_prs, [])
         self.assertEqual(qc.mergeable_queues, self.empty_solution)
 
