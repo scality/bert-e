@@ -93,9 +93,9 @@ class PullRequestJob(RepoJob):
         return "PR #{}".format(self.pull_request.id)
 
     def __eq__(self, other):
-        return type(other) is PullRequestJob and \
-            self.project_repo.full_name == other.project_repo.full_name and \
-            self.pull_request.id == other.pull_request.id
+        return (isinstance(other, PullRequestJob) and
+                self.project_repo.full_name == other.project_repo.full_name and
+                self.pull_request.id == other.pull_request.id)
 
 
 class CommitJob(RepoJob):
@@ -108,15 +108,23 @@ class CommitJob(RepoJob):
         return "Commit {}".format(self.commit)
 
     def __eq__(self, other):
-        return type(other) is CommitJob and \
-            self.project_repo.full_name == other.project_repo.full_name and \
-            self.commit == other.commit
+        return (isinstance(other, CommitJob) and
+                self.project_repo.full_name == other.project_repo.full_name and
+                self.commit == other.commit)
 
 
 class QueuesJob(RepoJob):
     """Job triggered when the queues were updated."""
     def __str__(self):
         return "QueuesJob"
+
+
+class APIJob(RepoJob):
+    """Command sent to Bert-E via its API."""
+    def __init__(self, args=None, kwargs=None, **kwargs_):
+        super().__init__(**kwargs_)
+        self.args = args or []
+        self.kwargs = kwargs or {}
 
 
 class JobDispatcher(Dispatcher):
