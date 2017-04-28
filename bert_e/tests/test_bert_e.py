@@ -27,6 +27,7 @@ from urllib.parse import quote_plus
 import requests
 
 from bert_e import exceptions as exns
+from bert_e.api import RebuildQueuesJob
 from bert_e.bert_e import main as bert_e_main
 from bert_e.bert_e import BertE
 from bert_e.git_host import bitbucket as bitbucket_api
@@ -3825,6 +3826,102 @@ class TaskQueueTests(RepositoryTests):
             self.assertEqual(merged_pr[0]['id'], 1)
         finally:
             git_utils.octopus_merge = octopus_merge
+
+    def process_job(self, job):
+        self.berte.put_job(job)
+        self.berte.process_task()
+        self.assertTrue(job is self.berte.tasks_done[0])
+        return job
+
+    def test_rebuild_queues(self):
+        self.init_berte(options=self.bypass_all)
+
+        # When queues are disabled, Bert-E should respond with 'NotMyJob'
+        job = self.process_job(
+            RebuildQueuesJob(bert_e=self.berte, settings={'use_queue': False})
+        )
+        self.assertEqual(job.status, 'NotMyJob')
+
+        # When there is no queue, Bert-E should respond with 'NothingToDo'
+        job = self.process_job(RebuildQueuesJob(bert_e=self.berte))
+        self.assertEqual(job.status, 'NothingToDo')
+
+        # Create a couple PRs and queue them
+        prs = [
+            self.create_pr('feature/TEST-{:02d}'.format(n), 'development/4.3')
+            for n in range(1, 4)
+        ]
+
+        for pr in prs:
+            self.add_pr_task(pr)
+            self.berte.process_task()
+
+        expected_branches = [
+            'q/4.3',
+            'q/5.1',
+            'q/6.0',
+            'q/1/4.3/feature/TEST-01',
+            'q/1/5.1/feature/TEST-01',
+            'q/1/6.0/feature/TEST-01',
+            'q/2/4.3/feature/TEST-02',
+            'q/2/5.1/feature/TEST-02',
+            'q/2/6.0/feature/TEST-02',
+            'q/3/4.3/feature/TEST-03',
+            'q/3/5.1/feature/TEST-03',
+            'q/3/6.0/feature/TEST-03',
+        ]
+        # Check that all PRs are queued
+
+        for branch in expected_branches:
+            self.assertTrue(self.gitrepo.remote_branch_exists(branch),
+                            'branch %s not found' % branch)
+
+        # Put a 'wait' command on one of the PRs to exclude it from the queue
+        excluded, *requeued = prs
+        excluded.add_comment("@%s wait" % self.args.robot_username)
+
+        job = self.process_job(RebuildQueuesJob(bert_e=self.berte))
+        self.assertEqual(job.status, 'QueuesDeleted')
+
+        # Check that the queues are destroyed
+        for branch in expected_branches:
+            self.assertFalse(self.gitrepo.remote_branch_exists(branch, True),
+                             'branch %s still exists' % branch)
+
+        # Check that the robot is going to be waken up on all of the previously
+        # queued prs.
+        self.assertEqual(len(self.berte.task_queue.queue), len(prs))
+
+        for _ in range(len(prs)):
+            self.berte.process_task()
+
+        expected_branches = [
+            'q/4.3',
+            'q/5.1',
+            'q/6.0',
+            'q/2/4.3/feature/TEST-02',
+            'q/2/5.1/feature/TEST-02',
+            'q/2/6.0/feature/TEST-02',
+            'q/3/4.3/feature/TEST-03',
+            'q/3/5.1/feature/TEST-03',
+            'q/3/6.0/feature/TEST-03',
+        ]
+
+        excluded_branches = [
+            'q/1/4.3/feature/TEST-01',
+            'q/1/5.1/feature/TEST-01',
+            'q/1/6.0/feature/TEST-01',
+        ]
+
+        # Check that all 'requeued' PRs are queued again
+        for branch in expected_branches:
+            self.assertTrue(self.gitrepo.remote_branch_exists(branch, True),
+                            'branch %s not found' % branch)
+
+        # Check that the excluded PR is *not* queued.
+        for branch in excluded_branches:
+            self.assertFalse(self.gitrepo.remote_branch_exists(branch),
+                             "branch %s shouldn't exist" % branch)
 
 
 def main():
