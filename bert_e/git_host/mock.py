@@ -223,6 +223,9 @@ class Repository(BitBucketObject, base.AbstractRepository):
                 return pr
         raise Exception("Did not find this pr")
 
+    def get_commit_url(self, revision):
+        return "http://host/path/to/commit/{}".format(revision)
+
     def get_build_url(self, revision, key):
         key = '{}-build'.format(revision)
         return self.gitrepo.revisions.get((revision, key), None)

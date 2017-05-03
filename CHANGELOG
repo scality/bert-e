@@ -1,6 +1,10 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [3.1.1] - 2017-05-04
+# Added
+- BertE adds a link to the commit URL in the message posted for a build failed.
+
 ## [3.1.0] - 2017-04-21
 # Changed
 - No longer create integration branch/pull request for the first destination branch

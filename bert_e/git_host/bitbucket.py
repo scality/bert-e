@@ -176,6 +176,12 @@ class Repository(BitBucketObject, base.AbstractRepository):
             self.owner,
             self.slug)
 
+    def get_commit_url(self, revision):
+        return 'https://bitbucket.org/%s/%s/commits/%s' % (
+            self.owner,
+            self.slug,
+            revision)
+
     def create_pull_request(self, title, src_branch, dst_branch,
                             description, **kwargs):
         kwargs.update({

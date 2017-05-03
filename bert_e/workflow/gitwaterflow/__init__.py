@@ -594,6 +594,7 @@ def check_build_status(job, child_prs):
             active_options=job.active_options,
             branch=worst.src_branch,
             build_url=job.project_repo.get_build_url(worst.src_commit, key),
+            commit_url=job.project_repo.get_commit_url(worst.src_commit),
         )
     elif worst_status == 'NOTSTARTED':
         raise messages.BuildNotStarted()

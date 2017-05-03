@@ -528,14 +528,17 @@ class BuildFailedTest(unittest.TestCase):
 
     def test_build_fail_with_build_url(self):
         build_url = 'http://host/path/to/the?build=url'
+        commit_url = 'http://host/path/to/the?commit=url'
         build_fail = exns.BuildFailed(branch='spam', build_url=build_url,
+                                      commit_url=commit_url,
                                       active_options=None)
-        self.assertIn('The [build]({}) did not succeed'.format(build_url),
+        self.assertIn('The [build]({}) for [commit]({})'
+                      ' did not succeed'.format(build_url, commit_url),
                       build_fail.msg)
 
     def test_build_fail_with_url_to_none(self):
         build_fail = exns.BuildFailed(branch='spam', build_url=None,
-                                      active_options=None)
+                                      commit_url=None, active_options=None)
         self.assertIn('The build did not succeed', build_fail.msg)
 
 

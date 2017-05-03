@@ -202,6 +202,16 @@ class AbstractRepository(metaclass=ABCMeta):
         """
 
     @abstractmethod
+    def get_commit_url(self, revision: str) -> str:
+        """Get the commit url associated to a commit.
+
+        Args:
+            - revision: commit sha1 or branch name
+
+        Returns: url to the commit of `revision` or `None`
+        """
+
+    @abstractmethod
     def get_build_url(self, revision: str, key: str) -> str:
         """Get the build url associated to a commit.
 

@@ -486,6 +486,11 @@ class Repository(GithubObject, base.AbstractRepository):
     def git_url(self) -> str:
         return 'git@github.com:{}/{}'.format(self.owner, self.slug)
 
+    def get_commit_url(self, revision):
+        return 'https://github.com/{}/{}/commit/{}'.format(self.owner,
+                                                           self.slug,
+                                                           revision)
+
     def get_commit_status(self, ref):
         try:
             combined = AggregatedStatus.get(self.client,
