@@ -23,6 +23,7 @@ from functools import wraps
 
 from flask import Flask, Response, render_template, request
 
+from .api import RebuildQueuesJob
 from .git_host import github
 from .git_host.bitbucket import BUILD_STATUS_CACHE, PullRequest
 from .job import CommitJob, PullRequestJob
@@ -287,3 +288,13 @@ def handle_github_status_event(client, json_data):
 
     commit_url = json_data['commit']['html_url']
     return CommitJob(bert_e=BERTE, commit=event.commit, url=commit_url)
+
+
+@APP.route('/api/rebuild_queues', methods=['POST'])
+@requires_auth
+def handle_rebuild_queues():
+    LOG.info("Received 'rebuild_queues' order")
+    job = RebuildQueuesJob(bert_e=BERTE)
+    BERTE.put_job(job)
+    return Response(job.json(), 202,
+                    {'Content-Type': 'text/json'})

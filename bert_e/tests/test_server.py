@@ -75,6 +75,18 @@ class TestWebhookListener(unittest.TestCase):
             headers={'X-Event-Key': event_type, 'Authorization': basic_auth}
         )
 
+    def handle_api_post(self, command, data):
+        os.environ['WEBHOOK_LOGIN'] = 'dummy'
+        os.environ['WEBHOOK_PWD'] = 'dummy'
+
+        app = server.APP.test_client()
+        auth = ''.join(
+            (os.environ['WEBHOOK_LOGIN'], ':', os.environ['WEBHOOK_PWD'])
+        )
+        basic_auth = 'Basic ' + base64.b64encode(auth.encode()).decode()
+        return app.post('/api/%s' % command, data=json.dumps(data),
+                        headers={'Authorization': basic_auth})
+
     def test_comment_added(self):
         resp = self.handle_post('pullrequest:comment_created', COMMENT_CREATED)
         self.assertEqual(200, resp.status_code)
@@ -411,6 +423,17 @@ class TestWebhookListener(unittest.TestCase):
         data = res.data.decode()
         for exp in expected:
             self.assertIn(exp, data)
+
+    def test_rebuild_queues_api_call(self):
+        resp = self.handle_api_post('rebuild_queues', {})
+        self.assertEqual(202, resp.status_code)
+        self.assertEqual(server.BERTE.task_queue.unfinished_tasks, 1)
+        job = server.BERTE.task_queue.get()
+        resp_json = resp.data.decode()
+        print(resp_json)
+        print(job.json())
+        assert resp_json == job.json()
+        assert 'id' in resp_json
 
 
 if __name__ == '__main__':
