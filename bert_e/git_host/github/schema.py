@@ -18,60 +18,7 @@
 used by Bert-E) are declared.
 
 """
-from marshmallow import Schema, ValidationError, fields
-
-from .. import base
-
-
-class SchemaError(base.Error):
-    """Base class of all schema related errors."""
-    pass
-
-
-def load(schema_cls, data, **kwargs):
-    """Load data using given schema class.
-
-    Raises:
-        SchemaError if the data doesn't match the schema.
-
-    Return:
-        The result of data loading: either a trimmed dictionary, or any
-        the result of any @post_load processing.
-
-    """
-    res, errors = schema_cls(**kwargs).load(data)
-    if errors:
-        raise SchemaError(errors)
-    return res
-
-
-def validate(schema_cls, data, **kwargs):
-    """Validate data against given schema class.
-
-    Raises:
-        SchemaError if the data doesn't match the schema.
-
-    """
-    try:
-        schema_cls(**kwargs).validate(data)
-    except ValidationError as err:
-        raise SchemaError(err.messages) from err
-
-
-def dumps(schema_cls, data, **kwargs):
-    """Validate data against given schema and dump it to a json string.
-
-    Raises:
-        SchemaError if the data doesn't match the schema.
-
-    """
-    schema = schema_cls(**kwargs)
-    try:
-        schema.validate(data)
-    except ValidationError as err:
-        raise SchemaError(err.messages) from err
-    res, _ = schema.dumps(data)
-    return res
+from marshmallow import Schema, fields
 
 
 class User(Schema):
