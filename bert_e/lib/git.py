@@ -173,6 +173,11 @@ class Repository(object):
             ret = self.cmd(command, retry=retry - 1, **kwargs)
         return ret
 
+    @property
+    def remote_branches(self):
+        self._get_remote_branches()
+        return self._remote_branches.keys()
+
 
 class Branch(object):
     def __init__(self, repo, name):

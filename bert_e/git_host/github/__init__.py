@@ -20,6 +20,9 @@ from requests.auth import HTTPBasicAuth
 
 from bert_e.exceptions import TaskAPIError
 from bert_e.lib.lru_cache import LRUCache
+from bert_e.lib.schema import (load as load_schema,
+                               validate as validate_schema,
+                               dumps as dump_schema)
 from . import schema
 from .. import base, factory
 
@@ -353,7 +356,7 @@ class GithubObject:
     def __init__(self, client=None, _validate=True, **data):
         self.client = client
         if _validate and self.SCHEMA is not None:
-            schema.validate(self.SCHEMA, data)
+            validate_schema(self.SCHEMA, data)
         self.data = data
 
     @classmethod
@@ -417,7 +420,7 @@ class GithubObject:
         """
         if schema_cls is None:
             schema_cls = cls.SCHEMA
-        return cls(**schema.load(schema_cls, data, **kwargs), _validate=False)
+        return cls(**load_schema(schema_cls, data, **kwargs), _validate=False)
 
     @classmethod
     def create(cls, client: Client, data, headers={}, url=None, **kwargs):
@@ -428,7 +431,7 @@ class GithubObject:
                 'CREATE is not supported on {} objects.'.format(cls.__name__))
 
         create_schema_cls = cls.CREATE_SCHEMA or cls.SCHEMA
-        json = schema.dumps(create_schema_cls, data)
+        json = dump_schema(create_schema_cls, data)
         obj = cls.load(
             client.post(url.format(**kwargs), data=json, headers=headers)
         )
@@ -444,7 +447,7 @@ class GithubObject:
                 'CREATE is not supported on {} objects.'.format(cls.__name__))
 
         create_schema_cls = cls.UPDATE_SCHEMA or cls.SCHEMA
-        json = schema.dumps(create_schema_cls, data)
+        json = dump_schema(create_schema_cls, data)
         obj = cls.load(
             client.patch(url.format(**kwargs), data=json, headers=headers)
         )

@@ -23,8 +23,21 @@ from types import SimpleNamespace
 from typing import Callable
 from uuid import uuid4 as uuid
 
+from marshmallow import Schema, fields
+
 from bert_e.lib.dispatcher import Dispatcher
 from bert_e.lib.settings_dict import SettingsDict
+from bert_e.lib.schema import dumps as dump_schema
+
+
+class JobSchema(Schema):
+    id = fields.UUID(dump_only=True)
+    start_time = fields.DateTime(dump_only=True)
+    end_time = fields.DateTime(dump_only=True, allow_none=True)
+    status = fields.Str(dump_only=True, allow_none=True)
+    details = fields.Str(dump_only=True, allow_none=True)
+    url = fields.Url(dump_only=True, allow_none=True)
+    settings = fields.Dict()
 
 
 class Job:
@@ -54,6 +67,17 @@ class Job:
     def active_options(self):
         return [key for key, val in self.settings.maps[0].items() if val]
 
+    def json(self):
+        return dump_schema(JobSchema, {
+            'id': self.id,
+            'start_time': self.start_time,
+            'end_time': self.end_time,
+            'status': self.status,
+            'details': self.details,
+            'url': self.url,
+            'settings': self.settings.maps[0]
+        })
+
     def __str__(self):
         return '{}(id={})'.format(type(self).__name__, self.id)
 
@@ -66,9 +90,6 @@ class Job:
                 ', url={}'.format(self.url) if self.url else ''
             ))
         )
-
-    def __eq__(self, other):
-        return isinstance(other, Job) and other.id == self.id
 
 
 class RepoJob(Job):
@@ -93,9 +114,9 @@ class PullRequestJob(RepoJob):
         return "PR #{}".format(self.pull_request.id)
 
     def __eq__(self, other):
-        return type(other) is PullRequestJob and \
-            self.project_repo.full_name == other.project_repo.full_name and \
-            self.pull_request.id == other.pull_request.id
+        return (isinstance(other, PullRequestJob) and
+                self.project_repo.full_name == other.project_repo.full_name and
+                self.pull_request.id == other.pull_request.id)
 
 
 class CommitJob(RepoJob):
@@ -108,15 +129,23 @@ class CommitJob(RepoJob):
         return "Commit {}".format(self.commit)
 
     def __eq__(self, other):
-        return type(other) is CommitJob and \
-            self.project_repo.full_name == other.project_repo.full_name and \
-            self.commit == other.commit
+        return (isinstance(other, CommitJob) and
+                self.project_repo.full_name == other.project_repo.full_name and
+                self.commit == other.commit)
 
 
 class QueuesJob(RepoJob):
     """Job triggered when the queues were updated."""
     def __str__(self):
         return "QueuesJob"
+
+
+class APIJob(RepoJob):
+    """Command sent to Bert-E via its API."""
+    def __init__(self, args=None, kwargs=None, **kwargs_):
+        super().__init__(**kwargs_)
+        self.args = args or []
+        self.kwargs = kwargs or {}
 
 
 class JobDispatcher(Dispatcher):
