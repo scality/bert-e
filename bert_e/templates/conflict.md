@@ -36,11 +36,9 @@ and `{{ wbranch.dst_branch.name }}`.
 
 {% if empty -%}
 **I have not created the integration branch.**
-{%- endif %}
-
-{%- if not empty -%}
+{%- else -%}
 Please resolve the conflict on **the integration branch** (`{{ wbranch.name }}`).
-{%- endif -%}
+{%- endif %}
 
 
 Here are the steps to resolve this conflict:
@@ -52,6 +50,7 @@ Here are the steps to resolve this conflict:
  $ git checkout -B {{ wbranch.name }} origin/{{ wbranch.dst_branch.name }}
 {%- else -%}
  $ git checkout {{ wbranch.name }}
+ $ git pull  # or "git reset --hard origin/{{ wbranch.name }}"
  $ git merge origin/{{ wbranch.dst_branch.name }}
  $ # <intense conflict resolution>
 {%- endif %}
