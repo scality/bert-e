@@ -1,6 +1,12 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [3.1.1] - 2017-05-04
+# Added
+- Bert-E's REST API was bootstrapped
+- REST API 'rebuild_queues' command
+
+
 ## [3.1.0] - 2017-04-21
 # Changed
 - No longer create integration branch/pull request for the first destination branch
