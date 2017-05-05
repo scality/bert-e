@@ -94,6 +94,7 @@ class BertE(JobDispatcher):
                      datetime.now() - job.start_time, job, job.status)
             self.tasks_done.appendleft(job)
             self.status.pop('current job')
+        return job
 
     def put_job(self, job):
         """Put a job and ensure there is not any similar job in the

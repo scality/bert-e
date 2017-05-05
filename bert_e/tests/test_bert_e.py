@@ -3663,7 +3663,15 @@ class TaskQueueTests(RepositoryTests):
         settings.update(all_settings)
         self.berte = BertE(settings)
 
-    def add_pr_task(self, pr, **settings):
+    def process_job(self, job, status=None):
+        self.berte.put_job(job)
+        self.berte.process_task()
+        self.assertTrue(job.done)
+        if status is not None:
+            self.assertEqual(job.status, status)
+        return job
+
+    def make_pr_job(self, pr, **settings):
         client = pr.client
         pr.client = self.berte.client
         job = PullRequestJob(
@@ -3672,57 +3680,44 @@ class TaskQueueTests(RepositoryTests):
             settings=settings
         )
         pr.client = client
-        self.berte.put_job(job)
-
         return job
 
-    def add_sha1_task(self, sha1, **settings):
+    def process_pr_job(self, pr, status=None, **settings):
+        job = self.make_pr_job(pr, **settings)
+        return self.process_job(job, status)
+
+    def make_sha1_job(self, sha1, **settings):
         job = CommitJob(
             bert_e=self.berte, commit=sha1,
             url=self.berte.settings.commit_base_url.format(commit_id=sha1),
             settings=settings
         )
-        self.berte.put_job(job)
         return job
+
+    def process_sha1_job(self, sha1, status=None, **settings):
+        job = self.make_sha1_job(sha1, **settings)
+        return self.process_job(job, status)
 
     def test_berte_duplicate_pr_job(self):
         self.init_berte()
         pr = self.create_pr('bugfix/TEST-0001', 'development/6.0')
-        self.add_pr_task(pr)
-        self.add_pr_task(pr)
+        for _ in range(5):
+            self.berte.put_job(self.make_pr_job(pr))
 
         self.assertEqual(len(self.berte.task_queue.queue), 1)
 
     def test_berte_duplicate_sha1_job(self):
         self.init_berte()
-        self.init_berte(options=self.bypass_all)
-        pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
-        self.add_pr_task(pr)
-        self.berte.process_task()
-        # check expected branches exist
-        self.gitrepo.cmd('git fetch --prune')
-        expected_branches = [
-            'q/1/4.3/bugfix/TEST-00001',
-            'q/1/5.1/bugfix/TEST-00001',
-            'q/1/6.0/bugfix/TEST-00001',
-            'w/5.1/bugfix/TEST-00001',
-            'w/6.0/bugfix/TEST-00001'
-        ]
-        for branch in expected_branches:
-            self.assertTrue(self.gitrepo.remote_branch_exists(branch),
-                            'branch `%s` not found' % branch)
-
-        sha1_q_6_0 = self.gitrepo._remote_branches['q/6.0']
-
-        self.add_sha1_task(sha1_q_6_0)
-        self.add_sha1_task(sha1_q_6_0)
+        sha1 = '0badf00ddeadbeef'
+        for _ in range(5):
+            self.berte.put_job(self.make_sha1_job(sha1))
 
         self.assertEqual(len(self.berte.task_queue.queue), 1)
 
     def test_berte_worker_job_never_crashes(self):
         self.init_berte()
         pr = self.create_pr('bugfix/TEST-0001', 'development/6.0')
-        self.add_pr_task(pr)
+        self.berte.put_job(self.make_pr_job(pr))
         real_process = BertE.process
 
         def fake_process(self, job):
@@ -3740,9 +3735,7 @@ class TaskQueueTests(RepositoryTests):
         self.init_berte(options=self.bypass_all, disable_queues=True)
         pr_titles = ['bugfix/TEST-1', 'bugfix/TEST-2', 'bugfix/TEST-3']
         prs = [self.create_pr(title, 'development/4.3') for title in pr_titles]
-        jobs = [self.add_pr_task(pr) for pr in prs]
-        for _ in jobs:
-            self.berte.process_task()
+        jobs = [self.process_pr_job(pr, 'SuccessMessage') for pr in prs]
 
         merged_prs = self.berte.status.get('merged PRs', [])
         self.assertEquals(len(merged_prs), 3)
@@ -3754,8 +3747,8 @@ class TaskQueueTests(RepositoryTests):
     def test_status_with_queue(self):
         self.init_berte(options=self.bypass_all)
         pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
-        self.add_pr_task(pr)
-        self.berte.process_task()
+        self.process_pr_job(pr, 'Queued')
+
         # check expected branches exist
         self.gitrepo.cmd('git fetch --prune')
         expected_branches = [
@@ -3771,18 +3764,16 @@ class TaskQueueTests(RepositoryTests):
 
         sha1_q_6_0 = self.gitrepo._remote_branches['q/6.0']
 
-        self.add_sha1_task(sha1_q_6_0)
-        self.berte.process_task()
+        self.process_sha1_job(sha1_q_6_0, 'NothingToDo')
 
         status = self.berte.status.get('merge queue', OrderedDict())
         self.assertIn(1, status)
         self.assertEqual(len(status[1]), 3)
         versions = tuple(version for version, _ in status[1])
+        self.assertEqual(versions, ('6.0', '5.1', '4.3'))
         for _, sha1 in status[1]:
             self.set_build_status(sha1=sha1, state='SUCCESSFUL')
-        self.assertEqual(versions, ('6.0', '5.1', '4.3'))
-        self.add_sha1_task(sha1_q_6_0)
-        self.berte.process_task()
+        self.process_sha1_job(sha1_q_6_0, 'Merged')
 
         merged_pr = self.berte.status.get('merged PRs', [])
         self.assertEqual(len(merged_pr), 1)
@@ -3796,8 +3787,8 @@ class TaskQueueTests(RepositoryTests):
         try:
             self.init_berte(options=self.bypass_all)
             pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
-            self.add_pr_task(pr)
-            self.berte.process_task()
+            self.process_pr_job(pr, 'Queued')
+
             # check expected branches exist
             self.gitrepo.cmd('git fetch --prune')
             expected_branches = [
@@ -3813,16 +3804,14 @@ class TaskQueueTests(RepositoryTests):
 
             sha1_q_6_0 = self.gitrepo._remote_branches['q/6.0']
 
-            self.add_sha1_task(sha1_q_6_0)
-            self.berte.process_task()
+            self.process_sha1_job(sha1_q_6_0, 'NothingToDo')
 
             status = self.berte.status.get('merge queue', OrderedDict())
             versions = tuple(version for version, _ in status[1])
             for _, sha1 in status[1]:
                 self.set_build_status(sha1=sha1, state='SUCCESSFUL')
             self.assertEqual(versions, ('6.0', '5.1', '4.3'))
-            self.add_sha1_task(sha1_q_6_0)
-            self.berte.process_task()
+            self.process_sha1_job(sha1_q_6_0, 'Merged')
 
             merged_pr = self.berte.status.get('merged PRs', [])
             self.assertEqual(len(merged_pr), 1)
@@ -3830,24 +3819,17 @@ class TaskQueueTests(RepositoryTests):
         finally:
             git_utils.octopus_merge = octopus_merge
 
-    def process_job(self, job):
-        self.berte.put_job(job)
-        self.berte.process_task()
-        self.assertTrue(job is self.berte.tasks_done[0])
-        return job
-
     def test_rebuild_queues(self):
         self.init_berte(options=self.bypass_all)
 
         # When queues are disabled, Bert-E should respond with 'NotMyJob'
-        job = self.process_job(
-            RebuildQueuesJob(bert_e=self.berte, settings={'use_queue': False})
+        self.process_job(
+            RebuildQueuesJob(bert_e=self.berte, settings={'use_queue': False}),
+            'NotMyJob'
         )
-        self.assertEqual(job.status, 'NotMyJob')
 
         # When there is no queue, Bert-E should respond with 'NothingToDo'
-        job = self.process_job(RebuildQueuesJob(bert_e=self.berte))
-        self.assertEqual(job.status, 'NothingToDo')
+        self.process_job(RebuildQueuesJob(bert_e=self.berte), 'NothingToDo')
 
         # Create a couple PRs and queue them
         prs = [
@@ -3856,8 +3838,7 @@ class TaskQueueTests(RepositoryTests):
         ]
 
         for pr in prs:
-            self.add_pr_task(pr)
-            self.berte.process_task()
+            self.process_pr_job(pr, 'Queued')
 
         expected_branches = [
             'q/4.3',
@@ -3883,8 +3864,7 @@ class TaskQueueTests(RepositoryTests):
         excluded, *requeued = prs
         excluded.add_comment("@%s wait" % self.args.robot_username)
 
-        job = self.process_job(RebuildQueuesJob(bert_e=self.berte))
-        self.assertEqual(job.status, 'QueuesDeleted')
+        self.process_job(RebuildQueuesJob(bert_e=self.berte), 'QueuesDeleted')
 
         # Check that the queues are destroyed
         for branch in expected_branches:
@@ -3895,7 +3875,7 @@ class TaskQueueTests(RepositoryTests):
         # queued prs.
         self.assertEqual(len(self.berte.task_queue.queue), len(prs))
 
-        for _ in range(len(prs)):
+        while not self.berte.task_queue.empty():
             self.berte.process_task()
 
         expected_branches = [

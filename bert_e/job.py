@@ -67,6 +67,10 @@ class Job:
     def active_options(self):
         return [key for key, val in self.settings.maps[0].items() if val]
 
+    @property
+    def done(self):
+        return self.end_time is not None
+
     def json(self):
         return dump_schema(JobSchema, {
             'id': self.id,
