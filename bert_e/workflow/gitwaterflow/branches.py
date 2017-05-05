@@ -67,7 +67,8 @@ class ReleaseBranch(GWFBranch):
 
 
 class FeatureBranch(GWFBranch):
-    all_prefixes = ('improvement', 'bugfix', 'feature', 'project')
+    all_prefixes = ('improvement', 'bugfix', 'feature', 'project',
+                    'documentation')
     jira_issue_pattern = '(?P<jira_project>[A-Z0-9_]+)-[0-9]+'
     prefixes = '(?P<prefix>(%s))' % '|'.join(all_prefixes)
     pattern = "^%s/(?P<label>(?P<jira_issue_key>%s)?" \

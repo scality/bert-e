@@ -118,6 +118,17 @@ prefixes:
   Improvement: improvement
 
 
+# bypass_prefixes [OPTIONAL]
+#
+# List of branch prefixes that are allowed and that
+# automatically bypass issue tracker related checks.
+#
+#   default value: empty
+#   accepted values: (improvement|bugfix|feature|project|documentation)
+bypass_prefixes:
+  - documentation
+
+
 # admins [OPTIONAL]:
 #   The list of bitbucket accounts allowed to post privileged messages
 #   to the bot

@@ -3906,6 +3906,20 @@ class TaskQueueTests(RepositoryTests):
             self.assertFalse(self.gitrepo.remote_branch_exists(branch),
                              "branch %s shouldn't exist" % branch)
 
+    def test_bypass_prefixes(self):
+        self.init_berte()
+        pr = self.create_pr('documentation/stuff', 'development/4.3')
+
+        # No configured bypass_prefixes
+        self.process_pr_job(pr, 'MissingJiraId')
+        # bypass_prefixes configured but doesn't contain 'documentation'
+        self.process_pr_job(pr, 'MissingJiraId', bypass_prefixes=['settings'])
+
+        # bypass_prefixes is configured and contains 'documentation'
+        # Jira checks should be auto-bypassed
+        self.process_pr_job(pr, 'ApprovalRequired',
+                            bypass_prefixes=['documentation'])
+
 
 def main():
     parser = argparse.ArgumentParser(description='Launches Bert-E tests.')

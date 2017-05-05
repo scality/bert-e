@@ -36,6 +36,7 @@ class SettingsSchema(Schema):
     jira_keys = fields.List(fields.Str(), missing=[])
 
     prefixes = fields.Nested(PrefixesSchema, missing={})
+    bypass_prefixes = fields.List(fields.Str(), missing=[])
 
     admins = fields.List(fields.Str(), missing=[])
     testers = fields.List(fields.Str(), missing=[])

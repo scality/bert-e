@@ -18,6 +18,7 @@ likely to become a plugin in the future (when other ticket systems are
 supported).
 
 """
+import logging
 import re
 
 from jira.exceptions import JIRAError
@@ -26,9 +27,17 @@ from bert_e import exceptions
 from bert_e.lib import jira as jira_api
 
 
+LOG = logging.getLogger(__name__)
+
+
 def jira_checks(job):
     """Performs consistency checks against associated Jira issue."""
     if job.settings.bypass_jira_check:
+        return
+
+    if job.git.src_branch.prefix in job.settings.bypass_prefixes:
+        LOG.debug("Bypassing JIRA checks due to branch prefix '%s'",
+                  job.git.src_branch.prefix)
         return
 
     if not all([job.settings.jira_keys,
