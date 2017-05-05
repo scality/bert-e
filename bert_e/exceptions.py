@@ -97,9 +97,9 @@ class JiraIssueNotFound(TemplateException):
     template = 'jira_issue_not_found.md'
 
 
-class SubtaskIssueNotSupported(TemplateException):
+class IssueTypeNotSupported(TemplateException):
     code = 109
-    template = 'subtask_issue_not_supported.md'
+    template = 'issue_type_not_supported.md'
 
 
 class IncorrectJiraProject(TemplateException):

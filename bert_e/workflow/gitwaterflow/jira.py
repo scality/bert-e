@@ -121,14 +121,15 @@ def check_issue_type(job, issue):
     """Check if the Jira issue is of a supported type.
 
     Raises:
-        SubtaskIssueNotSupported: if the issue is a subtask.
+        IssueTypeNotSupported if the issue is not of a type explicitely
+        supported in the configuration.
 
     """
     issuetype = issue.fields.issuetype.name
     prefixes = job.settings.get('prefixes')
 
-    if issuetype == 'Sub-task':
-        raise exceptions.SubtaskIssueNotSupported(
+    if issuetype not in prefixes:
+        raise exceptions.IssueTypeNotSupported(
             issue=issue, pairs=prefixes, active_options=job.active_options
         )
 
