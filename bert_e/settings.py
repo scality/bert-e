@@ -8,12 +8,6 @@ from bert_e.exceptions import (IncorrectSettingsFile, MalformedSettings,
 from bert_e.lib.settings_dict import SettingsDict
 
 
-class PrefixesSchema(Schema):
-    Story = fields.Str(allow_none=True)
-    Bug = fields.Str(allow_none=True)
-    Improvement = fields.Str(allow_none=True)
-
-
 class SettingsSchema(Schema):
     # Settings defined in config files
     repository_owner = fields.Str(required=True)
@@ -35,7 +29,7 @@ class SettingsSchema(Schema):
     jira_username = fields.Str(missing='')
     jira_keys = fields.List(fields.Str(), missing=[])
 
-    prefixes = fields.Nested(PrefixesSchema, missing={})
+    prefixes = fields.Dict(missing={})
     bypass_prefixes = fields.List(fields.Str(), missing=[])
 
     admins = fields.List(fields.Str(), missing=[])
