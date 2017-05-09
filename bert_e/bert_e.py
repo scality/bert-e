@@ -21,6 +21,8 @@ from os.path import exists
 from queue import Queue
 from urllib.parse import quote_plus
 
+import raven
+
 from .exceptions import (BertE_Exception, InternalException, SilentException,
                          TemplateException, UnsupportedTokenType)
 from .git_host import client_factory
@@ -68,6 +70,7 @@ class BertE(JobDispatcher):
         self.task_queue = Queue()
         self.tasks_done = deque(maxlen=1000)
         self.status = {}  # TODO: implement a proper status class
+        self.raven_client = raven.Client(settings.sentry_dsn)
 
     def process_task(self):
         """Pop one task off of the task queue and process it.
@@ -87,6 +90,7 @@ class BertE(JobDispatcher):
             if not isinstance(err, (BertE_Exception, InternalException)):
                 LOG.error("Job %s finished with an error: %s", job, err)
                 job.details = str(err)
+            self.raven_client.captureException()
         finally:
             job.complete()
             self.task_queue.task_done()
