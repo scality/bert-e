@@ -34,7 +34,7 @@ from bert_e.git_host import bitbucket as bitbucket_api
 from bert_e.git_host import mock as bitbucket_api_mock
 from bert_e.git_host.base import NoSuchRepository
 from bert_e.git_host.factory import client_factory
-from bert_e.job import CommitJob, PullRequestJob
+from bert_e.job import handler, CommitJob, Job, PullRequestJob
 from bert_e.lib import jira as jira_api
 from bert_e.lib.git import Repository as GitRepository
 from bert_e.lib.git import Branch
@@ -57,6 +57,7 @@ robot_email: nobody@nowhere.com
 pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
 commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
 build_key: pre-merge
+sentry_dsn: https://ca706afdadaa463688ec16e7f7fc2ed1:4edfce02427744ab9efd9e9d5b053550@sentry.io/168190
 required_peer_approvals: 2
 prefixes:
   Story: feature
@@ -72,6 +73,20 @@ tasks:
   - do foo
   - do bar
 """ # noqa
+
+
+class FaultJob(Job):
+    """Fault job which will raise an exception to test sentry logging."""
+
+
+class FaultError(Exception):
+    """Exception raised on purpose from a FaultJob."""
+
+
+@handler(FaultJob)
+def handle_fault_job(job: FaultJob):
+    raise FaultError("This is an exception raised when a fault job has been "
+                     "handled for tests purposes.")
 
 
 def initialize_git_repo(repo, username, usermail):
@@ -3662,6 +3677,14 @@ class TaskQueueTests(RepositoryTests):
         settings['backtrace'] = backtrace
         settings.update(all_settings)
         self.berte = BertE(settings)
+
+    def test_sentry(self):
+        """Test Sentry support by throwing an exception which will be
+        sent to Sentry eventually.
+        """
+        self.init_berte()
+        self.berte.put_job(FaultJob(self.berte))
+        self.berte.process_task()
 
     def process_job(self, job, status=None):
         self.berte.put_job(job)
