@@ -90,7 +90,7 @@ class BertE(JobDispatcher):
             if not isinstance(err, (BertE_Exception, InternalException)):
                 LOG.error("Job %s finished with an error: %s", job, err)
                 job.details = str(err)
-            self.raven_client.captureException()
+                self.raven_client.captureException()
         finally:
             job.complete()
             self.task_queue.task_done()
