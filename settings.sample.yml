@@ -158,3 +158,12 @@ tasks:
 #
 #   default value: 0 (the feature is inactive)
 max_commit_diff: 100
+
+# sentry_dsn [OPTIONAL]:
+#   If different from '', python exceptions will be captured and sent to
+#   sentry, which is an external service responsible for capturing tracebacks
+#   and sending mails to operators. The value should be a URL that points to
+#   a dsn sentry resource.
+#
+#   default value: '' (the feature is inactive)
+sentry_dsn: ''
