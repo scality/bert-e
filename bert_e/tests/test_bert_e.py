@@ -3678,14 +3678,6 @@ class TaskQueueTests(RepositoryTests):
         settings.update(all_settings)
         self.berte = BertE(settings)
 
-    def test_sentry(self):
-        """Test Sentry support by throwing an exception which will be
-        sent to Sentry eventually.
-        """
-        self.init_berte()
-        self.berte.put_job(FaultJob(self.berte))
-        self.berte.process_task()
-
     def process_job(self, job, status=None):
         self.berte.put_job(job)
         self.berte.process_task()
@@ -3942,6 +3934,13 @@ class TaskQueueTests(RepositoryTests):
         # Jira checks should be auto-bypassed
         self.process_pr_job(pr, 'ApprovalRequired',
                             bypass_prefixes=['documentation'])
+
+    def test_sentry(self):
+        """Test Sentry support by throwing an exception which will be
+        sent to Sentry eventually.
+        """
+        self.init_berte()
+        self.process_job(self.process_job(FaultJob(self.berte), "FaultError"))
 
 
 def main():
