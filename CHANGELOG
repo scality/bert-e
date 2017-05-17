@@ -11,6 +11,7 @@ All notable changes to this project will be documented in this file.
 - Bert-E's REST API was bootstrapped
 - REST API 'rebuild_queues' command
 - JIRA checks can be bypassed according to the source branch prefix (e.g. "documentation")
+- Bert-E can send exceptions to Sentry
 # Fixed
 - Bert-E no longer crashes silently when encountering an unknown issue type
 
