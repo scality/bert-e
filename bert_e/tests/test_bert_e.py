@@ -57,7 +57,6 @@ robot_email: nobody@nowhere.com
 pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
 commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
 build_key: pre-merge
-sentry_dsn: https://ca706afdadaa463688ec16e7f7fc2ed1:4edfce02427744ab9efd9e9d5b053550@sentry.io/168190
 required_peer_approvals: 2
 prefixes:
   Story: feature
@@ -3675,6 +3674,7 @@ class TaskQueueTests(RepositoryTests):
         settings['jira_password'] = 'dummy_jira_password'
         settings['cmd_line_options'] = options
         settings['backtrace'] = backtrace
+        settings['sentry_dsn'] = self.args.sentry_dsn
         settings.update(all_settings)
         self.berte = BertE(settings)
 
@@ -3962,6 +3962,9 @@ def main():
     parser.add_argument('admin_password',
                         help='Privileged user Bitbucket/GitHub password')
     parser.add_argument('tests', nargs='*', help='run only these tests')
+    parser.add_argument('--sentry-dsn', dest='sentry_dsn',
+                        help='url to the sentry dsn if needed',
+                        default='')
     parser.add_argument('--repo-prefix', default="_test_bert_e",
                         help='Prefix of the test repository')
     parser.add_argument('-v', action='store_true', dest='verbose',
