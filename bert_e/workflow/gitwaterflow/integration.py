@@ -173,6 +173,7 @@ def create_integration_pull_requests(job, wbranches):
             job.settings, job.pull_request,
             exceptions.IntegrationPullRequestsCreated(
                 bert_e=job.settings.robot_username, pr=job.pull_request,
+                current_pr=prs[0],
                 child_prs=prs[1:], ignored=job.git.cascade.ignored_branches,
                 active_options=job.active_options
             )

@@ -5,7 +5,10 @@ Integration pull requests created
 {% endblock %}
 
 {% block message %}
-I have created the following integration pull requests:
+This pull request will merge `{{ current_pr.src_branch }}` in
+`{{ current_pr.dst_branch }}`.
+
+Additionally I have created the following integration pull requests:
 
 {% for pr in child_prs -%}
 * integration pull request #{{ pr.id }} will merge `{{ pr.src_branch }}`
