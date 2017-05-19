@@ -9,6 +9,7 @@ All notable changes to this project will be documented in this file.
 - Bert-E can send exceptions to Sentry
 - System test relative to development branch deletion
 - System test relative to stabilization branch addition
+- Bert-E explicitely name target branch in the integration pr created message
 
 ## [3.1.2] - 2017-05-09
 # Fixed
