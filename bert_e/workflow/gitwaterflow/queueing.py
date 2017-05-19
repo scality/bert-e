@@ -21,7 +21,7 @@ from bert_e.job import handler as job_handler
 from bert_e.job import QueuesJob
 from bert_e.lib import git
 
-from ..git_utils import clone_git_repo, octopus_merge, push
+from ..git_utils import clone_git_repo, consecutive_merge, octopus_merge, push
 from ..pr_utils import send_comment
 from .branches import (BranchCascade, DevelopmentBranch, IntegrationBranch,
                        QueueBranch, QueueIntegrationBranch,
@@ -119,7 +119,10 @@ def add_to_queue(job, wbranches):
         qint.create(qbranch, do_push=False)
         to_push.append(qint)
         for qbranch, wbranch in zip(qbranches, wbranches):
-            octopus_merge(qbranch, wbranch, qint)
+            if job.settings.no_octopus:
+                consecutive_merge(qbranch, wbranch, qint)
+            else:
+                octopus_merge(qbranch, wbranch, qint)
             qint = get_queue_integration_branch(job, pr_id, wbranch)
             qint.create(qbranch, do_push=False)
             to_push.append(qint)

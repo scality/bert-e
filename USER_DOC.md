@@ -117,6 +117,7 @@ option has no effect on GitHub** where author approvals are not supported)   | y
 | bypass_jira_check         | Bypass the Jira issue check| yes |
 | bypass_peer_approval      | Bypass the pull request peer's approval | yes
 | bypass_tester_approval    | Bypass the pull request tester's approval | yes
+| no_octopus                | Prevent Wall-E from doing any octopus merge and use multiple consecutive merge instead | yes
 | unanimity                 | Change review acceptance criteria from `one reviewer at least` to `all reviewers` (**this feature is not supported on GitHub**) | no
 | wait                      | Instruct __Bert-E__ not to run until further notice | no
 

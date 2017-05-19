@@ -21,7 +21,7 @@ extension.
 from bert_e import exceptions
 from bert_e.lib import git
 
-from ..git_utils import octopus_merge, push
+from ..git_utils import consecutive_merge, octopus_merge, push
 from ..pr_utils import send_comment
 from .branches import (branch_factory, build_branch_cascade,
                        GhostIntegrationBranch)
@@ -114,7 +114,10 @@ def update_integration_branches(job, wbranches):
     def update(wbranch, source):
         empty = not list(wbranch.get_commit_diff(wbranch.dst_branch))
         try:
-            octopus_merge(wbranch, wbranch.dst_branch, source)
+            if job.settings.no_octopus:
+                consecutive_merge(wbranch, wbranch.dst_branch, source)
+            else:
+                octopus_merge(wbranch, wbranch.dst_branch, source)
         except git.MergeFailedException as err:
             raise exceptions.Conflict(
                 source=source, wbranch=wbranch, dev_branch=job.git.dst_branch,
@@ -189,7 +192,10 @@ def merge_integration_branches(job, wbranches):
     for wbranch in children:
         # The octopus merge makes sure that the merge leaves the development
         # branches self-contained.
-        octopus_merge(wbranch.dst_branch, prev.dst_branch, wbranch)
+        if job.settings.no_octopus:
+            consecutive_merge(wbranch.dst_branch, prev.dst_branch, wbranch)
+        else:
+            octopus_merge(wbranch.dst_branch, prev.dst_branch, wbranch)
         prev = wbranch
 
     for wbranch in children:

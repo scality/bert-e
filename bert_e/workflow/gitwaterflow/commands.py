@@ -169,6 +169,11 @@ def setup(defaults={}):
 
     # Other options
     Reactor.add_option(
+        "no_octopus",
+        "Prevent Wall-E from doing any octopus merge and use multiple "
+        "consecutive merge instead",
+        default=defaults.get("no_octopus", False))
+    Reactor.add_option(
         "unanimity",
         "Change review acceptance criteria from `one reviewer at least` "
         "to `all reviewers`",

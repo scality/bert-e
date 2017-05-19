@@ -2133,6 +2133,39 @@ admins:
         with self.assertRaises(exns.IncorrectPullRequestNumber):
             self.handle(blocked_pr.id, options=self.bypass_all, backtrace=True)
 
+    def test_no_octopus_option(self):
+        """Test no_octopus by passing option to bert-e."""
+        octopus_branch = 'bugfix/TEST-octopus'
+        no_octopus_branch = 'bugfix/TEST-no-octopus'
+        dst_branch = 'development/4.3'
+
+        class KrakenDisturbed(Exception):
+            pass
+
+        def disturb_the_kraken(dst, src1, src2):
+            raise KrakenDisturbed()
+
+        gwfi.octopus_merge = disturb_the_kraken
+        gwfq.octopus_merge = disturb_the_kraken
+
+        try:
+            # Check the merges are octopus without the option
+            pr = self.create_pr(octopus_branch, dst_branch)
+            with self.assertRaises(KrakenDisturbed):
+                self.handle(pr.id,
+                            options=self.bypass_all,
+                            backtrace=True)
+
+            # Now check the no_octopus option prevent octopus merges
+            pr = self.create_pr(no_octopus_branch, dst_branch)
+            with self.assertRaises(exns.SuccessMessage):
+                self.handle(pr.id,
+                            options=self.bypass_all + ['no_octopus'],
+                            backtrace=True)
+        finally:
+            gwfi.octopus_merge = git_utils.octopus_merge
+            gwfq.octopus_merge = git_utils.octopus_merge
+
     def test_bitbucket_lag_on_pr_status(self):
         """Bitbucket can be a bit long to update a merged PR's status.
 
