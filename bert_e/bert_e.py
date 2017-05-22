@@ -88,7 +88,7 @@ class BertE(JobDispatcher):
             job.details = None
 
             if not isinstance(err, (BertE_Exception, InternalException)):
-                LOG.error("Job %s finished with an error: %s", job, err)
+                LOG.exception("Job %s finished with an error.", job)
                 job.details = str(err)
                 self.raven_client.captureException()
         finally:
