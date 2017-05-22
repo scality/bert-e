@@ -2568,6 +2568,49 @@ tasks:
             self.handle(pr.id, backtrace=True, settings=settings,
                         options=self.bypass_all)
 
+    def test_development_branch_removal(self):
+        """Check that Bert-E survives to the removal of a development branch.
+
+        Steps:
+            Create a PR targetting 4.3
+            Let the robot create the integration cascade
+            Add modifications to the w/5.1 integration branch
+            Let the robot propagate the change to w/6.0
+            Remove the development/5.1 and stabilization/5.1 branches
+            Wake up the robot on the PR with bypass_all
+
+        Expected result:
+            The PR gets merged
+
+        """
+
+        pr = self.create_pr('feature/foo', 'development/4.3')
+        self.handle(pr.id,
+                    options=self.bypass_all_but(['bypass_build_status']))
+
+        # Add some changes to the w/5.1 integration branch
+        self.gitrepo.cmd('git fetch')
+        self.gitrepo.cmd('git checkout w/5.1/feature/foo')
+        self.gitrepo.cmd('echo foo > foo')
+        self.gitrepo.cmd('git add foo')
+        self.gitrepo.cmd('git commit -m "add foo"')
+        self.gitrepo.cmd('git push origin w/5.1/feature/foo')
+
+        self.handle(pr.id,
+                    options=self.bypass_all_but(['bypass_build_status']))
+
+        self.gitrepo.cmd('git checkout development/5.1')
+        self.gitrepo.cmd('git tag 5.1.4')
+        self.gitrepo.cmd(
+            'git push origin :stabilization/5.1.4 :development/5.1 --tags')
+
+        with self.assertRaises(exns.SuccessMessage):
+            self.handle(pr.id, options=self.bypass_all, backtrace=True)
+
+        self.gitrepo.cmd('git fetch')
+        self.gitrepo.cmd('git merge-base --is-ancestor origin/feature/foo '
+                         'origin/development/6.0')
+
 
 class TestQueueing(RepositoryTests):
     """Tests which validate all things related to the merge queue.
