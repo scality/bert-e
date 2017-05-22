@@ -47,7 +47,13 @@ class Repository(object):
         self._remote_branches = dict()
 
     def delete(self):
-        rmtree(self.tmp_directory)
+        def onerror_cb(func, path, excinfo):
+            errtype, *_ = excinfo
+            LOG.warning(
+                'Exception %s raised while removing %s.', errtype, path
+            )
+
+        rmtree(self.tmp_directory, onerror=onerror_cb)
         self.tmp_directory = None
         self.cmd_directory = None
 
