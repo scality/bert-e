@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 ## [3.1.3] - 2017-05-22
 # Fixed
 - Log traceback of unknown errors
+- Errors during rmtree (local clone reset) used to crash the jobs
+# Added
+- Bert-E can send exceptions to Sentry
+- System test relative to development branch deletion
+- System test relative to stabilization branch addition
 
 ## [3.1.2] - 2017-05-09
 # Fixed
@@ -15,7 +20,6 @@ All notable changes to this project will be documented in this file.
 - Bert-E's REST API was bootstrapped
 - REST API 'rebuild_queues' command
 - JIRA checks can be bypassed according to the source branch prefix (e.g. "documentation")
-- Bert-E can send exceptions to Sentry
 # Fixed
 - Bert-E no longer crashes silently when encountering an unknown issue type
 

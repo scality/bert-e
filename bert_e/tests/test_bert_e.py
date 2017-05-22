@@ -2580,7 +2580,7 @@ tasks:
             Wake up the robot on the PR with bypass_all
 
         Expected result:
-            The PR gets merged
+            The PR gets merged into development/4.3 and development/6.0
 
         """
 
@@ -2608,6 +2608,44 @@ tasks:
             self.handle(pr.id, options=self.bypass_all, backtrace=True)
 
         self.gitrepo.cmd('git fetch')
+        self.gitrepo.cmd('git merge-base --is-ancestor origin/feature/foo '
+                         'origin/development/4.3')
+        self.gitrepo.cmd('git merge-base --is-ancestor origin/feature/foo '
+                         'origin/development/6.0')
+
+    def test_stabilization_branch_addition(self):
+        """Check that Bert-E survives to the addition of a stab branch.
+
+        Steps:
+            Delete stabilization/6.0.0
+            Create a PR targetting development/4.3
+            Let the robot create the integration cascade
+            Add a stabilization/6.0.0 branch
+            Wake up the robot on the PR with bypass_all
+
+        Expected result:
+            The PR gets merged into development/4.3, development/5.1
+            and development/6.0.
+
+        """
+        self.gitrepo.cmd('git push origin :stabilization/6.0.0')
+        pr = self.create_pr('feature/foo', 'development/4.3')
+        self.handle(pr.id,
+                    options=self.bypass_all_but(['bypass_build_status']))
+
+        # Create a stabilization/6.0.0 branch on top of development/6.0
+        self.gitrepo.cmd('git fetch --prune')
+        self.gitrepo.cmd('git checkout -B stabilization/6.0.0 development/6.0')
+        self.gitrepo.cmd('git push -u origin stabilization/6.0.0')
+
+        with self.assertRaises(exns.SuccessMessage):
+            self.handle(pr.id, options=self.bypass_all, backtrace=True)
+
+        self.gitrepo.cmd('git fetch')
+        self.gitrepo.cmd('git merge-base --is-ancestor origin/feature/foo '
+                         'origin/development/4.3')
+        self.gitrepo.cmd('git merge-base --is-ancestor origin/feature/foo '
+                         'origin/development/5.1')
         self.gitrepo.cmd('git merge-base --is-ancestor origin/feature/foo '
                          'origin/development/6.0')
 
