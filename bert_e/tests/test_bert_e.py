@@ -44,6 +44,8 @@ from bert_e.settings import setup_settings
 from bert_e.workflow import gitwaterflow as gwf
 from bert_e.workflow import git_utils
 from bert_e.workflow.gitwaterflow import branches as gwfb
+from bert_e.workflow.gitwaterflow import integration as gwfi
+from bert_e.workflow.gitwaterflow import queueing as gwfq
 
 from .mocks import jira as jira_api_mock
 
@@ -2883,8 +2885,8 @@ class TestQueueing(RepositoryTests):
 
     def test_queueing_standard_problem_without_octopus(self):
         # monkey patch to skip octopus merge in favor of regular 2-way merges
-        octopus_merge = git_utils.octopus_merge
-        git_utils.octopus_merge = git_utils.consecutive_merge
+        gwfi.octopus_merge = git_utils.consecutive_merge
+        gwfq.octopus_merge = git_utils.consecutive_merge
 
         try:
             qbranches = self.submit_problem(self.standard_problem)
@@ -2896,7 +2898,8 @@ class TestQueueing(RepositoryTests):
             self.assertEqual(qc.mergeable_prs, [1, 4, 5, 7])
             self.assertEqual(qc.mergeable_queues, self.standard_solution)
         finally:
-            git_utils.octopus_merge = octopus_merge
+            gwfi.octopus_merge = git_utils.octopus_merge
+            gwfq.octopus_merge = git_utils.octopus_merge
 
     def test_queueing_last_pr_build_not_started(self):
         problem = deepcopy(self.standard_problem)
@@ -3877,8 +3880,8 @@ class TaskQueueTests(RepositoryTests):
 
     def test_status_with_queue_without_octopus(self):
         # monkey patch to skip octopus merge in favor of regular 2-way merges
-        octopus_merge = git_utils.octopus_merge
-        git_utils.octopus_merge = git_utils.consecutive_merge
+        gwfi.octopus_merge = git_utils.consecutive_merge
+        gwfq.octopus_merge = git_utils.consecutive_merge
 
         try:
             self.init_berte(options=self.bypass_all)
@@ -3913,7 +3916,8 @@ class TaskQueueTests(RepositoryTests):
             self.assertEqual(len(merged_pr), 1)
             self.assertEqual(merged_pr[0]['id'], 1)
         finally:
-            git_utils.octopus_merge = octopus_merge
+            gwfi.octopus_merge = git_utils.octopus_merge
+            gwfq.octopus_merge = git_utils.octopus_merge
 
     def test_rebuild_queues(self):
         self.init_berte(options=self.bypass_all)
