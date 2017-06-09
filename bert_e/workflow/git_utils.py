@@ -20,6 +20,42 @@ from bert_e.lib.retry import RetryHandler
 LOG = logging.getLogger(__name__)
 
 
+def robust_merge(dst: git.Branch, src1: git.Branch, src2: git.Branch):
+    """'Best-effort' octopus merge.
+
+    Perform both the merge using octopus and consecutive strategies.
+    If the resulting branches differ, keep the result of consecutive merges.
+    Otherwise, keep the octopus merge.
+
+    """
+    tmp_oct = git.Branch(dst.repo, 'tmp/octopus/{}'.format(dst))
+    tmp_cns = git.Branch(dst.repo, 'tmp/normal/{}'.format(dst))
+
+    tmp_oct.create(dst, do_push=False)
+    tmp_cns.create(dst, do_push=False)
+
+    oct_conflict = None
+
+    try:
+        octopus_merge(tmp_oct, src1, src2)
+    except git.MergeFailedException as err:
+        oct_conflict = err
+
+    consecutive_merge(tmp_cns, src1, src2)
+
+    if oct_conflict is not None:
+        dst.merge(tmp_cns)
+    elif tmp_cns.differs(tmp_oct):
+        LOG.warning('Octopus merge yielded a different result than consecutive'
+                    ' merges.')
+        dst.merge(tmp_cns)
+    else:
+        dst.merge(tmp_oct)
+
+    tmp_oct.remove()
+    tmp_cns.remove()
+
+
 def octopus_merge(dst: git.Branch, src1: git.Branch, src2: git.Branch):
     """Try a 3-way octopus merge.
 
@@ -35,11 +71,11 @@ def octopus_merge(dst: git.Branch, src1: git.Branch, src2: git.Branch):
         dst.merge(src1, src2)
     except git.MergeFailedException as err:
         try:
-            dst.reset(False)
+            dst.reset(False, False)
             dst.merge(src2, src1)
         except git.MergeFailedException:
-            dst.reset(False)
-            consecutive_merge(dst, src1, src2)
+            dst.reset(False, False)
+            raise err
         except Exception:
             raise err
 
@@ -58,7 +94,7 @@ def consecutive_merge(dst: git.Branch, src1: git.Branch, src2: git.Branch):
         dst.merge(src2)
     except git.MergeFailedException as err:
         try:
-            dst.reset(False)
+            dst.reset(False, False)
             dst.merge(src2)
             dst.merge(src1)
         except git.MergeFailedException:

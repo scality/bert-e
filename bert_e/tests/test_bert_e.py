@@ -37,7 +37,7 @@ from bert_e.git_host.factory import client_factory
 from bert_e.job import handler, CommitJob, Job, PullRequestJob
 from bert_e.lib import jira as jira_api
 from bert_e.lib.git import Repository as GitRepository
-from bert_e.lib.git import Branch
+from bert_e.lib.git import Branch, MergeFailedException
 from bert_e.lib.retry import RetryHandler
 from bert_e.lib.simplecmd import CommandError, cmd
 from bert_e.settings import setup_settings
@@ -2145,8 +2145,8 @@ admins:
         def disturb_the_kraken(dst, src1, src2):
             raise KrakenDisturbed()
 
-        gwfi.octopus_merge = disturb_the_kraken
-        gwfq.octopus_merge = disturb_the_kraken
+        octopus_merge = git_utils.octopus_merge
+        git_utils.octopus_merge = disturb_the_kraken
 
         try:
             # Check the merges are octopus without the option
@@ -2163,8 +2163,68 @@ admins:
                             options=self.bypass_all + ['no_octopus'],
                             backtrace=True)
         finally:
-            gwfi.octopus_merge = git_utils.octopus_merge
-            gwfq.octopus_merge = git_utils.octopus_merge
+            git_utils.octopus_merge = octopus_merge
+
+    def test_fallback_to_consecutive_merge(self):
+        def disturb_the_kraken(dst, src1, src2):
+            raise MergeFailedException()
+
+        octopus_merge = git_utils.octopus_merge
+        git_utils.octopus_merge = disturb_the_kraken
+
+        try:
+            pr = self.create_pr('bugfix/test-merge', 'development/4.3')
+            with self.assertRaises(exns.SuccessMessage):
+                self.handle(pr.id, options=self.bypass_all, backtrace=True)
+        finally:
+            git_utils.octopus_merge = octopus_merge
+
+    def test_robust_merge(self):
+        """Simulate a successful incorrect octopus merge.
+
+        Check that the PR was still correctly merged
+        (using sequential strategy).
+
+        """
+        octopus_merge = git_utils.octopus_merge
+
+        sha1 = None
+
+        def wrong_octopus_merge(dst, src1, src2):
+            octopus_merge(dst, src1, src2)
+            dst.checkout()
+            dst.repo.cmd('echo plop >> tmp')
+            dst.repo.cmd('git add tmp')
+            dst.repo.cmd('git commit -m "extra commit"')
+            nonlocal sha1
+            sha1 = dst.repo.cmd('git log -n 1 --pretty="%H"')
+
+        git_utils.octopus_merge = wrong_octopus_merge
+
+        try:
+            pr = self.create_pr('bugfix/test-merge', 'development/4.3')
+            with self.assertRaises(exns.SuccessMessage):
+                self.handle(pr.id, options=self.bypass_all, backtrace=True)
+
+            assert sha1 is not None  # the function was called
+
+            self.gitrepo.cmd('git fetch --prune')
+            self.gitrepo.cmd('git merge-base --is-ancestor '
+                             'origin/development/4.3 '
+                             'origin/development/6.0')
+            self.gitrepo.cmd('git merge-base --is-ancestor '
+                             'origin/bugfix/test-merge '
+                             'origin/development/4.3')
+            self.gitrepo.cmd('git merge-base --is-ancestor '
+                             'origin/bugfix/test-merge '
+                             'origin/development/6.0')
+
+            with self.assertRaises(CommandError):
+                self.gitrepo.cmd('git merge-base --is-ancestor {} '
+                                 'origin/development/6.0'
+                                 .format(sha1))
+        finally:
+            git_utils.octopus_merge = octopus_merge
 
     def test_bitbucket_lag_on_pr_status(self):
         """Bitbucket can be a bit long to update a merged PR's status.

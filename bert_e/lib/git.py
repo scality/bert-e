@@ -256,7 +256,8 @@ class Branch(object):
 
     def remove(self, do_push=False):
         # security check since Bert-E is all-powerful on the repository
-        if not (self.name.startswith('w/') or self.name.startswith('q/')):
+        if not (self.name.startswith('w/') or self.name.startswith('q/') or
+                self.name.startswith('tmp/')):
             raise ForbiddenOperation('cannot delete branch %s' %
                                      self.name)
 
@@ -276,6 +277,11 @@ class Branch(object):
 
     def __str__(self):
         return self.name
+
+    def differs(self, other):
+        res = self.repo.cmd('git diff %s %s', self.name, other,
+                            universal_newlines=False)
+        return bool(res)
 
 
 class Commit(object):
