@@ -1236,6 +1236,14 @@ admins:
     def test_reset_command(self):
         pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
         self.handle(pr.id, options=['bypass_jira_check'])
+
+        self.gitrepo.cmd('git checkout bugfix/TEST-00001')
+        self.gitrepo.cmd('git pull')
+        self.gitrepo.cmd('touch toto.txt')
+        self.gitrepo.cmd('git add toto.txt')
+        self.gitrepo.cmd('git commit --amend -m "Modified commit"')
+        self.gitrepo.cmd('git push -f')
+
         pr.add_comment("@{} reset".format(self.args.robot_username))
         with self.assertRaises(exns.ResetComplete):
             self.handle(pr.id, options=['bypass_jira_check'], backtrace=True)
