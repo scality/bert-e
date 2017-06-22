@@ -1,7 +1,9 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
-## [3.1.4] - 2017-06-09
+## [3.1.4] - 2017-06-22
+# Fixed
+- the user is instructed to track remote counterparts of locally created branches
 # Added
 - no_octopus option to disable octopus merge (do consecutive merge instead)
 - robust_merge strategy to perform both (and keep the best result from) octopus and consecutive merges.

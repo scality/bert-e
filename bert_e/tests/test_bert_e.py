@@ -946,7 +946,7 @@ class TestBertE(RepositoryTests):
                 "git merge origin/improvement/TEST-0006",
                 e.msg)
             self.assertIn(
-                "git push origin HEAD:w/5.1/improvement/TEST-0006",
+                "git push -u origin w/5.1/improvement/TEST-0006",
                 e.msg)
         else:
             self.fail("No conflict detected.")

@@ -56,7 +56,7 @@ Here are the steps to resolve this conflict:
 {%- endif %}
  $ git merge origin/{{ source.name }}
  $ # <intense conflict resolution>
- $ git push origin HEAD:{{ wbranch.name }}
+ $ git push -u origin {{ wbranch.name }}
 ```
 {%endif%}
 {% endblock %}
