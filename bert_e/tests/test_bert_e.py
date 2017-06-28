@@ -939,15 +939,10 @@ class TestBertE(RepositoryTests):
                 e.msg)
             # Bert-E MUST instruct the user to modify the integration
             # branch with the same target as the original PR
-            self.assertIn(
-                "git checkout -B w/5.1/improvement/TEST-0006",
-                e.msg)
-            self.assertIn(
-                "git merge origin/improvement/TEST-0006",
-                e.msg)
-            self.assertIn(
-                "git push -u origin w/5.1/improvement/TEST-0006",
-                e.msg)
+            self.assertIn("git checkout -B w/5.1/improvement/TEST-0006", e.msg)
+            self.assertIn("git merge origin/improvement/TEST-0006", e.msg)
+            self.assertIn("git push -u origin w/5.1/improvement/TEST-0006",
+                          e.msg)
         else:
             self.fail("No conflict detected.")
 
@@ -2743,6 +2738,59 @@ tasks:
                          'origin/development/5.1')
         self.gitrepo.cmd('git merge-base --is-ancestor origin/feature/foo '
                          'origin/development/6.0')
+
+    def test_stabilization_and_dev_branch_addition(self):
+        """Check that Bert-E survives to the addition of middle branches.
+
+        Steps:
+            Delete dev/5.1 and stab/5.1.4
+            Create a PR targetting dev/4.3 and fully merge it
+            Create a second PR targetting dev/4.3
+            Let the robot create the integration cascade
+            Add a dev/5.1 and stab/5.1.4 branch
+            Wake up the robot on the PR with bypass_all
+
+        Expected result:
+            - BranchHistoryMismatch
+            - When resetting the queues and adding a force_reset command,
+            the second PR gets merged
+
+        """
+        self.gitrepo.cmd('git push origin '
+                         ':stabilization/5.1.4 :development/5.1')
+        pr = self.create_pr('feature/foo', 'development/4.3')
+        with self.assertRaises(exns.SuccessMessage):
+            self.handle(pr.id, options=self.bypass_all, backtrace=True)
+
+        self.gitrepo.cmd('git fetch')
+        self.gitrepo.cmd('git merge-base --is-ancestor origin/feature/foo '
+                         'origin/development/4.3')
+        self.gitrepo.cmd('git merge-base --is-ancestor origin/feature/foo '
+                         'origin/development/6.0')
+
+        pr = self.create_pr('feature/bar', 'development/4.3')
+        self.handle(pr.id,
+                    options=self.bypass_all_but(['bypass_build_status']))
+
+        self.gitrepo.cmd('git fetch --prune')
+        self.gitrepo.cmd('git checkout -B development/5.1'
+                         ' origin/development/4.3')
+        self.gitrepo.cmd('git checkout -B stabilization/5.1.4'
+                         ' development/5.1')
+        self.gitrepo.cmd('git push -u origin '
+                         'development/5.1 stabilization/5.1.4')
+
+        if not self.args.disable_queues:
+            self.gitrepo.cmd('git push origin :q/4.3 :q/6.0')
+
+        with self.assertRaises(exns.BranchHistoryMismatch):
+            self.handle(pr.id, options=self.bypass_all, backtrace=True)
+
+        pr.add_comment("@%s force_reset" % self.args.robot_username)
+        self.handle(pr.id, options=self.bypass_all)
+
+        with self.assertRaises(exns.SuccessMessage):
+            self.handle(pr.id, options=self.bypass_all, backtrace=True)
 
 
 class TestQueueing(RepositoryTests):
