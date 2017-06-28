@@ -18,7 +18,6 @@ The module holds the implementation of all commands/options users can send
 BertE through comments in the pull requests.
 
 """
-
 from bert_e.exceptions import (
     CommandNotImplemented, LossyResetWarning, ResetComplete, HelpMessage,
     StatusReport, IncorrectCommandSyntax
@@ -82,14 +81,28 @@ def _reset(job, force=False):
                             active_options=job.active_options)
 
     lossy_reset = None
+    src, dst = job.git.src_branch, job.git.dst_branch
+    pr_dst = dst.get_latest_commit()
     for branch in wbranches:
         src, dst = branch.src_branch, branch.dst_branch
-        feature = set(src.get_commit_diff(dst))
+
+        # Add the tip from the oldest development branch into the 'feature'
+        # set, in order to tolerate commits that have been amended
+        feature = set(src.get_commit_diff(dst)).union({pr_dst})
 
         # wcommits: commits that belong to the integration branches but not
         # the feature or development branches.
         wcommits = set(branch.get_commit_diff(dst)) - feature
-        if any(rev.author != job.settings.robot_username for rev in wcommits):
+        for rev in wcommits:
+            if rev.author == job.settings.robot_username:
+                continue
+
+            # Tolerate amends of the feature branch as they are probably
+            # the reason why the user wants to reset the w/ branches.
+            if len(rev.parents) == 1 and rev.parents[0] in feature:
+                feature.add(rev)
+                continue
+
             lossy_reset = LossyResetWarning(active_options=job.active_options)
 
     if lossy_reset and not force:

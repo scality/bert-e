@@ -1245,8 +1245,10 @@ admins:
         self.gitrepo.cmd('git push -f')
 
         pr.add_comment("@{} reset".format(self.args.robot_username))
+
         with self.assertRaises(exns.ResetComplete):
             self.handle(pr.id, options=['bypass_jira_check'], backtrace=True)
+
         # Check what happens if doing it again
         pr.add_comment("@{} reset".format(self.args.robot_username))
         with self.assertRaises(exns.ResetComplete):
