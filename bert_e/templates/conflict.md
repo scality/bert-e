@@ -1,7 +1,7 @@
 {% extends "message.md" %}
 
 {% block title -%}
-Conflict during merge
+Conflict
 {% endblock %}
 
 {% block message %}
