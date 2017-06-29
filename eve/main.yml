@@ -61,4 +61,5 @@ stages:
           command: coverage report bert_e/*.py
                                    bert_e/api/*.py
                                    bert_e/bin/*.py
-                                   bert_e/tests/*.py
+                                   bert_e/lib/*.py
+                                   bert_e/workflow/gitwaterflow/*.py

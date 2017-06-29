@@ -81,28 +81,45 @@ def _reset(job, force=False):
                             active_options=job.active_options)
 
     lossy_reset = None
-    src, dst = job.git.src_branch, job.git.dst_branch
-    pr_dst = dst.get_latest_commit()
     for branch in wbranches:
         src, dst = branch.src_branch, branch.dst_branch
 
-        # Add the tip from the oldest development branch into the 'feature'
-        # set, in order to tolerate commits that have been amended
-        feature = set(src.get_commit_diff(dst)).union({pr_dst})
+        # Build a 'feature' set that is ultimately going to contain commits
+        # from the current feature branch + those from potentially earlier
+        # (pre-rebase) versions of the feature branch
+        feature = set(src.get_commit_diff(dst))
 
-        # wcommits: commits that belong to the integration branches but not
-        # the feature or development branches.
-        wcommits = set(branch.get_commit_diff(dst)) - feature
+        # Analyse commits from the integration branch
+        wcommits = reversed(list(branch.get_commit_diff(dst)))
         for rev in wcommits:
+            if rev in feature:
+                continue
+
             if rev.author == job.settings.robot_username:
                 continue
 
-            # Tolerate amends of the feature branch as they are probably
-            # the reason why the user wants to reset the w/ branches.
-            if len(rev.parents) == 1 and rev.parents[0] in feature:
-                feature.add(rev)
-                continue
+            # At this point, we want to avoid blocking on commits that were
+            # part of the feature branch in the past. Given the branching
+            # algorithm:
+            # - if the commit is not a merge (has only one parent)
+            # - and if it is based on either a commit from the development
+            #   branch or the current 'feature' set.
+            #
+            # Then this commit once belonged to the feature branch,
+            # so we add it to the 'feature' set.
+            if len(rev.parents) == 1:
+                parent = rev.parents[0]
+                if parent in feature or dst.includes_commit(parent):
+                    feature.add(rev)
+                    continue
 
+            # If we reach this point:
+            #
+            # The current commit is from the PR author, and it is either a
+            # merge commit (conflict resolution) or it was made from the
+            # integration branch.
+            #
+            # Deleting it would be a loss for the user.
             lossy_reset = LossyResetWarning(active_options=job.active_options)
 
     if lossy_reset and not force:
