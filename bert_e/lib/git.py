@@ -333,7 +333,11 @@ class Commit(object):
         return hash(self.sha1)
 
     def __eq__(self, other):
-        return isinstance(other, Commit) and self.sha1 == other.sha1
+        if isinstance(other, Commit):
+            return self.sha1 == other.sha1
+        elif isinstance(other, str):
+            # Accept to compare Commit objects and str sha1s
+            return self.sha1 == other
 
 
 class GitException(Exception):

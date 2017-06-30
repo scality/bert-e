@@ -1236,13 +1236,132 @@ admins:
     def test_reset_command(self):
         pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
         self.handle(pr.id, options=['bypass_jira_check'])
+
+        self.gitrepo.cmd('git checkout bugfix/TEST-00001')
+        self.gitrepo.cmd('git pull')
+        self.gitrepo.cmd('touch toto.txt')
+        self.gitrepo.cmd('git add toto.txt')
+        self.gitrepo.cmd('git commit --amend -m "Modified commit"')
+        self.gitrepo.cmd('git push -f')
+
         pr.add_comment("@{} reset".format(self.args.robot_username))
+
         with self.assertRaises(exns.ResetComplete):
             self.handle(pr.id, options=['bypass_jira_check'], backtrace=True)
+
         # Check what happens if doing it again
         pr.add_comment("@{} reset".format(self.args.robot_username))
         with self.assertRaises(exns.ResetComplete):
             self.handle(pr.id, backtrace=True)
+
+    def test_reset_command_with_deep_rebase(self):
+        pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
+        self.gitrepo.cmd('git checkout bugfix/TEST-00001')
+        self.gitrepo.cmd('git pull')
+        self.gitrepo.cmd('touch toto.txt')
+        self.gitrepo.cmd('git add toto.txt')
+        self.gitrepo.cmd('git commit -m "Original commit 1"')
+        self.gitrepo.cmd('touch tata.txt')
+        self.gitrepo.cmd('git add tata.txt')
+        self.gitrepo.cmd('git commit -m "Original commit 2"')
+        self.gitrepo.cmd('touch tutu.txt')
+        self.gitrepo.cmd('git add tutu.txt')
+        self.gitrepo.cmd('git commit -m "Original commit 3"')
+        self.gitrepo.cmd('git push origin bugfix/TEST-00001')
+
+        self.handle(pr.id, options=['bypass_jira_check'])
+
+        # Now rebase (reset hard + create a new commit)
+        self.gitrepo.cmd('git checkout bugfix/TEST-00001')
+        self.gitrepo.cmd('git pull')
+        self.gitrepo.cmd('git reset --hard HEAD~2')
+        self.gitrepo.cmd('touch titi.txt')
+        self.gitrepo.cmd('git add titi.txt')
+        self.gitrepo.cmd('git commit -m "New commit"')
+        self.gitrepo.cmd('git push -f')
+
+        pr.add_comment("@{} reset".format(self.args.robot_username))
+
+        with self.assertRaises(exns.ResetComplete):
+            self.handle(pr.id, options=['bypass_jira_check'], backtrace=True)
+
+    def test_reset_command_with_development_branch_update(self):
+        pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
+        self.gitrepo.cmd('git checkout bugfix/TEST-00001')
+        self.gitrepo.cmd('git pull')
+        self.gitrepo.cmd('touch toto.txt')
+        self.gitrepo.cmd('git add toto.txt')
+        self.gitrepo.cmd('git commit -m "Original commit 1"')
+        self.gitrepo.cmd('touch tata.txt')
+        self.gitrepo.cmd('git add tata.txt')
+        self.gitrepo.cmd('git commit -m "Original commit 2"')
+        self.gitrepo.cmd('touch tutu.txt')
+        self.gitrepo.cmd('git add tutu.txt')
+        self.gitrepo.cmd('git commit -m "Original commit 3"')
+        self.gitrepo.cmd('git push origin bugfix/TEST-00001')
+
+        self.handle(pr.id, options=['bypass_jira_check'])
+
+        # Merge another PR onto the development branches
+        pr2 = self.create_pr('bugfix/TEST-00002', 'development/4.3')
+        self.handle(pr2.id, options=self.bypass_all)
+
+        # Now rebase the feature branch onto development/4.3 and do a reset
+        self.gitrepo.cmd('git fetch')
+        self.gitrepo.cmd('git checkout development/4.3')
+        self.gitrepo.cmd('git pull origin development/4.3')
+        self.gitrepo.cmd('git checkout bugfix/TEST-00001')
+        self.gitrepo.cmd('git pull')
+        self.gitrepo.cmd('git rebase development/4.3')
+        self.gitrepo.cmd('git reset --hard HEAD~2')
+        self.gitrepo.cmd('touch titi.txt')
+        self.gitrepo.cmd('git add titi.txt')
+        self.gitrepo.cmd('git commit -m "New commit"')
+        self.gitrepo.cmd('git push -f')
+
+        pr.add_comment("@{} reset".format(self.args.robot_username))
+
+        with self.assertRaises(exns.ResetComplete):
+            self.handle(pr.id, options=['bypass_jira_check'], backtrace=True)
+
+    def test_reset_command_with_deep_rebase_and_wbranch_update(self):
+        pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
+        self.gitrepo.cmd('git checkout bugfix/TEST-00001')
+        self.gitrepo.cmd('git pull')
+        self.gitrepo.cmd('touch toto.txt')
+        self.gitrepo.cmd('git add toto.txt')
+        self.gitrepo.cmd('git commit -m "Original commit 1"')
+        self.gitrepo.cmd('touch tata.txt')
+        self.gitrepo.cmd('git add tata.txt')
+        self.gitrepo.cmd('git commit -m "Original commit 2"')
+        self.gitrepo.cmd('touch tutu.txt')
+        self.gitrepo.cmd('git add tutu.txt')
+        self.gitrepo.cmd('git commit -m "Original commit 3"')
+        self.gitrepo.cmd('git push origin bugfix/TEST-00001')
+
+        self.handle(pr.id, options=['bypass_jira_check'])
+
+        # Add a manual commit on one of the integration branches
+        self.gitrepo.cmd('git fetch')
+        self.gitrepo.cmd('git checkout w/6.0/bugfix/TEST-00001')
+        self.gitrepo.cmd('echo plop > toto.txt')
+        self.gitrepo.cmd('git add toto.txt')
+        self.gitrepo.cmd('git commit -m "Integration commit 1"')
+        self.gitrepo.cmd('git push origin w/6.0/bugfix/TEST-00001')
+
+        # Now rebase (reset hard + create a new commit)
+        self.gitrepo.cmd('git checkout bugfix/TEST-00001')
+        self.gitrepo.cmd('git pull')
+        self.gitrepo.cmd('git reset --hard HEAD~2')
+        self.gitrepo.cmd('touch titi.txt')
+        self.gitrepo.cmd('git add titi.txt')
+        self.gitrepo.cmd('git commit -m "New commit"')
+        self.gitrepo.cmd('git push -f')
+
+        pr.add_comment("@{} reset".format(self.args.robot_username))
+
+        with self.assertRaises(exns.LossyResetWarning):
+            self.handle(pr.id, options=['bypass_jira_check'], backtrace=True)
 
     def test_reset_command_and_bb_fails(self):
         pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
