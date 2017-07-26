@@ -103,7 +103,7 @@ def consecutive_merge(dst: git.Branch, src1: git.Branch, src2: git.Branch):
             raise err
 
 
-def push(repo: git.Repository, branches=(), prune=False):
+def push(repo: git.Repository, branches=None, prune=False):
     """Push multiple branches at once. Retry up to 30 seconds before giving up.
 
     Args:
@@ -122,7 +122,7 @@ def push(repo: git.Repository, branches=(), prune=False):
                 catch=git.PushFailedException,
                 fail_msg="Failed to push changes"
             )
-    else:
+    elif branches is None:
         with retry:
             retry.run(
                 repo.push_all,

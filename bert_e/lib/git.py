@@ -235,11 +235,15 @@ class Branch(object):
     def checkout(self):
         self.repo.checkout(self.name)
 
-    def reset(self, do_checkout=True, origin=True):
+    def reset(self, do_checkout=True, origin=True, ignore_missing=False):
         if do_checkout:
             self.checkout()
-        self.repo.cmd('git reset --hard %s',
-                      'origin/' + self.name if origin else self.name)
+        try:
+            self.repo.cmd('git reset --hard %s',
+                          'origin/' + self.name if origin else self.name)
+        except CommandError:
+            if not ignore_missing:
+                raise
 
     def push(self):
         self.repo.push(self.name)

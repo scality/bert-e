@@ -145,6 +145,11 @@ def _handle_pull_request(job: PullRequestJob):
 
     try:
         update_integration_branches(job, wbranches)
+    except messages.Conflict as ex:
+        # When a conflict arise on a wbranch, only push the first wbranches up
+        # to (and not including) the conflicting one
+        push(job.git.repo, wbranches[1:wbranches.index(ex.kwargs['wbranch'])])
+        raise
     except:
         raise
     else:
@@ -153,16 +158,8 @@ def _handle_pull_request(job: PullRequestJob):
             # we want to keep the integration branches as they are,
             # hense reset branches to avoid a push later in the code
             for branch in wbranches:
-                branch.reset()
-    finally:
-        # Do not push empty integration branches as this would trigger new
-        # builds on the CI server and possibly an overwrite of artifacts, since
-        # empty integration w/x.y branches basically point at their target
-        # development/x.y branches.
-        to_push = [branch for branch in wbranches[1:]
-                   if list(branch.get_commit_diff(branch.dst_branch))]
-        if to_push:
-            push(job.git.repo, to_push)
+                branch.reset(ignore_missing=True)
+        push(job.git.repo, wbranches[1:])
 
     child_prs = create_integration_pull_requests(job, wbranches)
 

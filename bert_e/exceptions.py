@@ -31,6 +31,7 @@ class TemplateException(BertE_Exception):
     dont_repeat_if_in_history = -1
 
     def __init__(self, **kwargs):
+        self.kwargs = kwargs
         assert 'active_options' in kwargs
         assert self.code != 0
         assert self.template

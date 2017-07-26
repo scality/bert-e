@@ -645,11 +645,13 @@ class RepositoryTests(unittest.TestCase):
             from_branch,
             reviewers=None,
             file_=True,
-            backtrace=False):
+            backtrace=False,
+            reuse_branch=False):
         if reviewers is None:
             reviewers = [self.creator]
-        create_branch(self.gitrepo, feature_branch, from_branch=from_branch,
-                      file_=file_)
+        if not reuse_branch:
+            create_branch(self.gitrepo, feature_branch,
+                          from_branch=from_branch, file_=file_)
         pr = self.contributor_bb.create_pull_request(
             title='title',
             name='name',
@@ -886,13 +888,15 @@ class TestBertE(RepositoryTests):
                 self.handle(pr.id, backtrace=True)
 
     def test_conflict(self):
-        pr1 = self.create_pr('bugfix/TEST-0006', 'development/5.1',
+        pr1 = self.create_pr('bugfix/TEST-0006', 'development/6.0',
                              file_='toto.txt')
-        pr2 = self.create_pr('bugfix/TEST-0006-other', 'development/5.1',
+        pr2 = self.create_pr('bugfix/TEST-0006-other', 'development/6.0',
                              file_='toto.txt')
-        pr3 = self.create_pr('improvement/TEST-0006', 'development/5.1',
+        pr3 = self.create_pr('improvement/TEST-0006', 'development/6.0',
                              file_='toto.txt')
-        pr4 = self.create_pr('improvement/TEST-0006-other', 'development/4.3',
+        pr4 = self.create_pr('improvement/TEST-0006-other', 'development/5.1',
+                             file_='toto.txt')
+        pr5 = self.create_pr('improvement/TEST-0006-last', 'development/4.3',
                              file_='toto.txt')
 
         # Start PR2 (create integration branches) first
@@ -900,13 +904,13 @@ class TestBertE(RepositoryTests):
         with self.assertRaises(exns.SuccessMessage):
             self.handle(pr1.id, options=self.bypass_all, backtrace=True)
 
-        # Pursue PR2 (conflict on branch development/5.1 vs. feature branch)
+        # Pursue PR2 (conflict on branch development/6.0 vs. feature branch)
         try:
             self.handle(pr2.id, options=self.bypass_all, backtrace=True)
         except exns.Conflict as e:
             self.assertIn(
                 'between your branch `bugfix/TEST-0006-other` and the\n'
-                'destination branch `development/5.1`.',
+                'destination branch `development/6.0`.',
                 e.msg)
             # Bert-E shouldn't instruct to edit any w/ integration branch
             self.assertIn('on **the feature branch** '
@@ -921,7 +925,7 @@ class TestBertE(RepositoryTests):
         except exns.Conflict as e:
             self.assertIn(
                 'between your branch `improvement/TEST-0006` and the\n'
-                'destination branch `development/5.1`',
+                'destination branch `development/6.0`',
                 e.msg)
             # Bert-E shouldn't instruct to edit any w/ integration branch
             self.assertIn('on **the feature branch** (`improvement/TEST-0006`',
@@ -934,21 +938,46 @@ class TestBertE(RepositoryTests):
             self.handle(pr4.id, options=self.bypass_all, backtrace=True)
         except exns.Conflict as e:
             self.assertIn(
-                '`w/5.1/improvement/TEST-0006-other` with contents from '
-                '`improvement/TEST-0006-other`\nand `development/5.1`',
+                '`w/6.0/improvement/TEST-0006-other` with contents from '
+                '`improvement/TEST-0006-other`\nand `development/6.0`',
                 e.msg)
             # Bert-E MUST instruct the user to modify the integration
             # branch with the same target as the original PR
-            self.assertIn("git checkout -B w/5.1/improvement/TEST-0006", e.msg)
+            self.assertIn("git checkout -B w/6.0/improvement/TEST-0006", e.msg)
             self.assertIn("git merge origin/improvement/TEST-0006", e.msg)
-            self.assertIn("git push -u origin w/5.1/improvement/TEST-0006",
+            self.assertIn("git push -u origin w/6.0/improvement/TEST-0006",
                           e.msg)
         else:
             self.fail("No conflict detected.")
 
-        # Check that the empty w/5.1 branch of pr4 wasn't pushed.
+        # Check that the empty w/6.0 branch of pr4 wasn't pushed.
         self.assertFalse(self.gitrepo.remote_branch_exists(
-            "w/5.1/improvement/TEST-0006-other", True))
+            "w/6.0/improvement/TEST-0006-other", True))
+
+        try:
+            self.handle(pr5.id, options=self.bypass_all, backtrace=True)
+        except exns.Conflict as e:
+            self.assertIn(
+                '`w/6.0/improvement/TEST-0006-last` with contents from '
+                '`w/5.1/improvement/TEST-0006-last`\nand `development/6.0`',
+                e.msg)
+            # Bert-E MUST instruct the user to modify the integration
+            # branch with the same target as the original PR
+            self.assertIn("git checkout -B w/6.0/improvement/TEST-0006", e.msg)
+            self.assertIn("git merge origin/w/5.1/improvement/TEST-0006",
+                          e.msg)
+            self.assertIn("git push -u origin w/6.0/improvement/TEST-0006",
+                          e.msg)
+        else:
+            self.fail("No conflict detected.")
+
+        # Check that the empty w/6.0 branch of pr5 wasn't pushed.
+        self.assertFalse(self.gitrepo.remote_branch_exists(
+            "w/6.0/improvement/TEST-0006-last", True))
+
+        # But that the w/5.1 branch of pr5 was.
+        self.assertTrue(self.gitrepo.remote_branch_exists(
+            "w/5.1/improvement/TEST-0006-last", True))
 
     def test_approvals(self):
         """Test approvals of author, reviewer and tester."""
@@ -2910,6 +2939,28 @@ tasks:
 
         with self.assertRaises(exns.SuccessMessage):
             self.handle(pr.id, options=self.bypass_all, backtrace=True)
+
+    def test_merge_again_in_earlier_dev_branch(self):
+        """Check Bert-E can handle merging again in an earlier dev branch.
+
+        Steps:
+            Create a PR targetting development/4.3
+            Create another PR with same branch targetting development/5.1
+            Merge the second PR with bypass_all
+            Merge the first PR with bypass_all
+
+        Expected result:
+            Both PRs get merged and the commit is available in development/4.3,
+            development/5.1 and development/6.0.
+
+        """
+        pr1 = self.create_pr('bugfix/TEST-0001', 'development/4.3')
+        pr2 = self.create_pr('bugfix/TEST-0001', 'development/5.1',
+                             reuse_branch=True)
+        with self.assertRaises(exns.SuccessMessage):
+            self.handle(pr2.id, options=self.bypass_all, backtrace=True)
+        with self.assertRaises(exns.SuccessMessage):
+            self.handle(pr1.id, options=self.bypass_all, backtrace=True)
 
 
 class TestQueueing(RepositoryTests):

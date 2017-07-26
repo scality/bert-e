@@ -1,6 +1,10 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [3.1.6] - 2017-07-27
+# Fixed
+- Fix second feature branch merge on earlier dev branch
+
 ## [3.1.5] - 2017-06-30
 # Added
 - A test to determine the behavior when adding a dev + stabilization branch
