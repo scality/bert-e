@@ -156,7 +156,7 @@ def _handle_pull_request(job: PullRequestJob):
         if job.settings.use_queue and in_sync:
             # In queue mode, in case no conflict is detected,
             # we want to keep the integration branches as they are,
-            # hense reset branches to avoid a push later in the code
+            # hence reset branches to avoid a push later in the code
             for branch in wbranches:
                 branch.reset(ignore_missing=True)
         push(job.git.repo, wbranches[1:])
