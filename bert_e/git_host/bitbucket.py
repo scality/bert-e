@@ -432,8 +432,16 @@ class Comment(BitBucketObject, base.AbstractComment):
                '$full_name/pullrequests/$pull_request_id/comments/$comment_id')
 
     def full_name(self):
-        return '%s/%s' % (self._json_data['pr_repo']['owner'],
-                          self._json_data['pr_repo']['slug'])
+        try:
+            # If the Comment was just created with a POST to bitbucket API, we
+            # have attributes readily available for this
+            return '%s/%s' % (self['pr_repo']['owner'],
+                              self['pr_repo']['slug'])
+        except KeyError:
+            # But if the Comment was retrieved with a GET to bitbucket API, we
+            # have nothing left but the url to guess the full_name
+            p = Path(urlparse(self['links']['self']['href']).path).resolve()
+            return '%s/%s' % p.parts[3:5]
 
     def add_task(self, msg):
         return Task(self.client, content=msg, full_name=self.full_name(),
@@ -452,7 +460,9 @@ class Comment(BitBucketObject, base.AbstractComment):
         return self.__class__(self.client, **response.json())
 
     def delete(self):
-        self._json_data['full_name'] = self.full_name()
+        self['full_name'] = self.full_name()
+        self['pull_request_id'] = self['pullrequest']['id']
+        self['comment_id'] = self['id']
         response = self.client.delete(Template(self.get_url)
                                       .substitute(self._json_data)
                                       .replace('/2.0/', '/1.0/'))
