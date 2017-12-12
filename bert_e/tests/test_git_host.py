@@ -231,6 +231,15 @@ class TestBasicFunctionality:
         assert all(comments[i].id < comments[i + 1].id
                    for i in range(len(comments) - 1))
 
+        # Delete a comment
+        comments[0].delete()
+        # Check deleted comments are not shown by default
+        assert len(comments) != len(list(pull_request.get_comments()))
+        # But can be on bitbucket
+        if workspace.host == 'bitbucket':
+            assert (len(comments) ==
+                    len(list(pull_request.get_comments(deleted=True))))
+
         cmt1, *_, cmt2 = comments
         assert cmt1.text == 'First comment'
         assert cmt2.text == 'Last comment'

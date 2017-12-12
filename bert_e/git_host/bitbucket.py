@@ -15,8 +15,9 @@
 import json
 import logging
 from collections import defaultdict
+from pathlib import Path
 from string import Template
-from urllib.parse import quote_plus as quote
+from urllib.parse import quote_plus as quote, urlparse
 
 from requests import HTTPError, Session
 from requests.auth import HTTPBasicAuth
@@ -328,11 +329,14 @@ class PullRequest(BitBucketObject, base.AbstractPullRequest):
         return Comment(self.client, content=msg, full_name=self.full_name(),
                        pull_request_id=self['id']).create()
 
-    def get_comments(self):
+    def get_comments(self, deleted=False):
         return sorted(
-            Comment.get_list(
-                self.client, full_name=self.full_name(),
-                pull_request_id=self.id),
+            (comment
+             for comment
+             in Comment.get_list(
+                 self.client, full_name=self.full_name(),
+                 pull_request_id=self.id)
+             if not comment.deleted or deleted),
             key=lambda c: c.id
         )
 
@@ -479,6 +483,10 @@ class Comment(BitBucketObject, base.AbstractComment):
     @property
     def id(self):
         return self['id']
+
+    @property
+    def deleted(self):
+        return self['deleted']
 
 
 class Task(BitBucketObject, base.AbstractTask):
