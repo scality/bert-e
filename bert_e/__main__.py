@@ -21,7 +21,7 @@ from threading import Thread
 
 from . import server
 from .bert_e import BertE
-from .settings import setup_settings
+from .settings import setup_settings, BertEContextFilter
 
 
 def serve():
@@ -49,7 +49,13 @@ def serve():
 
     server.BERTE = BertE(settings)
 
-    logging.basicConfig(level=logging.DEBUG if args.verbose else logging.INFO)
+    logging.basicConfig(
+        level=logging.DEBUG if args.verbose else logging.INFO,
+        format='%(instance)s - %(levelname)-8s - %(name)s: %(message)s'
+    )
+    log_filter = BertEContextFilter(settings)
+    for handler in logging.root.handlers:
+        handler.addFilter(log_filter)
     worker = Thread(target=server.bert_e_launcher)
     worker.daemon = True
     worker.start()

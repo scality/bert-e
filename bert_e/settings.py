@@ -1,11 +1,29 @@
 from os.path import exists
 
 import yaml
+import logging
 from marshmallow import Schema, fields, post_load
 
 from bert_e.exceptions import (IncorrectSettingsFile, MalformedSettings,
                                SettingsFileNotFound)
 from bert_e.lib.settings_dict import SettingsDict
+
+
+class BertEContextFilter(logging.Filter):
+    """
+    This is a filter which will inject Bert-E contextual
+    information into the log.
+    """
+    def __init__(self, settings):
+        self.settings = settings
+
+    def filter(self, record):
+        record.instance = "{host}-{owner}-{slug}".format(
+            host=self.settings['repository_host'],
+            owner=self.settings['repository_owner'],
+            slug=self.settings['repository_slug']
+        )
+        return True
 
 
 class SettingsSchema(Schema):
