@@ -19,7 +19,7 @@ from pathlib import Path
 from string import Template
 from urllib.parse import quote_plus as quote, urlparse
 
-from requests import HTTPError, Session
+from requests import HTTPError
 from requests.auth import HTTPBasicAuth
 
 from bert_e.lib.lru_cache import LRUCache
@@ -54,7 +54,7 @@ def build_filter_query(filters):
 
 
 @factory.api_client('bitbucket')
-class Client(Session, base.AbstractClient):
+class Client(base.BertESession, base.AbstractClient):
     def __init__(self, bitbucket_login, bitbucket_password, bitbucket_mail):
         super().__init__()
         headers = {
@@ -127,7 +127,6 @@ class BitBucketObject(object):
     @classmethod
     def get(cls, client, **kwargs):
         request = Template(cls.get_url).substitute(kwargs)
-        LOG.debug("GET %s", request)
         response = client.get(request)
         response.raise_for_status()
         return cls(client, **response.json())
@@ -137,7 +136,6 @@ class BitBucketObject(object):
         for page in range(1, 100):  # Max 100 pages retrieved
             kwargs['page'] = page
             request = Template(cls.list_url).substitute(kwargs)
-            LOG.debug("GET %s", request)
             response = client.get(request)
             response.raise_for_status()
             for obj in response.json()['values']:
@@ -151,7 +149,6 @@ class BitBucketObject(object):
     def create(self):
         json_str = json.dumps(self._json_data)
         request = Template(self.add_url).substitute(self._json_data)
-        LOG.debug("POST %s", request)
         response = self.client.post(request, json_str)
         try:
             response.raise_for_status()

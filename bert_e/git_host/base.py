@@ -18,8 +18,12 @@ Typical implementations would be Bitbucket, Github or Gitlab.
 
 """
 
+import logging
 from abc import ABCMeta, abstractmethod
 from typing import Iterable
+from requests import Session
+
+LOG = logging.getLogger(__name__)
 
 
 class Error(Exception):
@@ -36,6 +40,23 @@ class NoSuchRepository(Error):
 
 class NoSuchGitHost(Error):
     """The requested git host is not implemented."""
+
+
+class BertESession(Session):
+    """Override the Session class for logging flexibility."""
+    def request(self, method, url, **kwargs):
+        try:
+            response = super().request(method, url, **kwargs)
+            LOG.info("request: {method} {url} {status} {time}".format(
+                method=response.request.method,
+                url=response.request.url,
+                status=response.status_code,
+                time=response.elapsed.microseconds
+            ))
+        except Exception:
+            LOG.error('{method} {url}'.format(method=method, url=url))
+            raise
+        return response
 
 
 class AbstractTask(metaclass=ABCMeta):

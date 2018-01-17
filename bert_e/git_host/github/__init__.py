@@ -15,7 +15,7 @@ import json
 import logging
 from collections import defaultdict, namedtuple
 
-from requests import HTTPError, Session
+from requests import HTTPError
 from requests.auth import HTTPBasicAuth
 
 from bert_e.exceptions import TaskAPIError
@@ -56,7 +56,7 @@ class Client(base.AbstractClient):
 
         rlog = logging.getLogger('requests.packages.urllib3.connectionpool')
         rlog.setLevel(logging.CRITICAL)
-        self.session = Session()
+        self.session = base.BertESession()
         self.session.headers.update(headers)
         self.session.auth = HTTPBasicAuth(login, password)
 
@@ -166,7 +166,6 @@ class Client(base.AbstractClient):
         if headers:
             kwargs.setdefault('headers', {}).update(headers)
         response = self.session.get(url, **kwargs)
-        LOG.debug("GET %s %r -> %d", url, params, response.status_code)
         if response.status_code == 304:
             LOG.debug('Not Modified. Returning cached result')
             return res
@@ -202,7 +201,6 @@ class Client(base.AbstractClient):
         """
         url = self._patch_url(url)
         response = self.session.post(url, data=data, **kwargs)
-        LOG.debug("POST %s -> %d", url, response.status_code)
         response.raise_for_status()
         return json.loads(response.text)
 
@@ -219,7 +217,6 @@ class Client(base.AbstractClient):
         """
         url = self._patch_url(url)
         response = self.session.post(url, data=data, **kwargs)
-        LOG.debug("PATCH %s -> %d", url, response.status_code)
         response.raise_for_status()
         return json.loads(response.text)
 
@@ -233,7 +230,6 @@ class Client(base.AbstractClient):
         """
         url = self._patch_url(url)
         response = self.session.delete(url, **kwargs)
-        LOG.debug("DELETE %s -> %d", url, response.status_code)
         response.raise_for_status()
 
     def put(self, url, **kwargs):
@@ -246,7 +242,6 @@ class Client(base.AbstractClient):
         """
         url = self._patch_url(url)
         response = self.session.put(url, **kwargs)
-        LOG.debug("PUT %s -> %d", url, response.status_code)
         response.raise_for_status()
 
     def iter_get(self, url, per_page=100, **kwargs):

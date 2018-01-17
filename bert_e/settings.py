@@ -10,9 +10,9 @@ from bert_e.lib.settings_dict import SettingsDict
 
 
 class BertEContextFilter(logging.Filter):
-    """
-    This is a filter which will inject Bert-E contextual
+    """This is a filter which will inject Bert-E contextual
     information into the log.
+
     """
     def __init__(self, settings):
         self.settings = settings
