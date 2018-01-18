@@ -1,6 +1,11 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [3.1.8] - 2018-01-18
+# Added
+- Added instance name on each log line.
+- Added API request logging on git host with useful information.
+
 ## [3.1.7] - 2017-12-12
 # Fixed
 - Fix crash on PR where comments were deleted
