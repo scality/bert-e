@@ -462,8 +462,13 @@ class Comment(BitBucketObject, base.AbstractComment):
 
     def delete(self):
         self['full_name'] = self.full_name()
-        self['pull_request_id'] = self['pullrequest']['id']
-        self['comment_id'] = self['id']
+        try:
+            self['pull_request_id'] = self['pullrequest']['id']
+            self['comment_id'] = self['id']
+        except KeyError:
+            # Depending on the API endpoint the key might already exist with
+            # the proper value
+            pass
         response = self.client.delete(Template(self.get_url)
                                       .substitute(self._json_data)
                                       .replace('/2.0/', '/1.0/'))
