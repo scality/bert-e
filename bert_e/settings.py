@@ -28,6 +28,8 @@ class BertEContextFilter(logging.Filter):
 
 class SettingsSchema(Schema):
     # Settings defined in config files
+    always_create_integration_pull_requests = fields.Bool(missing=True)
+
     repository_owner = fields.Str(required=True)
     repository_slug = fields.Str(required=True)
     repository_host = fields.Str(required=True)

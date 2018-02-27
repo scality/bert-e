@@ -143,9 +143,9 @@ class AfterPullRequest(TemplateException):
     template = 'after_pull_request.md'
 
 
-class IntegrationPullRequestsCreated(InformationException):
+class IntegrationDataCreated(InformationException):
     code = 121
-    template = 'integration_pull_requests.md'
+    template = 'integration_data_created.md'
 
 
 class UnknownCommand(TemplateException):

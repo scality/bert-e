@@ -56,6 +56,7 @@ repository_slug: {slug}
 repository_host: {host}
 robot_username: {robot}
 robot_email: nobody@nowhere.com
+always_create_integration_pull_requests: True
 pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
 commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
 build_key: pre-merge
@@ -569,6 +570,9 @@ class RepositoryTests(unittest.TestCase):
         'bypass_tester_approval'
     ]
 
+    def get_last_pr_comment(self, pr):
+        return list(pr.get_comments())[-1].text
+
     def bypass_all_but(self, exceptions):
         self.assertIsInstance(exceptions, list)
         bypasses = list(self.bypass_all)
@@ -851,6 +855,185 @@ class TestBertE(RepositoryTests):
             self.handle(pr.id, backtrace=True)
         # test the return code of a silent exception is 0
         self.assertEqual(self.handle(pr.id), 0)
+
+    def test_create_integration_pr(self):
+        """Test the create_pull_requests option."""
+        settings = """
+repository_owner: {owner}
+repository_slug: {slug}
+repository_host: {host}
+robot_username: {robot}
+robot_email: nobody@nowhere.com
+pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
+commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
+build_key: pre-merge
+required_peer_approvals: 1
+always_create_integration_pull_requests: False
+admins:
+  - {admin}
+""" # noqa
+        pr = self.create_pr('feature/TEST-0002', 'development/4.3')
+        options = ['create_pull_requests', 'bypass_jira_check']
+        try:
+            self.handle(pr.id)
+        except requests.HTTPError as err:
+            self.fail("Error: %s" % err.response.text)
+
+        # Ensure that no integration PRs have been created
+        with self.assertRaises(Exception):
+            self.admin_bb.get_pull_request(pull_request_id=pr.id + 1)
+        # Ask the robot to create all integration PR and ensure it's created
+        self.handle(pr.id, settings=settings, options=options)
+        # Ensure that all PRs have been created
+        self.admin_bb.get_pull_request(pull_request_id=pr.id + 1)
+        self.admin_bb.get_pull_request(pull_request_id=pr.id + 2)
+        # Only two integration PRs should have been created
+        with self.assertRaises(Exception):
+            self.admin_bb.get_pull_request(pull_request_id=pr.id + 3)
+
+    def test_comments_on_last_dev_branch(self):
+        """Test Bert-E PR comments on the latest development branch.
+
+        1. Create a PR on the latest development branch,
+        2. Ensure that no comments regarding integration branch has
+           been created.
+
+        """
+        settings = """
+repository_owner: {owner}
+repository_slug: {slug}
+repository_host: {host}
+robot_username: {robot}
+robot_email: nobody@nowhere.com
+pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
+commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
+build_key: pre-merge
+required_peer_approvals: 1
+always_create_integration_pull_requests: False
+admins:
+  - {admin}
+""" # noqa
+        options = self.bypass_all_but(['bypass_build_status'])
+        pr = self.create_pr('feature/TEST-0042', 'development/6.0')
+        self.handle(pr.id, settings=settings, options=options)
+        self.assertIs(len(list(pr.get_comments())), 1)
+        self.assertIn('Hello %s' % self.args.contributor_username,
+                      self.get_last_pr_comment(pr))
+
+    def test_integration_pr_comments(self):
+        """Test comments when integration data is created.
+
+        1. Create a PR and ensure the proper message is sent regarding
+           creation of the integration data,
+        2. Request the creation of integration PRs and ensure the message
+           is sent again,
+        3. Ensure that no other comment has been created.
+
+        """
+        settings = """
+repository_owner: {owner}
+repository_slug: {slug}
+repository_host: {host}
+robot_username: {robot}
+robot_email: nobody@nowhere.com
+pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
+commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
+build_key: pre-merge
+required_peer_approvals: 1
+always_create_integration_pull_requests: False
+admins:
+  - {admin}
+""" # noqa
+        options = self.bypass_all_but(['bypass_build_status'])
+        pr = self.create_pr('feature/TEST-0069', 'development/4.3')
+        self.handle(pr.id, settings=settings, options=options)
+        self.assertEqual(len(list(pr.get_comments())), 2)
+        self.assertIn('Integration data created', self.get_last_pr_comment(pr))
+        self.assertIn('You can set option', self.get_last_pr_comment(pr))
+        self.assertNotIn('if you would like to be',
+                         self.get_last_pr_comment(pr))
+
+        pr.add_comment('Ok ok')
+        self.handle(pr.id, settings=settings, options=options)
+        self.assertEqual(len(list(pr.get_comments())), 3)
+
+        comment = pr.add_comment('@%s create_pull_requests' %
+                                 self.args.robot_username)
+        self.handle(pr.id, settings=settings, options=options)
+        self.assertEqual(len(list(pr.get_comments())), 5)
+        self.assertIn('Integration data created', self.get_last_pr_comment(pr))
+        self.assertNotIn('You can set option', self.get_last_pr_comment(pr))
+        self.assertIn('if you would like to be', self.get_last_pr_comment(pr))
+
+        self.handle(pr.id, settings=settings, options=options)
+        self.assertEqual(len(list(pr.get_comments())), 5)
+
+        comment.delete()
+        self.handle(pr.id, settings=settings, options=options)
+        self.assertEqual(len(list(pr.get_comments())), 4)
+
+    def test_no_integration_pr(self):
+        """Test a normal Bert-E workflow with no integration PR.
+
+        1. Ensure that no integration PRs have been created,
+        2. Integration branches have been created properly,
+        3. Ensure that Bert-E waits until all builds are successful,
+        4. Ensure that Bert-E perform the merge,
+        5. Ensure that the data is on all development branches.
+
+        """
+        settings = """
+repository_owner: {owner}
+repository_slug: {slug}
+repository_host: {host}
+robot_username: {robot}
+robot_email: nobody@nowhere.com
+pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
+commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
+build_key: pre-merge
+required_peer_approvals: 1
+always_create_integration_pull_requests: False
+admins:
+  - {admin}
+""" # noqa
+        src_branch = 'feature/TEST-0042'
+        dst_branch = 'development/4.3'
+        options = ['bypass_jira_check', 'bypass_peer_approval']
+
+        pr = self.create_pr(src_branch, dst_branch)
+        try:
+            self.handle(pr.id, settings=settings, options=options)
+        except requests.HTTPError as err:
+            self.fail("Error: %s" % err.response.text)
+
+        # Assert that no integration PRs haves been created
+        with self.assertRaises(Exception):
+            self.handle(pr.id + 1, settings=settings, options=options)
+        self.gitrepo.cmd('git fetch --all')
+        sha1_w_5_1 = self.gitrepo \
+                         .cmd('git rev-parse origin/w/5.1/%s' % src_branch) \
+                         .rstrip()
+        sha1_w_6_0 = self.gitrepo \
+                         .cmd('git rev-parse origin/w/6.0/%s' % src_branch) \
+                         .rstrip()
+
+        self.set_build_status_on_pr_id(pr.id, 'SUCCESSFUL')
+        self.set_build_status(sha1=sha1_w_5_1, state='SUCCESSFUL')
+        self.set_build_status(sha1=sha1_w_6_0, state='INPROGRESS')
+        pr.approve()
+        with self.assertRaises(exns.BuildInProgress):
+            self.handle(pr.id, settings=settings,
+                        options=options, backtrace=True)
+        self.set_build_status(sha1=sha1_w_6_0, state='SUCCESSFUL')
+        with self.assertRaises(exns.SuccessMessage):
+            self.handle(pr.id, settings=settings,
+                        options=options, backtrace=True)
+
+        for dev in ['development/4.3', 'development/5.1', 'development/6.0']:
+            branch = gwfb.branch_factory(self.gitrepo, dev)
+            branch.checkout()
+            self.gitrepo.cmd('git pull origin %s', dev)
+            self.assertTrue(branch.includes_commit(pr.src_commit))
 
     def test_not_my_job_cases(self):
         feature_branch = 'feature/TEST-00002'
@@ -1427,6 +1610,10 @@ admins:
         with self.assertRaises(exns.NothingToDo):
             self.handle(pr.id, backtrace=True)
         comment.delete()
+
+        # command: create_pull_requests
+        pr.add_comment('@%s create_pull_requests' % self.args.robot_username)
+        self.handle(pr.id)
 
         # command: build
         pr.add_comment('@%s build' % self.args.robot_username)
