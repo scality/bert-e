@@ -199,6 +199,11 @@ def setup(defaults={}):
 
     # Other options
     Reactor.add_option(
+        "create_pull_requests",
+        "Allow the creation of integration pull requests.",
+        privileged=False,
+        default=defaults.get("create_pull_requests", False))
+    Reactor.add_option(
         "no_octopus",
         "Prevent Wall-E from doing any octopus merge and use multiple "
         "consecutive merge instead",

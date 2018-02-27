@@ -167,3 +167,12 @@ max_commit_diff: 100
 #
 #   default value: '' (the feature is inactive)
 sentry_dsn: ''
+
+
+# always_create_integration_pull_requests [OPTIONAL]:
+#   Bert-E will not create pull requests on integration branches by default.
+#   You can set this setting to true if you want it to be created each time
+#   or you can create them on demand by using the `create_pull_requests` command.
+#
+#   default value: false
+always_create_integration_pull_requests: false

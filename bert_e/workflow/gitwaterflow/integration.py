@@ -157,6 +157,11 @@ def check_conflict(job, dst: git.Branch, src: git.Branch):
 
 def create_integration_pull_requests(job, wbranches):
     """Create integration pull requests if they do not exist."""
+
+    if (job.settings.always_create_integration_pull_requests is False and
+            job.settings.create_pull_requests is False):
+        return [], [False]
+
     # read open PRs and store them for multiple usage
     wbranch_names = [wbranch.name for wbranch in wbranches]
     open_prs = [
@@ -171,17 +176,22 @@ def create_integration_pull_requests(job, wbranches):
         )
         for wbranch in wbranches
     ))
-    if any(created):
+    return prs, created
+
+
+def notify_integration_data(job, wbranches, child_prs):
+    if len(wbranches) > 1:
         send_comment(
             job.settings, job.pull_request,
-            exceptions.IntegrationPullRequestsCreated(
-                bert_e=job.settings.robot_username, pr=job.pull_request,
-                current_pr=prs[0],
-                child_prs=prs[1:], ignored=job.git.cascade.ignored_branches,
+            exceptions.IntegrationDataCreated(
+                bert_e=job.settings.robot_username,
+                pr=job.pull_request,
+                wbranches=wbranches,
+                child_prs=child_prs,
+                ignored=job.git.cascade.ignored_branches,
                 active_options=job.active_options
             )
         )
-    return prs
 
 
 def merge_integration_branches(job, wbranches):

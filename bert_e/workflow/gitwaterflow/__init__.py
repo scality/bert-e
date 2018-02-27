@@ -33,7 +33,8 @@ from .commands import setup  # noqa
 from .integration import (create_integration_branches,
                           create_integration_pull_requests,
                           merge_integration_branches,
-                          update_integration_branches)
+                          update_integration_branches,
+                          notify_integration_data)
 from .jira import jira_checks
 from . import queueing
 
@@ -161,11 +162,17 @@ def _handle_pull_request(job: PullRequestJob):
                 branch.reset(ignore_missing=True)
         push(job.git.repo, wbranches[1:])
 
-    child_prs = create_integration_pull_requests(job, wbranches)
+    # create integration pull requests (if requested)
+    child_prs, pr_created = create_integration_pull_requests(job, wbranches)
 
-    check_pull_request_skew(job, wbranches, child_prs)
+    if child_prs:
+        check_pull_request_skew(job, wbranches, child_prs)
+
+    if any(wbranch.created for wbranch in wbranches) or any(pr_created):
+        notify_integration_data(job, wbranches, child_prs)
+
     check_approvals(job)
-    check_build_status(job, child_prs)
+    check_build_status(job, wbranches)
 
     interactive = job.settings.interactive
     if interactive and not confirm('Do you want to merge/queue?'):
@@ -558,7 +565,7 @@ def check_approvals(job):
         )
 
 
-def check_build_status(job, child_prs):
+def check_build_status(job, wbranches):
     """Check the build statuses of the integration pull requests.
 
     Raises:
@@ -580,18 +587,22 @@ def check_build_status(job, child_prs):
             ('SUCCESSFUL', 'INPROGRESS', 'NOTSTARTED', 'STOPPED', 'FAILED'))
     }
 
-    def status(pr):
-        return job.project_repo.get_build_status(pr.src_commit, key)
+    def status(branch):
+        return job.project_repo.get_build_status(
+            branch.get_latest_commit(), key)
 
-    statuses = {p.src_branch: status(p) for p in child_prs}
-    worst = max(child_prs, key=lambda p: ordered_state[statuses[p.src_branch]])
-    worst_status = statuses[worst.src_branch]
+    statuses = {b.name: status(b) for b in wbranches}
+    worst = max(wbranches, key=lambda b: ordered_state[statuses[b.name]])
+    worst_status = statuses[worst.name]
     if worst_status in ('FAILED', 'STOPPED'):
         raise messages.BuildFailed(
             active_options=job.active_options,
             branch=worst.src_branch,
-            build_url=job.project_repo.get_build_url(worst.src_commit, key),
-            commit_url=job.project_repo.get_commit_url(worst.src_commit),
+            build_url=job.project_repo.get_build_url(
+                worst.get_latest_commit,
+                key),
+            commit_url=job.project_repo.get_commit_url(
+                worst.get_latest_commit()),
         )
     elif worst_status == 'NOTSTARTED':
         raise messages.BuildNotStarted()
