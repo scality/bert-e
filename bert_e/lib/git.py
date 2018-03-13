@@ -189,7 +189,7 @@ class Branch(object):
     def __init__(self, repo, name):
         self.repo = repo
         self.name = name
-        self.created = False
+        self.newly_created = False
 
     def merge(self, *source_branches, **kwargs):
         do_push = kwargs.pop('do_push', False)
@@ -258,7 +258,7 @@ class Branch(object):
             raise BranchCreationFailedException(msg) from err
         if do_push:
             self.push()
-        self.created = True
+        self.newly_created = True
 
     def remove(self, do_push=False):
         # security check since Bert-E is all-powerful on the repository

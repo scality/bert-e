@@ -163,12 +163,13 @@ def _handle_pull_request(job: PullRequestJob):
         push(job.git.repo, wbranches[1:])
 
     # create integration pull requests (if requested)
-    child_prs, pr_created = create_integration_pull_requests(job, wbranches)
+    child_prs = create_integration_pull_requests(job, wbranches)
 
     if child_prs:
         check_pull_request_skew(job, wbranches, child_prs)
 
-    if any(wbranch.created for wbranch in wbranches) or any(pr_created):
+    if (any(wbranch.newly_created for wbranch in wbranches) or
+            any(child_pr.newly_created for child_pr in child_prs)):
         notify_integration_data(job, wbranches, child_prs)
 
     check_approvals(job)

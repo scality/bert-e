@@ -28,8 +28,16 @@ The following branches will **NOT** be impacted:
 *Follow* integration pull requests if you would like to be notified of
 build statuses by email.
 {% else %}
-Set option `create_pull_requests` if you need me to create integration
-pull requests in addition to integration branches.
+{% if wbranches[1:] %}
+You can set option `create_pull_requests` if you need me to create
+**integration pull requests** in addition to integration branches, e.g.
+publish this comment:
+
+```
+@{{ bert_e }} create_pull_requests
+```
+{% endif %}
+
 {% endif %}
 
 {% endblock %}

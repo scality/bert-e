@@ -189,19 +189,19 @@ the creation of integration pull requests can be made optional. The
 repository level setting __always_create_integration_pull_requests__ can be set
 to:
 
-* *True*: integration pull requests are always created,
+* *True* (default): integration pull requests are always created,
 * *False*: integration pull requests are created only when requested by
   the author or a reviewer
 
-> Integration pull requests can be requested in a pull request by setting the
-> __create_pull_requests__ option (__Bert-E__ >= 3.1.12).
+> The creation of integration pull requests can be requested manually by setting
+> the __create_pull_requests__ option (__Bert-E__ >= 3.1.9).
 
-The owner of the integration pull requests is __Bert-E__, and the author
-of the original pull request will be added as a reviewer (and the author
-will therefore be informed by email of the creation of the integration pull
-requests).
+When Bert-E creates the integration pull requests, the owner is __Bert-E__ and
+there are no reviewers. The author and/or reviewers of the original pull
+request can follow the new pull requests if they wish to be informed on
+updates.
 
-The title of the integration pull requests follows this format:
+The title of an integration pull request follows this format:
 
     INTEGRATION [PR#:<id> > <branch>] <title>
 
@@ -211,8 +211,9 @@ where:
   development branch
 * *title*: the title of the original pull request
 
-> Integration pull requests is the place where you can check that the code that
-> will end up in the development branches is correct and what you would expect!
+> Integration pull requests is a graphical place where you can check that the
+> code that will end up in the development branches is correct and what you
+> would expect!
 
 Conditions to merge a pull request
 ----------------------------------
