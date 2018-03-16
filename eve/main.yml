@@ -20,46 +20,10 @@ stages:
           retryFetch: True
           haltOnFailure: True
       - ShellCommand:
-          name: flake8
-          command: flake8 bert_e/
+          name: ok command
+          command: echo "toto"
       - ShellCommand:
-          name: unit tests
-          command: coverage run -am py.test -v bert_e/tests/unit/
-      - ShellCommand:
-          name: Git host API mock tests
-          command: coverage run -am pytest -v -k mock bert_e/tests/test_git_host.py
-      - ShellCommand:
-          name: Bert-E server tests
-          command: coverage run -am bert_e.tests.test_server
-      - ShellCommand:
-          name: Bert-E tests (no queue support)
-          command: coverage run -am bert_e.tests.test_bert_e
-                     -v
-                     --repo-prefix _test_bert_e_eve
-                     --disable-queues
-                     mock_owner
-                     mock_robot_username
-                     mock_robot_password
-                     mock_user_username
-                     mock_user_password
-                     mock_admin_username
-                     mock_admin_password
-      - ShellCommand:
-          name: Bert-E tests (with queue support)
-          command: coverage run -am bert_e.tests.test_bert_e
-                     -v
-                     --repo-prefix _test_bert_e_eve
-                     mock_owner
-                     mock_robot_username
-                     mock_robot_password
-                     mock_user_username
-                     mock_user_password
-                     mock_admin_username
-                     mock_admin_password
-      - ShellCommand:
-          name: Coverage report
-          command: coverage report bert_e/*.py
-                                   bert_e/api/*.py
-                                   bert_e/bin/*.py
-                                   bert_e/lib/*.py
-                                   bert_e/workflow/gitwaterflow/*.py
+          name: no ok
+          command: exit 1
+          haltOnFailure: False
+          flunkOnFailure: True
