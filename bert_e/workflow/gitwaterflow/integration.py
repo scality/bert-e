@@ -192,7 +192,10 @@ def notify_integration_data(job, wbranches, child_prs):
                 wbranches=wbranches,
                 child_prs=child_prs,
                 ignored=job.git.cascade.ignored_branches,
-                active_options=job.active_options
+                active_options=job.active_options,
+                owner=job.settings.repository_owner,
+                githost=job.settings.repository_host,
+                slug=job.settings.repository_slug
             )
         )
 

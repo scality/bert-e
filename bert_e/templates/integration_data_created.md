@@ -10,7 +10,13 @@ I have created the integration data for the additional destination branches.
 * this pull request will merge `{{ wbranches[0].src_branch }}` into
 `{{ wbranches[0].dst_branch }}`
 {% for branch in wbranches[1:] -%}
-* `{{ branch.name }}` will be merged into `{{ branch.dst_branch }}` {% if child_prs %}(pull request #{{ child_prs[loop.index].id }}){% endif %}
+* {% if githost == 'bitbucket' -%}
+    [{{ branch.name }}](https://bitbucket.org/{{ owner }}/{{ slug }}/branch/{{ branch.name }}?dest={{ branch.dst_branch }})
+  {%- elif githost == 'github' -%}
+    [{{ branch.name }}](https://github.com/{{ owner }}/{{ slug }}/compare/{{ branch.dst_branch }}...{{ branch.name }})
+  {%- else -%}
+    `{{ branch.name }}`
+  {%- endif %} will be merged into `{{ branch.dst_branch }}` {% if child_prs %}(pull request #{{ child_prs[loop.index].id }}){% endif %}
 {% endfor %}
 
 {% if ignored %}
