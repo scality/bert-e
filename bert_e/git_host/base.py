@@ -19,9 +19,12 @@ Typical implementations would be Bitbucket, Github or Gitlab.
 """
 
 import logging
+import time
 from abc import ABCMeta, abstractmethod
 from typing import Iterable
 from requests import Session
+
+from ..exceptions import FlakyGitHost
 
 LOG = logging.getLogger(__name__)
 
@@ -44,18 +47,39 @@ class NoSuchGitHost(Error):
 
 class BertESession(Session):
     """Override the Session class for logging flexibility."""
+
+    git_provider = 'base'  # Overidden when decorating with factory.api_client
+
     def request(self, method, url, **kwargs):
-        try:
-            response = super().request(method, url, **kwargs)
-            LOG.info("request: {method} {url} {status} {time}".format(
-                method=response.request.method,
-                url=response.request.url,
-                status=response.status_code,
-                time=response.elapsed.microseconds
-            ))
-        except Exception:
-            LOG.error('{method} {url}'.format(method=method, url=url))
-            raise
+        max_attempts = 2
+        for attempt in range(1, max_attempts + 1):
+            try:
+                response = super().request(method, url, **kwargs)
+                LOG.info("request: {method} {url} {status} {time}".format(
+                    method=response.request.method,
+                    url=response.request.url,
+                    status=response.status_code,
+                    time=response.elapsed.microseconds
+                ))
+            except Exception:
+                LOG.error('{method} {url}'.format(method=method, url=url))
+                raise
+
+            if response.status_code not in [429, 500]:
+                break
+
+            nap = 30 * attempt
+            LOG.error('sleeping {nap}s'.format(nap=nap))
+            time.sleep(nap)
+            if attempt < max_attempts:
+                LOG.error('retrying request {method} {url}'.format(
+                    method=method, url=url))
+            else:
+                LOG.error('skipping retry request {method} {url}'.format(
+                    method=method, url=url))
+        else:
+            raise FlakyGitHost(git_host=self.git_provider, active_options=[])
+
         return response
 
 

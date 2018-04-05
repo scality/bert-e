@@ -33,6 +33,7 @@ def api_client(api_name):
         assert api_name not in _API_CLIENTS
         assert issubclass(cls, AbstractClient)
         _API_CLIENTS[api_name] = cls
+        cls.git_provider = api_name
         return cls
     return wrap
 

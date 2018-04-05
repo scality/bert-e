@@ -219,6 +219,11 @@ class SourceBranchTooOld(TemplateException):
     template = "source_branch_too_old.md"
 
 
+class FlakyGitHost(TemplateException):
+    code = 133
+    template = "flaky_git_host.md"
+
+
 # internal exceptions
 class UnableToSendEmail(InternalException):
     code = 201

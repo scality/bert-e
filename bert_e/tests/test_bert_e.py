@@ -22,9 +22,12 @@ import warnings
 from collections import OrderedDict
 from copy import deepcopy
 from hashlib import md5
+from unittest.mock import Mock
+from unittest.mock import patch
 from urllib.parse import quote_plus
 
 import requests
+import requests_mock
 
 from bert_e import exceptions as exns
 from bert_e.api import RebuildQueuesJob
@@ -32,6 +35,7 @@ from bert_e.bert_e import main as bert_e_main
 from bert_e.bert_e import BertE
 from bert_e.git_host import bitbucket as bitbucket_api
 from bert_e.git_host import mock as bitbucket_api_mock
+from bert_e.git_host.base import BertESession
 from bert_e.git_host.base import NoSuchRepository
 from bert_e.git_host.factory import client_factory
 from bert_e.job import handler, CommitJob, Job, PullRequestJob
@@ -48,6 +52,9 @@ from bert_e.workflow.gitwaterflow import integration as gwfi
 from bert_e.workflow.gitwaterflow import queueing as gwfq
 
 from .mocks import jira as jira_api_mock
+
+
+FLAKINESS_MESSAGE_TITLE = 'Temporary bitbucket failure'  # noqa
 
 
 DEFAULT_SETTINGS = """
@@ -145,11 +152,71 @@ def rebase_branch(repo, branch_name, on_branch):
     repo.cmd('git push -f')
 
 
+def fake_answer_internal(status_code, *args, **kwargs):
+    fake_answer_internal.attempt += 1
+    response = Mock()
+    if fake_answer_internal.attempt == 1:
+        response.status_code = status_code
+    else:
+        response.status_code = 200
+    response.request.method = "GET"
+    response.request.url = "http://localhost/"
+    response.elapsed.microseconds = 0
+
+    return response
+
+
+def dynamic_filtering(request):
+    return FLAKINESS_MESSAGE_TITLE not in (request.text or '')
+
+
 class QuickTest(unittest.TestCase):
     """Tests which don't need to interact with an external web services"""
 
     def feature_branch(self, name):
         return gwfb.FeatureBranch(None, name)
+
+    @patch('requests.Session.request')
+    def test_no_retry_200_answer(self, fake_request):
+        fake_answer_internal.attempt = 0
+
+        def fake_answer(*args, **kwargs):
+            return fake_answer_internal(200,
+                                        *args, **kwargs)
+        fake_request.side_effect = fake_answer
+
+        session = BertESession()
+        response = session.request('GET', "http://localhost/")
+
+        self.assertEqual(response.status_code, 200)
+
+    @patch('requests.Session.request')
+    def test_retry_429_answer(self, fake_request):
+        fake_answer_internal.attempt = 0
+
+        def fake_answer(*args, **kwargs):
+            return fake_answer_internal(429,
+                                        *args, **kwargs)
+        fake_request.side_effect = fake_answer
+
+        session = BertESession()
+        response = session.request('GET', "http://localhost/")
+
+        self.assertEqual(response.status_code, 200)
+
+    @patch('requests.Session.request')
+    def test_retry_500_answer(self, fake_request):
+        fake_answer_internal.attempt = 0
+
+        def fake_answer(*args, **kwargs):
+            return fake_answer_internal(500,
+                                        *args, **kwargs)
+        fake_request.side_effect = fake_answer
+
+        session = BertESession()
+        response = session.request('GET', "http://localhost/")
+
+        self.assertEqual(response.status_code, 200)
 
     def test_feature_branch_names(self):
         with self.assertRaises(exns.BranchNameInvalid):
@@ -4283,6 +4350,18 @@ class TaskQueueTests(RepositoryTests):
         job = self.make_pr_job(pr, **settings)
         return self.process_job(job, status)
 
+    def process_bitbucket_pr_job_with_429(self, pr, status=None, **settings):
+        with requests_mock.Mocker(real_http=True) as m:
+            m.register_uri('POST',
+                           'https://api.bitbucket.org/1.0/repositories/'
+                           '{owner}/{slug}/pullrequests/1/comments'.format(
+                               owner=self.args.owner,
+                               slug=('%s_%s' % (self.args.repo_prefix,
+                                                self.args.admin_username))),
+                           additional_matcher=dynamic_filtering,
+                           status_code=429)
+            return self.process_pr_job(pr, status, **settings)
+
     def make_sha1_job(self, sha1, **settings):
         job = CommitJob(
             bert_e=self.berte, commit=sha1,
@@ -4524,6 +4603,15 @@ class TaskQueueTests(RepositoryTests):
         """
         self.init_berte()
         self.process_job(self.process_job(FaultJob(self.berte), "FaultError"))
+
+    def test_flakiness(self):
+        if self.args.git_host != 'bitbucket':
+            self.skipTest("flakiness test is only supported on bitbucket")
+        self.init_berte()
+        pr = self.create_pr('bugfix/TEST-00429', 'development/4.3')
+        self.process_bitbucket_pr_job_with_429(pr)
+        last_comment = pr.get_comments()[-1].text
+        self.assertTrue(FLAKINESS_MESSAGE_TITLE in last_comment)
 
 
 def main():
