@@ -3759,6 +3759,103 @@ class TestQueueing(RepositoryTests):
         self.assertEqual(qc.mergeable_prs, [1, 3, 4, 7])
         self.assertEqual(qc.mergeable_queues, solution)
 
+    def test_validation_with_failed_stabilization_branch(self):
+        """A problem where two PRs are on two different merge paths."""
+        problem = OrderedDict({
+            1: {'dst': 'stabilization/5.1.4', 'src': 'bugfix/targeting_stab',
+                'status': [{'pipeline': 'FAILED'},
+                           {'pipeline': 'SUCCESSFUL'},
+                           {'pipeline': 'SUCCESSFUL'}]},
+            2: {'dst': 'development/4.3', 'src': 'bugfix/targeting_old',
+                'status': [{'pipeline': 'SUCCESSFUL'},
+                           {'pipeline': 'INPROGRESS'},
+                           {'pipeline': None}]},
+        })
+        qbranches = self.submit_problem(problem)
+        qc = self.feed_queue_collection(qbranches)
+        qc.finalize()
+        qc.validate()
+        queues = OrderedDict([
+            ('4.3', {
+                gwfb.QueueBranch: self.queue_branch('q/4.3'),
+                gwfb.QueueIntegrationBranch: [
+                    self.qint_branch('q/4/4.3/bugfix/targeting_old'),
+                ]
+            }),
+            ('5.1', {
+                gwfb.QueueBranch: self.queue_branch('q/5.1'),
+                gwfb.QueueIntegrationBranch: [
+                    self.qint_branch('q/4/5.1/bugfix/targeting_old'),
+                    self.qint_branch('q/1/5.1/bugfix/targeting_stab'),
+                ]
+            }),
+            ('5.1.4', {
+                gwfb.QueueBranch: self.queue_branch('q/5.1.4'),
+                gwfb.QueueIntegrationBranch: [
+                    self.qint_branch('q/1/5.1.4/bugfix/targeting_stab'),
+                ]
+            }),
+            ('6.0', {
+                gwfb.QueueBranch: self.queue_branch('q/6.0'),
+                gwfb.QueueIntegrationBranch: [
+                    self.qint_branch('q/4/6.0/bugfix/targeting_old'),
+                    self.qint_branch('q/1/6.0/bugfix/targeting_stab'),
+                ]
+            }),
+        ])
+        self.assertEqual(qc._queues, queues)
+        self.assertEqual(qc.mergeable_prs, [])
+        solution = OrderedDict([
+            ('4.3', {
+                gwfb.QueueBranch: self.queue_branch('q/4.3'),
+                gwfb.QueueIntegrationBranch: []
+            }),
+            ('5.1', {
+                gwfb.QueueBranch: self.queue_branch('q/5.1'),
+                gwfb.QueueIntegrationBranch: []
+            }),
+            ('5.1.4', {
+                gwfb.QueueBranch: self.queue_branch('q/5.1.4'),
+                gwfb.QueueIntegrationBranch: []
+            }),
+            ('6.0', {
+                gwfb.QueueBranch: self.queue_branch('q/6.0'),
+                gwfb.QueueIntegrationBranch: []
+            }),
+        ])
+        self.assertEqual(qc.mergeable_queues, solution)
+
+    def test_validation_with_failed_stabilization_branch_stacked(self):
+        """A problem where a PR corrects a problem but is not mergeable yet.
+
+        This is a corner case, where an additional PR (3) on stabilization
+        branches fixes the first PR (1), but is not mergeable yet because
+        another PR (2) blocks the way on another merge path.
+
+        Currently waiving the fact that PR1 will be merged to avoid raising
+        the complexity of the decision algorithm.
+
+        """
+        problem = OrderedDict({
+            1: {'dst': 'stabilization/5.1.4', 'src': 'bugfix/targeting_stab',
+                'status': [{'pipeline': 'FAILED'},
+                           {'pipeline': 'SUCCESSFUL'},
+                           {'pipeline': 'SUCCESSFUL'}]},
+            2: {'dst': 'development/4.3', 'src': 'bugfix/targeting_old',
+                'status': [{'pipeline': 'FAILED'},
+                           {'pipeline': 'SUCCESSFUL'},
+                           {'pipeline': 'SUCCESSFUL'}]},
+            3: {'dst': 'stabilization/5.1.4', 'src': 'bugfix/targeting_stab2',
+                'status': [{'pipeline': 'SUCCESSFUL'},
+                           {'pipeline': 'SUCCESSFUL'},
+                           {'pipeline': 'SUCCESSFUL'}]},
+        })
+        qbranches = self.submit_problem(problem)
+        qc = self.feed_queue_collection(qbranches)
+        qc.finalize()
+        qc.validate()
+        self.assertEqual(qc.mergeable_prs, [1])
+
     def test_system_nominal_case(self):
         pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
         self.handle(pr.id,
