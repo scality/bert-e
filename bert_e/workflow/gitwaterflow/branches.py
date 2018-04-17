@@ -453,6 +453,10 @@ class QueueCollection(object):
         # up to the identified failed pr, and retry
         for version in queues.keys():
             intqs = queues[version][QueueIntegrationBranch]
+            if all([inq.pr_id != first_failed_pr for inq in intqs]):
+                # do not pop anything if failed pr is not on the current path
+                continue
+
             while intqs:
                 intq = intqs.pop(0)
                 if intq.pr_id == first_failed_pr:
