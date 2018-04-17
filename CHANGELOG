@@ -1,9 +1,10 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
-## [3.1.10] - 2018-04-13
+## [3.1.10] - 2018-04-17
 # Added
 - Retry mechanism to be more robust to 429 and 500 git host errors.
+- fix build assessment of pull requests that target stabilization branches.
 
 ## [3.1.9] - 2018-03-09
 # Added
