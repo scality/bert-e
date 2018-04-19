@@ -146,6 +146,8 @@ def parse_bitbucket_webhook():
     # for example, repo:push.
     entity, event = request.headers.get('X-Event-Key').split(':')
     json_data = json.loads(request.data.decode())
+    LOG.debug('Received webhook from bitbucket:\n%s', json.dumps(json_data,
+                                                                 indent=4))
     repo_owner = json_data['repository']['owner']['username']
     repo_slug = json_data['repository']['name']
 
@@ -225,6 +227,8 @@ def parse_github_webhook():
         return Response('Internal Server Error', 500)
 
     json_data = json.loads(request.data.decode())
+    LOG.debug('Received webhook from github:\n%s', json.dumps(json_data,
+                                                              indent=4))
     full_name = json_data.get('repository', {}).get('full_name')
     if full_name != BERTE.project_repo.full_name:
         LOG.debug("Received webhook for %s whereas I'm handling %s. Ignoring",
