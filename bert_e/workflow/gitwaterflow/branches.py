@@ -71,8 +71,8 @@ class FeatureBranch(GWFBranch):
                     'documentation')
     jira_issue_pattern = '(?P<jira_project>[A-Z0-9_]+)-[0-9]+'
     prefixes = '(?P<prefix>(%s))' % '|'.join(all_prefixes)
-    pattern = "^%s/(?P<label>(?P<jira_issue_key>%s)?" \
-              "(?(jira_issue_key).*|.+))$" % (prefixes, jira_issue_pattern)
+    pattern = "^(?P<feature_branch>%s/(?P<label>(?P<jira_issue_key>%s)?" \
+              "(?(jira_issue_key).*|.+)))$" % (prefixes, jira_issue_pattern)
     cascade_producer = True
 
 
@@ -103,7 +103,7 @@ class IntegrationBranch(GWFBranch):
     pattern = '^w/(?P<version>(?P<major>\d+)\.(?P<minor>\d+)' \
               '(\.(?P<micro>\d+))?)/' + FeatureBranch.pattern[1:]
     dst_branch = ''
-    src_branch = ''
+    feature_branch = ''
 
     def get_pull_request_from_list(self, open_prs):
         for pr in open_prs:

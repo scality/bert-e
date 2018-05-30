@@ -27,7 +27,7 @@ from ..git_utils import push, clone_git_repo
 from ..pr_utils import find_comment, send_comment, create_task
 from .branches import (
     branch_factory, build_branch_cascade, is_cascade_consumer,
-    is_cascade_producer, BranchCascade
+    is_cascade_producer, BranchCascade, QueueBranch, IntegrationBranch
 )
 from .commands import setup  # noqa
 from .integration import (create_integration_branches,
@@ -57,28 +57,44 @@ def handle_pull_request(job: PullRequestJob):
 @handler(CommitJob)
 def handle_commit(job: CommitJob):
     """Handle a job triggered by an updated build status."""
-    if job.settings.use_queue:
-        qbranch = any(
-            b.startswith('q/') for b in
-            job.git.repo.get_branches_from_commit(job.commit)
-        )
-        if qbranch:
-            return queueing.handle_merge_queues(QueuesJob(bert_e=job.bert_e))
+    candidates = [
+        branch_factory(job.git.repo, b)
+        for b in job.git.repo.get_branches_from_commit(job.commit)
+    ]
 
-    candidates = [b for b in job.git.repo.get_branches_from_commit(job.commit)]
     if not candidates:
         raise messages.NothingToDo(
-            'Could not find the pull request for commit {}' .format(job.commit)
+            'Could not find any branch for commit {}' .format(job.commit)
         )
+
+    if job.settings.use_queue:
+        if any(isinstance(b, QueueBranch) for b in candidates):
+            return queueing.handle_merge_queues(QueuesJob(bert_e=job.bert_e))
+
+    def get_parent_branch(branch):
+        if isinstance(branch, IntegrationBranch):
+            return branch.feature_branch
+        else:
+            return branch.name
+
+    candidates = list(map(get_parent_branch, candidates))
+
     prs = list(
         job.project_repo.get_pull_requests(src_branch=candidates)
     )
     if not prs:
         raise messages.NothingToDo(
-            'Could not find the pull request for commit {}' .format(job.commit)
+            'Could not find the main pull request for commit {}' .format(
+                job.commit)
         )
     pr = min(prs, key=lambda pr: pr.id)
-    return handle_parent_pull_request(job, pr, pr.src_branch.startswith('/w'))
+
+    return handle_pull_request(
+        PullRequestJob(
+            bert_e=job.bert_e,
+            pull_request=pr
+        )
+    )
 
 
 def handle_parent_pull_request(job, child_pr, is_child=True):

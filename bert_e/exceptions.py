@@ -275,15 +275,6 @@ class UnrecognizedBranchPattern(InternalException):
     code = 207
 
 
-class ParentPullRequestNotFound(InternalException):
-    code = 208
-
-    def __init__(self, pr_id):
-        msg = ("The parent Pull Request from this pull request #%s"
-               " couldn't be found." % pr_id)
-        super(ParentPullRequestNotFound, self).__init__(msg)
-
-
 class JiraUnknownIssueType(InternalException):
     code = 209
 

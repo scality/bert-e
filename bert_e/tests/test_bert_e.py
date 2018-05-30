@@ -1402,22 +1402,6 @@ admins:
         with self.assertRaises(exns.SuccessMessage):
             self.handle(pr.id + 1, options=self.bypass_all, backtrace=True)
 
-    def test_child_pr_without_parent(self):
-        # simulate creation of an integration branch with Bert-E
-        create_branch(self.gitrepo, 'w/bugfix/TEST-00069',
-                      from_branch='development/4.3', file_=True)
-        pr = self.robot_bb.create_pull_request(
-            title='title',
-            name='name',
-            src_branch='w/bugfix/TEST-00069',
-            dst_branch='development/4.3',
-            close_source_branch=True,
-            reviewers=[{'username': self.args.contributor_username}],
-            description=''
-        )
-        with self.assertRaises(exns.ParentPullRequestNotFound):
-            self.handle(pr.id, backtrace=True)
-
     def test_norepeat_strategy(self):
         def get_last_comment(pr):
             """Helper function to get the last comment of a pr.
@@ -4346,7 +4330,7 @@ class TestQueueing(RepositoryTests):
             'q/%d/5.1.4/bugfix/TEST-00004' % pr4.id, 'SUCCESSFUL')
         self.set_build_status_on_branch_tip(
             'q/%d/5.1/bugfix/TEST-00004' % pr4.id, 'SUCCESSFUL')
-        self.set_build_status_on_branch_tip(
+        sha1 = self.set_build_status_on_branch_tip(
             'q/%d/6.0/bugfix/TEST-00004' % pr4.id, 'FAILED')
         with self.assertRaises(exns.NothingToDo):
             self.handle(sha1, options=self.bypass_all, backtrace=True)
@@ -4357,7 +4341,7 @@ class TestQueueing(RepositoryTests):
             self.handle(pr5.id, options=self.bypass_all, backtrace=True)
         self.assertEqual(self.prs_in_queue(), {pr2.id, pr3.id, pr4.id, pr5.id})
 
-        self.set_build_status_on_branch_tip(
+        sha1 = self.set_build_status_on_branch_tip(
             'q/%d/6.0/bugfix/TEST-00005' % pr5.id, 'SUCCESSFUL')
 
         with self.assertRaises(exns.Merged):
