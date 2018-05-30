@@ -923,7 +923,7 @@ class TestBertE(RepositoryTests):
         # test the return code of a silent exception is 0
         self.assertEqual(self.handle(pr.id), 0)
 
-    def test_create_integration_pr(self):
+    def test_create_integration_pr_manually(self):
         """Test the create_pull_requests option."""
         settings = """
 repository_owner: {owner}
@@ -958,7 +958,7 @@ admins:
         with self.assertRaises(Exception):
             self.admin_bb.get_pull_request(pull_request_id=pr.id + 3)
 
-    def test_comments_on_last_dev_branch(self):
+    def test_comments_without_integration_pull_requests(self):
         """Test Bert-E PR comments on the latest development branch.
 
         1. Create a PR on the latest development branch,
@@ -987,7 +987,7 @@ admins:
         self.assertIn('Hello %s' % self.args.contributor_username,
                       self.get_last_pr_comment(pr))
 
-    def test_integration_pr_comments(self):
+    def test_comments_for_manual_integration_pr_creation(self):
         """Test comments when integration data is created.
 
         1. Create a PR and ensure the proper message is sent regarding
@@ -1039,7 +1039,7 @@ admins:
         self.handle(pr.id, settings=settings, options=options)
         self.assertEqual(len(list(pr.get_comments())), 4)
 
-    def test_no_integration_pr(self):
+    def test_merge_without_integration_prs(self):
         """Test a normal Bert-E workflow with no integration PR.
 
         1. Ensure that no integration PRs have been created,
