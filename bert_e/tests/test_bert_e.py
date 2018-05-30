@@ -1093,7 +1093,7 @@ admins:
                         options=options, backtrace=True)
         self.set_build_status(sha1=sha1_w_6_0, state='SUCCESSFUL')
         with self.assertRaises(exns.SuccessMessage):
-            self.handle(pr.id, settings=settings,
+            self.handle(sha1_w_6_0, settings=settings,
                         options=options, backtrace=True)
 
         for dev in ['development/4.3', 'development/5.1', 'development/6.0']:
