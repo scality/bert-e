@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 - Fix unexpected NothingToDo on new build status in the case integration
   pull requests are not created
 - Fix comment in case of build failure on an integration branch
+- Fix reference to Jira key when ticket is not found
 
 ## [3.1.10] - 2018-04-17
 # Added

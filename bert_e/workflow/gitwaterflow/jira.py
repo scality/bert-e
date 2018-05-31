@@ -71,7 +71,8 @@ def get_jira_issue(job):
     except JIRAError as err:
         if err.status_code == 404:
             raise exceptions.JiraIssueNotFound(
-                issue=job.issue_id, active_options=job.active_options
+                issue=job.git.src_branch.jira_issue_key,
+                active_options=job.active_options
             ) from err
         raise
 
