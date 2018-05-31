@@ -2185,10 +2185,17 @@ admins:
         self.set_build_status_on_pr_id(pr.id, 'SUCCESSFUL')
         self.set_build_status_on_pr_id(pr.id + 1, 'INPROGRESS')
         self.set_build_status_on_pr_id(pr.id + 2, 'FAILED')
-        with self.assertRaises(exns.BuildFailed):
+        try:
             self.handle(pr.id,
                         options=self.bypass_all_but(['bypass_build_status']),
                         backtrace=True)
+        except exns.BuildFailed as excp:
+            self.assertIn(
+                "did not succeed in branch w/6.0/bugfix/TEST-00081",
+                excp.msg,
+            )
+        else:
+            raise Exception('did not raise BuildFailed')
 
         # test build status inprogress
         self.set_build_status_on_pr_id(pr.id, 'SUCCESSFUL')

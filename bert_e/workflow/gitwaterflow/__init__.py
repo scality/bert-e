@@ -614,7 +614,7 @@ def check_build_status(job, wbranches):
     if worst_status in ('FAILED', 'STOPPED'):
         raise messages.BuildFailed(
             active_options=job.active_options,
-            branch=worst.src_branch,
+            branch=worst.name,
             build_url=job.project_repo.get_build_url(
                 worst.get_latest_commit,
                 key),
