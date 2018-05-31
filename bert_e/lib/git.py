@@ -116,7 +116,7 @@ class Repository(object):
         output = self.cmd('git ls-remote --heads %s', self._url)
 
         for line in output.splitlines():
-            sha, branch = line.split()
+            sha, branch = line.replace('\t', ' ').split()
             # use short sha1 everywhere (sometimes only info sent by BB API)
             sha = sha[:12]
             branch = branch.replace('refs/heads/', '').strip()
