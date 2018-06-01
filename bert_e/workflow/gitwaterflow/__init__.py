@@ -92,7 +92,7 @@ def handle_commit(job: CommitJob):
     return handle_pull_request(
         PullRequestJob(
             bert_e=job.bert_e,
-            pull_request=pr
+            pull_request=job.project_repo.get_pull_request(int(pr.id))
         )
     )
 
