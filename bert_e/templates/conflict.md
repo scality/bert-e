@@ -17,6 +17,7 @@ Please resolve the conflict on **the feature branch** (`{{ feature_branch.name }
  $ git checkout origin/{{ feature_branch.name }}
  $ git merge origin/{{ dev_branch.name }}
  $ # <intense conflict resolution>
+ $ git commit
  $ git push origin HEAD:{{ feature_branch.name }}
 ```
 
@@ -53,9 +54,11 @@ Here are the steps to resolve this conflict:
  $ git pull  # or "git reset --hard origin/{{ wbranch.name }}"
  $ git merge origin/{{ wbranch.dst_branch.name }}
  $ # <intense conflict resolution>
+ $ git commit
 {%- endif %}
  $ git merge origin/{{ source.name }}
  $ # <intense conflict resolution>
+ $ git commit
  $ git push -u origin {{ wbranch.name }}
 ```
 {%endif%}
