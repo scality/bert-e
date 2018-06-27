@@ -6,8 +6,7 @@ Scality's automated branch merging tool. Version 3.1.
 
 Make sure you are using Python version 3.5 or above.
 
-```
-#!bash
+```bash
 $ mkdir bert-e && cd bert-e
 $ virtualenv venv
 $ source venv/bin/activate
@@ -16,8 +15,7 @@ $ pip install git+ssh://git@bitbucket.org/scality/bert-e.git
 
 ### How do I launch the standalone webhook listener (server.py) ?
 
-```
-#!bash
+```bash
 usage: bert-e-serve [-h] [--host HOST] [--port PORT]
                     [--settings-file SETTINGS_FILE] [--verbose]
 
@@ -64,8 +62,7 @@ You should check that you have set a password to your bitbucket account.
 If the text input `Old password` doesn't appear here:
 `https://bitbucket.org/account/password/change/<your_login>/`, you must set a password.
 
-```
-#!bash
+```bash
 $ python -m bert_e.tests.test_bert_e <owner> \
                                      <bert_e_username> <bert_e_password> \
                                      <eva_username> <eva_password> \
@@ -111,4 +108,3 @@ optional arguments:
 ```
 $ flake8 bert-e/
 ```
-

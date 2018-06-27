@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 ## [3.1.12] - 2018-06-27
 # Fixed
 - Fix incomplete conflict resolution suggestion.
-
+- Fix markdown syntax errors on PR messages.
 
 ## [3.1.11] - 2018-05-30
 # Fixed

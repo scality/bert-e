@@ -6,8 +6,7 @@ If you need to amend/cancel the changeset on branch
 `{{ branch }}`, please follow this
 procedure:
 
-```
-#!bash
+```bash
  $ git fetch
  $ git checkout {{ branch }}
  $ # <amend or cancel the changeset by _adding_ new commits>

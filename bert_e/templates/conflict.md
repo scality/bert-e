@@ -11,8 +11,7 @@ destination branch `{{ wbranch.dst_branch.name }}`.
 
 Please resolve the conflict on **the feature branch** (`{{ feature_branch.name }}`).
 
-```
-#!bash
+```bash
  $ git fetch
  $ git checkout origin/{{ feature_branch.name }}
  $ git merge origin/{{ dev_branch.name }}
@@ -44,8 +43,7 @@ Please resolve the conflict on **the integration branch** (`{{ wbranch.name }}`)
 
 Here are the steps to resolve this conflict:
 
-```
-#!bash
+```bash
  $ git fetch
  {% if empty -%}
  $ git checkout -B {{ wbranch.name }} origin/{{ wbranch.dst_branch.name }}
