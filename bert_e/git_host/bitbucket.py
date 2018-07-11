@@ -14,7 +14,6 @@
 
 import json
 import logging
-from collections import defaultdict
 from pathlib import Path
 from string import Template
 from urllib.parse import quote_plus as quote, urlparse
@@ -22,14 +21,10 @@ from urllib.parse import quote_plus as quote, urlparse
 from requests import HTTPError
 from requests.auth import HTTPBasicAuth
 
-from bert_e.lib.lru_cache import LRUCache
-
-from . import base, factory
+from . import base, cache, factory
 from ..exceptions import TaskAPIError
 
 MAX_PR_TITLE_LEN = 255
-
-BUILD_STATUS_CACHE = defaultdict(LRUCache)  # type: Dict[str, LRUCache]
 
 LOG = logging.getLogger(__name__)
 
@@ -221,10 +216,9 @@ class Repository(BitBucketObject, base.AbstractRepository):
             'key': key
         }
 
-        key = '{}-build'.format(revision)
-        build_url = BUILD_STATUS_CACHE[key].get(revision, None)
-        if build_url is not None:
-            return build_url
+        status = cache.BUILD_STATUS_CACHE[key].get(revision, None)
+        if status is not None:
+            return status.url
 
         # Check against Bitbucket
         try:
@@ -234,7 +228,7 @@ class Repository(BitBucketObject, base.AbstractRepository):
                 return None
             raise
         else:
-            return BUILD_STATUS_CACHE[key].set(revision, status['url'])
+            return cache.BUILD_STATUS_CACHE[key].set(revision, status).url
 
     def get_build_status(self, revision, key):
         kwargs = {
@@ -245,25 +239,26 @@ class Repository(BitBucketObject, base.AbstractRepository):
         }
 
         # Check if a successful build for this revision is in cache
-        status = BUILD_STATUS_CACHE[key].get(revision, None)
-        if status == 'SUCCESSFUL':
-            LOG.debug('Build on %s: cache GET (%s)', revision, status)
-            return status
+        cached = cache.BUILD_STATUS_CACHE[key].get(revision, None)
+        if cached and cached.state == 'SUCCESSFUL':
+            LOG.debug('Build on %s: cache GET (%s)', revision, cached.state)
+            return cached.state
 
-        LOG.debug('Build on %s: cache MISS (%s)', revision, status)
+        LOG.debug('Build on %s: cache MISS', revision)
 
         # Either not in cache or wasn't successful last time. Check BB again.
         try:
             status = BuildStatus.get(self.client, **kwargs)
-            return BUILD_STATUS_CACHE[key].set(revision, status['state'])
         except HTTPError as e:
             if e.response.status_code == 404:
-                return BUILD_STATUS_CACHE[key].set(revision, 'NOTSTARTED')
+                return 'NOTSTARTED'
             raise
+        else:
+            return cache.BUILD_STATUS_CACHE[key].set(revision, status).state
 
     def invalidate_build_status_cache(self):
         """Reset cache entries (useful for tests)."""
-        BUILD_STATUS_CACHE.clear()
+        cache.BUILD_STATUS_CACHE.clear()
 
     def set_build_status(self, revision, key, state, **kwargs):
         kwargs.update({
@@ -531,12 +526,31 @@ class Task(BitBucketObject, base.AbstractTask):
             raise TaskAPIError('get_list', err)
 
 
-class BuildStatus(BitBucketObject):
+class BuildStatus(BitBucketObject, base.AbstractBuildStatus):
     get_url = 'https://api.bitbucket.org/2.0/repositories/$owner/$repo_slug/' \
         'commit/$revision/statuses/build/$key'
     add_url = 'https://api.bitbucket.org/2.0/repositories/$owner/' \
         '$repo_slug/commit/$revision/statuses/build'
     list_url = add_url + '?page=$page'
+
+    @property
+    def state(self) -> str:
+        return self._json_data['state']
+
+    @property
+    def url(self) -> str:
+        return self._json_data['url']
+
+    @property
+    def description(self) -> str:
+        return self._json_data['description']
+
+    @property
+    def key(self) -> str:
+        return self._json_data['key']
+
+    def __str__(self) -> str:
+        return self.state
 
 
 class WebHook(BitBucketObject):

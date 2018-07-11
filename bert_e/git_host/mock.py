@@ -515,5 +515,5 @@ class Task(BitBucketObject, base.AbstractTask):
                 t.pull_request_id == pull_request_id]
 
 
-class BuildStatus(BitBucketObject):
+class BuildStatus(BitBucketObject, base.AbstractBuildStatus):
     pass

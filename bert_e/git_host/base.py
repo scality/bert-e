@@ -83,6 +83,36 @@ class BertESession(Session):
         return response
 
 
+class AbstractBuildStatus(metaclass=ABCMeta):
+    """Abstract class defining a build status interface."""
+    @property
+    @abstractmethod
+    def state(self) -> str:
+        """The build status itself.
+
+        Possible values:
+            - INPROGRESS
+            - NOTSTARTED
+            - SUCCESSFUL
+            - FAILED
+        """
+
+    @property
+    @abstractmethod
+    def url(self) -> str:
+        """The build status url."""
+
+    @property
+    @abstractmethod
+    def description(self) -> str:
+        """The build status description."""
+
+    @property
+    @abstractmethod
+    def key(self) -> str:
+        """The build status key."""
+
+
 class AbstractTask(metaclass=ABCMeta):
     """Abstract class defining a task's interface."""
     # Empty, but used as a return value below

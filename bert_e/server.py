@@ -25,7 +25,8 @@ from flask import Flask, Response, render_template, request
 
 from .api import RebuildQueuesJob
 from .git_host import github
-from .git_host.bitbucket import BUILD_STATUS_CACHE, PullRequest
+from .git_host.bitbucket import BuildStatus, PullRequest
+from .git_host.cache import BUILD_STATUS_CACHE
 from .job import CommitJob, PullRequestJob
 
 BERTE = None
@@ -44,7 +45,8 @@ def pr_url_filter(id_or_revision):
 
 @APP.template_filter('build_url')
 def build_url_filter(sha1):
-    return BUILD_STATUS_CACHE['pre-merge'].get('%s-build' % sha1, '')
+    status = BUILD_STATUS_CACHE['pre-merge'].get(sha1, None)
+    return status.url if status else ''
 
 
 def bert_e_launcher():
@@ -105,10 +107,11 @@ def display_queue():
                 continue
             line = {'pr_id': pr_id}
             for version, sha1 in queued_commits:
+                status = BUILD_STATUS_CACHE['pre-merge'].get(sha1, None)
+                state = status.state if status else 'NOTSTARTED'
                 line[version] = {
                     'sha1': sha1,
-                    'status':
-                        BUILD_STATUS_CACHE['pre-merge'].get(sha1, 'NOTSTARTED')
+                    'status': state,
                 }
             queue_lines.append(line)
 
@@ -190,19 +193,24 @@ def handle_repo_event(event, json_data):
         commit_url = json_data['commit_status']['links']['commit']['href']
         commit_sha1 = commit_url.split('/')[-1]
 
+        LOG.debug("New build status on commit %s", commit_sha1)
+
         # If we don't have a successful build for this sha1, update the cache
-        if BUILD_STATUS_CACHE[key].get(commit_sha1, None) != 'SUCCESSFUL':
-            BUILD_STATUS_CACHE[key].set(commit_sha1, build_status)
-            BUILD_STATUS_CACHE[key].set('%s-build' % commit_sha1, build_url)
+        cached = BUILD_STATUS_CACHE[key].get(commit_sha1, None)
+        if not cached or cached.state != 'SUCCESSFUL':
+            status = BuildStatus(BERTE.client, **json_data['commit_status'])
+            BUILD_STATUS_CACHE[key].set(commit_sha1, status)
 
         # Ignore notifications that the build started
         if build_status == 'INPROGRESS':
+            LOG.debug("The build just started on %s, ignoring event",
+                      commit_sha1)
             return
 
         LOG.info('The build status of commit <%s> has been updated to %s. '
                  'More information at %s',
                  commit_sha1, build_status, build_url)
-        return CommitJob(bert_e=BERTE, commit=commit_sha1, url=build_url)
+        return CommitJob(bert_e=BERTE, commit=commit_sha1, url=commit_url)
 
 
 def handle_pullrequest_event(event, json_data):
@@ -282,9 +290,9 @@ def handle_github_status_event(client, json_data):
     event = github.StatusEvent(client=client, **json_data)
     status = event.status
     LOG.debug("New build status on commit %s", event.commit)
-    cached = github.BUILD_STATUS_CACHE[status.key].get(event.commit)
+    cached = BUILD_STATUS_CACHE[status.key].get(event.commit)
     if not cached or cached.state != 'SUCCESSFUL':
-        github.BUILD_STATUS_CACHE[status.key].set(event.commit, status)
+        BUILD_STATUS_CACHE[status.key].set(event.commit, status)
 
     if status.state == 'INPROGRESS':
         LOG.debug("The build just started on %s, ignoring event", event.commit)

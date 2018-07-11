@@ -26,6 +26,7 @@ from types import SimpleNamespace
 from .. import job as berte_job
 from .. import bert_e, server
 from ..git_host import bitbucket as bitbucket_api
+from ..git_host import cache
 from ..git_host import mock as mock_api
 from ..lib.settings_dict import SettingsDict
 from .test_server_data import COMMENT_CREATED, COMMIT_STATUS_CREATED
@@ -121,10 +122,7 @@ class TestWebhookListener(unittest.TestCase):
         server.BERTE.status['merge queue'] = OrderedDict([
             ('10', [('4.3', '0033deadbeef'), ('6.0', '13370badf00d')])
         ])
-        bitbucket_api.BUILD_STATUS_CACHE['pre-merge'].set('0033deadbeef',
-                                                          'INPROGRESS')
-        bitbucket_api.BUILD_STATUS_CACHE['pre-merge'].set('0033deadbeef-build',
-                                                          'fakeurl')
+        self.set_status_cache('0033deadbeef', 'INPROGRESS', 'fakeurl')
 
         server.BERTE.status['merged PRs'] = [
             {'id': 1, 'merge_time': datetime(2016, 12, 9, 14, 54, 20, 123456)},
@@ -160,14 +158,8 @@ class TestWebhookListener(unittest.TestCase):
                'INPROGRESS</a></td>' in data
 
         # Update cache with a successful and a failed build
-        bitbucket_api.BUILD_STATUS_CACHE['pre-merge'].set('0033deadbeef',
-                                                          'FAILED')
-        bitbucket_api.BUILD_STATUS_CACHE['pre-merge'].set('0033deadbeef-build',
-                                                          'url2')
-        bitbucket_api.BUILD_STATUS_CACHE['pre-merge'].set('13370badf00d',
-                                                          'SUCCESS')
-        bitbucket_api.BUILD_STATUS_CACHE['pre-merge'].set('13370badf00d-build',
-                                                          'url3')
+        self.set_status_cache('0033deadbeef', 'FAILED', 'url2')
+        self.set_status_cache('13370badf00d', 'SUCCESS', 'url3')
 
         res = app.get('/?output=txt')
         assert '   #10        SUCCESS         FAILED    ' in res.data.decode()
@@ -195,6 +187,17 @@ class TestWebhookListener(unittest.TestCase):
                'g/foo/bar/pull-requests/10">#10</a></li>' in data
         assert 'Merge queue status:' not in data
 
+    def set_status_cache(self, sha1, state, url,
+                         description='dummy', key='pre-merge'):
+        json_data = {
+            'description': description,
+            'key': key,
+            'state': state,
+            'url': url,
+        }
+        status = bitbucket_api.BuildStatus(None, **json_data)
+        cache.BUILD_STATUS_CACHE[key].set(sha1, status)
+
     def test_merge_queue_print(self):
         server.BERTE.status['merge queue'] = OrderedDict([
             (4472, [
@@ -213,25 +216,15 @@ class TestWebhookListener(unittest.TestCase):
                 ('6.4', '5095/6.4')]),
         ])
 
-        cache = bitbucket_api.BUILD_STATUS_CACHE['pre-merge']
-        cache.set('4472/6.4', 'SUCCESSFUL')
-        cache.set('4472/6.4-build', '4472/6.4_url')
-        cache.set('4472/6.3', 'SUCCESSFUL')
-        cache.set('4472/6.3-build', '4472/6.3_url')
-        cache.set('4472/6.2', 'INPROGRESS')
-        cache.set('4472/6.2-build', '4472/6.2_url')
-        cache.set('5773/6.4', 'FAILED')
-        cache.set('5773/6.4-build', '5773/6.4_url')
-        cache.set('6050/6.4', 'SUCCESSFUL')
-        cache.set('6050/6.4-build', '6050/6.4_url')
-        cache.set('6086/6.4', 'FAILED')
-        cache.set('6086/6.4-build', '6086/6.4_url')
-        cache.set('6086/6.3.0', 'SUCCESSFUL')
-        cache.set('6086/6.3.0-build', '6086/6.3.0_url')
-        cache.set('6086/6.3', 'SUCCESSFUL')
-        cache.set('6086/6.3-build', '6086/6.3_url')
-        cache.set('5095/6.4', 'SUCCESSFUL')
-        cache.set('5095/6.4-build', '5095/6.4_urltoto')
+        self.set_status_cache('4472/6.4', 'SUCCESSFUL', '4472/6.4_url')
+        self.set_status_cache('4472/6.3', 'SUCCESSFUL', '4472/6.3_url')
+        self.set_status_cache('4472/6.2', 'INPROGRESS', '4472/6.2_url')
+        self.set_status_cache('5773/6.4', 'FAILED', '5773/6.4_url')
+        self.set_status_cache('6050/6.4', 'SUCCESSFUL', '6050/6.4_url')
+        self.set_status_cache('6086/6.4', 'FAILED', '6086/6.4_url')
+        self.set_status_cache('6086/6.3.0', 'SUCCESSFUL', '6086/6.3.0_url')
+        self.set_status_cache('6086/6.3', 'SUCCESSFUL', '6086/6.3_url')
+        self.set_status_cache('5095/6.4', 'SUCCESSFUL', '5095/6.4_urltoto')
 
         expected = (
             'Merge queue status:',

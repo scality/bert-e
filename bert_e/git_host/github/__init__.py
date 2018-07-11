@@ -24,11 +24,9 @@ from bert_e.lib.schema import (load as load_schema,
                                validate as validate_schema,
                                dumps as dump_schema)
 from . import schema
-from .. import base, factory
+from .. import base, cache, factory
 
 LOG = logging.getLogger(__name__)
-
-BUILD_STATUS_CACHE = defaultdict(LRUCache)  # type: Dict[str, LRUCache]
 
 
 class Error(base.Error):
@@ -500,12 +498,12 @@ class Repository(GithubObject, base.AbstractRepository):
             raise
 
         for key, status in combined.status.items():
-            BUILD_STATUS_CACHE[key].set(combined.commit, status)
+            cache.BUILD_STATUS_CACHE[key].set(combined.commit, status)
 
         return combined
 
     def get_build_status(self, revision: str, key: str) -> str:
-        status = BUILD_STATUS_CACHE[key].get(revision, None)
+        status = cache.BUILD_STATUS_CACHE[key].get(revision, None)
         if status and status.state == 'SUCCESSFUL':
             return status.state
         try:
@@ -516,12 +514,12 @@ class Repository(GithubObject, base.AbstractRepository):
     def get_build_url(self, revision: str, key: str) -> str:
         # Only look inside the cache. There is no need for an API call for this
         # build's URL.
-        status = BUILD_STATUS_CACHE[key].get(revision, None)
+        status = cache.BUILD_STATUS_CACHE[key].get(revision, None)
         if status:
             return status.url
 
     def get_build_description(self, revision: str, key: str) -> str:
-        status = BUILD_STATUS_CACHE[key].get(revision, None)
+        status = cache.BUILD_STATUS_CACHE[key].get(revision, None)
         if status:
             return status.description
 
@@ -608,7 +606,7 @@ class AggregatedStatus(GithubObject):
         return self._status
 
 
-class Status(GithubObject):
+class Status(GithubObject, base.AbstractBuildStatus):
     CREATE_URL = '/repos/{owner}/{repo}/statuses/{sha}'
 
     SCHEMA = schema.Status
@@ -626,16 +624,19 @@ class Status(GithubObject):
         return trans[self.data['state']]
 
     @property
-    def url(self):
+    def url(self) -> str:
         return self.data['target_url']
 
     @property
-    def description(self):
+    def description(self) -> str:
         return self.data['description']
 
     @property
-    def key(self):
+    def key(self) -> str:
         return self.data['context']
+
+    def __str__(self) -> str:
+        return self.state
 
 
 class PullRequest(GithubObject, base.AbstractPullRequest):
