@@ -634,7 +634,6 @@ class RepositoryTests(unittest.TestCase):
         'bypass_incompatible_branch',
         'bypass_jira_check',
         'bypass_peer_approval',
-        'bypass_tester_approval'
     ]
 
     def get_last_pr_comment(self, pr):
@@ -1230,7 +1229,7 @@ admins:
             "w/5.1/improvement/TEST-0006-last", True))
 
     def test_approvals(self):
-        """Test approvals of author, reviewer and tester."""
+        """Test approvals of author and reviewer."""
         feature_branch = 'bugfix/TEST-0007'
         dst_branch = 'development/4.3'
 
@@ -1752,7 +1751,6 @@ admins:
         pr.add_comment('@toto'  # toto is not Bert-E
                        ' bypass_author_approval'
                        ' bypass_peer_approval'
-                       ' bypass_tester_approval'
                        ' bypass_build_status'
                        ' bypass_jira_check')
         with self.assertRaises(exns.ApprovalRequired):
@@ -1763,7 +1761,6 @@ admins:
             '@%s'
             ' bypass_author_approval'
             ' bypass_peer_approval'
-            ' bypass_tester_approval'
             ' bypass_build_status'
             ' bypass_jira_check' % self.args.robot_username
         )
@@ -1796,7 +1793,6 @@ admins:
                         options=[
                             'bypass_jira_check',
                             'bypass_author_approval',
-                            'bypass_tester_approval',
                             'bypass_peer_approval',
                         ],
                         backtrace=True)
@@ -1809,7 +1805,6 @@ admins:
             '@%s'
             ' bypass_author_aproval'  # a p is missing
             ' bypass_peer_approval'
-            ' bypass_tester_approval'
             ' bypass_build_status'
             ' bypass_jira_check' % self.args.robot_username
         )
@@ -1822,7 +1817,6 @@ admins:
             '@%s'  # comment is made by unpriviledged user (robot itself)
             ' bypass_author_approval'
             ' bypass_peer_approval'
-            ' bypass_tester_approval'
             ' bypass_build_status'
             ' bypass_jira_check' % self.args.robot_username
         )
@@ -1835,7 +1829,6 @@ admins:
             '@%s'
             ' bypass_author_approval'
             ' bypass_peer_approval'
-            ' bypass_tester_approval'
             ' bypass_build_status'
             ' mmm_never_seen_that_before'  # this is unknown
             ' bypass_jira_check' % self.args.robot_username
@@ -1848,7 +1841,6 @@ admins:
         pr_admin.add_comment('@%s'
                              ' bypass_author_approval'
                              ' bypass_peer_approval'
-                             ' bypass_tester_approval'
                              ' bypass_build_status'
                              ' bypass_jira_check' % self.args.robot_username)
         with self.assertRaises(exns.SuccessMessage):
@@ -1860,7 +1852,6 @@ admins:
         pr_admin.add_comment('  @%s  '
                              '   bypass_author_approval  '
                              '     bypass_peer_approval   '
-                             ' bypass_tester_approval'
                              '  bypass_build_status'
                              '   bypass_jira_check' %
                              self.args.robot_username)
@@ -1874,8 +1865,6 @@ admins:
                              self.args.robot_username)
         pr_admin.add_comment('@%s bypass_peer_approval' %
                              self.args.robot_username)
-        pr_admin.add_comment('@%s bypass_tester_approval' %
-                             self.args.robot_username)
         pr_admin.add_comment('@%s bypass_build_status' %
                              self.args.robot_username)
         pr_admin.add_comment('@%s bypass_jira_check' %
@@ -1888,8 +1877,7 @@ admins:
         pr_admin = self.admin_bb.get_pull_request(pull_request_id=pr.id)
         pr_admin.add_comment('@%s'
                              ' bypass_author_approval'
-                             ' bypass_peer_approval'
-                             ' bypass_tester_approval' %
+                             ' bypass_peer_approval' %
                              self.args.robot_username)
         with self.assertRaises(exns.SuccessMessage):
             self.handle(pr.id,
@@ -1917,7 +1905,6 @@ admins:
             self.handle(pr.id,
                         options=[
                             'bypass_author_approval',
-                            'bypass_tester_approval',
                             'bypass_jira_check',
                             'bypass_build_status',
                         ],
@@ -1932,7 +1919,6 @@ admins:
             self.handle(pr.id,
                         options=[
                             'bypass_author_approval',
-                            'bypass_tester_approval',
                             'bypass_peer_approval',
                             'bypass_build_status',
                         ],
@@ -1969,10 +1955,6 @@ admins:
                              self.args.robot_username)
         for i in range(10):
             pr.add_comment('random comment %s' % i)
-        for i in range(10):
-            pr.add_comment('@%s bypass_tester_approval' % i)
-        pr_admin.add_comment('@%s bypass_tester_approval' %
-                             self.args.robot_username)
 
         with self.assertRaises(exns.SuccessMessage):
             self.handle(pr.id, backtrace=True)
@@ -1983,7 +1965,6 @@ admins:
         pr_admin.add_comment('@%s:'
                              'bypass_author_approval,  '
                              '     bypass_peer_approval,,   '
-                             ' bypass_tester_approval'
                              '  bypass_build_status-bypass_jira_check' %
                              self.args.robot_username)
         with self.assertRaises(exns.SuccessMessage):
@@ -2206,20 +2187,6 @@ admins:
                         options=self.bypass_all_but(['bypass_build_status']),
                         backtrace=True)
 
-        # test bypass tester approval through comment
-        pr = self.create_pr('bugfix/TEST-00078', 'development/4.3')
-        pr_admin = self.admin_bb.get_pull_request(pull_request_id=pr.id)
-        pr_admin.add_comment('@%s bypass_tester_approval' %
-                             self.args.robot_username)
-        with self.assertRaises(exns.SuccessMessage):
-            self.handle(pr.id,
-                        options=[
-                            'bypass_author_approval',
-                            'bypass_peer_approval',
-                            'bypass_jira_check',
-                            'bypass_build_status'],
-                        backtrace=True)
-
     def test_build_status_triggered_by_build_result(self):
         pr = self.create_pr('bugfix/TEST-00081', 'development/5.1')
         with self.assertRaises(exns.BuildNotStarted):
@@ -2392,7 +2359,6 @@ admins:
         try:
             self.handle(pr.id, options=[
                 'bypass_build_status',
-                'bypass_tester_approval',
                 'bypass_peer_approval',
                 'bypass_author_approval'],
                 backtrace=True)

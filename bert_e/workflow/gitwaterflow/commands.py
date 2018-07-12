@@ -191,11 +191,6 @@ def setup(defaults={}):
         "Bypass the pull request peers' approval",
         privileged=True,
         default=defaults.get("bypass_peer_approval", False))
-    Reactor.add_option(
-        "bypass_tester_approval",
-        "Bypass the pull request testers' approval",
-        privileged=True,
-        default=defaults.get("bypass_tester_approval", False))
 
     # Other options
     Reactor.add_option(

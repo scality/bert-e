@@ -53,7 +53,6 @@ class SettingsSchema(Schema):
     bypass_prefixes = fields.List(fields.Str(), missing=[])
 
     admins = fields.List(fields.Str(), missing=[])
-    testers = fields.List(fields.Str(), missing=[])
     tasks = fields.List(fields.Str(), missing=[])
 
     max_commit_diff = fields.Int(missing=0)

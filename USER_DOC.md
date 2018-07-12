@@ -117,7 +117,6 @@ option has no effect on GitHub** where author approvals are not supported)   | y
 | bypass_incompatible_branch | Bypass the check on the source branch prefix | yes
 | bypass_jira_check         | Bypass the Jira issue check| yes |
 | bypass_peer_approval      | Bypass the pull request peer's approval | yes
-| bypass_tester_approval    | Bypass the pull request tester's approval | yes
 | create_pull_requests      | Let __Bert-E__ create pull requests corresponding to integration branches | no
 | no_octopus                | Prevent Wall-E from doing any octopus merge and use multiple consecutive merge instead | yes
 | unanimity                 | Change review acceptance criteria from `one reviewer at least` to `all reviewers` (**this feature is not supported on GitHub**) | no
@@ -392,17 +391,6 @@ approved the code. The peer is in charge of checking that:
 
 ---
 
-**A tester has approved the pull request (deprecated).**
-The tester is the ultimate gate to check that everything is in place before a
-merge. Make sure to include a QA champion in the reviewers of the pull request.
-
-*__Bert-E__ sends message code 117 in case of non-conformance.*
-
-> This check can be bypassed by an admin with the __bypass_tester_approval__
-> option.
-
----
-
 **The code on the integration branches has passed the build.**
 The build pipeline is launched automatically on each integration branches. A
 green light on all integration branches is mandatory before a merge can happen.
@@ -456,7 +444,6 @@ to progress to the next step.  message code
 | 114   | Conflict | It is not possible to automatically merge the work from the pull request to all destination branches. Update the integration branches manually
 | 115   | Waiting for approval | The author's approval is missing. The author should approve his work or, request an administrator to bypass the approval.
 | 116   | Waiting for approval | No peer has approved yet. A peer should approve the work or, request an administrator to bypass the approval.
-| 117   | Waiting for approval | No tester has approved yet. A tester should approve the work or, request an administrator to bypass the approval
 | 118   | Build failed | A build has failed on one of the integrations branches. In this situation, commenting the pull request has no effect (in most cases). Analyse the reason for the build failure. If the failure is due to your changes: fix the problem push the new code on the same branch; If the failure is due to an instability of the pipeline or a failure of the build environement: log the problem in JIRA (or update an existing ticket with the link to the new failure) launch a new build on your branch. Commenting the pull request only may work, but only in the case where some other code has been merged in the destination branches. In this case, __Bert-E__ will merge the new code in the integration branches, which will trigger new builds. You should not count on this behaviour however, unless you know for sure that another pull request was merged since the last build report.
 | 119   | Waiting for approval | Unanimity option has been set, and not all of the participants have approved yet. All participants in the pull request should should approve the work or, the unanimity option can be removed or, request an administrator to bypass the approval
 | 120   | After pull request | The after_pull_request option has been activated, and the target pull request is not merged yet work on merging the pending pull request or remove the option

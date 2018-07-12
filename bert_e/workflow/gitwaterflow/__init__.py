@@ -518,7 +518,7 @@ def check_pull_request_skew(job, wbranches, child_prs):
 
 
 def check_approvals(job):
-    """Check approval of a pull request by author, tester and peer.
+    """Check approval of a pull request by author and peer.
 
     Raises:
         - ApprovalRequired
@@ -529,23 +529,12 @@ def check_approvals(job):
         current_peer_approvals = required_peer_approvals
     approved_by_author = (not job.settings.need_author_approval or
                           job.settings.bypass_author_approval)
-    approved_by_tester = job.settings.bypass_tester_approval
     requires_unanimity = job.settings.unanimity
     is_unanimous = True
 
-    if not job.settings.testers:
-        # if the project does not declare any testers,
-        # just assume a pseudo-tester has approved the PR
-        approved_by_tester = True
-
-    # If a tester is the author of the PR we will bypass
-    #  the tester approval
-    if job.pull_request.author in job.settings.testers:
-        approved_by_tester = True
-
     if (approved_by_author and
             (current_peer_approvals >= required_peer_approvals) and
-            approved_by_tester and not requires_unanimity):
+            not requires_unanimity):
         return
 
     # NB: when author hasn't approved the PR, author isn't listed in
@@ -558,24 +547,19 @@ def check_approvals(job):
     # Exclude Bert-E from consideration
     participants -= {username}
 
-    testers = set(job.settings.testers)
-
     is_unanimous = approvals - {username} == participants
     approved_by_author |= job.pull_request.author in approvals
-    approved_by_tester |= bool(approvals & testers)
-    peer_approvals = approvals - testers - {job.pull_request.author}
+    peer_approvals = approvals - {job.pull_request.author}
     current_peer_approvals += len(peer_approvals)
     missing_peer_approvals = (
         required_peer_approvals - current_peer_approvals)
 
     if not approved_by_author or \
-            (testers and not approved_by_tester) or \
             missing_peer_approvals > 0 or \
             (requires_unanimity and not is_unanimous):
         raise messages.ApprovalRequired(
             pr=job.pull_request,
             required_peer_approvals=required_peer_approvals,
-            requires_tester_approval=bool(testers),
             requires_unanimity=requires_unanimity,
             requires_author_approval=job.settings.need_author_approval,
             active_options=job.active_options
