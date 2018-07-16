@@ -17,10 +17,10 @@ All notable changes to this project will be documented in this file.
 ## [3.1.11] - 2018-05-30
 # Fixed
 - Fix unexpected NothingToDo on new build status in the case integration
-  pull requests are not created
-- Fix comment in case of build failure on an integration branch
-- Fix reference to Jira key when ticket is not found
-- Fix parsing output of ls-remote for more recent git versions
+  pull requests are not created.
+- Fix comment in case of build failure on an integration branch.
+- Fix reference to Jira key when ticket is not found.
+- Fix parsing output of ls-remote for more recent git versions.
 
 ## [3.1.10] - 2018-04-17
 # Added
