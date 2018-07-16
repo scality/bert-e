@@ -737,7 +737,13 @@ class PullRequest(GithubObject, base.AbstractPullRequest):
 
     def get_approvals(self):
         reviews = self._reviews or self.get_reviews()
-        return (r.author for r in reviews if r.approved)
+        # squash reviews from identical users and consider only the latest
+        squash = dict()
+        for r in reviews:
+            if r.author not in squash or r.id > squash[r.author]['id']:
+                squash[r.author] = {'approved': r.approved, 'id': r.id}
+
+        return (a for a in squash if squash[a]['approved'])
 
     def approve(self):
         rev = Review.create(
@@ -798,6 +804,10 @@ class Review(GithubObject):
     @property
     def approved(self) -> str:
         return self.data['state'].lower() == 'approved'
+
+    @property
+    def id(self) -> int:
+        return self.data['id']
 
 
 class PullRequestEvent(GithubObject):
