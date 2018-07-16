@@ -3,6 +3,7 @@ All notable changes to this project will be documented in this file.
 
 ## [3.1.13] - 2018-07-16
 # Added
+- Implement mandatory project leader approvals
 - Remove code around tester approval
 # Fixed
 - Fix build status cache and build status presentation for Github projects.
