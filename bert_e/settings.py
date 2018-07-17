@@ -43,6 +43,7 @@ class SettingsSchema(Schema):
     build_key = fields.Str(missing="pre-merge")
 
     need_author_approval = fields.Bool(missing=True)
+    required_leader_approvals = fields.Int(missing=0)
     required_peer_approvals = fields.Int(missing=2)
 
     jira_account_url = fields.Str(missing='')
@@ -53,6 +54,7 @@ class SettingsSchema(Schema):
     bypass_prefixes = fields.List(fields.Str(), missing=[])
 
     admins = fields.List(fields.Str(), missing=[])
+    project_leaders = fields.List(fields.Str(), missing=[])
     tasks = fields.List(fields.Str(), missing=[])
 
     max_commit_diff = fields.Int(missing=0)
@@ -103,6 +105,26 @@ def setup_settings(settings_file: str) -> dict:
             raise IncorrectSettingsFile(settings_file) from err
 
     settings, errors = SettingsSchema().load(data)
+    if errors:
+        raise MalformedSettings(settings_file, errors, data)
+
+    # beyond individual setting validity,
+    # check now for inter-settings validity
+
+    if (settings['required_leader_approvals'] >
+            settings['required_peer_approvals']):
+        errors['required_leader_approvals'] = [
+            'required_peer_approvals must be equal to, '
+            'or exceed, required_leader_approvals'
+        ]
+
+    if (settings['required_leader_approvals'] >
+            len(settings['project_leaders'])):
+        errors['required_leader_approvals'] = [
+            'the number of project leaders must be equal to, '
+            'or exceed, the value of required_leader_approvals'
+        ]
+
     if errors:
         raise MalformedSettings(settings_file, errors, data)
 

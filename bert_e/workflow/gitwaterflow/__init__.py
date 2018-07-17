@@ -518,7 +518,7 @@ def check_pull_request_skew(job, wbranches, child_prs):
 
 
 def check_approvals(job):
-    """Check approval of a pull request by author and peer.
+    """Check approval of a pull request by author, peers, and leaders.
 
     Raises:
         - ApprovalRequired
@@ -527,6 +527,12 @@ def check_approvals(job):
     current_peer_approvals = 0
     if job.settings.bypass_peer_approval:
         current_peer_approvals = required_peer_approvals
+
+    required_leader_approvals = job.settings.required_leader_approvals
+    current_leader_approvals = 0
+    if job.settings.bypass_leader_approval:
+        current_leader_approvals = required_leader_approvals
+
     approved_by_author = (not job.settings.need_author_approval or
                           job.settings.bypass_author_approval)
     requires_unanimity = job.settings.unanimity
@@ -534,6 +540,7 @@ def check_approvals(job):
 
     if (approved_by_author and
             (current_peer_approvals >= required_peer_approvals) and
+            (current_leader_approvals >= required_leader_approvals) and
             not requires_unanimity):
         return
 
@@ -547,18 +554,32 @@ def check_approvals(job):
     # Exclude Bert-E from consideration
     participants -= {username}
 
+    leaders = set(job.settings.project_leaders)
+
     is_unanimous = approvals - {username} == participants
     approved_by_author |= job.pull_request.author in approvals
+    current_leader_approvals += len(approvals.intersection(leaders))
+    if (job.pull_request.author in leaders and
+            job.pull_request.author not in approvals):
+        # if a project leader creates a PR and has not approved it
+        # (which is not possible on Github for example), always count
+        # one additional mandatory approval
+        current_leader_approvals += 1
+    missing_leader_approvals = (
+        required_leader_approvals - current_leader_approvals)
     peer_approvals = approvals - {job.pull_request.author}
     current_peer_approvals += len(peer_approvals)
     missing_peer_approvals = (
         required_peer_approvals - current_peer_approvals)
 
     if not approved_by_author or \
+            missing_leader_approvals > 0 or \
             missing_peer_approvals > 0 or \
             (requires_unanimity and not is_unanimous):
         raise messages.ApprovalRequired(
             pr=job.pull_request,
+            required_leader_approvals=required_leader_approvals,
+            leaders=list(leaders),
             required_peer_approvals=required_peer_approvals,
             requires_unanimity=requires_unanimity,
             requires_author_approval=job.settings.need_author_approval,

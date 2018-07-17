@@ -67,6 +67,7 @@ always_create_integration_pull_requests: True
 pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
 commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
 build_key: pre-merge
+required_leader_approvals: 1
 required_peer_approvals: 2
 prefixes:
   Story: feature
@@ -77,6 +78,8 @@ jira_username: dummy
 jira_keys:
   - TEST
 admins:
+  - {admin}
+project_leaders:
   - {admin}
 tasks:
   - do foo
@@ -634,6 +637,7 @@ class RepositoryTests(unittest.TestCase):
         'bypass_incompatible_branch',
         'bypass_jira_check',
         'bypass_peer_approval',
+        'bypass_leader_approval'
     ]
 
     def get_last_pr_comment(self, pr):
@@ -829,6 +833,7 @@ class RepositoryTests(unittest.TestCase):
         sys.argv.append('--quiet')
         data = settings.format(
             admin=self.args.admin_username,
+            contributor=self.args.contributor_username,
             robot=self.args.robot_username,
             owner=self.args.owner,
             slug='%s_%s' % (self.args.repo_prefix, self.args.admin_username),
@@ -933,6 +938,7 @@ robot_email: nobody@nowhere.com
 pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
 commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
 build_key: pre-merge
+required_leader_approvals: 0
 required_peer_approvals: 1
 always_create_integration_pull_requests: False
 admins:
@@ -974,6 +980,7 @@ robot_email: nobody@nowhere.com
 pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
 commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
 build_key: pre-merge
+required_leader_approvals: 0
 required_peer_approvals: 1
 always_create_integration_pull_requests: False
 admins:
@@ -1005,6 +1012,7 @@ robot_email: nobody@nowhere.com
 pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
 commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
 build_key: pre-merge
+required_leader_approvals: 0
 required_peer_approvals: 1
 always_create_integration_pull_requests: False
 admins:
@@ -1057,6 +1065,7 @@ robot_email: nobody@nowhere.com
 pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
 commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
 build_key: pre-merge
+required_leader_approvals: 0
 required_peer_approvals: 1
 always_create_integration_pull_requests: False
 admins:
@@ -1229,7 +1238,7 @@ admins:
             "w/5.1/improvement/TEST-0006-last", True))
 
     def test_approvals(self):
-        """Test approvals of author and reviewer."""
+        """Test approvals of author, reviewer and leader."""
         feature_branch = 'bugfix/TEST-0007'
         dst_branch = 'development/4.3'
 
@@ -1244,6 +1253,9 @@ admins:
             self.assertIn('the author', raised.exception.msg)
 
         self.assertIn('2 peers', raised.exception.msg)
+        self.assertIn('*must* include a mandatory approval from @%s.' %
+                      self.args.admin_username, raised.exception.msg)
+        self.assertNotIn('*must* include at least', raised.exception.msg)
 
         # test approval on sub pr has not effect
         pr_child = self.admin_bb.get_pull_request(pull_request_id=pr.id + 1)
@@ -1261,6 +1273,9 @@ admins:
             self.assertIn('the author', comment.text)
 
         self.assertIn('2 peers', comment.text)
+        self.assertIn('*must* include a mandatory approval from @%s.' %
+                      self.args.admin_username, raised.exception.msg)
+        self.assertNotIn('*must* include at least', raised.exception.msg)
 
         # test message with a single peer approval required
         settings = """
@@ -1272,9 +1287,12 @@ robot_email: nobody@nowhere.com
 pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
 commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
 build_key: pre-merge
+required_leader_approvals: 0
 required_peer_approvals: 1
 admins:
   - {admin}
+project_leaders:
+  - should_not_be_mentionned
 """ # noqa
         with self.assertRaises(exns.ApprovalRequired) as raised:
             self.handle(pr.id, options=['bypass_jira_check'],
@@ -1284,6 +1302,70 @@ admins:
             self.assertIn('the author', raised.exception.msg)
         self.assertIn('one peer', raised.exception.msg)
         self.assertNotIn('2 peers', raised.exception.msg)
+        self.assertNotIn('*must* include a mandatory', raised.exception.msg)
+        self.assertNotIn('*must* include at least', raised.exception.msg)
+        self.assertNotIn('should_not_be_mentionned', raised.exception.msg)
+
+        # test message with single mandatory approval required
+        settings = """
+repository_owner: {owner}
+repository_slug: {slug}
+repository_host: {host}
+robot_username: {robot}
+robot_email: nobody@nowhere.com
+pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
+commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
+build_key: pre-merge
+required_leader_approvals: 1
+required_peer_approvals: 3
+admins:
+  - {admin}
+project_leaders:
+  - dummy_leader_handle
+""" # noqa
+        with self.assertRaises(exns.ApprovalRequired) as raised:
+            self.handle(pr.id, options=['bypass_jira_check'],
+                        settings=settings, backtrace=True)
+        if not github:
+            self.assertIn('the author', raised.exception.msg)
+        self.assertIn('3 peers', raised.exception.msg)
+        self.assertIn('*must* include a mandatory approval from '
+                      '@dummy_leader_handle', raised.exception.msg)
+        self.assertNotIn('*must* include at least', raised.exception.msg)
+
+        # test message with multiple mandatory approvals required
+        settings = """
+repository_owner: {owner}
+repository_slug: {slug}
+repository_host: {host}
+robot_username: {robot}
+robot_email: nobody@nowhere.com
+pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
+commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
+build_key: pre-merge
+required_leader_approvals: 3
+required_peer_approvals: 3
+admins:
+  - {admin}
+project_leaders:
+  - dummy_leader_handle_1
+  - dummy_leader_handle_2
+  - dummy_leader_handle_3
+  - dummy_leader_handle_4
+""" # noqa
+        with self.assertRaises(exns.ApprovalRequired) as raised:
+            self.handle(pr.id, options=['bypass_jira_check'],
+                        settings=settings, backtrace=True)
+        if not github:
+            self.assertIn('the author', raised.exception.msg)
+        self.assertIn('3 peers', raised.exception.msg)
+        self.assertNotIn('*must* include a mandatory', raised.exception.msg)
+        self.assertIn('*must* include at least 3 approvals from the '
+                      'following list', raised.exception.msg)
+        self.assertIn('* @dummy_leader_handle_1', raised.exception.msg)
+        self.assertIn('* @dummy_leader_handle_2', raised.exception.msg)
+        self.assertIn('* @dummy_leader_handle_3', raised.exception.msg)
+        self.assertIn('* @dummy_leader_handle_4', raised.exception.msg)
 
         if github:
             # Stop here for github as author approval is deactivated
@@ -1299,6 +1381,7 @@ robot_email: nobody@nowhere.com
 pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
 commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
 build_key: pre-merge
+required_leader_approvals: 0
 required_peer_approvals: 0
 admins:
   - {admin}
@@ -1308,6 +1391,8 @@ admins:
                         settings=settings, backtrace=True)
         self.assertIn('the author', raised.exception.msg)
         self.assertNotIn('peer', raised.exception.msg)
+        self.assertNotIn('*must* include a mandatory', raised.exception.msg)
+        self.assertNotIn('*must* include at least', raised.exception.msg)
 
     def test_branches_creation_main_pr_not_approved(self):
         """Test if Bert-e creates integration pull-requests when the main
@@ -1751,6 +1836,7 @@ admins:
         pr.add_comment('@toto'  # toto is not Bert-E
                        ' bypass_author_approval'
                        ' bypass_peer_approval'
+                       ' bypass_leader_approval'
                        ' bypass_build_status'
                        ' bypass_jira_check')
         with self.assertRaises(exns.ApprovalRequired):
@@ -1761,6 +1847,7 @@ admins:
             '@%s'
             ' bypass_author_approval'
             ' bypass_peer_approval'
+            ' bypass_leader_approval'
             ' bypass_build_status'
             ' bypass_jira_check' % self.args.robot_username
         )
@@ -1793,6 +1880,7 @@ admins:
                         options=[
                             'bypass_jira_check',
                             'bypass_author_approval',
+                            'bypass_leader_approval',
                             'bypass_peer_approval',
                         ],
                         backtrace=True)
@@ -1805,6 +1893,7 @@ admins:
             '@%s'
             ' bypass_author_aproval'  # a p is missing
             ' bypass_peer_approval'
+            ' bypass_leader_approval'
             ' bypass_build_status'
             ' bypass_jira_check' % self.args.robot_username
         )
@@ -1817,6 +1906,7 @@ admins:
             '@%s'  # comment is made by unpriviledged user (robot itself)
             ' bypass_author_approval'
             ' bypass_peer_approval'
+            ' bypass_leader_approval'
             ' bypass_build_status'
             ' bypass_jira_check' % self.args.robot_username
         )
@@ -1829,6 +1919,7 @@ admins:
             '@%s'
             ' bypass_author_approval'
             ' bypass_peer_approval'
+            ' bypass_leader_approval'
             ' bypass_build_status'
             ' mmm_never_seen_that_before'  # this is unknown
             ' bypass_jira_check' % self.args.robot_username
@@ -1841,6 +1932,7 @@ admins:
         pr_admin.add_comment('@%s'
                              ' bypass_author_approval'
                              ' bypass_peer_approval'
+                             ' bypass_leader_approval'
                              ' bypass_build_status'
                              ' bypass_jira_check' % self.args.robot_username)
         with self.assertRaises(exns.SuccessMessage):
@@ -1852,6 +1944,7 @@ admins:
         pr_admin.add_comment('  @%s  '
                              '   bypass_author_approval  '
                              '     bypass_peer_approval   '
+                             ' bypass_leader_approval'
                              '  bypass_build_status'
                              '   bypass_jira_check' %
                              self.args.robot_username)
@@ -1865,6 +1958,8 @@ admins:
                              self.args.robot_username)
         pr_admin.add_comment('@%s bypass_peer_approval' %
                              self.args.robot_username)
+        pr_admin.add_comment('@%s bypass_leader_approval' %
+                             self.args.robot_username)
         pr_admin.add_comment('@%s bypass_build_status' %
                              self.args.robot_username)
         pr_admin.add_comment('@%s bypass_jira_check' %
@@ -1877,7 +1972,8 @@ admins:
         pr_admin = self.admin_bb.get_pull_request(pull_request_id=pr.id)
         pr_admin.add_comment('@%s'
                              ' bypass_author_approval'
-                             ' bypass_peer_approval' %
+                             ' bypass_peer_approval'
+                             ' bypass_leader_approval' %
                              self.args.robot_username)
         with self.assertRaises(exns.SuccessMessage):
             self.handle(pr.id,
@@ -1905,13 +2001,29 @@ admins:
             self.handle(pr.id,
                         options=[
                             'bypass_author_approval',
+                            'bypass_leader_approval',
+                            'bypass_jira_check',
+                            'bypass_build_status',
+                        ],
+                        backtrace=True)
+
+        # test bypass leader approval through comment
+        pr = self.create_pr('bugfix/TEST-00007', 'development/4.3')
+        pr_admin = self.admin_bb.get_pull_request(pull_request_id=pr.id)
+        pr_admin.add_comment('@%s bypass_leader_approval' %
+                             self.args.robot_username)
+        with self.assertRaises(exns.SuccessMessage):
+            self.handle(pr.id,
+                        options=[
+                            'bypass_author_approval',
+                            'bypass_peer_approval',
                             'bypass_jira_check',
                             'bypass_build_status',
                         ],
                         backtrace=True)
 
         # test bypass jira check through comment
-        pr = self.create_pr('bugfix/TEST-00007', 'development/4.3')
+        pr = self.create_pr('bugfix/TEST-00008', 'development/4.3')
         pr_admin = self.admin_bb.get_pull_request(pull_request_id=pr.id)
         pr_admin.add_comment('@%s bypass_jira_check' %
                              self.args.robot_username)
@@ -1919,6 +2031,7 @@ admins:
             self.handle(pr.id,
                         options=[
                             'bypass_author_approval',
+                            'bypass_leader_approval',
                             'bypass_peer_approval',
                             'bypass_build_status',
                         ],
@@ -1955,6 +2068,10 @@ admins:
                              self.args.robot_username)
         for i in range(10):
             pr.add_comment('random comment %s' % i)
+        for i in range(10):
+            pr.add_comment('@%s bypass_leader_approval' % i)
+        pr_admin.add_comment('@%s bypass_leader_approval' %
+                             self.args.robot_username)
 
         with self.assertRaises(exns.SuccessMessage):
             self.handle(pr.id, backtrace=True)
@@ -1965,6 +2082,7 @@ admins:
         pr_admin.add_comment('@%s:'
                              'bypass_author_approval,  '
                              '     bypass_peer_approval,,   '
+                             ' bypass_leader_approval'
                              '  bypass_build_status-bypass_jira_check' %
                              self.args.robot_username)
         with self.assertRaises(exns.SuccessMessage):
@@ -2187,6 +2305,20 @@ admins:
                         options=self.bypass_all_but(['bypass_build_status']),
                         backtrace=True)
 
+        # test bypass leader approval through comment
+        pr = self.create_pr('bugfix/TEST-00078', 'development/4.3')
+        pr_admin = self.admin_bb.get_pull_request(pull_request_id=pr.id)
+        pr_admin.add_comment('@%s bypass_leader_approval' %
+                             self.args.robot_username)
+        with self.assertRaises(exns.SuccessMessage):
+            self.handle(pr.id,
+                        options=[
+                            'bypass_author_approval',
+                            'bypass_peer_approval',
+                            'bypass_jira_check',
+                            'bypass_build_status'],
+                        backtrace=True)
+
     def test_build_status_triggered_by_build_result(self):
         pr = self.create_pr('bugfix/TEST-00081', 'development/5.1')
         with self.assertRaises(exns.BuildNotStarted):
@@ -2359,6 +2491,7 @@ admins:
         try:
             self.handle(pr.id, options=[
                 'bypass_build_status',
+                'bypass_leader_approval',
                 'bypass_peer_approval',
                 'bypass_author_approval'],
                 backtrace=True)
@@ -2413,7 +2546,7 @@ admins:
             self.handle(pr.id, options=['bypass_jira_check'], backtrace=True)
         self.assertIn('unanimity', raised.exception.msg)
 
-        # 1st reviewer adds approval
+        # 1st reviewer adds approval (project leader)
         pr_peer = self.admin_bb.get_pull_request(pull_request_id=pr.id)
         pr_peer.approve()
         with self.assertRaises(exns.ApprovalRequired) as raised:
@@ -2786,6 +2919,7 @@ robot_email: nobody@nowhere.com
 pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
 commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
 build_key: pre-merge
+required_leader_approvals: 0
 required_peer_approvals: 0
 admins:
   - {admin}
@@ -2807,6 +2941,7 @@ robot_email: nobody@nowhere.com
 pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
 commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
 build_key
+required_leader_approvals: 0
 required_peer_approvals: 0
 """ # noqa
         with self.assertRaises(exns.IncorrectSettingsFile):
@@ -2827,6 +2962,7 @@ pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{
 commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
 build_key: toto
 # comment
+required_leader_approvals: 0
 required_peer_approvals: 0
 admins:
   - {admin}
@@ -2851,8 +2987,55 @@ robot_email: nobody@nowhere.com
 pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
 commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
 build_key: pre-merge
+required_leader_approvals: 0
 required_peer_approvals: 2
 admins:
+  - {admin}
+""" # noqa
+        with self.assertRaises(exns.MalformedSettings):
+            self.handle(
+                pr.id, options=['bypass_author_approval'], backtrace=True,
+                settings=settings)
+
+        # fail if required number of leader approvals greater than leaders
+        pr = self.create_pr('bugfix/TEST-00005', 'development/4.3')
+        settings = """
+repository_owner: {owner}
+repository_slug: {slug}
+repository_host: {host}
+robot_username: {robot}
+robot_email: nobody@nowhere.com
+pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
+commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
+build_key: pre-merge
+required_leader_approvals: 2
+required_peer_approvals: 2
+admins:
+  - {admin}
+project_leaders:
+  - {admin}
+""" # noqa
+        with self.assertRaises(exns.MalformedSettings):
+            self.handle(
+                pr.id, options=['bypass_author_approval'], backtrace=True,
+                settings=settings)
+
+        # fail if peer approvals lower than leader approvals
+        pr = self.create_pr('bugfix/TEST-00006', 'development/4.3')
+        settings = """
+repository_owner: {owner}
+repository_slug: {slug}
+repository_host: {host}
+robot_username: {robot}
+robot_email: nobody@nowhere.com
+pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
+commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
+build_key: pre-merge
+required_leader_approvals: 1
+required_peer_approvals: 0
+admins:
+  - {admin}
+project_leaders:
   - {admin}
 """ # noqa
         with self.assertRaises(exns.MalformedSettings):
@@ -2889,6 +3072,7 @@ robot_email: nobody@nowhere.com
 pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
 commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
 build_key: pre-merge
+required_leader_approvals: 0
 required_peer_approvals: 0
 admins:
   - {admin}
@@ -2916,6 +3100,7 @@ robot_email: nobody@nowhere.com
 pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
 commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
 build_key: pre-merge
+required_leader_approvals: 0
 required_peer_approvals: 0
 admins:
   - {admin}
@@ -2957,6 +3142,7 @@ robot_email: nobody@nowhere.com
 pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
 commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
 build_key: pre-merge
+required_leader_approvals: 0
 required_peer_approvals: 0
 admins:
   - {admin}
@@ -3172,6 +3358,164 @@ tasks:
             self.handle(pr2.id, options=self.bypass_all, backtrace=True)
         with self.assertRaises(exns.SuccessMessage):
             self.handle(pr1.id, options=self.bypass_all, backtrace=True)
+
+    def test_mandatory_approval(self):
+        """Test a pull request does not merge without mandatory approvals."""
+
+        # test mandatory approvals when author is project lead and does not
+        # approve his own work, and author approval not expected
+        settings = """
+repository_owner: {owner}
+repository_slug: {slug}
+repository_host: {host}
+robot_username: {robot}
+robot_email: nobody@nowhere.com
+pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
+commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
+build_key: pre-merge
+need_author_approval: False
+required_leader_approvals: 1
+required_peer_approvals: 1
+admins:
+  - {admin}
+project_leaders:
+  - {contributor}
+  - another_leader_handle
+""" # noqa
+        pr = self.create_pr('bugfix/TEST-00003', 'development/4.3')
+        with self.assertRaises(exns.ApprovalRequired) as raised:
+            self.handle(pr.id,
+                        options=[
+                            'bypass_jira_check',
+                            'bypass_build_status',
+                        ],
+                        settings=settings,
+                        backtrace=True)
+
+        pr_peer = self.robot_bb.get_pull_request(
+            pull_request_id=pr.id)
+        pr_peer.approve()
+
+        with self.assertRaises(exns.SuccessMessage):
+            self.handle(pr.id,
+                        options=[
+                            'bypass_jira_check',
+                            'bypass_build_status',
+                        ],
+                        settings=settings,
+                        backtrace=True)
+
+        # Github doesn't support author approvals
+        if self.args.git_host == 'github':
+            return
+
+        settings = """
+repository_owner: {owner}
+repository_slug: {slug}
+repository_host: {host}
+robot_username: {robot}
+robot_email: nobody@nowhere.com
+pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
+commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
+build_key: pre-merge
+required_leader_approvals: 1
+required_peer_approvals: 1
+admins:
+  - {admin}
+project_leaders:
+  - {admin}
+""" # noqa
+        pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
+        pr.approve()
+        pr_peer = self.robot_bb.get_pull_request(
+            pull_request_id=pr.id)
+        pr_peer.approve()
+        with self.assertRaises(exns.ApprovalRequired) as raised:
+            self.handle(pr.id,
+                        options=[
+                            'bypass_jira_check',
+                            'bypass_build_status',
+                        ],
+                        settings=settings,
+                        backtrace=True)
+
+        self.assertIn('one peer', raised.exception.msg)
+        self.assertNotIn('2 peers', raised.exception.msg)
+        self.assertIn('*must* include a mandatory approval from @%s.' %
+                      self.args.admin_username, raised.exception.msg)
+
+        pr_leader = self.admin_bb.get_pull_request(
+            pull_request_id=pr.id)
+        pr_leader.approve()
+
+        with self.assertRaises(exns.SuccessMessage):
+            self.handle(pr.id,
+                        options=[
+                            'bypass_jira_check',
+                            'bypass_build_status',
+                        ],
+                        settings=settings,
+                        backtrace=True)
+
+        # test mandatory approvals when author is project lead and does not
+        # approve his own work
+        settings = """
+repository_owner: {owner}
+repository_slug: {slug}
+repository_host: {host}
+robot_username: {robot}
+robot_email: nobody@nowhere.com
+pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
+commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
+build_key: pre-merge
+required_leader_approvals: 1
+required_peer_approvals: 1
+admins:
+  - {admin}
+project_leaders:
+  - {contributor}
+  - another_leader_handle
+""" # noqa
+        pr = self.create_pr('bugfix/TEST-00002', 'development/4.3')
+        with self.assertRaises(exns.ApprovalRequired) as raised:
+            self.handle(pr.id,
+                        options=[
+                            'bypass_jira_check',
+                            'bypass_build_status',
+                        ],
+                        settings=settings,
+                        backtrace=True)
+
+        self.assertIn('one peer', raised.exception.msg)
+        self.assertNotIn('2 peers', raised.exception.msg)
+        self.assertIn('*must* include at least 1 approval from the '
+                      'following list', raised.exception.msg)
+        self.assertIn('* @%s' % self.args.contributor_username,
+                      raised.exception.msg)
+        self.assertIn('* @another_leader_handle', raised.exception.msg)
+
+        pr_peer = self.robot_bb.get_pull_request(
+            pull_request_id=pr.id)
+        pr_peer.approve()
+
+        with self.assertRaises(exns.ApprovalRequired) as raised:
+            self.handle(pr.id,
+                        options=[
+                            'bypass_jira_check',
+                            'bypass_build_status',
+                        ],
+                        settings=settings,
+                        backtrace=True)
+
+        with self.assertRaises(exns.SuccessMessage):
+            self.handle(pr.id,
+                        options=[
+                            'bypass_author_approval',
+                            'bypass_jira_check',
+                            'bypass_build_status',
+                        ],
+                        settings=settings,
+                        backtrace=True)
 
 
 class TestQueueing(RepositoryTests):

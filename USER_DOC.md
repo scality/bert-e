@@ -117,6 +117,7 @@ option has no effect on GitHub** where author approvals are not supported)   | y
 | bypass_incompatible_branch | Bypass the check on the source branch prefix | yes
 | bypass_jira_check         | Bypass the Jira issue check| yes |
 | bypass_peer_approval      | Bypass the pull request peer's approval | yes
+| bypass_leader_approval    | Bypass the pull request leader's approval | yes
 | create_pull_requests      | Let __Bert-E__ create pull requests corresponding to integration branches | no
 | no_octopus                | Prevent Wall-E from doing any octopus merge and use multiple consecutive merge instead | yes
 | unanimity                 | Change review acceptance criteria from `one reviewer at least` to `all reviewers` (**this feature is not supported on GitHub**) | no
@@ -372,10 +373,10 @@ option.
 
 ---
 
-**At least one peer has approved the pull request.**
+**Peers have approved the pull request.**
 No code should go on _development/..._ branches without a proper review.
-__Bert-E__ will make this is the case by checking that at least one peer has
-approved the code. The peer is in charge of checking that:
+__Bert-E__ will verify this is the case by checking that a number of peers
+have approved the code. Each peer is typically in charge of checking that:
 
 * the code is correct and complete,
 * the code is documented, internally and externally,
@@ -384,9 +385,25 @@ approved the code. The peer is in charge of checking that:
 * tests have been written to check the changes,
 * tests have run at least once and passed.
 
-*__Bert-E__ sends message code 116 in case of non-conformance.*
+The number of required leader approvals is a per repository setting
+(the default being 2)
+
+*__Bert-E__ sends message code 115 in case of non-conformance.*
 
 > This check can be bypassed by an admin with the __bypass_peer_approval__
+> option.
+
+---
+
+**Project leaders have approved the pull request.**
+In case project leaders have been defined in __Bert-E__'s configuration, each
+pull request will need the approval of one or more leaders before __Bert-E__
+accepts to merge the work. The number of required leader approvals is also
+a per repository setting (the default being none).
+
+*__Bert-E__ sends message code 115 in case of non-conformance.*
+
+> This check can be bypassed by an admin with the __bypass_leader_approval__
 > option.
 
 ---
@@ -431,21 +448,19 @@ to progress to the next step.  message code
 | title | explanation | what to do |
 |:----- |:----------- |:-----------|
 | 100   | Hello | __Bert-E__ greets the owner to indicate that it will handle this pull request. If the message does not appear, __Bert-E__ will not be involved in the merge. No action required
-| 102   | Successful merge | __Bert-E__ has succesfully merged the codeset in all targetted development branches	No action required
+| 102   | Successful merge | __Bert-E__ has succesfully merged the codeset in all targetted development branches. No action required
 | 103   | Not implemented | __Bert-E__ has received a command, but this command is not implemented yet. No action required
 | 106   | Incompatible branch type | The source branch cannot be merged in the destination branch. For example, it is not possible to merge new features in a maintenance branch. Decline the pull request, rename the source branch, and start a new pull request afresh or, request a bypass to an administrator of the repository
 | 107   | Missing Jira issue | __Bert-E__ could not parse a JIRA ticket in the source branch name decline the pull request, rename the source branch, and start a new pull request afresh or, request a bypass to an administrator of the repository
 | 108   | Jira issue not found | The JIRA ticket in the source branch name does not exist. Decline the pull request, rename the source branch, and start a new pull request afresh or, request a bypass to an administrator of the repository
 | 109   | Cannot merge a subtask | The JIRA ticket in the source branch name corresponds to a sub-task in Jira. Decline the pull request, rename the source branch, and start a new pull request afresh or, request a bypass to an administrator of the repository
 | 110   | Incorrect Jira project | The JIRA ticket in the source branch name does not match the repository. Decline the pull request, rename the source branch, and start a new pull request afresh or, request a bypass to an administrator of the repository
-| 111   | Issue type vs branch prefix mismatch | The type of the JIRA ticket does not match the prefix of the source branch.	Fix the type of the JIRA ticket to match the prefix or, decline the pull request, rename the source branch, and start a new pull request afresh or, request a bypass to an administrator of the repository
-| 112   | Incorrect fix version | The fix version in the JIRA ticket does not match the destination branch.	Update the fix versions in the ticket, then comment the pull request
+| 111   | Issue type vs branch prefix mismatch | The type of the JIRA ticket does not match the prefix of the source branch. Fix the type of the JIRA ticket to match the prefix or, decline the pull request, rename the source branch, and start a new pull request afresh or, request a bypass to an administrator of the repository
+| 112   | Incorrect fix version | The fix version in the JIRA ticket does not match the destination branch. Update the fix versions in the ticket, then comment the pull request
 | 113   | History mismatch | The integration branches contain some commits that are neither on the source or destination branches. Update the integration branches manually or delete them to restart the process
 | 114   | Conflict | It is not possible to automatically merge the work from the pull request to all destination branches. Update the integration branches manually
-| 115   | Waiting for approval | The author's approval is missing. The author should approve his work or, request an administrator to bypass the approval.
-| 116   | Waiting for approval | No peer has approved yet. A peer should approve the work or, request an administrator to bypass the approval.
+| 115   | Waiting for approvals | Some approvals are missing. The author, peers and project leaders should approve the work submitted in the pull request. Alternatively, an administrator can bypass the approvals. The number of peers and leaders that must approve the work are defined in Bert-E's configuration for the repository. In case Unanimity option has been set, all of the participants in the pull request should approve the work, in addition to the previously mentionned requirements.
 | 118   | Build failed | A build has failed on one of the integrations branches. In this situation, commenting the pull request has no effect (in most cases). Analyse the reason for the build failure. If the failure is due to your changes: fix the problem push the new code on the same branch; If the failure is due to an instability of the pipeline or a failure of the build environement: log the problem in JIRA (or update an existing ticket with the link to the new failure) launch a new build on your branch. Commenting the pull request only may work, but only in the case where some other code has been merged in the destination branches. In this case, __Bert-E__ will merge the new code in the integration branches, which will trigger new builds. You should not count on this behaviour however, unless you know for sure that another pull request was merged since the last build report.
-| 119   | Waiting for approval | Unanimity option has been set, and not all of the participants have approved yet. All participants in the pull request should should approve the work or, the unanimity option can be removed or, request an administrator to bypass the approval
 | 120   | After pull request | The after_pull_request option has been activated, and the target pull request is not merged yet work on merging the pending pull request or remove the option
 | 121   | Integration data created | __Bert-E__ notifies the owner that he succesfully created the integration branches and the related pull requests, and provides a link to
 them. No action required

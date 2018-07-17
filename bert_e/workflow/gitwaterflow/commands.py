@@ -191,6 +191,11 @@ def setup(defaults={}):
         "Bypass the pull request peers' approval",
         privileged=True,
         default=defaults.get("bypass_peer_approval", False))
+    Reactor.add_option(
+        "bypass_leader_approval",
+        "Bypass the pull request leaders' approval",
+        privileged=True,
+        default=defaults.get("bypass_leader_approval", False))
 
     # Other options
     Reactor.add_option(
