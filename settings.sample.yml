@@ -54,7 +54,7 @@ commit_base_url: https://bitbucket.org/foo/bar/commits/{commit_id}
 
 
 # build_key [OPTIONAL]:
-#   The label of the key to look for in bitbucket commit statuses.
+#   The label of the key to look for in githost commit statuses.
 #
 #   default value: pre-merge
 #
@@ -130,7 +130,7 @@ bypass_prefixes:
 
 
 # admins [OPTIONAL]:
-#   The list of bitbucket accounts allowed to post privileged messages
+#   The list of githost accounts allowed to post privileged messages
 #   to the bot
 #
 #   default value: empty
@@ -142,7 +142,7 @@ admins:
 
 
 # tasks [OPTIONAL]:
-#   The list of tasks to create by default on the bitbucket pull request
+#   The list of tasks to create by default on the githost pull request
 #   NOT SUPPORTED ON GITHUB.
 #
 #   default value: empty
@@ -177,3 +177,25 @@ sentry_dsn: ''
 #
 #   default value: true
 always_create_integration_pull_requests: true
+
+
+# required_leader_approvals [OPTIONAL]:
+#   Number of leader approvals required in the pull-request in addition to author.
+#   Each leader approvals count as a normal peer approval as well.
+#
+#   values: 0 or more; must be lower or equal to required_peer_approvals.
+#   default value: 0
+#
+required_leader_approvals: 1
+
+
+# project_leaders [OPTIONAL]:
+#   The list of githost accounts which count in leader approvals count.
+#
+#   default value: empty; if required_leader_approvals is set, their
+#                  must be a greater or equal number of handles in that
+#                  list
+#
+project_leaders:
+  - username_leader_1
+  - username_leader_2
