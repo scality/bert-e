@@ -5,6 +5,8 @@ All notable changes to this project will be documented in this file.
 # Added
 - Containerized server (docker).
 - Add Kubernetes chart.
+# Changed
+- Rename BERT_E_BB_PWD into BERT_E_GITHOST_PWD.
 
 ## [3.1.13] - 2018-07-16
 # Added

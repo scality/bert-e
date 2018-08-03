@@ -43,7 +43,7 @@ def serve():
     args = parser.parse_args()
 
     settings = setup_settings(args.settings_file)
-    settings['robot_password'] = os.environ['BERT_E_BB_PWD']
+    settings['robot_password'] = os.environ['BERT_E_GITHOST_PWD']
     settings['jira_password'] = os.environ['BERT_E_JIRA_PWD']
     settings['backtrace'] = True
 

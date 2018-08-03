@@ -32,7 +32,7 @@ optional arguments:
 
 First you have to export the following environment variables:
 
-* `BERT_E_BB_PWD` Bert-E's password on Bitbucket or Github.
+* `BERT_E_GITHOST_PWD` Bert-E's password on Bitbucket or Github.
 * `BERT_E_JIRA_PWD` Bert-E's password on Jira.
 * `WEBHOOK_LOGIN`, `WEBHOOK_PWD` The HTTP BasicAuth credentials used to
   authenticate the requests sent to server.py by Bitbucket.
