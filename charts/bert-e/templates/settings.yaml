@@ -1,0 +1,67 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ template "fullname" $ }}
+  labels:
+    app: {{ template "fullname" $ }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    release: "{{ .Release.Name }}"
+    heritage: "{{ .Release.Service }}"
+data:
+  settings.yml: |-
+    repository_host: {{ .Values.bertE.repository.gitHost | quote }}
+    repository_owner: {{ .Values.bertE.repository.owner | quote }}
+    repository_slug: {{ .Values.bertE.repository.slug | quote }}
+    robot_username: {{ .Values.bertE.robot.username | quote }}
+    robot_email: {{ .Values.bertE.robot.email | quote }}
+    always_create_integration_pull_requests: {{ .Values.bertE.gating.alwaysCreateIntegrationPullRequests }}
+    {{- if eq .Values.bertE.repository.gitHost "bitbucket" }}
+    pull_request_base_url: https://bitbucket.org/{{ .Values.bertE.repository.owner }}/{{ .Values.bertE.repository.slug }}/pull-requests/{pr_id}
+    commit_base_url: https://bitbucket.org/{{ .Values.bertE.repository.owner }}/{{ .Values.bertE.repository.slug }}/commits/{commit_id}
+    {{- else }}
+    pull_request_base_url: https://github.com/{{ .Values.bertE.repository.owner }}/{{ .Values.bertE.repository.slug }}/pull/{pr_id}
+    commit_base_url: https://github.com/{{ .Values.bertE.repository.owner }}/{{ .Values.bertE.repository.slug }}/commits/{commit_id}
+    {{- end }}
+    build_key: {{ .Values.bertE.gating.buildKey | quote }}
+    max_commit_diff: {{ .Values.bertE.gating.maxCommitDiff }}
+    need_author_approval: {{ .Values.bertE.gating.needAuthorApproval }}
+    required_peer_approvals: {{ .Values.bertE.gating.requiredPeerApprovals }}
+    required_leader_approvals: {{ .Values.bertE.gating.requiredProjectLeaderApprovals }}
+    {{- if .Values.bertE.gating.projectAdmins }}
+    admins:
+      {{- range .Values.bertE.gating.projectAdmins }}
+      - {{ . | quote }}
+      {{- end }}
+    {{- end }}
+    {{- if .Values.bertE.gating.projectLeaders }}
+    project_leaders:
+      {{- range .Values.bertE.gating.projectLeaders }}
+      - {{ . | quote }}
+      {{- end }}
+    {{- end }}
+    {{- if .Values.bertE.gating.tasks }}
+    tasks:
+      {{- range .Values.bertE.gating.tasks }}
+      - {{ . | quote }}
+      {{- end }}
+    {{- end }}
+    {{- if .Values.bertE.jira.enabled }}
+    jira_account_url: {{ .Values.bertE.jira.accountUrl }}
+    jira_username: {{ .Values.bertE.jira.username }}
+    jira_keys:
+      {{- range .Values.bertE.jira.acceptedProjectKeys }}
+      - {{ . | quote }}
+      {{- end }}
+    {{- if .Values.bertE.jira.bypassedBranchPrefixes }}
+    bypass_prefixes:
+      {{- range .Values.bertE.jira.bypassedBranchPrefixes }}
+      - {{ . | quote }}
+      {{- end }} {{- end }}
+    {{- if .Values.bertE.jira.issueTypeToBranchPrefixes }}
+    prefixes:
+      {{- range $type, $prefix := .Values.bertE.jira.issueTypeToBranchPrefixes }}
+      {{ $type }}: {{ $prefix | quote }}
+      {{- end }}
+    {{- end }}
+    {{- end }}

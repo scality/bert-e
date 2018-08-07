@@ -1,0 +1,33 @@
+{{- if .Values.deployment.ingress.enabled }}
+{{- with .Values.deployment.ingress }}
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: {{ template "fullname" $ }}
+  labels:
+    app: {{ template "fullname" $ }}
+    chart: "{{ $.Chart.Name }}-{{ $.Chart.Version }}"
+    release: "{{ $.Release.Name }}"
+    heritage: "{{ $.Release.Service }}"
+  annotations:
+    {{- range $key, $value := .annotations }}
+    {{ $key }}: {{ $value | quote }}
+    {{- end }}
+spec:
+  rules:
+  - host: {{ .fqdn }}
+    http:
+      paths:
+        - path: {{ .path | quote }}
+          backend:
+            serviceName: {{ template "fullname" $ }}
+            servicePort: {{ $.Values.deployment.servicePort }}
+{{- if .tlsSecret }}
+  tls:
+  - hosts:
+    - {{ .fqdn }}
+    secretName: {{ .tlsSecret }}
+{{- end }}
+{{- end }}
+{{- end }}

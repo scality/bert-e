@@ -76,7 +76,7 @@ required_peer_approvals: 2
 #   values: true or false
 #   default value: true
 #
-need_author_approcal: true
+need_author_approval: true
 
 # jira_account_url [OPTIONAL]:
 #   The url of the Jira account.
@@ -192,7 +192,7 @@ required_leader_approvals: 1
 # project_leaders [OPTIONAL]:
 #   The list of githost accounts which count in leader approvals count.
 #
-#   default value: empty; if required_leader_approvals is set, their
+#   default value: empty; if required_leader_approvals is set, there
 #                  must be a greater or equal number of handles in that
 #                  list
 #

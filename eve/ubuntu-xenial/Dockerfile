@@ -10,6 +10,7 @@ RUN apt-get --assume-yes update
 RUN DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends --assume-yes \
     build-essential \
     ca-certificates \
+    curl \
     git \
     openssh-client \
     python \
@@ -28,6 +29,9 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends --ass
 COPY requirements.txt /tmp/
 
 RUN pip3 install -r /tmp/requirements.txt
+
+# Install helm
+RUN curl https://raw.githubusercontent.com/kubernetes/helm/master/scripts/get > /tmp/get_helm.sh && bash /tmp/get_helm.sh
 
 RUN git config --global credential.helper store
 

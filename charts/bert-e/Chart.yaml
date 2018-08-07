@@ -1,0 +1,18 @@
+name: bert-e
+version: 1.0.0
+description: GitWaterFlow forward-port and gating robot.
+keywords:
+- GitWaterFlow
+- branching model
+- branch merging
+- merge gating
+- code forward-port
+- git robot
+- GitHub
+- Bitbucket
+- python
+sources:
+- https://bitbucket.org/scality/bert-e
+maintainers:
+- name: Scality Release Engineering
+  email: release.engineering@scality.com
