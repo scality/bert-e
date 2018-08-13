@@ -6,6 +6,7 @@ COPY requirements.txt /app/requirements.txt
 
 RUN pip install -r /app/requirements.txt
 
+VOLUME '/tmp'
 VOLUME '/root/.bert-e'
 WORKDIR /app/
 

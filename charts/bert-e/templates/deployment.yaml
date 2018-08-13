@@ -51,6 +51,8 @@ spec:
           mountPath: /root/.bert-e
         - name: config
           mountPath: /conf
+        - name: temp
+          mountPath: /tmp
         resources:
 {{ toYaml .Values.deployment.resources | indent 10 }}
         args:
@@ -65,6 +67,8 @@ spec:
       - name: config
         configMap:
           name: {{ template "fullname" $ }}
+      - name: temp
+        emptyDir:
       {{- if .Values.deployment.nodeSelector }}
       nodeSelector:
 {{ toYaml .Values.deployment.nodeSelector | indent 8 }}
