@@ -6,12 +6,13 @@ ENV HOME_BUILDBOT /var/lib/buildbot
 # Install packages needed by the buildchain
 #
 
-RUN apt-get --assume-yes update
-RUN DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends --assume-yes \
+RUN apt-get --assume-yes update \
+ && DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends --assume-yes \
     build-essential \
     ca-certificates \
     curl \
     git \
+    libssl-dev \
     openssh-client \
     python \
     python3 \

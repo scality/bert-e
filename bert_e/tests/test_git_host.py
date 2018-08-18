@@ -147,7 +147,7 @@ class TestBasicFunctionality:
         finally:
             try:
                 client.delete_repository('_test_repo_in_git_api')
-            except:
+            except Exception:
                 pass
 
     def test_create_and_decline_pull_request(self, workspace):

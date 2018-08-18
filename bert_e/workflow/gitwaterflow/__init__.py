@@ -167,7 +167,7 @@ def _handle_pull_request(job: PullRequestJob):
         # to (and not including) the conflicting one
         push(job.git.repo, wbranches[1:wbranches.index(ex.kwargs['wbranch'])])
         raise
-    except:
+    except Exception:
         raise
     else:
         if job.settings.use_queue and in_sync:
