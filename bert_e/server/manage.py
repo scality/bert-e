@@ -14,15 +14,21 @@
 
 """This module defines the repository management web page."""
 
-from flask import Blueprint, render_template
+from flask import Blueprint, redirect, render_template, url_for
 
 from .auth import requires_auth
+from .form import SingleButtonForm
 
 
 blueprint = Blueprint('management page', __name__)
 
 
-@blueprint.route('/manage', methods=['GET'])
+@blueprint.route('/manage', methods=['GET', 'POST'])
 @requires_auth()
 def display():
-    return render_template('manage.html'), 200
+    rebuild_queues_form = SingleButtonForm()
+    if rebuild_queues_form.validate_on_submit():
+        return redirect(url_for("api.rebuild_queues"))
+
+    return render_template(
+        'manage.html', rebuild_queues_form=rebuild_queues_form), 200

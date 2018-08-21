@@ -15,7 +15,8 @@ the queues.</li>
 {%- endblock %}
 
 {% block form -%}
-<form action="{{ url_for("api.rebuild_queues", _external=True) }}" method="get">
+<form action="{{ url_for("management page.display", _external=True) }}" method="post">
     <button type="submit">rebuild queues now</button>
+    {{ rebuild_queues_form.csrf_token }}
 </form>
 {%- endblock %}

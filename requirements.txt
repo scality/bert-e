@@ -4,6 +4,7 @@ loginpass==0.1.1
 coverage==5.0a1
 flake8==3.5.0
 Flask==1.0.2
+Flask-WTF==0.14.2
 Jinja2==2.10
 jira==2.0.0
 marshmallow==2.15.4
@@ -12,3 +13,4 @@ PyYAML==3.13
 raven==6.9.0
 requests==2.19.1
 requests-mock==1.5.2
+WTForms == 2.2.1

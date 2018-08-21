@@ -17,6 +17,7 @@
 import logging
 import os
 import pkg_resources
+import secrets
 from threading import Thread
 
 from flask import Flask
@@ -70,6 +71,7 @@ def setup_server(bert_e):
         'WEBHOOK_PWD': os.environ['WEBHOOK_LOGIN'],
         'CLIENT_ID': os.environ['BERT_E_CLIENT_ID'],
         'CLIENT_SECRET': os.environ['BERT_E_CLIENT_SECRET'],
+        'WTF_CSRF_SECRET_KEY': secrets.token_hex(24),
     })
 
     app.bert_e = bert_e
