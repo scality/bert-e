@@ -1,0 +1,11 @@
+{% extends 'layout.html' %}
+
+{% block body %}
+
+{% include 'rebuild_queues.html' %}
+
+{% if not session['admin'] %}
+<p>Advanced tools are deactivated for this account.</p>
+{% endif %}
+
+{% endblock %}

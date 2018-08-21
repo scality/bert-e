@@ -1,0 +1,26 @@
+<html>
+
+<table width="100%"><tr>
+<td><p><strong>Bert-E, gating and merging robot</strong> ({{ bert_e_version }})</p></td>
+<td><p align="right">
+{%- if 'user' in session %}
+logged in as {{ session['user'] }} (<a href="{{ url_for('auth.logout', _external=True) }}">logout</a>)
+|
+{%- if request.path == url_for('status page.display') %}
+<a href="{{ url_for('management page.display', _external=True) }}">manage</a>
+{%- elif request.path == url_for('management page.display') %}
+<a href="{{ url_for('status page.display', _external=True) }}">status page</a>
+{%- endif %}
+{%- else %}
+<a href="{{ url_for('loginpass_' + githost + '.login', _external=True) }}")>login</a>
+{%- endif %}
+</p></td>
+</tr></table>
+
+<h2>Repository: {{ githost }}/{{ owner }}/{{ slug }}</h2>
+<hr>
+
+{% block body %}
+{% endblock %}
+
+</html>

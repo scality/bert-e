@@ -127,7 +127,7 @@ def check_issue_type(job, issue):
 
     """
     issuetype = issue.fields.issuetype.name
-    prefixes = job.settings.get('prefixes')
+    prefixes = job.settings.prefixes
     if not prefixes:
         return
 

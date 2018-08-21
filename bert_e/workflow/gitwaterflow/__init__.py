@@ -254,7 +254,7 @@ def send_greetings(job):
     if find_comment(job.pull_request, username=username):
         return
 
-    tasks = list(reversed(job.settings.get('tasks', [])))
+    tasks = list(reversed(job.settings.tasks))
 
     comment = send_comment(
         job.settings, job.pull_request, messages.InitMessage(

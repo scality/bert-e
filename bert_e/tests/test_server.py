@@ -49,18 +49,27 @@ class MockBertE(bert_e.BertE):
         self.tasks_done = deque(maxlen=1000)
         self.status = {}
 
+        self.settings.repository_host = 'bitbucket'
+        self.settings.repository_owner = 'owner'
+        self.settings.repository_slug = 'slug'
+        self.settings.build_key = 'pre-merge'
+        self.settings.pull_request_base_url = \
+            'https://bitbucket.org/foo/bar/pull-requests/{pr_id}'
+        self.settings.commit_base_url = \
+            'https://bitbucket.org/foo/bar/commits/{commit_id}'
+
 
 class TestWebhookListener(unittest.TestCase):
     def setUp(self):
-        server.BERTE = MockBertE()
-        server.BERTE.settings.pull_request_base_url = \
-            'https://bitbucket.org/foo/bar/pull-requests/{pr_id}'
-        server.BERTE.settings.commit_base_url = \
-            'https://bitbucket.org/foo/bar/commits/{commit_id}'
-
-    def handle_post(self, event_type, data):
         os.environ['WEBHOOK_LOGIN'] = 'dummy'
         os.environ['WEBHOOK_PWD'] = 'dummy'
+        os.environ['BERT_E_CLIENT_ID'] = 'dummy_client_id'
+        os.environ['BERT_E_CLIENT_SECRET'] = 'dummy_client_secret'
+
+        server.BERTE = MockBertE()
+        server.APP = server.setup_server(server.BERTE)
+
+    def handle_webhook(self, event_type, data):
 
         server.BERTE.project_repo.owner = \
             data['repository']['owner']['username']
@@ -76,20 +85,30 @@ class TestWebhookListener(unittest.TestCase):
             headers={'X-Event-Key': event_type, 'Authorization': basic_auth}
         )
 
-    def handle_api_post(self, command, data):
-        os.environ['WEBHOOK_LOGIN'] = 'dummy'
-        os.environ['WEBHOOK_PWD'] = 'dummy'
+    def handle_api_call(self, command, data={}, method='POST',
+                        user='test_user', is_admin=False):
+        with server.APP.test_client() as c:
+            with c.session_transaction() as sess:
+                assert sess.get('user') is None
+                assert sess.get('admin') is None
+                sess['user'] = user
+                sess['admin'] = is_admin
 
-        app = server.APP.test_client()
-        auth = ''.join(
-            (os.environ['WEBHOOK_LOGIN'], ':', os.environ['WEBHOOK_PWD'])
-        )
-        basic_auth = 'Basic ' + base64.b64encode(auth.encode()).decode()
-        return app.post('/api/%s' % command, data=json.dumps(data),
-                        headers={'Authorization': basic_auth})
+            headers = {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            }
+            if method == 'POST':
+                return c.post('/api/%s' % command,
+                              data=json.dumps(data),
+                              headers=headers)
+            else:
+                return c.get('/api/%s' % command,
+                             headers=headers)
 
     def test_comment_added(self):
-        resp = self.handle_post('pullrequest:comment_created', COMMENT_CREATED)
+        resp = self.handle_webhook('pullrequest:comment_created',
+                                   COMMENT_CREATED)
         self.assertEqual(200, resp.status_code)
         self.assertEqual(server.BERTE.task_queue.unfinished_tasks, 1)
 
@@ -105,13 +124,13 @@ class TestWebhookListener(unittest.TestCase):
     def test_build_status_filtered(self):
         data = deepcopy(COMMIT_STATUS_CREATED)
         data['commit_status']['state'] = 'INPROGRESS'
-        resp = self.handle_post('repo:commit_status_created', data)
+        resp = self.handle_webhook('repo:commit_status_created', data)
 
         self.assertEqual(200, resp.status_code)
         self.assertEqual(server.BERTE.task_queue.unfinished_tasks, 0)
 
         data['commit_status']['state'] = 'SUCCESS'
-        resp = self.handle_post('repo:commit_status_created', data)
+        resp = self.handle_webhook('repo:commit_status_created', data)
         self.assertEqual(server.BERTE.task_queue.unfinished_tasks, 1)
 
         # consume job
@@ -418,13 +437,14 @@ class TestWebhookListener(unittest.TestCase):
             self.assertIn(exp, data)
 
     def test_rebuild_queues_api_call(self):
-        resp = self.handle_api_post('rebuild_queues', {})
+        resp = self.handle_api_call('rebuild_queues', user=None)
+        self.assertEqual(403, resp.status_code)
+
+        resp = self.handle_api_call('rebuild_queues')
         self.assertEqual(202, resp.status_code)
         self.assertEqual(server.BERTE.task_queue.unfinished_tasks, 1)
         job = server.BERTE.task_queue.get()
         resp_json = resp.data.decode()
-        print(resp_json)
-        print(job.json())
         assert resp_json == job.json()
         assert 'id' in resp_json
 

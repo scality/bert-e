@@ -99,6 +99,27 @@ bertE:
     ##
     password: "dummy"
 
+  ## Authentication details for management tools page and API.
+  ##
+  ##   Bert-E allows users to authenticate via the OAuth of the git
+  ##   host. Authenticated users can access the API and the management
+  ##   page on the server. Additionally, users in the admin list will
+  ##   access the admin levels tools on the management page.
+  oauth:
+    ## clientId is the id of a OAuth consumer defined on the Git host.
+    ##
+    clientId: "a_valid_oauth_client_id"
+
+    ## clientSecret is the corresponding OAuth consumer secret.
+    ##
+    clientSecret: "a_valid_oauth_client_secret"
+
+    ## organization restricts who can login by checking the user email suffix.
+    ##
+    ##   defaults to "" (email suffix is not checked)
+    ##
+    organization: ""
+
   ## Bert-E will use the settings in the gating section below
   ## to make the decision whether some code is ready be merged or not.
   gating:

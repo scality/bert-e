@@ -35,7 +35,9 @@ First you have to export the following environment variables:
 * `BERT_E_GITHOST_PWD` Bert-E's password on Bitbucket or Github.
 * `BERT_E_JIRA_PWD` Bert-E's password on Jira.
 * `WEBHOOK_LOGIN`, `WEBHOOK_PWD` The HTTP BasicAuth credentials used to
-  authenticate the requests sent to server.py by Bitbucket.
+  authenticate the git host webhook requests.
+* `BERT_E_CLIENT_ID`, `BERT_E_CLIENT_SECRET` the OAuth key
+  used to authenticate users who want to login and access Bert-E's API.
 
 Ensure settings-file contains configuration for the project you want
 Bert-E to handle. A commented sample file is included (settings.sample.yml).

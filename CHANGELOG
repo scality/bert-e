@@ -5,8 +5,12 @@ All notable changes to this project will be documented in this file.
 # Added
 - Containerized server (docker).
 - Add Kubernetes chart.
+- Add OAuth based authentication.
+- Add repository management page.
+- Add API command line client.
 # Changed
 - Rename BERT_E_BB_PWD into BERT_E_GITHOST_PWD.
+- Rework server files structure.
 # Fixed
 - Updated requirements to fix python 3.7 support
 

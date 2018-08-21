@@ -38,7 +38,7 @@ setup(
     entry_points={
         'console_scripts': [
             'bert-e=bert_e.bert_e:main',
-            'bert-e-serve=bert_e.__main__:serve',
+            'bert-e-serve=bert_e.server.server:main',
             'filter_pull_requests=bert_e.bin.filter_pull_requests:main',
             'nobuildstatus=bert_e.bin.nobuildstatus:main',
             'webhook_parser=bert_e.bin.webhook_parser:main',

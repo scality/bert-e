@@ -53,6 +53,7 @@ class SettingsSchema(Schema):
     prefixes = fields.Dict(missing={})
     bypass_prefixes = fields.List(fields.Str(), missing=[])
 
+    organization = fields.Str(fields.Str(), missing='')
     admins = fields.List(fields.Str(), missing=[])
     project_leaders = fields.List(fields.Str(), missing=[])
     tasks = fields.List(fields.Str(), missing=[])

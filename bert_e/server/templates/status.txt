@@ -1,5 +1,5 @@
-Bert-E {{ bert_e_version }}
-Status page for {{ owner }}/{{ slug }}
+Bert-E, gating and merging robot({{ bert_e_version }})
+Repository: {{ githost }}/{{ owner }}/{{ slug }}
 
 {%- if current_job %}
 

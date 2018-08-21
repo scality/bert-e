@@ -1,0 +1,208 @@
+#! /usr/bin/env python
+"""Create Bert-E jobs from the API.
+
+An OAuth consumer key is required. It can be obtained from
+the Git host provider:
+
+Bitbucket:
+Go to https://bitbucket.org/account/user/<your_username>/api
+and create a new consumer with the following settings:
+- permissions:
+    - account: READ access
+    - team membership: READ access
+
+-> use the newly create consumer ids with command line options
+   --consumer-id and --consumer-secret.
+
+Github:
+Go to https://github.com/settings/tokens
+and create a new token with the following settings:
+- scopes: user (read:user, user:email and user:follow)
+
+-> use the newly created token with command line option --token.
+
+Invocation example for a GitHub repository:
+
+    bert-e_api_client
+      --token <token>
+      --base-url <url of bert-e>
+      /rebuild_queues
+
+The script returns json data including the job id that was created.
+
+Report any bug/error at release.engineering@scality.com
+
+"""
+import argparse
+import base64
+try:
+    # python 3
+    from http.cookiejar import CookieJar
+    from urllib.request import Request, HTTPRedirectHandler, build_opener, HTTPError, HTTPCookieProcessor
+    from urllib.parse import urlparse, parse_qs, urlencode
+except ImportError:
+    # python 2
+    from cookielib import CookieJar
+    from urllib import urlencode
+    from urllib2 import Request, HTTPRedirectHandler, build_opener, HTTPError, HTTPCookieProcessor
+    from urlparse import urlparse, parse_qs
+import json
+import sys
+
+
+def get_access_token(githost, consumer_id, consumer_secret):
+    """Get an access token from Bitbucket OAuth API.
+
+    Args:
+        consumer_id (str): username of the consumer.
+        consumer_secret (str): password of the consumer.
+
+    Returns:
+        string containing the access token
+
+    """
+    authstr = '{}:{}'.format(consumer_id, consumer_secret)
+    base64auth = base64.b64encode(authstr.encode('ascii'))
+
+    auth_url = 'https://bitbucket.org/site/oauth2/access_token'
+    data = 'grant_type=client_credentials'.encode('ascii')
+    req = Request(auth_url, data=data)
+    req.get_method = lambda: 'POST'
+    req.add_header("Authorization", "Basic %s" % base64auth.decode())
+    try:
+        res = build_opener().open(req)
+    except HTTPError as excp:
+        sys.exit('HTTP error: %s, %s (%s)' % (
+            excp.url, excp.reason, excp.code))
+
+    return json.load(res)['access_token']
+
+
+def request(token, base_url, endpoint, httpmethod, payload):
+    """Access API thanks to pre-obtained access token.
+
+    Args:
+        token (str): OAuth2 access token
+        base_url (str): url of Bert-E
+        endpoint (str): endpoint to query
+        httpmethod (str): get/post/put/delete
+        payload (dict): The parameters to send to jsonrpc
+
+    Returns:
+        API response (json)
+
+    """
+    cj = CookieJar()
+    opener = build_opener(HTTPCookieProcessor(cj))
+
+    auth_url = base_url + '/api/auth?access_token=%s' % token
+    auth_req = Request(auth_url)
+    auth_req.add_header('Content-Type', 'application/json')
+    auth_req.add_header('Accept', 'application/json')
+    try:
+        auth_res = opener.open(auth_req)
+    except HTTPError as excp:
+        sys.exit('HTTP error: %s, %s (%s)' % (
+            excp.url, excp.reason, excp.code))
+
+    data = json.dumps({
+        'params': payload
+    })
+    if endpoint.startswith('/'):
+        endpoint = endpoint[1:]
+    url = '%s/api/%s' % (base_url, endpoint)
+
+    req = Request(url, data=data.encode('ascii'))
+    req.add_header('Content-Type', 'application/json')
+    req.add_header('Accept', 'application/json')
+    req.get_method = lambda: httpmethod.upper()
+
+    try:
+        res = opener.open(req)
+    except HTTPError as excp:
+        sys.exit('HTTP error: %s (%s)' % (excp.reason, excp.code))
+    return json.load(res)
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(
+        description=__doc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    parser.add_argument('--client-id', '-u',
+                        help='consumer client id (Bitbucket only)',
+                        default='')
+    parser.add_argument('--client-secret', '-p',
+                        help='consumer client secret (Bitbucket only)',
+                        default='')
+    parser.add_argument('--token', '-k',
+                        help='Git host authentication token',
+                        metavar='TOKEN',
+                        default='')
+    parser.add_argument('--base-url', '-b',
+                        help='Bert-E\'s base url',
+                        metavar='BASE_URL',
+                        required=True)
+    parser.add_argument('--httpmethod', '-m',
+                        help='get/post/put/delete',
+                        choices=['get', 'post', 'put', 'delete'],
+                        default='get')
+    parser.add_argument('--payload', '-l',
+                        help='json data to send to the server',
+                        metavar='JSON',
+                        default='{}')
+    parser.add_argument('--githost', '-g',
+                        help='remote githost (defaults to "auto"; '
+                             'can be either "bitbucket" or "github")',
+                        metavar='GITHOST',
+                        choices=['auto', 'bitbucket', 'github'],
+                        default='auto')
+    parser.add_argument('endpoint',
+                        help='api endpoint',
+                        metavar='ENDPOINT')
+    parser.add_argument('--dry-run', '-d',
+                        help='Do not really do anything',
+                        default=False,
+                        action='store_true')
+    args = parser.parse_args(sys.argv[1:])
+
+    if args.githost == 'auto':
+        if 'github' in args.base_url:
+            githost = 'github'
+        elif 'bitbucket' in args.base_url:
+            githost = 'bitbucket'
+        else:
+            sys.exit('cannot extrapolate githost from service URL, '
+                     'please specify it with -g/--githost option')
+    else:
+        githost = args.githost
+
+    if githost == 'github':
+        if not args.token:
+            sys.exit(
+                'The remote Git host is GitHub. Please provide a valid '
+                'token obtained from https://github.com/settings/tokens, '
+                'via the --token option.'
+            )
+        token = args.token
+    else:
+        if not args.client_id or not args.client_secret:
+            sys.exit(
+                'The remote Git host is Bitbucket. Please provide a consumer '
+                'id and consumer secret obtained from the OAuth page in '
+                'https://bitbucket.org/account/user, via the --client-id '
+                'and --client-secret options.'
+            )
+        token = get_access_token(githost, args.client_id, args.client_secret)
+
+    if args.dry_run:
+        print('Dry run activated, the request was not executed')
+        sys.exit(0)
+    req = request(
+        token,
+        args.base_url,
+        args.endpoint,
+        args.httpmethod,
+        json.loads(args.payload),
+    )
+    print(json.dumps(req))
