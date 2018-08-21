@@ -1,4 +1,4 @@
-FROM ubuntu:xenial
+FROM ubuntu:bionic
 
 ENV HOME_BUILDBOT /var/lib/buildbot
 

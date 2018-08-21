@@ -9,7 +9,7 @@ stages:
   pre-merge:
     worker:
       type: docker
-      path: eve/ubuntu-xenial
+      path: eve/worker
       volumes:
         - '/home/eve/workspace'
     steps:
