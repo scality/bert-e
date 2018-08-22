@@ -8,6 +8,7 @@ All notable changes to this project will be documented in this file.
 - Add OAuth based authentication.
 - Add repository management page.
 - Add API command line client.
+- Add API documentation.
 # Changed
 - Rename BERT_E_BB_PWD into BERT_E_GITHOST_PWD.
 - Rework server files structure.
