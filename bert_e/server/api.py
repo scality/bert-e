@@ -18,18 +18,35 @@ import logging
 
 from flask import Blueprint, Response, current_app, redirect, request, url_for
 
-from ..api import RebuildQueuesJob
-from .auth import requires_auth
+from ..api import EvalPullRequestJob, RebuildQueuesJob
+from .auth import invalid, requires_auth
 
 
 LOG = logging.getLogger(__name__)
 blueprint = Blueprint('api', __name__)
 
 
-@blueprint.route('/api/rebuild_queues', methods=['GET', 'POST'])
+@blueprint.route('/api/pull-requests/<int:pr_id>', methods=['POST'])
+@requires_auth()
+def pull_request(pr_id):
+    LOG.info("Received 'eval' order for pr %d", pr_id)
+
+    if pr_id < 1:
+        return invalid()
+
+    job = EvalPullRequestJob(pr_id, bert_e=current_app.bert_e)
+    current_app.bert_e.put_job(job)
+
+    if request.is_json:
+        return Response(job.json(), 202,
+                        {'Content-Type': 'text/json'})
+
+    return redirect(url_for('status page.display'), code=302)
+
+
+@blueprint.route('/api/rebuild_queues', methods=['POST'])
 @requires_auth()
 def rebuild_queues():
-    """Entrypoint for /api/rebuild_queues."""
     LOG.info("Received 'rebuild_queues' order")
     job = RebuildQueuesJob(bert_e=current_app.bert_e)
     current_app.bert_e.put_job(job)

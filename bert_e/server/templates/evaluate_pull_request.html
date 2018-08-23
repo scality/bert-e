@@ -1,0 +1,21 @@
+{% extends 'job.html' %}
+
+{% block title %}Evaluate pull request{% endblock %}
+
+{% block help -%}
+<p>Create a job that will evaluate a single pull request and attempt at
+merging it.</p>
+<p>The result is equivalent to commenting a pull request and waking
+Bert-E up through a webhook, without the comment and without the webhook.
+This can be used for example in cron'd scripts to wake up Bert-E
+regularly on open pull requests.</p>
+<p>This can also be activated on api endpoint <strong>/api/pull-requests/&lt;id&gt;</strong>.</p>
+{%- endblock %}
+
+{% block form -%}
+<form action="{{ url_for("management page.evaluate_pull_request", _external=True) }}" method="post">
+    {{ eval_pr_form.pr_id.label }}: {{ eval_pr_form.pr_id(size=3) }}
+    <button type="submit">evaluate</button>
+    {{ eval_pr_form.csrf_token }}
+</form>
+{%- endblock %}

@@ -30,7 +30,7 @@ import requests
 import requests_mock
 
 from bert_e import exceptions as exns
-from bert_e.api import RebuildQueuesJob
+from bert_e.api import EvalPullRequestJob, RebuildQueuesJob
 from bert_e.bert_e import main as bert_e_main
 from bert_e.bert_e import BertE
 from bert_e.git_host import bitbucket as bitbucket_api
@@ -4894,7 +4894,22 @@ class TaskQueueTests(RepositoryTests):
             gwfi.octopus_merge = git_utils.octopus_merge
             gwfq.octopus_merge = git_utils.octopus_merge
 
-    def test_rebuild_queues(self):
+    def test_job_evaluate_pull_request(self):
+        self.init_berte(options=self.bypass_all)
+
+        # test behaviour when PR does not exist
+        self.process_job(
+            EvalPullRequestJob(1, bert_e=self.berte),
+            'PullRequestNotFound'
+        )
+
+        pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
+        self.process_job(
+            EvalPullRequestJob(pr.id, bert_e=self.berte),
+            'Queued'
+        )
+
+    def test_job_rebuild_queues(self):
         self.init_berte(options=self.bypass_all)
 
         # When queues are disabled, Bert-E should respond with 'NotMyJob'

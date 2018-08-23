@@ -111,6 +111,77 @@ $ curl --cookie-jar session \
 ```
 
 
+/api/pull-requests/<id>
+-----------------------
+
+**Methods**
+
+* **POST**
+
+    Create a job that will evaluate the specified pull request and attempt
+    at merging it.
+
+**Query parameters**
+
+* **id**
+
+    A positive integer corresponding to the pull request id on the Git host.
+
+**Body data**
+
+<None>
+
+**Responses**
+
+* **202 ACCEPTED**
+
+    The request has been accepted, and a job has been created. The returned
+    json contains the details of the job, including it's id.
+
+* **302 FOUND**
+
+    The request has been accepted, and a job has been created. The user is
+    redirected to __Bert-E__'s status page. Use the proper Json application
+    type in case a 202 response is prefered.
+
+* **400 BAD REQUEST**
+
+    The syntax of the request is erroneous (typically: incorrect pull
+    request id)
+
+* **401 UNAUTHORIZED**
+
+    You are not authenticated.
+
+* **403 FORBIDDEN**
+
+    You are not authorized to access that resource.
+    Authenticate with the proper access level first.
+
+**Examples**
+
+* With curl (after the authentication flow and session cookie has been created):
+
+```bash
+$ curl --cookie session \
+       --request POST \
+       --header "Content-type: application/json" \
+       "$URL/api/pull-requests/1337"
+
+<job details>
+```
+
+* With the Python API client:
+
+```bash
+$ bert-e_api_client --token $TOKEN \
+                    --base-url $URL \
+                    pull-requests/1337
+
+<job details>
+```
+
+
 /api/rebuild_queues
 -------------------
 
@@ -176,7 +247,6 @@ $ curl --cookie session \
 ```bash
 $ bert-e_api_client --token $TOKEN \
                     --base-url $URL \
-                    --httpmethod POST \
                     rebuild_queues
 
 <job details>

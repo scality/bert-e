@@ -51,7 +51,7 @@ class Job:
         self.end_time = None
         self.status = ''
         self.details = ''
-        self.url = url
+        self.external_url = url
 
     def complete(self):
         self.end_time = datetime.now()
@@ -62,6 +62,10 @@ class Job:
             return datetime.now() - self.start_time
         else:
             return self.end_time - self.start_time
+
+    @property
+    def url(self) -> str:
+        return self.external_url
 
     @property
     def active_options(self):
@@ -115,7 +119,7 @@ class PullRequestJob(RepoJob):
         self.git.dst_branch = None
 
     def __str__(self):
-        return "PR #{}".format(self.pull_request.id)
+        return "Webhook PR #{}".format(self.pull_request.id)
 
     def __eq__(self, other):
         return (isinstance(other, PullRequestJob) and

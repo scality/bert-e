@@ -540,3 +540,7 @@ class Merged(SilentException):
 
 class QueuesDeleted(SilentException):
     code = 307
+
+
+class PullRequestNotFound(SilentException):
+    code = 308

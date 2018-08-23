@@ -142,9 +142,9 @@ if __name__ == '__main__':
                         metavar='BASE_URL',
                         required=True)
     parser.add_argument('--httpmethod', '-m',
-                        help='get/post/put/delete',
-                        choices=['get', 'post', 'put', 'delete'],
-                        default='get')
+                        help='HTTP method (default: POST)',
+                        choices=['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+                        default='POST')
     parser.add_argument('--payload', '-l',
                         help='json data to send to the server',
                         metavar='JSON',

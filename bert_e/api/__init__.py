@@ -23,9 +23,44 @@ from bert_e.workflow.gitwaterflow.branches import (branch_factory,
 LOG = logging.getLogger(__name__)
 
 
+class EvalPullRequestJob(APIJob):
+    """Evaluate a single pull request."""
+    def __init__(self, pr_id, **kwargs):
+        super().__init__(**kwargs)
+        self.pr_id = pr_id
+
+    @property
+    def url(self) -> str:
+        return self.bert_e.settings.pull_request_base_url.format(
+            pr_id=self.pr_id)
+
+    def __str__(self):
+        return "Evaluate PR #{}".format(self.pr_id)
+
+
+@handler(EvalPullRequestJob)
+def evaluate_pull_request(job: EvalPullRequestJob):
+    try:
+        pr = job.project_repo.get_pull_request(job.pr_id)
+    except Exception:
+        raise exceptions.PullRequestNotFound()
+
+    job.bert_e.process(
+        PullRequestJob(
+            bert_e=job.bert_e,
+            pull_request=pr
+        )
+    )
+
+
 class RebuildQueuesJob(APIJob):
     """Rebuild the queues entirely."""
-    pass
+    @property
+    def url(self) -> str:
+        return ''
+
+    def __str__(self):
+        return "Rebuild queues"
 
 
 @handler(RebuildQueuesJob)

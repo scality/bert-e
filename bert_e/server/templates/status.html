@@ -3,7 +3,7 @@
 {% block body %}
 {%- if current_job %}
 <h3>Current job:</h3>
-<p>[{{ current_job.start_time.strftime("%Y-%m-%d %H:%M:%S") }}] - <a href="{{ current_job.url }}">{{ current_job }}</a></p>
+<p>[{{ current_job.start_time.strftime("%Y-%m-%d %H:%M:%S") }}] - {% if current_job.url %}<a href="{{ current_job.url }}">{{ current_job }}</a>{% else %}{{ current_job }}{% endif %}</p>
 {%- endif %}
 
 {%- for pr in merged_prs %}
@@ -55,7 +55,7 @@
 
 {%- for job in completed_jobs %}
 {%- if loop.first %}<h3>Completed jobs:</h3><ul>{% endif %}
-<li>[{{ job.start_time.strftime("%Y-%m-%d %H:%M:%S") }}] - <a href="{{ job.url }}">{{ job }}</a> -> {{ job.status }}{% if job.details %}<p>{{ job.details }}</p>{% endif %}</li>
+<li>[{{ job.start_time.strftime("%Y-%m-%d %H:%M:%S") }}] - {% if job.url %}<a href="{{ job.url }}">{{ job }}</a>{% else %}{{ job }}{% endif %} -> {{ job.status }}{% if job.details %}<p>{{ job.details }}</p>{% endif %}</li>
 {%- if loop.last %}</ul>{% endif %}
 {%- endfor %}
 {% endblock %}

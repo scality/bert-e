@@ -24,7 +24,7 @@ from queue import Queue
 from types import SimpleNamespace
 
 from .. import job as berte_job
-from .. import bert_e, server
+from .. import api, bert_e, server
 from ..git_host import bitbucket as bitbucket_api
 from ..git_host import cache
 from ..git_host import mock as mock_api
@@ -59,7 +59,7 @@ class MockBertE(bert_e.BertE):
             'https://bitbucket.org/foo/bar/commits/{commit_id}'
 
 
-class TestWebhookListener(unittest.TestCase):
+class TestServer(unittest.TestCase):
     def setUp(self):
         os.environ['WEBHOOK_LOGIN'] = 'dummy'
         os.environ['WEBHOOK_PWD'] = 'dummy'
@@ -358,7 +358,7 @@ class TestWebhookListener(unittest.TestCase):
             '2 pending jobs:',
             '* [2016-12-08 14:54:18] - Commit 123deadbeef'
             '12345678901234567890123456789',
-            '* [2016-12-08 14:54:19] - PR #666'
+            '* [2016-12-08 14:54:19] - Webhook PR #666'
         )
 
         app = server.APP.test_client()
@@ -375,8 +375,8 @@ class TestWebhookListener(unittest.TestCase):
             '01234567890123456789">Commit '
             '123deadbeef12345678901234567890123456789</a></li>',
             '<li>[2016-12-08 14:54:19] - <a href='
-            '"https://bitbucket.org/foo/bar/pull-requests/666">PR #666</a></'
-            'li>'
+            '"https://bitbucket.org/foo/bar/pull-requests/666">'
+            'Webhook PR #666</a></li>'
         )
 
         res = app.get('/')
@@ -409,7 +409,7 @@ class TestWebhookListener(unittest.TestCase):
         expected = (
             'Completed jobs:',
             '* [2016-12-08 14:54:19] - '
-            'PR #666 -> NothingToDo\ndetails',
+            'Webhook PR #666 -> NothingToDo\ndetails',
             '* [2016-12-08 14:54:18] - '
             'Commit 123deadbeef12345678901234567890123456789 -> NothingToDo'
         )
@@ -422,11 +422,11 @@ class TestWebhookListener(unittest.TestCase):
 
         expected = (
             '<h3>Completed jobs:</h3>',
-            '<li>[2016-12-08 14:54:19] - <a href="https://bitbucket.org/f'
-            'oo/bar/pull-requests/666">PR #666</a> -> NothingToDo<p>details</'
-            'p></li>',
-            '<li>[2016-12-08 14:54:18] - <a href="https://bitbucket.org/f'
-            'oo/bar/commits/123deadbeef12345678901234567890123456789">'
+            '<li>[2016-12-08 14:54:19] - <a href="https://bitbucket.org/'
+            'foo/bar/pull-requests/666">Webhook PR #666</a> -> NothingToDo'
+            '<p>details</p></li>',
+            '<li>[2016-12-08 14:54:18] - <a href="https://bitbucket.org/'
+            'foo/bar/commits/123deadbeef12345678901234567890123456789">'
             'Commit 123deadbeef12345678901234567890123456789</a> '
             '-> NothingToDo</li>'
         )
@@ -444,9 +444,30 @@ class TestWebhookListener(unittest.TestCase):
         self.assertEqual(202, resp.status_code)
         self.assertEqual(server.BERTE.task_queue.unfinished_tasks, 1)
         job = server.BERTE.task_queue.get()
+        self.assertEqual(type(job), api.RebuildQueuesJob)
         resp_json = resp.data.decode()
-        assert resp_json == job.json()
-        assert 'id' in resp_json
+        self.assertEqual(resp_json, job.json())
+        self.assertIn('id', resp_json)
+
+    def test_pull_request_api_call(self):
+        resp = self.handle_api_call('pull-requests/1', user=None)
+        self.assertEqual(403, resp.status_code)
+
+        resp = self.handle_api_call('pull-requests/0')
+        self.assertEqual(400, resp.status_code)
+
+        resp = self.handle_api_call('pull-requests/toto')
+        self.assertEqual(404, resp.status_code)
+
+        resp = self.handle_api_call('pull-requests/1')
+        self.assertEqual(202, resp.status_code)
+        self.assertEqual(server.BERTE.task_queue.unfinished_tasks, 1)
+        job = server.BERTE.task_queue.get()
+        self.assertEqual(type(job), api.EvalPullRequestJob)
+        self.assertEqual(job.pr_id, 1)
+        resp_json = resp.data.decode()
+        self.assertEqual(resp_json, job.json())
+        self.assertIn('id', resp_json)
 
 
 if __name__ == '__main__':
