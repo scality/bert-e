@@ -13,4 +13,4 @@ PyYAML==3.13
 raven==6.9.0
 requests==2.19.1
 requests-mock==1.5.2
-WTForms == 2.2.1
+WTForms==2.2.1
