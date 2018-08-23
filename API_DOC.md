@@ -182,8 +182,8 @@ $ bert-e_api_client --token $TOKEN \
 ```
 
 
-/api/rebuild_queues
--------------------
+/api/gwf/queues
+---------------
 
 **Methods**
 
@@ -237,7 +237,7 @@ $ bert-e_api_client --token $TOKEN \
 $ curl --cookie session \
        --request POST \
        --header "Content-type: application/json" \
-       "$URL/api/rebuild_queues"
+       "$URL/api/queues"
 
 <job details>
 ```
@@ -247,7 +247,7 @@ $ curl --cookie session \
 ```bash
 $ bert-e_api_client --token $TOKEN \
                     --base-url $URL \
-                    rebuild_queues
+                    queues
 
 <job details>
 ```

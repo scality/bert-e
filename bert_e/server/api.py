@@ -44,7 +44,7 @@ def pull_request(pr_id):
     return redirect(url_for('status page.display'), code=302)
 
 
-@blueprint.route('/api/rebuild_queues', methods=['POST'])
+@blueprint.route('/api/gwf/queues', methods=['POST'])
 @requires_auth()
 def rebuild_queues():
     LOG.info("Received 'rebuild_queues' order")

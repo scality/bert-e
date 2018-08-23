@@ -26,7 +26,7 @@ Invocation example for a GitHub repository:
     bert-e_api_client
       --token <token>
       --base-url <url of bert-e>
-      /rebuild_queues
+      /pull-requests/1377
 
 The script returns json data including the job id that was created.
 
