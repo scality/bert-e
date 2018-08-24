@@ -24,7 +24,7 @@ LOG = logging.getLogger(__name__)
 
 
 class EvalPullRequestJob(APIJob):
-    """Evaluate a single pull request."""
+    """Job that will evaluate a single pull request."""
     def __init__(self, pr_id, **kwargs):
         super().__init__(**kwargs)
         self.pr_id = pr_id
@@ -40,6 +40,7 @@ class EvalPullRequestJob(APIJob):
 
 @handler(EvalPullRequestJob)
 def evaluate_pull_request(job: EvalPullRequestJob):
+    """Evaluate a single pull request."""
     try:
         pr = job.project_repo.get_pull_request(job.pr_id)
     except Exception:
@@ -54,7 +55,7 @@ def evaluate_pull_request(job: EvalPullRequestJob):
 
 
 class RebuildQueuesJob(APIJob):
-    """Rebuild the queues entirely."""
+    """Job that will rebuild the queues entirely."""
     @property
     def url(self) -> str:
         return ''
@@ -65,6 +66,7 @@ class RebuildQueuesJob(APIJob):
 
 @handler(RebuildQueuesJob)
 def rebuild_queues(job: RebuildQueuesJob):
+    """Rebuild the queues entirely."""
     if not job.settings.use_queue:
         raise exceptions.NotMyJob()
     repo = clone_git_repo(job)
