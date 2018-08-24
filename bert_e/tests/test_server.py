@@ -437,10 +437,10 @@ class TestServer(unittest.TestCase):
             self.assertIn(exp, data)
 
     def test_rebuild_queues_api_call(self):
-        resp = self.handle_api_call('rebuild_queues', user=None)
+        resp = self.handle_api_call('gwf/queues', user=None)
         self.assertEqual(403, resp.status_code)
 
-        resp = self.handle_api_call('rebuild_queues')
+        resp = self.handle_api_call('gwf/queues')
         self.assertEqual(202, resp.status_code)
         self.assertEqual(server.BERTE.task_queue.unfinished_tasks, 1)
         job = server.BERTE.task_queue.get()
