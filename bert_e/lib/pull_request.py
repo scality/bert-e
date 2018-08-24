@@ -17,7 +17,8 @@ import logging
 
 from bert_e import exceptions
 from bert_e.git_host.base import AbstractComment, AbstractPullRequest
-from bert_e.lib.cli import confirm
+
+from .cli import confirm
 
 LOG = logging.getLogger(__name__)
 

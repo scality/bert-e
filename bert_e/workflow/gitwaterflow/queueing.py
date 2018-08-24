@@ -14,51 +14,17 @@
 """GitWaterFlow optimistic queuing implementation."""
 
 import logging
-from copy import deepcopy
 
 from bert_e import exceptions
-from bert_e.job import handler as job_handler
-from bert_e.job import QueuesJob
 from bert_e.lib import git
+from bert_e.lib.pull_request import send_comment
 
-from ..git_utils import clone_git_repo, consecutive_merge, robust_merge, push
-from ..pr_utils import send_comment
-from .branches import (BranchCascade, DevelopmentBranch, IntegrationBranch,
+from .branches import (DevelopmentBranch, IntegrationBranch,
                        QueueBranch, QueueIntegrationBranch,
-                       branch_factory, build_queue_collection)
+                       branch_factory)
 from .integration import get_integration_branches
 
 LOG = logging.getLogger(__name__)
-
-
-@job_handler(QueuesJob)
-def handle_merge_queues(job):
-    """Check merge queue and fast-forward development branches to the most
-    recent stable state.
-
-    """
-    cascade = job.git.cascade = job.git.cascade or BranchCascade()
-    clone_git_repo(job)
-    cascade.build(job.git.repo)
-    queues = build_queue_collection(job)
-    queues.validate()
-
-    # Update the queue status
-    job.bert_e.update_queue_status(queues)
-
-    if not queues.mergeable_prs:
-        raise exceptions.NothingToDo()
-
-    merge_queues(queues.mergeable_queues)
-
-    # notify PRs and cleanup
-    for pr_id in queues.mergeable_prs:
-        close_queued_pull_request(job, pr_id, deepcopy(cascade))
-        job.bert_e.add_merged_pr(pr_id)
-
-    # git push --all --force --prune
-    push(job.git.repo, prune=True)
-    raise exceptions.Merged()
 
 
 def get_queue_branch(job, dev_branch: DevelopmentBranch, create=True
@@ -120,9 +86,9 @@ def add_to_queue(job, wbranches):
         to_push.append(qint)
         for qbranch, wbranch in zip(qbranches, wbranches):
             if job.settings.no_octopus:
-                consecutive_merge(qbranch, wbranch, qint)
+                git.consecutive_merge(qbranch, wbranch, qint)
             else:
-                robust_merge(qbranch, wbranch, qint)
+                git.robust_merge(qbranch, wbranch, qint)
             qint = get_queue_integration_branch(job, pr_id, wbranch)
             qint.create(qbranch, do_push=False)
             to_push.append(qint)
@@ -130,7 +96,7 @@ def add_to_queue(job, wbranches):
         raise exceptions.QueueConflict(
             active_options=job.active_options) from err
 
-    push(job.git.repo, to_push)
+    git.push(job.git.repo, to_push)
 
 
 def merge_queues(queues):

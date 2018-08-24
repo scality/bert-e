@@ -142,14 +142,9 @@ class CommitJob(RepoJob):
                 self.commit == other.commit)
 
 
-class QueuesJob(RepoJob):
-    """Job triggered when the queues were updated."""
-    def __str__(self):
-        return "QueuesJob"
-
-
 class APIJob(RepoJob):
     """Job sent to Bert-E via its API."""
+    # TODO delete?
     def __init__(self, args=None, kwargs=None, **kwargs_):
         super().__init__(**kwargs_)
         self.args = args or []
