@@ -26,10 +26,13 @@ blueprint = Blueprint('management page', __name__)
 @blueprint.route('/manage', methods=['GET'])
 @requires_auth()
 def display():
+    forms = {
+        'rebuild_queues_form': SingleButtonForm(),
+        'eval_pr_form': PullRequestForm(),
+    }
     return render_template(
         'manage.html',
-        rebuild_queues_form=SingleButtonForm(),
-        eval_pr_form=PullRequestForm(),
+        **forms,
     ), 200
 
 
