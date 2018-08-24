@@ -22,9 +22,9 @@ from bert_e.exceptions import (
     CommandNotImplemented, LossyResetWarning, ResetComplete, HelpMessage,
     StatusReport, IncorrectCommandSyntax
 )
+from bert_e.lib.git import clone_git_repo, push
 from bert_e.reactor import Reactor
 from .integration import get_integration_branches
-from ..git_utils import clone_git_repo, push
 
 
 @Reactor.option(default=set())

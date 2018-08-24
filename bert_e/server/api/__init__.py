@@ -18,7 +18,9 @@ import logging
 
 from flask import Blueprint, Response, current_app, redirect, request, url_for
 
-from ..api import EvalPullRequestJob, RebuildQueuesJob
+from bert_e.workflow.gitwaterflow.jobs import (EvalPullRequestJob,
+                                               RebuildQueuesJob)
+
 from .auth import invalid, requires_auth
 
 

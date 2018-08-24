@@ -15,7 +15,7 @@ import logging
 
 from bert_e import exceptions
 from bert_e.job import APIJob, PullRequestJob, handler
-from bert_e.workflow.git_utils import clone_git_repo, push
+from bert_e.lib.git import clone_git_repo, push
 from bert_e.workflow.gitwaterflow.branches import (branch_factory,
                                                    build_queue_collection)
 

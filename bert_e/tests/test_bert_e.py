@@ -30,7 +30,6 @@ import requests
 import requests_mock
 
 from bert_e import exceptions as exns
-from bert_e.api import EvalPullRequestJob, RebuildQueuesJob
 from bert_e.bert_e import main as bert_e_main
 from bert_e.bert_e import BertE
 from bert_e.git_host import bitbucket as bitbucket_api
@@ -46,10 +45,11 @@ from bert_e.lib.retry import RetryHandler
 from bert_e.lib.simplecmd import CommandError, cmd
 from bert_e.settings import setup_settings
 from bert_e.workflow import gitwaterflow as gwf
-from bert_e.workflow import git_utils
 from bert_e.workflow.gitwaterflow import branches as gwfb
 from bert_e.workflow.gitwaterflow import integration as gwfi
 from bert_e.workflow.gitwaterflow import queueing as gwfq
+from bert_e.workflow.gitwaterflow.jobs import (EvalPullRequestJob,
+                                               RebuildQueuesJob)
 
 from .mocks import jira as jira_api_mock
 
@@ -2632,8 +2632,8 @@ admins:
         def disturb_the_kraken(dst, src1, src2):
             raise KrakenDisturbed()
 
-        octopus_merge = git_utils.octopus_merge
-        git_utils.octopus_merge = disturb_the_kraken
+        octopus_merge = git.octopus_merge
+        git.octopus_merge = disturb_the_kraken
 
         try:
             # Check the merges are octopus without the option
@@ -2650,21 +2650,21 @@ admins:
                             options=self.bypass_all + ['no_octopus'],
                             backtrace=True)
         finally:
-            git_utils.octopus_merge = octopus_merge
+            git.octopus_merge = octopus_merge
 
     def test_fallback_to_consecutive_merge(self):
         def disturb_the_kraken(dst, src1, src2):
             raise MergeFailedException()
 
-        octopus_merge = git_utils.octopus_merge
-        git_utils.octopus_merge = disturb_the_kraken
+        octopus_merge = git.octopus_merge
+        git.octopus_merge = disturb_the_kraken
 
         try:
             pr = self.create_pr('bugfix/test-merge', 'development/4.3')
             with self.assertRaises(exns.SuccessMessage):
                 self.handle(pr.id, options=self.bypass_all, backtrace=True)
         finally:
-            git_utils.octopus_merge = octopus_merge
+            git.octopus_merge = octopus_merge
 
     def test_robust_merge(self):
         """Simulate a successful incorrect octopus merge.
@@ -2673,7 +2673,7 @@ admins:
         (using sequential strategy).
 
         """
-        octopus_merge = git_utils.octopus_merge
+        octopus_merge = git.octopus_merge
 
         sha1 = None
 
@@ -2686,7 +2686,7 @@ admins:
             nonlocal sha1
             sha1 = dst.repo.cmd('git log -n 1 --pretty="%H"')
 
-        git_utils.octopus_merge = wrong_octopus_merge
+        git.octopus_merge = wrong_octopus_merge
 
         try:
             pr = self.create_pr('bugfix/test-merge', 'development/4.3')
@@ -2711,7 +2711,7 @@ admins:
                                  'origin/development/6.0'
                                  .format(sha1))
         finally:
-            git_utils.octopus_merge = octopus_merge
+            git.octopus_merge = octopus_merge
 
     def test_bitbucket_lag_on_pr_status(self):
         """Bitbucket can be a bit long to update a merged PR's status.
@@ -3751,8 +3751,8 @@ class TestQueueing(RepositoryTests):
 
     def test_queueing_standard_problem_without_octopus(self):
         # monkey patch to skip octopus merge in favor of regular 2-way merges
-        gwfi.octopus_merge = git_utils.consecutive_merge
-        gwfq.octopus_merge = git_utils.consecutive_merge
+        gwfi.octopus_merge = git.consecutive_merge
+        gwfq.octopus_merge = git.consecutive_merge
 
         try:
             qbranches = self.submit_problem(self.standard_problem)
@@ -3764,8 +3764,8 @@ class TestQueueing(RepositoryTests):
             self.assertEqual(qc.mergeable_prs, [1, 4, 5, 7])
             self.assertEqual(qc.mergeable_queues, self.standard_solution)
         finally:
-            gwfi.octopus_merge = git_utils.octopus_merge
-            gwfq.octopus_merge = git_utils.octopus_merge
+            gwfi.octopus_merge = git.octopus_merge
+            gwfq.octopus_merge = git.octopus_merge
 
     def test_queueing_last_pr_build_not_started(self):
         problem = deepcopy(self.standard_problem)
@@ -4855,8 +4855,8 @@ class TaskQueueTests(RepositoryTests):
 
     def test_status_with_queue_without_octopus(self):
         # monkey patch to skip octopus merge in favor of regular 2-way merges
-        gwfi.octopus_merge = git_utils.consecutive_merge
-        gwfq.octopus_merge = git_utils.consecutive_merge
+        gwfi.octopus_merge = git.consecutive_merge
+        gwfq.octopus_merge = git.consecutive_merge
 
         try:
             self.init_berte(options=self.bypass_all)
@@ -4891,8 +4891,8 @@ class TaskQueueTests(RepositoryTests):
             self.assertEqual(len(merged_pr), 1)
             self.assertEqual(merged_pr[0]['id'], 1)
         finally:
-            gwfi.octopus_merge = git_utils.octopus_merge
-            gwfq.octopus_merge = git_utils.octopus_merge
+            gwfi.octopus_merge = git.octopus_merge
+            gwfq.octopus_merge = git.octopus_merge
 
     def test_job_evaluate_pull_request(self):
         self.init_berte(options=self.bypass_all)
