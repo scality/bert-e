@@ -479,6 +479,22 @@ class TestServer(unittest.TestCase):
         self.assertEqual(resp_json, job.json())
         self.assertIn('id', resp_json)
 
+    def test_management_page(self):
+        client = self.test_client()
+        resp = client.get('/manage')
+        self.assertEqual(403, resp.status_code)
+
+        client = self.test_client(user='test_user')
+        resp = client.get('/manage')
+        self.assertEqual(200, resp.status_code)
+        data = resp.data.decode()
+        self.assertIn('Admin level tools are deactivated', data)
+
+        client = self.test_client(user='test_admin')
+        resp = client.get('/manage')
+        self.assertEqual(200, resp.status_code)
+        data = resp.data.decode()
+        self.assertNotIn('Admin level tools are deactivated', data)
 
 if __name__ == '__main__':
     unittest.main(failfast=True)
