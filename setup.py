@@ -26,7 +26,7 @@ setup(
     include_package_data=True,
     packages=[
         'bert_e',
-        'bert_e.api',
+        'bert_e.jobs',
         'bert_e.lib',
         'bert_e.bin',
         'bert_e.git_host',

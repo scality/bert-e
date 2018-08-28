@@ -26,7 +26,9 @@ from queue import Queue
 from types import SimpleNamespace
 
 from .. import job as berte_job
-from .. import api, bert_e, server
+from .. import bert_e, server
+from ..jobs.eval_pull_request import EvalPullRequestJob
+from ..jobs.rebuild_queues import RebuildQueuesJob
 from ..git_host import bitbucket as bitbucket_api
 from ..git_host import cache
 from ..git_host import mock as mock_api
@@ -60,6 +62,7 @@ class MockBertE(bert_e.BertE):
         self.settings.commit_base_url = \
             'https://bitbucket.org/foo/bar/commits/{commit_id}'
         self.settings.admins = ['test_admin']
+
 
 class TestServer(unittest.TestCase):
     def setUp(self):
@@ -456,7 +459,7 @@ class TestServer(unittest.TestCase):
         self.assertEqual(202, resp.status_code)
         self.assertEqual(server.BERTE.task_queue.unfinished_tasks, 1)
         job = server.BERTE.task_queue.get()
-        self.assertEqual(type(job), api.RebuildQueuesJob)
+        self.assertEqual(type(job), RebuildQueuesJob)
         resp_json = resp.data.decode()
         self.assertEqual(resp_json, job.json())
         self.assertIn('id', resp_json)
@@ -475,7 +478,7 @@ class TestServer(unittest.TestCase):
         self.assertEqual(202, resp.status_code)
         self.assertEqual(server.BERTE.task_queue.unfinished_tasks, 1)
         job = server.BERTE.task_queue.get()
-        self.assertEqual(type(job), api.EvalPullRequestJob)
+        self.assertEqual(type(job), EvalPullRequestJob)
         self.assertEqual(job.pr_id, 1)
         resp_json = resp.data.decode()
         self.assertEqual(resp_json, job.json())
@@ -580,6 +583,7 @@ class TestServer(unittest.TestCase):
         resp = client2.post('/form/EvalPullRequestForm', data=dict(
             csrf_token=token, pr_id=1))
         self.assertEqual(400, resp.status_code)
+
 
 if __name__ == '__main__':
     unittest.main(failfast=True)

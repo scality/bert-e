@@ -30,9 +30,10 @@ import requests
 import requests_mock
 
 from bert_e import exceptions as exns
-from bert_e.api import EvalPullRequestJob, RebuildQueuesJob
 from bert_e.bert_e import main as bert_e_main
 from bert_e.bert_e import BertE
+from bert_e.jobs.eval_pull_request import EvalPullRequestJob
+from bert_e.jobs.rebuild_queues import RebuildQueuesJob
 from bert_e.git_host import bitbucket as bitbucket_api
 from bert_e.git_host import mock as bitbucket_api_mock
 from bert_e.git_host.base import BertESession

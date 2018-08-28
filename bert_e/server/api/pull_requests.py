@@ -16,7 +16,7 @@ from flask_wtf import FlaskForm
 from wtforms import IntegerField
 from wtforms.validators import DataRequired, NumberRange
 
-from bert_e.api import EvalPullRequestJob
+from bert_e.jobs.eval_pull_request import EvalPullRequestJob
 
 from .base import APIEndpoint, APIForm
 

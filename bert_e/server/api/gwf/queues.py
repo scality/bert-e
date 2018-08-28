@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from bert_e.api import RebuildQueuesJob
+from bert_e.jobs.rebuild_queues import RebuildQueuesJob
 
 from ..base import APIEndpoint, APIForm
 
