@@ -11,18 +11,3 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-"""This module defines the server forms."""
-
-from flask_wtf import FlaskForm
-from wtforms import IntegerField
-from wtforms.validators import DataRequired, NumberRange
-
-
-class SingleButtonForm(FlaskForm):
-    pass
-
-
-class PullRequestForm(FlaskForm):
-    pr_id = IntegerField(
-        'pr id', validators=[DataRequired(), NumberRange(min=1)])

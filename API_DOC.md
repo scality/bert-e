@@ -81,12 +81,6 @@ Endpoints
 
     The request has been accepted, and the user details are returned.
 
-* **302 FOUND**
-
-    The request has been accepted. The user is redirected to __Bert-E__'s
-    status page. Use the proper Json application type in case a 202
-    response is prefered.
-
 * **401 UNAUTHORIZED**
 
     You are not authenticated.
@@ -137,12 +131,6 @@ $ curl --cookie-jar session \
 
     The request has been accepted, and a job has been created. The returned
     json contains the details of the job, including it's id.
-
-* **302 FOUND**
-
-    The request has been accepted, and a job has been created. The user is
-    redirected to __Bert-E__'s status page. Use the proper Json application
-    type in case a 202 response is prefered.
 
 * **400 BAD REQUEST**
 
@@ -213,12 +201,6 @@ $ bert-e_api_client --token $TOKEN \
 
     The request has been accepted, and a job has been created. The returned
     json contains the details of the job, including it's id.
-
-* **302 FOUND**
-
-    The request has been accepted, and a job has been created. The user is
-    redirected to __Bert-E__'s status page. Use the proper Json application
-    type in case a 202 response is prefered.
 
 * **401 UNAUTHORIZED**
 
