@@ -57,7 +57,7 @@ class MockBertE(bert_e.BertE):
             'https://bitbucket.org/foo/bar/pull-requests/{pr_id}'
         self.settings.commit_base_url = \
             'https://bitbucket.org/foo/bar/commits/{commit_id}'
-
+        self.settings.admins = ['test_admin']
 
 class TestServer(unittest.TestCase):
     def setUp(self):
@@ -69,31 +69,41 @@ class TestServer(unittest.TestCase):
         server.BERTE = MockBertE()
         server.APP = server.setup_server(server.BERTE)
 
+    def test_client(self, user=None):
+        """A Flask test client, with session configured.
+
+        Args:
+            - user (str): name of user, or None if not authenticated
+
+        """
+        client = server.APP.test_client()
+        with client.session_transaction() as session:
+            assert session.get('user') is None
+            assert session.get('admin') is None
+            session['user'] = user
+            session['admin'] = user in server.BERTE.settings.admins
+
+        return client
+
     def handle_webhook(self, event_type, data):
 
         server.BERTE.project_repo.owner = \
             data['repository']['owner']['username']
         server.BERTE.project_repo.slug = data['repository']['name']
 
-        app = server.APP.test_client()
+        client = self.test_client()
         auth = ''.join(
             (os.environ['WEBHOOK_LOGIN'], ':', os.environ['WEBHOOK_PWD'])
         )
         basic_auth = 'Basic ' + base64.b64encode(auth.encode()).decode()
-        return app.post(
+        return client.post(
             '/bitbucket', data=json.dumps(data),
             headers={'X-Event-Key': event_type, 'Authorization': basic_auth}
         )
 
     def handle_api_call(self, command, data={}, method='POST',
                         user='test_user', is_admin=False):
-        with server.APP.test_client() as c:
-            with c.session_transaction() as sess:
-                assert sess.get('user') is None
-                assert sess.get('admin') is None
-                sess['user'] = user
-                sess['admin'] = is_admin
-
+        with self.test_client(user=user) as c:
             headers = {
                 'Content-Type': 'application/json',
                 'Accept': 'application/json'
@@ -149,8 +159,8 @@ class TestServer(unittest.TestCase):
             {'id': 3, 'merge_time': datetime(2016, 12, 8, 14, 54, 22, 123456)}
         ]
 
-        app = server.APP.test_client()
-        res = app.get('/?output=txt')
+        client = self.test_client()
+        res = client.get('/?output=txt')
         data = res.data.decode()
 
         # Check merged Pull Requests and merge queue status appear in monitor
@@ -162,7 +172,7 @@ class TestServer(unittest.TestCase):
         assert 'Merge queue status:' in data
         assert '   #10       NOTSTARTED     INPROGRESS  ' in data
 
-        res = app.get('/')
+        res = client.get('/')
         data = res.data.decode()
         assert 'Recently merged pull requests:' in data
         assert '<li>[2016-12-09 14:54:20] - <a href="https://bitbucket.or' \
@@ -180,10 +190,10 @@ class TestServer(unittest.TestCase):
         self.set_status_cache('0033deadbeef', 'FAILED', 'url2')
         self.set_status_cache('13370badf00d', 'SUCCESS', 'url3')
 
-        res = app.get('/?output=txt')
+        res = client.get('/?output=txt')
         assert '   #10        SUCCESS         FAILED    ' in res.data.decode()
 
-        res = app.get('/')
+        res = client.get('/')
 
         assert '<td><a href="https://bitbucket.org/foo/bar/pull-requests/' \
                '10">#10</a></td><td><a href="url3">SUCCESS</a></td><td><a' \
@@ -194,13 +204,13 @@ class TestServer(unittest.TestCase):
             'id': 10,
             'merge_time': datetime(2016, 12, 9, 14, 54, 20, 123456)
         })
-        res = app.get('/?output=txt')
+        res = client.get('/?output=txt')
         data = res.data.decode()
         # PR #10 should appear as merged
         assert '* [2016-12-09 14:54:20] - #10' in data
         assert 'Merge queue status:' not in data
 
-        res = app.get('/')
+        res = client.get('/')
         data = res.data.decode()
         assert '<li>[2016-12-09 14:54:20] - <a href="https://bitbucket.or' \
                'g/foo/bar/pull-requests/10">#10</a></li>' in data
@@ -255,8 +265,8 @@ class TestServer(unittest.TestCase):
             '  #5095      SUCCESSFUL'  # noqa
         )
 
-        app = server.APP.test_client()
-        res = app.get('/?output=txt')
+        client = self.test_client()
+        res = client.get('/?output=txt')
         data = res.data.decode()
 
         for exp in expected:
@@ -315,7 +325,7 @@ class TestServer(unittest.TestCase):
             '</table>\n'
         )
 
-        res = app.get('/')
+        res = client.get('/')
         data = res.data.decode()
         for exp in expected:
             self.assertIn(exp, data)
@@ -327,8 +337,8 @@ class TestServer(unittest.TestCase):
         job.start_time = datetime(2016, 12, 8, 14, 54, 20, 123456)
         server.BERTE.status['current job'] = job
 
-        app = server.APP.test_client()
-        res = app.get('/?output=txt')
+        client = self.test_client()
+        res = client.get('/?output=txt')
         data = res.data.decode()
 
         assert 'Current job: [2016-12-08 14:54:20]' \
@@ -361,8 +371,8 @@ class TestServer(unittest.TestCase):
             '* [2016-12-08 14:54:19] - Webhook PR #666'
         )
 
-        app = server.APP.test_client()
-        res = app.get('/?output=txt')
+        client = self.test_client()
+        res = client.get('/?output=txt')
         data = res.data.decode()
 
         for exp in expected:
@@ -379,7 +389,7 @@ class TestServer(unittest.TestCase):
             'Webhook PR #666</a></li>'
         )
 
-        res = app.get('/')
+        res = client.get('/')
         data = res.data.decode()
         for exp in expected:
             self.assertIn(exp, data)
@@ -414,8 +424,8 @@ class TestServer(unittest.TestCase):
             'Commit 123deadbeef12345678901234567890123456789 -> NothingToDo'
         )
 
-        app = server.APP.test_client()
-        res = app.get('/?output=txt')
+        client = self.test_client()
+        res = client.get('/?output=txt')
         data = res.data.decode()
         for exp in expected:
             self.assertIn(exp, data)
@@ -431,7 +441,7 @@ class TestServer(unittest.TestCase):
             '-> NothingToDo</li>'
         )
 
-        res = app.get('/')
+        res = client.get('/')
         data = res.data.decode()
         for exp in expected:
             self.assertIn(exp, data)
