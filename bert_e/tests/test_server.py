@@ -533,5 +533,53 @@ class TestServer(unittest.TestCase):
             csrf_token=token))
         self.assertEqual(400, resp.status_code)
 
+    @unittest.mock.patch('bert_e.server.api.base.requests.request')
+    def test_management_page_eval_pr(self, mock_request):
+        # configure mock
+        instance = mock_request.return_value
+        instance.status_code = 202
+
+        client = self.test_client(user='test_user')
+        resp = client.get('/manage')
+        data = resp.data.decode()
+        self.assertIn('Evaluate pull request', data)
+        self.assertIn('<form action="/form/EvalPullRequestForm" '
+                      'method="post">', data)
+
+        # hard extract session csrf token
+        token = re.match(
+            '.*<input id="csrf_token" name="csrf_token" '
+            'type="hidden" value="(.*)">.*', data, re.S).group(1)
+
+        # test invalid data in form
+        resp = client.post('/form/EvalPullRequestForm', data=dict(
+            csrf_token=token, pr_id='invalid_int'))
+        self.assertEqual(400, resp.status_code)
+
+        resp = client.post('/form/EvalPullRequestForm', data=dict(
+            csrf_token=token, pr_id=0))
+        self.assertEqual(400, resp.status_code)
+
+        resp = client.post('/form/EvalPullRequestForm', data=dict(
+            csrf_token=token))
+        self.assertEqual(400, resp.status_code)
+
+        # test creation of Job
+        resp = client.post('/form/EvalPullRequestForm', data=dict(
+            csrf_token=token, pr_id=1))
+        self.assertEqual(302, resp.status_code)
+        mock_request.assert_called_once()
+        self.assertEqual(mock_request.call_args_list[0][0][0], 'POST')
+        self.assertEqual(
+            mock_request.call_args_list[0][0][1],
+            'http://localhost/api/pull-requests/1'
+        )
+
+        # post should fail csrf from another client
+        client2 = self.test_client(user='test_user_2')
+        resp = client2.post('/form/EvalPullRequestForm', data=dict(
+            csrf_token=token, pr_id=1))
+        self.assertEqual(400, resp.status_code)
+
 if __name__ == '__main__':
     unittest.main(failfast=True)
