@@ -16,7 +16,9 @@ import base64
 import json
 import os
 import pathlib
+import re
 import unittest
+import unittest.mock
 from collections import OrderedDict, deque
 from copy import deepcopy
 from datetime import datetime
@@ -495,6 +497,41 @@ class TestServer(unittest.TestCase):
         self.assertEqual(200, resp.status_code)
         data = resp.data.decode()
         self.assertNotIn('Admin level tools are deactivated', data)
+
+    @unittest.mock.patch('bert_e.server.api.base.requests.request')
+    def test_management_page_rebuild_queues(self, mock_request):
+        # configure mock
+        instance = mock_request.return_value
+        instance.status_code = 202
+
+        client = self.test_client(user='test_user')
+        resp = client.get('/manage')
+        data = resp.data.decode()
+        self.assertIn('Rebuild queues', data)
+        self.assertIn('<form action="/form/RebuildQueuesForm" '
+                      'method="post">', data)
+
+        # hard extract session csrf token
+        token = re.match(
+            '.*<input id="csrf_token" name="csrf_token" '
+            'type="hidden" value="(.*)">.*', data, re.S).group(1)
+
+        # test creation of Job
+        resp = client.post('/form/RebuildQueuesForm', data=dict(
+            csrf_token=token))
+        self.assertEqual(302, resp.status_code)
+        mock_request.assert_called_once()
+        self.assertEqual(mock_request.call_args_list[0][0][0], 'POST')
+        self.assertEqual(
+            mock_request.call_args_list[0][0][1],
+            'http://localhost/api/gwf/queues'
+        )
+
+        # post should fail csrf from another client
+        client2 = self.test_client(user='test_user_2')
+        resp = client2.post('/form/RebuildQueuesForm', data=dict(
+            csrf_token=token))
+        self.assertEqual(400, resp.status_code)
 
 if __name__ == '__main__':
     unittest.main(failfast=True)
