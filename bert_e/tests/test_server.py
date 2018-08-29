@@ -28,6 +28,7 @@ from types import SimpleNamespace
 from .. import job as berte_job
 from .. import bert_e, server
 from ..jobs.eval_pull_request import EvalPullRequestJob
+from ..jobs.delete_queues import DeleteQueuesJob
 from ..jobs.rebuild_queues import RebuildQueuesJob
 from ..git_host import bitbucket as bitbucket_api
 from ..git_host import cache
@@ -61,7 +62,7 @@ class MockBertE(bert_e.BertE):
             'https://bitbucket.org/foo/bar/pull-requests/{pr_id}'
         self.settings.commit_base_url = \
             'https://bitbucket.org/foo/bar/commits/{commit_id}'
-        self.settings.admins = ['test_admin']
+        self.settings.admins = ['test_admin', 'test_admin_2']
 
 
 class TestServer(unittest.TestCase):
@@ -106,20 +107,17 @@ class TestServer(unittest.TestCase):
             headers={'X-Event-Key': event_type, 'Authorization': basic_auth}
         )
 
-    def handle_api_call(self, command, data={}, method='POST',
-                        user='test_user', is_admin=False):
+    def handle_api_call(self, command, data={}, method='POST', user=None):
         with self.test_client(user=user) as c:
             headers = {
                 'Content-Type': 'application/json',
                 'Accept': 'application/json'
             }
-            if method == 'POST':
-                return c.post('/api/%s' % command,
-                              data=json.dumps(data),
-                              headers=headers)
-            else:
-                return c.get('/api/%s' % command,
-                             headers=headers)
+            return getattr(c, method.lower())(
+                '/api/%s' % command,
+                data=json.dumps(data),
+                headers=headers
+            )
 
     def test_comment_added(self):
         resp = self.handle_webhook('pullrequest:comment_created',
@@ -455,7 +453,7 @@ class TestServer(unittest.TestCase):
         resp = self.handle_api_call('gwf/queues', user=None)
         self.assertEqual(403, resp.status_code)
 
-        resp = self.handle_api_call('gwf/queues')
+        resp = self.handle_api_call('gwf/queues', user='test_user')
         self.assertEqual(202, resp.status_code)
         self.assertEqual(server.BERTE.task_queue.unfinished_tasks, 1)
         job = server.BERTE.task_queue.get()
@@ -464,17 +462,36 @@ class TestServer(unittest.TestCase):
         self.assertEqual(resp_json, job.json())
         self.assertIn('id', resp_json)
 
+    def test_delete_queues_api_call(self):
+        resp = self.handle_api_call(
+            'gwf/queues', method='DELETE', user=None)
+        self.assertEqual(403, resp.status_code)
+
+        resp = self.handle_api_call(
+            'gwf/queues', method='DELETE', user='test_user')
+        self.assertEqual(403, resp.status_code)
+
+        resp = self.handle_api_call(
+            'gwf/queues', method='DELETE', user='test_admin')
+        self.assertEqual(202, resp.status_code)
+        self.assertEqual(server.BERTE.task_queue.unfinished_tasks, 1)
+        job = server.BERTE.task_queue.get()
+        self.assertEqual(type(job), DeleteQueuesJob)
+        resp_json = resp.data.decode()
+        self.assertEqual(resp_json, job.json())
+        self.assertIn('id', resp_json)
+
     def test_pull_request_api_call(self):
         resp = self.handle_api_call('pull-requests/1', user=None)
         self.assertEqual(403, resp.status_code)
 
-        resp = self.handle_api_call('pull-requests/0')
+        resp = self.handle_api_call('pull-requests/0', user='test_user')
         self.assertEqual(400, resp.status_code)
 
-        resp = self.handle_api_call('pull-requests/toto')
+        resp = self.handle_api_call('pull-requests/toto', user='test_user')
         self.assertEqual(404, resp.status_code)
 
-        resp = self.handle_api_call('pull-requests/1')
+        resp = self.handle_api_call('pull-requests/1', user='test_user')
         self.assertEqual(202, resp.status_code)
         self.assertEqual(server.BERTE.task_queue.unfinished_tasks, 1)
         job = server.BERTE.task_queue.get()
@@ -535,6 +552,51 @@ class TestServer(unittest.TestCase):
         resp = client2.post('/form/RebuildQueuesForm', data=dict(
             csrf_token=token))
         self.assertEqual(400, resp.status_code)
+
+    @unittest.mock.patch('bert_e.server.api.base.requests.request')
+    def test_management_page_delete_queues(self, mock_request):
+        # configure mock
+        instance = mock_request.return_value
+        instance.status_code = 202
+
+        # check normal user does not have access
+        client = self.test_client(user='test_user')
+        resp = client.get('/manage')
+        data = resp.data.decode()
+        self.assertNotIn('Delete queues', data)
+        self.assertNotIn(
+            '<form action="/form/DeleteQueuesForm" '
+            'method="post">', data
+        )
+
+        client = self.test_client(user='test_admin')
+        resp = client.get('/manage')
+        data = resp.data.decode()
+        self.assertIn('Delete queues', data)
+        self.assertIn('<form action="/form/DeleteQueuesForm" '
+                      'method="post">', data)
+
+        # hard extract session csrf token
+        token = re.match(
+            '.*<input id="csrf_token" name="csrf_token" '
+            'type="hidden" value="(.*)">.*', data, re.S).group(1)
+
+        # post should fail csrf from another client
+        client2 = self.test_client(user='test_admin_2')
+        resp = client2.post('/form/DeleteQueuesForm', data=dict(
+            csrf_token=token))
+        self.assertEqual(400, resp.status_code)
+
+        # test creation of Job
+        resp = client.post('/form/DeleteQueuesForm', data=dict(
+            csrf_token=token))
+        self.assertEqual(302, resp.status_code)
+        mock_request.assert_called_once()
+        self.assertEqual(mock_request.call_args_list[0][0][0], 'DELETE')
+        self.assertEqual(
+            mock_request.call_args_list[0][0][1],
+            'http://localhost/api/gwf/queues'
+        )
 
     @unittest.mock.patch('bert_e.server.api.base.requests.request')
     def test_management_page_eval_pr(self, mock_request):

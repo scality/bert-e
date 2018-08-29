@@ -33,6 +33,7 @@ from bert_e import exceptions as exns
 from bert_e.bert_e import main as bert_e_main
 from bert_e.bert_e import BertE
 from bert_e.jobs.eval_pull_request import EvalPullRequestJob
+from bert_e.jobs.delete_queues import DeleteQueuesJob
 from bert_e.jobs.rebuild_queues import RebuildQueuesJob
 from bert_e.git_host import bitbucket as bitbucket_api
 from bert_e.git_host import mock as bitbucket_api_mock
@@ -4909,6 +4910,57 @@ class TaskQueueTests(RepositoryTests):
             EvalPullRequestJob(pr.id, bert_e=self.berte),
             'Queued'
         )
+
+    def test_job_delete_queues(self):
+        self.init_berte(options=self.bypass_all)
+
+        # When queues are disabled, Bert-E should respond with 'NotMyJob'
+        self.process_job(
+            DeleteQueuesJob(bert_e=self.berte, settings={'use_queue': False}),
+            'NotMyJob'
+        )
+
+        # When there is no queue, Bert-E should respond with 'NothingToDo'
+        self.process_job(DeleteQueuesJob(bert_e=self.berte), 'NothingToDo')
+
+        # Create a couple PRs and queue them
+        prs = [
+            self.create_pr('feature/TEST-{:02d}'.format(n), 'development/4.3')
+            for n in range(1, 4)
+        ]
+
+        for pr in prs:
+            self.process_pr_job(pr, 'Queued')
+
+        expected_branches = [
+            'q/4.3',
+            'q/5.1',
+            'q/6.0',
+            'q/1/4.3/feature/TEST-01',
+            'q/1/5.1/feature/TEST-01',
+            'q/1/6.0/feature/TEST-01',
+            'q/2/4.3/feature/TEST-02',
+            'q/2/5.1/feature/TEST-02',
+            'q/2/6.0/feature/TEST-02',
+            'q/3/4.3/feature/TEST-03',
+            'q/3/5.1/feature/TEST-03',
+            'q/3/6.0/feature/TEST-03',
+        ]
+        # Check that all PRs are queued
+
+        for branch in expected_branches:
+            self.assertTrue(self.gitrepo.remote_branch_exists(branch),
+                            'branch %s not found' % branch)
+
+        self.process_job(DeleteQueuesJob(bert_e=self.berte), 'QueuesDeleted')
+
+        # Check that the queues are destroyed
+        for branch in expected_branches:
+            self.assertFalse(self.gitrepo.remote_branch_exists(branch, True),
+                             'branch %s still exists' % branch)
+
+        # check nothing more pending
+        self.assertTrue(self.berte.task_queue.empty())
 
     def test_job_rebuild_queues(self):
         self.init_berte(options=self.bypass_all)

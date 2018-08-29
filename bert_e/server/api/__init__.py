@@ -16,7 +16,8 @@
 
 from flask import Markup, render_template_string
 
-from .gwf.queues import RebuildQueues, RebuildQueuesForm
+from .gwf.queues import (DeleteQueues, DeleteQueuesForm,
+                         RebuildQueues, RebuildQueuesForm)
 from .pull_requests import EvalPullRequest, EvalPullRequestForm
 
 
@@ -24,12 +25,14 @@ from .pull_requests import EvalPullRequest, EvalPullRequestForm
 ENDPOINTS = [
     EvalPullRequest,
     RebuildQueues,
+    DeleteQueues,
 ]
 
 """All API forms. Order is respected in management page."""
 FORMS = [
     EvalPullRequestForm,
     RebuildQueuesForm,
+    DeleteQueuesForm,
 ]
 
 

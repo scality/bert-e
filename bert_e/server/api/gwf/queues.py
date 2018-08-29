@@ -13,6 +13,7 @@
 # limitations under the License.
 
 from bert_e.jobs.rebuild_queues import RebuildQueuesJob
+from bert_e.jobs.delete_queues import DeleteQueuesJob
 
 from ..base import APIEndpoint, APIForm
 
@@ -40,9 +41,44 @@ class RebuildQueuesForm(APIForm):
         comment the said pull request with a <strong>wait</strong> comment to
         Bert-E, then instruct the robot to rebuild the queues.</li>
         </ul>
+
         <p>This can also be activated on api endpoint
-        <strong>/api/rebuild_queues</strong>.</p>
+        <strong>/api/queues[POST]</strong>.</p>
         '''
     form_inner_html = '''
         <button type="submit">rebuild</button>
+        '''
+
+
+class DeleteQueues(APIEndpoint):
+    rule = '/gwf/queues'
+    method = 'DELETE'
+    admin = True
+    job = DeleteQueuesJob
+
+
+class DeleteQueuesForm(APIForm):
+    endpoint_cls = DeleteQueues
+    title = 'Delete queues'
+    help_text = '''
+        <p>Create a job that will remove all queue data created by
+        Bert-E.</p>
+
+        <p>Can be used as a last resort when Bert-E reports a status of
+        QueueOutOfOrder for example.</p>
+
+        <p>All branches q/ will be safely removed from the repository. The
+        queues will be recreated automatically on the next job. Any pull
+        request that was queued at the time of the reset will <strong>NOT
+        </strong> be queued anymore. It will be required to evaluate each
+        pull request manually to add them to the queues again
+        (see /api/pull-requests/&lt;id&gt;, or comment the pull requests
+        accordingly).
+        </p>
+
+        <p>This can also be activated on api endpoint
+        <strong>/api/queues[DELETE]</strong>.</p>
+        '''
+    form_inner_html = '''
+        <button type="submit">delete</button>
         '''

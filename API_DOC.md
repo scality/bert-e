@@ -187,6 +187,20 @@ $ bert-e_api_client --token $TOKEN \
       pull request with a **wait** comment to __Bert-E__, then instruct the robot to
       rebuild the queues.
 
+* **DELETE**
+
+    Create a job that will remove all queue data created by __Bert-E__.
+
+    Can be used as a last resort when __Bert-E__ reports a status of
+    QueueOutOfOrder for example.
+
+    All branches q/ will be safely removed from the repository. The queues
+    will be recreated automatically on the next job. Any pull request that
+    was queued at the time of the reset will __NOT__ be queued anymore. It
+    will be required to evaluate each pull request manually to add them to
+    the queues again (see /api/pull-requests/<id>, or comment the pull
+    requests).
+
 **Query parameters**
 
 <None>
@@ -229,6 +243,7 @@ $ curl --cookie session \
 ```bash
 $ bert-e_api_client --token $TOKEN \
                     --base-url $URL \
+                    --httpmethod DELETE \
                     queues
 
 <job details>

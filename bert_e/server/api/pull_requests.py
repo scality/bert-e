@@ -52,7 +52,7 @@ class EvalPullRequestForm(APIForm):
         Bert-E regularly on open pull requests.</p>
 
         <p>This can also be activated on api endpoint <strong>/api/
-        pull-requests/&lt;id&gt;</strong>.</p>
+        pull-requests/&lt;id&gt;[POST]</strong>.</p>
         '''
     form_inner_html = '''
         {{ form.pr_id.label }}: {{ form.pr_id(size=3) }}
