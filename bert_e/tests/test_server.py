@@ -29,6 +29,7 @@ from .. import job as berte_job
 from .. import bert_e, server
 from ..jobs.eval_pull_request import EvalPullRequestJob
 from ..jobs.delete_queues import DeleteQueuesJob
+from ..jobs.force_merge_queues import ForceMergeQueuesJob
 from ..jobs.rebuild_queues import RebuildQueuesJob
 from ..git_host import bitbucket as bitbucket_api
 from ..git_host import cache
@@ -462,6 +463,25 @@ class TestServer(unittest.TestCase):
         self.assertEqual(resp_json, job.json())
         self.assertIn('id', resp_json)
 
+    def test_force_merge_queues_api_call(self):
+        resp = self.handle_api_call(
+            'gwf/queues', method='PATCH', user=None)
+        self.assertEqual(403, resp.status_code)
+
+        resp = self.handle_api_call(
+            'gwf/queues', method='PATCH', user='test_user')
+        self.assertEqual(403, resp.status_code)
+
+        resp = self.handle_api_call(
+            'gwf/queues', method='PATCH', user='test_admin')
+        self.assertEqual(202, resp.status_code)
+        self.assertEqual(server.BERTE.task_queue.unfinished_tasks, 1)
+        job = server.BERTE.task_queue.get()
+        self.assertEqual(type(job), ForceMergeQueuesJob)
+        resp_json = resp.data.decode()
+        self.assertEqual(resp_json, job.json())
+        self.assertIn('id', resp_json)
+
     def test_delete_queues_api_call(self):
         resp = self.handle_api_call(
             'gwf/queues', method='DELETE', user=None)
@@ -552,6 +572,51 @@ class TestServer(unittest.TestCase):
         resp = client2.post('/form/RebuildQueuesForm', data=dict(
             csrf_token=token))
         self.assertEqual(400, resp.status_code)
+
+    @unittest.mock.patch('bert_e.server.api.base.requests.request')
+    def test_management_page_force_merge_queues(self, mock_request):
+        # configure mock
+        instance = mock_request.return_value
+        instance.status_code = 202
+
+        # check normal user does not have access
+        client = self.test_client(user='test_user')
+        resp = client.get('/manage')
+        data = resp.data.decode()
+        self.assertNotIn('Force merge queues', data)
+        self.assertNotIn(
+            '<form action="/form/ForceMergeQueuesForm" '
+            'method="post">', data
+        )
+
+        client = self.test_client(user='test_admin')
+        resp = client.get('/manage')
+        data = resp.data.decode()
+        self.assertIn('Force merge queues', data)
+        self.assertIn('<form action="/form/ForceMergeQueuesForm" '
+                      'method="post">', data)
+
+        # hard extract session csrf token
+        token = re.match(
+            '.*<input id="csrf_token" name="csrf_token" '
+            'type="hidden" value="(.*)">.*', data, re.S).group(1)
+
+        # post should fail csrf from another client
+        client2 = self.test_client(user='test_admin_2')
+        resp = client2.post('/form/ForceMergeQueuesForm', data=dict(
+            csrf_token=token))
+        self.assertEqual(400, resp.status_code)
+
+        # test creation of Job
+        resp = client.post('/form/ForceMergeQueuesForm', data=dict(
+            csrf_token=token))
+        self.assertEqual(302, resp.status_code)
+        mock_request.assert_called_once()
+        self.assertEqual(mock_request.call_args_list[0][0][0], 'PATCH')
+        self.assertEqual(
+            mock_request.call_args_list[0][0][1],
+            'http://localhost/api/gwf/queues'
+        )
 
     @unittest.mock.patch('bert_e.server.api.base.requests.request')
     def test_management_page_delete_queues(self, mock_request):

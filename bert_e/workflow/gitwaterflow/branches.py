@@ -198,10 +198,11 @@ class QueueIntegrationBranch(GWFBranch):
 class QueueCollection(object):
     """Manipulate and analyse all active queues in the repository."""
 
-    def __init__(self, bbrepo, build_key, merge_paths):
+    def __init__(self, bbrepo, build_key, merge_paths, force_merge):
         self.bbrepo = bbrepo
         self.build_key = build_key
         self.merge_paths = merge_paths
+        self.force_merge = force_merge
         self._queues = OrderedDict()
         self._mergeable_queues = None
         self._mergeable_prs = []
@@ -518,20 +519,22 @@ class QueueCollection(object):
             raise errors.QueuesNotValidated()
 
         mergeable_prs = self._extract_pr_ids(self._queues)
-        for merge_path in self.merge_paths:
-            versions = [branch.version for branch in merge_path]
-            stack = deepcopy(self._queues)
-            # remove versions not on this merge_path from consideration
-            for version in list(stack.keys()):
-                if version not in versions:
-                    stack.pop(version)
 
-            # obtain list of mergeable prs on this merge_path
-            self._recursive_lookup(stack)
-            path_mergeable_prs = self._extract_pr_ids(stack)
-            # smallest table is the common denominator
-            if len(path_mergeable_prs) < len(mergeable_prs):
-                mergeable_prs = path_mergeable_prs
+        if not self.force_merge:
+            for merge_path in self.merge_paths:
+                versions = [branch.version for branch in merge_path]
+                stack = deepcopy(self._queues)
+                # remove versions not on this merge_path from consideration
+                for version in list(stack.keys()):
+                    if version not in versions:
+                        stack.pop(version)
+
+                # obtain list of mergeable prs on this merge_path
+                self._recursive_lookup(stack)
+                path_mergeable_prs = self._extract_pr_ids(stack)
+                # smallest table is the common denominator
+                if len(path_mergeable_prs) < len(mergeable_prs):
+                    mergeable_prs = path_mergeable_prs
 
         self._mergeable_prs = mergeable_prs
         mergeable_queues = deepcopy(self._queues)
@@ -819,7 +822,8 @@ def build_queue_collection(job):
     if not cascade._cascade:
         cascade.build(job.git.repo)
     queues = QueueCollection(job.project_repo, job.settings.build_key,
-                             cascade.get_merge_paths())
+                             cascade.get_merge_paths(),
+                             getattr(job, 'force_merge', False))
     queues.build(job.git.repo)
     return queues
 

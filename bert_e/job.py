@@ -144,6 +144,10 @@ class CommitJob(RepoJob):
 
 class QueuesJob(RepoJob):
     """Job triggered when the queues were updated."""
+    def __init__(self, force_merge=False, **kwargs):
+        super().__init__(**kwargs)
+        self.force_merge = force_merge
+
     def __str__(self):
         return "QueuesJob"
 

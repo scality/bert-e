@@ -12,8 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from bert_e.jobs.rebuild_queues import RebuildQueuesJob
 from bert_e.jobs.delete_queues import DeleteQueuesJob
+from bert_e.jobs.force_merge_queues import ForceMergeQueuesJob
+from bert_e.jobs.rebuild_queues import RebuildQueuesJob
 
 from ..base import APIEndpoint, APIForm
 
@@ -81,4 +82,33 @@ class DeleteQueuesForm(APIForm):
         '''
     form_inner_html = '''
         <button type="submit">delete</button>
+        '''
+
+
+class ForceMergeQueues(APIEndpoint):
+    rule = '/gwf/queues'
+    method = 'PATCH'
+    admin = True
+    job = ForceMergeQueuesJob
+
+
+class ForceMergeQueuesForm(APIForm):
+    endpoint_cls = ForceMergeQueues
+    title = 'Force merge queues'
+    help_text = '''
+        <p>Create a job that will merge all pull requests currently in
+        the queues, irrespective of the status of builds.</p>
+
+        <p>This is useful in case a flaky build is blocking the merge for
+        example.</p>
+
+        <p>To be used with extreme caution, since any work landing on
+        development branches without proper validation, will impact all
+        developpers branching from that point.</p>
+
+        <p>This can also be activated on api endpoint
+        <strong>/api/queues[PATCH]</strong>.</p>
+        '''
+    form_inner_html = '''
+        <button type="submit">merge</button>
         '''

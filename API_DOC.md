@@ -175,6 +175,18 @@ $ bert-e_api_client --token $TOKEN \
 
 **Methods**
 
+* **PATCH**
+
+    Create a job that will merge all pull requests currently in
+    the queues, irrespective of the status of builds.
+
+    This is useful in case a flaky build is blocking the merge for
+    example.
+
+    To be used with extreme caution, since any work landing on
+    development branches without proper validation, will impact all
+    developpers branching from that point.
+
 * **POST**
 
     Create a job that will reset all queues and reconstruct them automatically.

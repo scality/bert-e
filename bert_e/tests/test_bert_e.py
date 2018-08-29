@@ -34,6 +34,7 @@ from bert_e.bert_e import main as bert_e_main
 from bert_e.bert_e import BertE
 from bert_e.jobs.eval_pull_request import EvalPullRequestJob
 from bert_e.jobs.delete_queues import DeleteQueuesJob
+from bert_e.jobs.force_merge_queues import ForceMergeQueuesJob
 from bert_e.jobs.rebuild_queues import RebuildQueuesJob
 from bert_e.git_host import bitbucket as bitbucket_api
 from bert_e.git_host import mock as bitbucket_api_mock
@@ -3626,7 +3627,8 @@ class TestQueueing(RepositoryTests):
 
                 [gwfb.branch_factory(FakeGitRepo(), 'stabilization/6.0.0'),
                  gwfb.branch_factory(FakeGitRepo(), 'development/6.0')],
-            ])
+            ],
+            force_merge=False)
         for qbranch in qbranches:
             qc._add_branch(gwfb.branch_factory(self.gitrepo, qbranch))
         return qc
@@ -4910,6 +4912,44 @@ class TaskQueueTests(RepositoryTests):
             EvalPullRequestJob(pr.id, bert_e=self.berte),
             'Queued'
         )
+
+    def test_job_force_merge_queues(self):
+        self.init_berte(options=self.bypass_all)
+
+        # When queues are disabled, Bert-E should respond with 'NotMyJob'
+        self.process_job(
+            ForceMergeQueuesJob(bert_e=self.berte,
+                                settings={'use_queue': False}),
+            'NotMyJob'
+        )
+
+        # When there is no queue, Bert-E should respond with 'NothingToDo'
+        self.process_job(ForceMergeQueuesJob(bert_e=self.berte), 'NothingToDo')
+
+        # Create a couple PRs and queue them
+        prs = [
+            self.create_pr('feature/TEST-{:02d}'.format(n), 'development/4.3')
+            for n in range(1, 4)
+        ]
+
+        for pr in prs:
+            self.process_pr_job(pr, 'Queued')
+
+        # put a mix of build statuses in the queue
+        self.gitrepo._get_remote_branches()
+        sha1_q_4_3 = self.gitrepo._remote_branches['q/4.3']
+        self.set_build_status(sha1=sha1_q_4_3, state='FAILED')
+        sha1_q_5_1 = self.gitrepo._remote_branches['q/5.1']
+        self.set_build_status(sha1=sha1_q_5_1, state='INPROGRESS')
+        # (leave q/6.0 blank)
+
+        self.process_job(ForceMergeQueuesJob(bert_e=self.berte), 'Merged')
+
+        # Check that the PRs are merged
+        self.gitrepo._get_remote_branches(force=True)
+        sha1_q_6_0 = self.gitrepo._remote_branches['q/6.0']
+        sha1_dev_6_0 = self.gitrepo._remote_branches['development/6.0']
+        self.assertEqual(sha1_q_6_0, sha1_dev_6_0)
 
     def test_job_delete_queues(self):
         self.init_berte(options=self.bypass_all)
