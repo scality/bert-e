@@ -6,11 +6,11 @@
 {%- if not form.admin or session['admin'] %}
 <div style="margin-top:30px;padding-bottom:30px">
 <h3>{{ form.title|safe }}</h3>
-<table width="60%"><tr>
-<td width="80%" style="vertical-align:top;padding:20px 80px 20px 20px">
+<table width="100%"><tr>
+<td width="500px" style="vertical-align:top;padding:20px 80px 20px 20px">
 {{- form.help_text|safe -}}
 </td>
-<td width="20%" style="vertical-align:top;padding-top:20px">
+<td style="vertical-align:top;padding-top:20px">
 {{ render_form(form) }}
 </td></tr></table></div>
 {%- endif %}
