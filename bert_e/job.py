@@ -36,6 +36,7 @@ class JobSchema(Schema):
     end_time = fields.DateTime(dump_only=True, allow_none=True)
     status = fields.Str(dump_only=True, allow_none=True)
     details = fields.Str(dump_only=True, allow_none=True)
+    type = fields.Str(dump_only=True, allow_none=True)
     url = fields.Url(dump_only=True, allow_none=True)
     settings = fields.Dict()
 
@@ -51,6 +52,7 @@ class Job:
         self.end_time = None
         self.status = ''
         self.details = ''
+        self.type = self.__class__.__name__
         self.external_url = url
 
     def complete(self):
@@ -75,16 +77,20 @@ class Job:
     def done(self):
         return self.end_time is not None
 
-    def json(self):
-        return dump_schema(JobSchema, {
+    def as_dict(self):
+        return {
             'id': self.id,
             'start_time': self.start_time,
             'end_time': self.end_time,
             'status': self.status,
             'details': self.details,
+            'type': self.type,
             'url': self.url,
             'settings': self.settings.maps[0]
-        })
+        }
+
+    def json(self):
+        return dump_schema(JobSchema, self.as_dict())
 
     def __str__(self):
         return '{}(id={})'.format(type(self).__name__, self.id)

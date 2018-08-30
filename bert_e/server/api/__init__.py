@@ -16,6 +16,7 @@
 
 from flask import Markup, render_template_string
 
+from .jobs import GetJob, ListJobs
 from .gwf.queues import (DeleteQueues, DeleteQueuesForm,
                          ForceMergeQueues, ForceMergeQueuesForm,
                          RebuildQueues, RebuildQueuesForm)
@@ -24,6 +25,8 @@ from .pull_requests import EvalPullRequest, EvalPullRequestForm
 
 """All API Endpoints."""
 ENDPOINTS = [
+    GetJob,
+    ListJobs,
     EvalPullRequest,
     ForceMergeQueues,
     RebuildQueues,

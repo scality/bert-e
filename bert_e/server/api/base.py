@@ -87,7 +87,8 @@ class APIEndpoint(BaseView):
         assert type(cls.rule) == str
         assert cls.method in ['GET', 'DELETE', 'PATCH', 'POST', 'PUT']
         assert type(cls.admin) == bool
-        assert issubclass(cls.job, APIJob)
+        if cls.view == APIEndpoint.view:
+            assert issubclass(cls.job, APIJob)
 
     @staticmethod
     def validate_endpoint_data(*args, **kwargs):

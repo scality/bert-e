@@ -450,6 +450,35 @@ class TestServer(unittest.TestCase):
         for exp in expected:
             self.assertIn(exp, data)
 
+    def test_get_jobs_api_call(self):
+        resp = self.handle_api_call('jobs', method='GET', user=None)
+        self.assertEqual(403, resp.status_code)
+
+        resp = self.handle_api_call('jobs/1', method='GET', user=None)
+        self.assertEqual(403, resp.status_code)
+
+        resp = self.handle_api_call('jobs/1', method='GET', user='test_user')
+        self.assertEqual(404, resp.status_code)
+
+        # put a few tasks in queue
+        self.handle_api_call('gwf/queues', user='test_user')
+        self.handle_api_call('gwf/queues', user='test_user')
+        self.handle_api_call('gwf/queues', user='test_user')
+
+        resp = self.handle_api_call('jobs', method='GET', user='test_user')
+        self.assertEqual(200, resp.status_code)
+
+        self.assertEqual(server.BERTE.task_queue.unfinished_tasks, 3)
+        self.assertTrue(type(resp.json), list)
+        self.assertEqual(len(resp.json), 3)
+        self.assertEqual(resp.json[0]['type'], 'RebuildQueuesJob')
+
+        first_job_id = resp.json[0]['id']
+        resp = self.handle_api_call('jobs/%s' % first_job_id,
+                                    method='GET', user='test_user')
+        self.assertEqual(200, resp.status_code)
+        self.assertEqual(resp.json['type'], 'RebuildQueuesJob')
+
     def test_rebuild_queues_api_call(self):
         resp = self.handle_api_call('gwf/queues', user=None)
         self.assertEqual(403, resp.status_code)

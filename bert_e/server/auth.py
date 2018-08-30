@@ -127,7 +127,7 @@ def _handle_authorize(bert_e, user_info):
     session['admin'] = user in bert_e.settings.admins
 
     if request.is_json:
-        return jsonify(user_info)
+        return jsonify(user_info), 200, {'Content-Type': 'text/json'}
 
     return redirect(url_for('status page.display'), code=302)
 

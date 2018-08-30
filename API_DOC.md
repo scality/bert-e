@@ -73,11 +73,11 @@ Endpoints
 
 **Body data**
 
-<None>
+Json with user details.
 
 **Responses**
 
-* **202 ACCEPTED**
+* **200 OK**
 
     The request has been accepted, and the user details are returned.
 
@@ -104,6 +104,67 @@ $ curl --cookie-jar session \
 }
 ```
 
+/api/jobs
+---------
+
+**Methods**
+
+* **GET**
+
+    List all jobs.
+
+**Query parameters**
+
+<None>
+
+**Body data**
+
+Json with details of all jobs: past (limited to 1000), current and in queue.
+
+**Responses**
+
+* **200 OK**
+
+    The request has been accepted. The returned json contains the details
+    of all jobs.
+
+* **401 UNAUTHORIZED**
+
+    You are not authenticated.
+
+/api/jobs/<id>
+--------------
+
+**Methods**
+
+* **GET**
+
+    Get the status of the specified job.
+
+**Query parameters**
+
+* **id**
+
+    A job id. This id is returned in the json of all newly created jobs.
+
+**Body data**
+
+Json with details of the specified jobs.
+
+**Responses**
+
+* **200 OK**
+
+    The request has been accepted. The returned json contains the details
+    of the job.
+
+* **401 UNAUTHORIZED**
+
+    You are not authenticated.
+
+* **404 NOT FOUND**
+
+    The requested job does not exist or has expired.
 
 /api/pull-requests/<id>
 -----------------------
