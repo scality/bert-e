@@ -18,7 +18,7 @@ import logging
 import requests
 
 from flask import (Blueprint, Response, current_app,
-                   redirect, request, url_for)
+                   redirect, request, session, url_for)
 from flask.views import View
 from flask_wtf import FlaskForm
 
@@ -96,7 +96,10 @@ class APIEndpoint(BaseView):
 
     def view(self, *args, **kwargs):
         """Flask view of the API endpoint."""
-        LOG.info("Received %s order", self.__class__.__name__)
+        LOG.info("Received order %r from user %r (%s, %s)",
+                 self.__class__.__name__,
+                 session['user'],
+                 args, kwargs)
         try:
             self.validate_endpoint_data(*args, **kwargs)
         except ValueError:
