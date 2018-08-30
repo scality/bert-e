@@ -60,4 +60,4 @@ def delete_queues(job: DeleteQueuesJob):
     push(repo, prune=True)
     LOG.debug('Queues deleted')
 
-    raise exceptions.QueuesDeleted()
+    raise exceptions.JobSuccess()

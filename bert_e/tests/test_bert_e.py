@@ -4904,7 +4904,7 @@ class TaskQueueTests(RepositoryTests):
         # test behaviour when PR does not exist
         self.process_job(
             EvalPullRequestJob(1, bert_e=self.berte),
-            'PullRequestNotFound'
+            'JobFailure'
         )
 
         pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
@@ -4992,7 +4992,7 @@ class TaskQueueTests(RepositoryTests):
             self.assertTrue(self.gitrepo.remote_branch_exists(branch),
                             'branch %s not found' % branch)
 
-        self.process_job(DeleteQueuesJob(bert_e=self.berte), 'QueuesDeleted')
+        self.process_job(DeleteQueuesJob(bert_e=self.berte), 'JobSuccess')
 
         # Check that the queues are destroyed
         for branch in expected_branches:
@@ -5047,7 +5047,7 @@ class TaskQueueTests(RepositoryTests):
         excluded, *requeued = prs
         excluded.add_comment("@%s wait" % self.args.robot_username)
 
-        self.process_job(RebuildQueuesJob(bert_e=self.berte), 'QueuesDeleted')
+        self.process_job(RebuildQueuesJob(bert_e=self.berte), 'JobSuccess')
 
         # Check that the queues are destroyed
         for branch in expected_branches:

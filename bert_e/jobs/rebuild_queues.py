@@ -72,4 +72,4 @@ def rebuild_queues(job: RebuildQueuesJob):
             )
         )
 
-    raise exceptions.QueuesDeleted()
+    raise exceptions.JobSuccess()

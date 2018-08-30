@@ -538,9 +538,9 @@ class Merged(SilentException):
     code = 306
 
 
-class QueuesDeleted(SilentException):
+class JobSuccess(SilentException):
     code = 307
 
 
-class PullRequestNotFound(SilentException):
+class JobFailure(SilentException):
     code = 308

@@ -37,7 +37,7 @@ def evaluate_pull_request(job: EvalPullRequestJob):
     try:
         pr = job.project_repo.get_pull_request(job.pr_id)
     except Exception:
-        raise exceptions.PullRequestNotFound()
+        raise exceptions.JobFailure()
 
     job.bert_e.process(
         PullRequestJob(

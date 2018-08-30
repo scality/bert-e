@@ -146,6 +146,18 @@ $ curl --cookie-jar session \
     You are not authorized to access that resource.
     Authenticate with the proper access level first.
 
+**Job results**
+
+* **JobFailure**
+
+    The pull request that was requested does not exist.
+
+* if the pull request is found, the job returns the usual code representing
+  the result of the evaluation of the pull request (e.g. Queued, Merged,
+  ApprovalRequired, ...). Please check the user documentation for further
+  details.
+
+
 **Examples**
 
 * With curl (after the authentication flow and session cookie has been created):
@@ -189,7 +201,8 @@ $ bert-e_api_client --token $TOKEN \
 
 * **POST**
 
-    Create a job that will reset all queues and reconstruct them automatically.
+    Create a job that will reset all queues and additional pull request jobs
+    to reconstruct the queues automatically.
 
     Use it when:
 
@@ -236,6 +249,24 @@ $ bert-e_api_client --token $TOKEN \
 
     You are not authorized to access that resource.
     Authenticate with the proper access level first.
+
+**Job results**
+
+* **NotMyJob**
+
+    This instance of __Bert-E__ does not support queues.
+
+* **NothingToDo**
+
+    The repository is already in the expected state.
+
+* **JobSuccess**
+
+    The queues have been deleted (DELETED), or deleted with
+    creation of additional pull request jobs (POST).
+
+* In the case of force merge job (PATCH), the usual code of a merge
+  is returned (in most cases: Merged). Please check the user documentation.
 
 **Examples**
 
