@@ -549,7 +549,7 @@ class TestServer(unittest.TestCase):
         data = resp.data.decode()
         self.assertIn('Rebuild queues', data)
         self.assertIn('<form action="/form/RebuildQueuesForm" '
-                      'method="post">', data)
+                      'method="post"', data)
 
         # hard extract session csrf token
         token = re.match(
@@ -586,7 +586,7 @@ class TestServer(unittest.TestCase):
         self.assertNotIn('Force merge queues', data)
         self.assertNotIn(
             '<form action="/form/ForceMergeQueuesForm" '
-            'method="post">', data
+            'method="post"', data
         )
 
         client = self.test_client(user='test_admin')
@@ -594,7 +594,7 @@ class TestServer(unittest.TestCase):
         data = resp.data.decode()
         self.assertIn('Force merge queues', data)
         self.assertIn('<form action="/form/ForceMergeQueuesForm" '
-                      'method="post">', data)
+                      'method="post"', data)
 
         # hard extract session csrf token
         token = re.match(
@@ -631,7 +631,7 @@ class TestServer(unittest.TestCase):
         self.assertNotIn('Delete queues', data)
         self.assertNotIn(
             '<form action="/form/DeleteQueuesForm" '
-            'method="post">', data
+            'method="post"', data
         )
 
         client = self.test_client(user='test_admin')
@@ -639,7 +639,7 @@ class TestServer(unittest.TestCase):
         data = resp.data.decode()
         self.assertIn('Delete queues', data)
         self.assertIn('<form action="/form/DeleteQueuesForm" '
-                      'method="post">', data)
+                      'method="post"', data)
 
         # hard extract session csrf token
         token = re.match(
@@ -674,7 +674,7 @@ class TestServer(unittest.TestCase):
         data = resp.data.decode()
         self.assertIn('Evaluate pull request', data)
         self.assertIn('<form action="/form/EvalPullRequestForm" '
-                      'method="post">', data)
+                      'method="post"', data)
 
         # hard extract session csrf token
         token = re.match(

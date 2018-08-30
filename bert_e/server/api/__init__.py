@@ -50,7 +50,9 @@ def configure(app):
     def utility_api_form():
         def _render_form(view):
             form_html = '''
-                <form action="{{ url_for(endpoint) }}" method="post">
+                <form action="{{ url_for(endpoint) }}" method="post"
+                onsubmit="return confirm(
+                'Are you sure you want to create this job?');">
                 %s
                 {{ form.csrf_token }}
                 </form>
