@@ -23,8 +23,9 @@ from urllib.parse import quote_plus
 
 import raven
 
-from .exceptions import (BertE_Exception, InternalException, SilentException,
-                         TemplateException, UnsupportedTokenType)
+from .exceptions import (BertE_Exception, InternalException, JobFailure,
+                         SilentException, TemplateException,
+                         UnsupportedTokenType)
 from .git_host import client_factory
 from .job import CommitJob, JobDispatcher, PullRequestJob
 from .lib.git import Repository as GitRepository
@@ -88,9 +89,13 @@ class BertE(JobDispatcher):
             job.details = None
 
             if not isinstance(err, (BertE_Exception, InternalException)):
-                LOG.exception("Job %s finished with an error.", job)
+                LOG.exception("Job '%s' finished with an error.", job)
                 job.details = str(err)
                 self.raven_client.captureException()
+            elif isinstance(err, JobFailure):
+                job.details = str(err)
+                LOG.info("API job '%s' finished with an error: %s",
+                         job, job.details)
         finally:
             job.complete()
             self.task_queue.task_done()
