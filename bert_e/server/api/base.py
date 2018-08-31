@@ -166,4 +166,4 @@ class APIForm(BaseView):
             if response.status_code == 202:
                 return redirect(url_for('status page.display'), code=302)
 
-        return invalid()
+        return invalid('The form data is not correct.')

@@ -23,10 +23,9 @@ from loginpass import Bitbucket, GitHub, create_flask_blueprint
 from loginpass._core import register_to
 
 
-def invalid():
+def invalid(message='The request is invalid for that endpoint.'):
     """Sends a 400 response."""
-    return Response(
-        'The request is invalid for that endpoint.', 400)
+    return Response(message, 400)
 
 
 def authenticate():
