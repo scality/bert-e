@@ -160,8 +160,9 @@ class QueuesJob(RepoJob):
 
 class APIJob(RepoJob):
     """Job sent to Bert-E via its API."""
-    def __init__(self, args=None, kwargs=None, **kwargs_):
+    def __init__(self, args=None, kwargs=None, json={}, **kwargs_):
         super().__init__(**kwargs_)
+        self._json = json
         self.args = args or []
         self.kwargs = kwargs or {}
 

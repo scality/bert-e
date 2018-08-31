@@ -33,7 +33,7 @@ class EvalPullRequest(APIEndpoint):
     job = EvalPullRequestJob
 
     @staticmethod
-    def validate_endpoint_data(pr_id):
+    def validate_endpoint_data(pr_id, json):
         if pr_id < 1:
             raise ValueError()
 

@@ -97,16 +97,17 @@ class APIEndpoint(BaseView):
 
     def view(self, *args, **kwargs):
         """Flask view of the API endpoint."""
-        LOG.info("Received order %r from user %r (%s, %s)",
+        json = request.get_json() or {}
+        LOG.info("Received order %r from user %r (%s, %s, %s)",
                  self.__class__.__name__,
                  session['user'],
-                 args, kwargs)
+                 args, kwargs, json)
         try:
-            self.validate_endpoint_data(*args, **kwargs)
+            self.validate_endpoint_data(*args, **kwargs, json=json)
         except ValueError:
             return invalid()
 
-        job = self.job(*args, **kwargs, bert_e=current_app.bert_e)
+        job = self.job(*args, **kwargs, json=json, bert_e=current_app.bert_e)
         current_app.bert_e.put_job(job)
 
         return Response(job.json(), 202, {'Content-Type': 'text/json'})
@@ -152,16 +153,44 @@ class APIForm(BaseView):
         cls.rule = cls.__name__
         cls.admin = cls.endpoint_cls.admin
 
+    def _build_data(self, form_data):
+        """Build url data and json data from form inputs.
+
+        Returns:
+          - url_data (dict): form data that must be passed
+              in the URL in the future API call
+
+          - json_data (dict): form data that must be
+              passed as Json to the API call
+
+        """
+        url_data = dict()
+        json_data = dict()
+        form_data.pop('csrf_token')
+        for key in form_data:
+            if current_app.url_map.is_endpoint_expecting(
+                    self.endpoint_cls.endpoint, key):
+                url_data[key] = form_data[key]
+                continue
+
+            json_data[key] = form_data[key]
+
+        return url_data, json_data
+
     def view(self, *args, **kwargs):
         """Flask view of the form callback."""
         form = self.form_cls()
         if form.validate_on_submit():
-            data = form.data
-            data.pop('csrf_token')
+            url_data, json_data = self._build_data(form.data)
+            headers = dict(request.headers)
+            headers['Content-Type'] = 'application/json'
             response = requests.request(
                 self.endpoint_cls.method,
-                url_for(self.endpoint_cls.endpoint, **data, _external=True),
-                headers=request.headers
+                url_for(self.endpoint_cls.endpoint,
+                        **url_data,
+                        _external=True),
+                json=json_data,
+                headers=headers
             )
             if response.status_code == 202:
                 return redirect(url_for('status page.display'), code=302)
