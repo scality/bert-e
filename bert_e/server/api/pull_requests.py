@@ -55,6 +55,6 @@ class EvalPullRequestForm(APIForm):
         pull-requests/&lt;id&gt;[POST]</strong>.</p>
         '''
     form_inner_html = '''
-        {{ form.pr_id.label }}: {{ form.pr_id(size=3) }}
+        {{ form.pr_id.label }}: {{ form.pr_id(size=3) }}<br>
         <button type="submit">evaluate</button>
         '''
