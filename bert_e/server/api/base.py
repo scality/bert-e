@@ -98,16 +98,18 @@ class APIEndpoint(BaseView):
     def view(self, *args, **kwargs):
         """Flask view of the API endpoint."""
         json = request.get_json() or {}
+        user = session['user']
         LOG.info("Received order %r from user %r (%s, %s, %s)",
                  self.__class__.__name__,
-                 session['user'],
+                 user,
                  args, kwargs, json)
         try:
             self.validate_endpoint_data(*args, **kwargs, json=json)
         except ValueError:
             return invalid()
 
-        job = self.job(*args, **kwargs, json=json, bert_e=current_app.bert_e)
+        job = self.job(*args, **kwargs, user=user,
+                       json=json, bert_e=current_app.bert_e)
         current_app.bert_e.put_job(job)
 
         return Response(job.json(), 202, {'Content-Type': 'text/json'})

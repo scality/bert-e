@@ -38,12 +38,13 @@ class JobSchema(Schema):
     details = fields.Str(dump_only=True, allow_none=True)
     type = fields.Str(dump_only=True, allow_none=True)
     url = fields.Url(dump_only=True, allow_none=True)
+    user = fields.Str(dump_only=True, allow_none=True)
     settings = fields.Dict()
 
 
 class Job:
     """Generic job class."""
-    def __init__(self, bert_e, settings=None, url=''):
+    def __init__(self, bert_e, settings=None, user='', url=''):
         settings = settings or {}
         self.id = uuid()
         self.bert_e = bert_e
@@ -53,6 +54,7 @@ class Job:
         self.status = ''
         self.details = ''
         self.type = self.__class__.__name__
+        self.user = user
         self.external_url = url
 
     def complete(self):
@@ -85,6 +87,7 @@ class Job:
             'status': self.status,
             'details': self.details,
             'type': self.type,
+            'user': self.user,
             'url': self.url,
             'settings': self.settings.maps[0]
         }
