@@ -782,6 +782,9 @@ class BranchCascade(object):
         self._set_target_versions(dst_branch)
         self.ignored_branches.sort()
 
+    def get_development_branches(self):
+        return [b[DevelopmentBranch] for _, b in self._cascade.items()]
+
 
 def branch_factory(repo: git.Repository, branch_name: str) -> GWFBranch:
     """Construct a GWFBranch object corresponding to the branch_name.
