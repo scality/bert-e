@@ -250,11 +250,15 @@ class Branch(object):
         self.repo.push(self.name)
 
     def create(self, source_branch, do_push=True):
+        if isinstance(source_branch, Branch):
+            source = source_branch.name
+        else:
+            source = source_branch
         try:
             self.repo.cmd('git checkout -b %s %s', self.name,
-                          source_branch.name)
+                          source)
         except CommandError as err:
-            msg = "branch:%s source:%s" % (self.name, source_branch.name)
+            msg = "branch:%s source:%s" % (self.name, source)
             raise BranchCreationFailedException(msg) from err
         if do_push:
             self.push()
