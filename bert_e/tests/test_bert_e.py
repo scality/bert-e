@@ -539,7 +539,7 @@ class QuickTest(unittest.TestCase):
         fixver = ['6.1.5']
         c = self.finalize_cascade(branches, tags, destination, fixver)
         self.assertEqual(
-            c._cascade[(6, 1)][gwfb.DevelopmentBranch].micro, 6)
+            c._cascade[(6, 1)][gwfb.DevelopmentBranch].micro, 4)
         self.assertEqual(
             c._cascade[(6, 1)][gwfb.StabilizationBranch].micro, 5)
 

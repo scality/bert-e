@@ -82,6 +82,7 @@ class DevelopmentBranch(GWFBranch):
     cascade_consumer = True
     can_be_destination = True
     allow_prefixes = FeatureBranch.all_prefixes
+    has_stabilization = False
 
     def __eq__(self, other):
         return self.__class__ == other.__class__ and \
@@ -565,7 +566,6 @@ class QueueCollection(object):
 class BranchCascade(object):
     def __init__(self):
         self._cascade = OrderedDict()
-        self._cascade_full = None
         self.dst_branches = []  # store branches
         self.ignored_branches = []  # store branch names (easier sort)
         self.target_versions = []
@@ -676,7 +676,7 @@ class BranchCascade(object):
                     'development/%d.%d' % (major, minor))
 
             if stb_branch:
-                if dev_branch.micro != stb_branch.micro + 1:
+                if dev_branch.micro + 1 != stb_branch.micro:
                     raise errors.VersionMismatch(dev_branch, stb_branch)
 
                 if not dev_branch.includes_commit(stb_branch):
@@ -704,8 +704,9 @@ class BranchCascade(object):
                 self.target_versions.append('%d.%d.%d' % (
                     major, minor, stb_branch.micro))
             else:
+                offset = 2 if dev_branch.has_stabilization else 1
                 self.target_versions.append('%d.%d.%d' % (
-                    major, minor, dev_branch.micro))
+                    major, minor, dev_branch.micro + offset))
 
     def finalize(self, dst_branch):
         """Finalize cascade considering given destination.
@@ -736,11 +737,10 @@ class BranchCascade(object):
                 raise errors.DevBranchDoesNotExist(
                     'development/%d.%d' % (major, minor))
 
-            # update _expected_ micro versions
+            # remember if a stab is attached before it is removed
+            # from path, for the correct target_version computation
             if stb_branch:
-                dev_branch.micro += 2
-            else:
-                dev_branch.micro += 1
+                dev_branch.has_stabilization = True
 
             # remove untargetted branches from cascade
             if dst_branch == dev_branch:
