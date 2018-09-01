@@ -572,17 +572,21 @@ class BranchCascade(object):
         self._merge_paths = []
 
     def build(self, repo, dst_branch=None):
+        flat_branches = set()
         for prefix in ['development', 'stabilization']:
-            cmd = 'git branch -r --list origin/%s/*' % prefix
+            cmd = 'git branch -a --list *%s/*' % prefix
             for branch in repo.cmd(cmd).split('\n')[:-1]:
-                match_ = re.match('\s*origin/(?P<name>.*)', branch)
-                if not match_:
-                    continue
-                try:
-                    branch = branch_factory(repo, match_.group('name'))
-                except errors.UnrecognizedBranchPattern:
-                    continue
-                self.add_branch(branch)
+                match_ = re.match('\*?\s*(remotes/origin/)?(?P<name>.*)',
+                                  branch)
+                if match_:
+                    flat_branches.add(match_.group('name'))
+
+        for flat_branch in flat_branches:
+            try:
+                branch = branch_factory(repo, flat_branch)
+            except errors.UnrecognizedBranchPattern:
+                continue
+            self.add_branch(branch)
 
         for tag in repo.cmd('git tag').split('\n')[:-1]:
             self.update_micro(tag)
