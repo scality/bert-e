@@ -76,6 +76,7 @@ class FeatureBranch(GWFBranch):
     cascade_producer = True
 
 
+@total_ordering
 class DevelopmentBranch(GWFBranch):
     pattern = '^development/(?P<version>(?P<major>\d+)\.(?P<minor>\d+))$'
     cascade_producer = True
@@ -85,19 +86,37 @@ class DevelopmentBranch(GWFBranch):
     has_stabilization = False
 
     def __eq__(self, other):
-        return self.__class__ == other.__class__ and \
-            self.major == other.major and \
-            self.minor == other.minor
+        return (self.__class__ == other.__class__ and
+                self.major == other.major and
+                self.minor == other.minor)
+
+    def __lt__(self, other):
+        return (self.__class__ == other.__class__ and
+                (self.major < other.major or
+                 (self.major == other.major and
+                  self.minor < other.minor)))
 
 
+@total_ordering
 class StabilizationBranch(DevelopmentBranch):
     pattern = '^stabilization/' \
               '(?P<version>(?P<major>\d+)\.(?P<minor>\d+)\.(?P<micro>\d+))$'
     allow_prefixes = FeatureBranch.all_prefixes
 
     def __eq__(self, other):
-        return DevelopmentBranch.__eq__(self, other) and \
-            self.micro == other.micro
+        return (self.__class__ == other.__class__ and
+                self.major == other.major and
+                self.minor == other.minor and
+                self.micro == other.micro)
+
+    def __lt__(self, other):
+        return (self.__class__ == other.__class__ and
+                (self.major < other.major or
+                 (self.major == other.major and
+                  self.minor < other.minor) or
+                 (self.major == other.major and
+                  self.minor == other.minor and
+                  self.micro < other.micro)))
 
 
 class IntegrationBranch(GWFBranch):
