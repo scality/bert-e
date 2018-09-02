@@ -4960,8 +4960,8 @@ class TaskQueueTests(RepositoryTests):
             'NotMyJob'
         )
 
-        # When there is no queue, Bert-E should respond with 'NothingToDo'
-        self.process_job(DeleteQueuesJob(bert_e=self.berte), 'NothingToDo')
+        # When there is no queue, Bert-E should respond with 'JobSuccess'
+        self.process_job(DeleteQueuesJob(bert_e=self.berte), 'JobSuccess')
 
         # Create a couple PRs and queue them
         prs = [
@@ -5011,8 +5011,8 @@ class TaskQueueTests(RepositoryTests):
             'NotMyJob'
         )
 
-        # When there is no queue, Bert-E should respond with 'NothingToDo'
-        self.process_job(RebuildQueuesJob(bert_e=self.berte), 'NothingToDo')
+        # When there is no queue, Bert-E should respond with 'JobSuccess'
+        self.process_job(RebuildQueuesJob(bert_e=self.berte), 'JobSuccess')
 
         # Create a couple PRs and queue them
         prs = [

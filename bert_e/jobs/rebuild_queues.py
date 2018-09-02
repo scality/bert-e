@@ -50,7 +50,7 @@ def rebuild_queues(job: RebuildQueuesJob):
     ]
 
     if not queue_branches:
-        raise exceptions.NothingToDo()
+        raise exceptions.JobSuccess()
 
     branch_factory(
         repo,

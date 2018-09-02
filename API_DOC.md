@@ -317,10 +317,6 @@ $ bert-e_api_client --token $TOKEN \
 
     This instance of __Bert-E__ does not support queues.
 
-* **NothingToDo**
-
-    The repository is already in the expected state.
-
 * **JobSuccess**
 
     The queues have been deleted (DELETED), or deleted with

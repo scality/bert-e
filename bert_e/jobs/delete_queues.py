@@ -47,7 +47,7 @@ def delete_queues(job: DeleteQueuesJob):
     ]
 
     if not queue_branches:
-        raise exceptions.NothingToDo()
+        raise exceptions.JobSuccess()
 
     branch_factory(
         repo,
