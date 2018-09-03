@@ -27,6 +27,7 @@ from types import SimpleNamespace
 
 from .. import job as berte_job
 from .. import bert_e, server
+from ..jobs.create_branch import CreateBranchJob
 from ..jobs.eval_pull_request import EvalPullRequestJob
 from ..jobs.delete_queues import DeleteQueuesJob
 from ..jobs.force_merge_queues import ForceMergeQueuesJob
@@ -450,6 +451,84 @@ class TestServer(unittest.TestCase):
         for exp in expected:
             self.assertIn(exp, data)
 
+    def test_create_branch_api_call(self):
+        resp = self.handle_api_call(
+            'gwf/branches/development/7.4',
+            method='POST',
+            user=None
+        )
+        self.assertEqual(403, resp.status_code)
+
+        resp = self.handle_api_call(
+            'gwf/branches/stabilization/7.4.0',
+            method='POST',
+            user='test_user'
+        )
+        self.assertEqual(403, resp.status_code)
+
+        resp = self.handle_api_call(
+            'gwf/branches/foo/7.4',
+            method='POST',
+            user='test_admin'
+        )
+        self.assertEqual(400, resp.status_code)
+
+        resp = self.handle_api_call(
+            'gwf/branches/stabilization/7.4',
+            method='POST',
+            user='test_admin'
+        )
+        self.assertEqual(400, resp.status_code)
+
+        resp = self.handle_api_call(
+            'gwf/branches/development/7.4',
+            data={'branch_from': 'invalid'},
+            method='POST',
+            user='test_admin'
+        )
+        self.assertEqual(400, resp.status_code)
+
+        resp = self.handle_api_call(
+            'gwf/branches/development/7.4_',
+            method='POST',
+            user='test_admin'
+        )
+        self.assertEqual(400, resp.status_code)
+
+        resp = self.handle_api_call(
+            'gwf/branches/stabilization/7.4.0',
+            method='POST',
+            user='test_admin'
+        )
+        self.assertEqual(202, resp.status_code)
+
+        resp = self.handle_api_call(
+            'gwf/branches/development/7.4',
+            method='POST',
+            user='test_admin'
+        )
+        self.assertEqual(202, resp.status_code)
+
+        resp = self.handle_api_call(
+            'gwf/branches/development/7.4',
+            data={'branch_from': '12345abcdef'},
+            method='POST',
+            user='test_admin'
+        )
+        self.assertEqual(202, resp.status_code)
+
+        self.assertEqual(server.BERTE.task_queue.unfinished_tasks, 3)
+        job = server.BERTE.task_queue.get()
+        self.assertEqual(type(job), CreateBranchJob)
+        self.assertEqual(job.settings.branch, 'stabilization/7.4.0')
+        job = server.BERTE.task_queue.get()
+        self.assertEqual(type(job), CreateBranchJob)
+        self.assertEqual(job.settings.branch, 'development/7.4')
+        job = server.BERTE.task_queue.get()
+        self.assertEqual(type(job), CreateBranchJob)
+        self.assertEqual(job.settings.branch, 'development/7.4')
+        self.assertEqual(job.settings.branch_from, '12345abcdef')
+
     def test_get_jobs_api_call(self):
         resp = self.handle_api_call('jobs', method='GET', user=None)
         self.assertEqual(403, resp.status_code)
@@ -566,6 +645,55 @@ class TestServer(unittest.TestCase):
         self.assertEqual(200, resp.status_code)
         data = resp.data.decode()
         self.assertNotIn('Admin level tools are deactivated', data)
+
+    @unittest.mock.patch('bert_e.server.api.base.requests.request')
+    def test_management_page_create_branch(self, mock_request):
+        # configure mock
+        instance = mock_request.return_value
+        instance.status_code = 202
+
+        # check normal user does not have access
+        client = self.test_client(user='test_user')
+        resp = client.get('/manage')
+        data = resp.data.decode()
+        self.assertNotIn('Create new destination branch', data)
+        self.assertNotIn(
+            '<form action="/form/CreateBranchForm" '
+            'method="post"', data
+        )
+
+        client = self.test_client(user='test_admin')
+        resp = client.get('/manage')
+        data = resp.data.decode()
+        self.assertIn('Create new destination branch', data)
+        self.assertIn(
+            '<form action="/form/CreateBranchForm" '
+            'method="post"', data
+        )
+
+        # hard extract session csrf token
+        token = re.match(
+            '.*<input id="csrf_token" name="csrf_token" '
+            'type="hidden" value="(.*)">.*', data, re.S).group(1)
+
+        # post should fail csrf from another client
+        client2 = self.test_client(user='test_admin_2')
+        resp = client2.post('/form/CreateBranchForm', data=dict(
+            csrf_token=token))
+        self.assertEqual(400, resp.status_code)
+
+        # test creation of Job
+        resp = client.post('/form/CreateBranchForm', data=dict(
+            branch='development/1.0',
+            branch_from='1234',
+            csrf_token=token))
+        self.assertEqual(302, resp.status_code)
+        mock_request.assert_called_once()
+        self.assertEqual(mock_request.call_args_list[0][0][0], 'POST')
+        self.assertEqual(
+            mock_request.call_args_list[0][0][1],
+            'http://localhost/api/gwf/branches/development/1.0'
+        )
 
     @unittest.mock.patch('bert_e.server.api.base.requests.request')
     def test_management_page_rebuild_queues(self, mock_request):

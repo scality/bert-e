@@ -17,6 +17,7 @@
 from flask import Markup, render_template_string
 
 from .jobs import GetJob, ListJobs
+from .gwf.branches import (CreateBranch, CreateBranchForm)
 from .gwf.queues import (DeleteQueues, DeleteQueuesForm,
                          ForceMergeQueues, ForceMergeQueuesForm,
                          RebuildQueues, RebuildQueuesForm)
@@ -28,6 +29,7 @@ ENDPOINTS = [
     GetJob,
     ListJobs,
     EvalPullRequest,
+    CreateBranch,
     ForceMergeQueues,
     RebuildQueues,
     DeleteQueues,
@@ -36,6 +38,7 @@ ENDPOINTS = [
 """All API forms. Order is respected in management page."""
 FORMS = [
     EvalPullRequestForm,
+    CreateBranchForm,
     ForceMergeQueuesForm,
     RebuildQueuesForm,
     DeleteQueuesForm,

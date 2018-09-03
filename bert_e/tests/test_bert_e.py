@@ -32,6 +32,7 @@ import requests_mock
 from bert_e import exceptions as exns
 from bert_e.bert_e import main as bert_e_main
 from bert_e.bert_e import BertE
+from bert_e.jobs.create_branch import CreateBranchJob
 from bert_e.jobs.eval_pull_request import EvalPullRequestJob
 from bert_e.jobs.delete_queues import DeleteQueuesJob
 from bert_e.jobs.force_merge_queues import ForceMergeQueuesJob
@@ -4897,6 +4898,463 @@ class TaskQueueTests(RepositoryTests):
         finally:
             gwfi.octopus_merge = git_utils.octopus_merge
             gwfq.octopus_merge = git_utils.octopus_merge
+
+    def test_job_create_branch_dev_queues_disabled(self):
+        """Test creation of development branches with queues disabled."""
+        self.init_berte(options=self.bypass_all, disable_queues=True)
+        self.process_job(
+            CreateBranchJob(
+                settings={'branch': 'development/1.0'},
+                bert_e=self.berte),
+            'JobSuccess'
+        )
+        self.process_job(
+            CreateBranchJob(
+                settings={'branch': 'development/5.5'},
+                bert_e=self.berte),
+            'JobSuccess'
+        )
+        self.process_job(
+            CreateBranchJob(
+                settings={'branch': 'development/10.0'},
+                bert_e=self.berte),
+            'JobSuccess'
+        )
+        expected_branches = [
+            'development/1.0',
+            'development/4.3',
+            'development/5.1',
+            'development/5.5',
+            'development/6.0',
+            'development/10.0',
+        ]
+        self.gitrepo._get_remote_branches(force=True)
+        for branch in expected_branches:
+            self.assertTrue(self.gitrepo.remote_branch_exists(branch),
+                            'branch %s not found' % branch)
+
+        self.gitrepo.cmd('git fetch')
+        pr = self.create_pr('feature/TEST-9999', 'development/1.0')
+        self.process_pr_job(pr, 'SuccessMessage')
+
+    def test_job_create_branch_dev_failure_cases(self):
+        """Test creation of development branches."""
+        self.init_berte(options=self.bypass_all)
+        self.gitrepo.cmd('git push origin :stabilization/5.1.4')
+        pr = self.create_pr('feature/TEST-9999', 'development/6.0')
+
+        # cannot branch when branch already exists
+        self.process_job(
+            CreateBranchJob(
+                settings={'branch': 'development/5.1'},
+                bert_e=self.berte),
+            'NothingToDo'
+        )
+
+        # cannot branch when branch is not a GWF dest branch
+        self.process_job(
+            CreateBranchJob(
+                settings={'branch': 'bar'},
+                bert_e=self.berte),
+            'JobFailure'
+        )
+        self.process_job(
+            CreateBranchJob(
+                settings={'branch': 'q/7.0'},
+                bert_e=self.berte),
+            'JobFailure'
+        )
+
+        # cannot branch when a tag archiving a branch already exists
+        self.gitrepo.cmd('git tag 7.0.0')
+        self.gitrepo.cmd('git push --tags')
+        self.process_job(
+            CreateBranchJob(
+                settings={'branch': 'stabilization/7.0.0'},
+                bert_e=self.berte),
+            'JobFailure'
+        )
+        self.gitrepo.cmd('git tag 7.0')
+        self.gitrepo.cmd('git push --tags')
+        self.process_job(
+            CreateBranchJob(
+                settings={'branch': 'development/7.0'},
+                bert_e=self.berte),
+            'JobFailure'
+        )
+
+        self.gitrepo._get_remote_branches(force=True)
+        sha1_4_3 = self.gitrepo._remote_branches['development/4.3']
+        sha1_pr = self.gitrepo._remote_branches['feature/TEST-9999']
+
+        # cannot branch from an invalid sha1
+        self.process_job(
+            CreateBranchJob(
+                settings={
+                    'branch': 'development/8.0',
+                    'branch_from': 'coucou'},
+                bert_e=self.berte),
+            'JobFailure'
+        )
+
+        # cannot branch from a sha1 that does not belong to a dest branch
+        self.process_job(
+            CreateBranchJob(
+                settings={
+                    'branch': 'development/5.5',
+                    'branch_from': sha1_pr},  # inclusion error
+                bert_e=self.berte),
+            'JobFailure'
+        )
+        self.process_job(
+            CreateBranchJob(
+                settings={
+                    'branch': 'development/8.0',  # force merge attack!
+                    'branch_from': sha1_pr},
+                bert_e=self.berte),
+            'JobFailure'
+        )
+
+        # cannot branch from a sha1 too early
+        self.process_job(
+            CreateBranchJob(
+                settings={
+                    'branch': 'development/5.3',
+                    'branch_from': sha1_4_3},
+                bert_e=self.berte),
+            'JobFailure'
+        )
+
+        # check cannot create a stab if version is invalid
+        self.process_job(
+            CreateBranchJob(
+                settings={'branch': 'stabilization/5.1.3'},
+                bert_e=self.berte),
+            'JobFailure'
+        )
+        self.process_job(
+            CreateBranchJob(
+                settings={'branch': 'stabilization/5.1.5'},
+                bert_e=self.berte),
+            'JobFailure'
+        )
+
+        # cannot create a stab if no corresponding dev
+        self.process_job(
+            CreateBranchJob(
+                settings={'branch': 'stabilization/9.0.0'},
+                bert_e=self.berte),
+            'JobFailure'
+        )
+
+        # cannot create a stab from invalid sha1
+        self.gitrepo._get_remote_branches(force=True)
+        sha1_4_3 = self.gitrepo._remote_branches['development/4.3']
+        sha1_6_0 = self.gitrepo._remote_branches['development/6.0']
+        self.process_job(
+            CreateBranchJob(
+                settings={
+                    'branch': 'stabilization/5.1.5',
+                    'branch_from': sha1_4_3},  # inclusion error
+                bert_e=self.berte),
+            'JobFailure'
+        )
+        self.process_job(
+            CreateBranchJob(
+                settings={
+                    'branch': 'stabilization/5.1.5',
+                    'branch_from': sha1_6_0},  # inclusion error
+                bert_e=self.berte),
+            'JobFailure'
+        )
+
+        # cannot add dev at begining or middle of cascade if queued data
+        self.process_pr_job(pr, 'Queued')
+        self.process_job(
+            CreateBranchJob(
+                settings={'branch': 'development/2.0'},
+                bert_e=self.berte),
+            'JobFailure'
+        )
+        self.process_job(
+            CreateBranchJob(
+                settings={'branch': 'development/5.9'},
+                bert_e=self.berte),
+            'JobFailure'
+        )
+
+    def test_job_create_branch_dev_start(self):
+        """Test creation of development branches at start of cascade."""
+        self.init_berte(options=self.bypass_all)
+
+        self.process_job(
+            CreateBranchJob(
+                settings={'branch': 'development/2.9'},
+                bert_e=self.berte),
+            'JobSuccess'
+        )
+        # check where this branch points
+        self.gitrepo._get_remote_branches(force=True)
+        self.assertEqual(
+            self.gitrepo._remote_branches['development/2.9'],
+            self.gitrepo._remote_branches['development/4.3']
+        )
+
+        self.gitrepo.cmd('git fetch')
+        pr = self.create_pr('feature/TEST-9999', 'development/2.9')
+        self.process_pr_job(pr, 'Queued')
+
+        expected_branches = [
+            'development/2.9',
+            'development/4.3',
+            'development/5.1',
+            'development/6.0',
+            'q/2.9',
+            'q/4.3',
+            'q/5.1',
+            'q/6.0',
+            'q/1/2.9/feature/TEST-9999',
+            'q/1/4.3/feature/TEST-9999',
+            'q/1/5.1/feature/TEST-9999',
+            'q/1/6.0/feature/TEST-9999',
+        ]
+        self.gitrepo._get_remote_branches(force=True)
+        for branch in expected_branches:
+            self.assertTrue(self.gitrepo.remote_branch_exists(branch),
+                            'branch %s not found' % branch)
+
+    def test_job_create_branch_dev_middle(self):
+        """Test creation of development branches at end of cascade."""
+        self.init_berte(options=self.bypass_all)
+
+        self.process_job(
+            CreateBranchJob(
+                settings={
+                    'branch': 'development/5.2',
+                    'branch_from': ''},
+                bert_e=self.berte),
+            'JobSuccess'
+        )
+        # check where this branch points
+        self.gitrepo._get_remote_branches(force=True)
+        self.assertEqual(
+            self.gitrepo._remote_branches['development/5.2'],
+            self.gitrepo._remote_branches['development/5.1']
+        )
+
+        self.gitrepo.cmd('git fetch')
+        pr = self.create_pr('feature/TEST-9999', 'development/5.1')
+        self.process_pr_job(pr, 'Queued')
+
+        expected_branches = [
+            'development/4.3',
+            'development/5.1',
+            'development/5.2',
+            'development/6.0',
+            'q/5.1',
+            'q/5.2',
+            'q/6.0',
+            'q/1/5.1/feature/TEST-9999',
+            'q/1/5.2/feature/TEST-9999',
+            'q/1/6.0/feature/TEST-9999',
+        ]
+        self.gitrepo._get_remote_branches(force=True)
+        for branch in expected_branches:
+            self.assertTrue(self.gitrepo.remote_branch_exists(branch),
+                            'branch %s not found' % branch)
+
+        # check one last PR to check the repo is in order
+        pr = self.create_pr('feature/TEST-9998', 'development/4.3')
+        self.process_pr_job(pr, 'Queued')
+
+    def test_job_create_branch_dev_end(self):
+        """Test creation of development branches at end of cascade."""
+        self.init_berte(options=self.bypass_all)
+
+        # Create a couple PRs and queue them
+        prs = [
+            self.create_pr('feature/TEST-{:02d}'.format(n), 'development/4.3')
+            for n in range(1, 4)
+        ]
+
+        for pr in prs:
+            self.process_pr_job(pr, 'Queued')
+
+        self.process_job(
+            CreateBranchJob(
+                settings={'branch': 'development/7.3'},
+                bert_e=self.berte),
+            'JobSuccess'
+        )
+        # check where this branch points
+        self.gitrepo._get_remote_branches(force=True)
+        self.assertEqual(
+            self.gitrepo._remote_branches['development/7.3'],
+            self.gitrepo._remote_branches['development/6.0']
+        )
+
+        # consume the 3 expected pr jobs sitting in the job queue
+        self.assertEqual(self.berte.task_queue.unfinished_tasks, 3)
+        for n in range(1, 4):
+            job = self.berte.process_task()
+            self.assertEqual(job.status, 'Queued')
+
+        self.gitrepo.cmd('git fetch')
+        pr = self.create_pr('feature/TEST-9997', 'development/7.3')
+        self.process_pr_job(pr, 'Queued')
+
+        pr = self.create_pr('feature/TEST-9998', 'stabilization/4.3.18')
+        self.process_pr_job(pr, 'Queued')
+
+        expected_branches = [
+            'development/4.3',
+            'development/5.1',
+            'development/6.0',
+            'development/7.3',
+            'q/4.3',
+            'q/4.3.18',
+            'q/6.0',
+            'q/7.3',
+            'q/1/4.3/feature/TEST-01',
+            'q/1/5.1/feature/TEST-01',
+            'q/1/6.0/feature/TEST-01',
+            'q/1/7.3/feature/TEST-01',
+            'q/2/4.3/feature/TEST-02',
+            'q/2/5.1/feature/TEST-02',
+            'q/2/6.0/feature/TEST-02',
+            'q/2/7.3/feature/TEST-02',
+            'q/3/4.3/feature/TEST-03',
+            'q/3/5.1/feature/TEST-03',
+            'q/3/6.0/feature/TEST-03',
+            'q/3/7.3/feature/TEST-03',
+            'q/13/7.3/feature/TEST-9997',
+            'q/14/4.3.18/feature/TEST-9998',
+            'q/14/4.3/feature/TEST-9998',
+            'q/14/5.1/feature/TEST-9998',
+            'q/14/6.0/feature/TEST-9998',
+            'q/14/7.3/feature/TEST-9998',
+        ]
+        self.gitrepo._get_remote_branches(force=True)
+        for branch in expected_branches:
+            self.assertTrue(self.gitrepo.remote_branch_exists(branch),
+                            'branch %s not found' % branch)
+
+        # merge everything so that branches advance
+        # and also to allow creation of intermediary dest branches
+        sha1_middle = self.gitrepo._remote_branches['q/7.3']
+        self.process_job(ForceMergeQueuesJob(bert_e=self.berte), 'Merged')
+
+        # test a branch creation with source specified
+        self.process_job(
+            CreateBranchJob(
+                settings={
+                    'branch': 'development/6.8',
+                    'branch_from': sha1_middle},
+                bert_e=self.berte),
+            'JobSuccess')
+        self.process_job(
+            CreateBranchJob(
+                settings={
+                    'branch': 'development/6.9',
+                    'branch_from': 'development/7.3'},
+                bert_e=self.berte),
+            'JobSuccess')
+
+        # check where these branches point
+        self.gitrepo._get_remote_branches(force=True)
+        self.assertEqual(
+            self.gitrepo._remote_branches['development/6.8'],
+            sha1_middle
+        )
+        self.assertEqual(
+            self.gitrepo._remote_branches['development/6.9'],
+            self.gitrepo._remote_branches['development/7.3']
+        )
+
+        # one last PR to check the repo is in order
+        pr = self.create_pr('feature/TEST-9999', 'development/4.3')
+        self.process_pr_job(pr, 'Queued')
+
+    def test_job_create_branch_stab(self):
+        self.init_berte(options=self.bypass_all)
+        self.gitrepo.cmd('git push origin :stabilization/4.3.18')
+        self.gitrepo.cmd('git push origin :stabilization/5.1.4')
+
+        # Create a couple PRs and queue them
+        prs = [
+            self.create_pr('feature/TEST-{:02d}'.format(n), 'development/4.3')
+            for n in range(1, 4)
+        ]
+
+        for pr in prs:
+            self.process_pr_job(pr, 'Queued')
+
+        self.process_job(
+            CreateBranchJob(
+                settings={'branch': 'stabilization/5.1.4'},
+                bert_e=self.berte),
+            'JobSuccess'
+        )
+        # check where this branch points
+        self.gitrepo._get_remote_branches(force=True)
+        self.assertEqual(
+            self.gitrepo._remote_branches['stabilization/5.1.4'],
+            self.gitrepo._remote_branches['development/5.1']
+        )
+        sha1_4_3_old = self.gitrepo._remote_branches['development/4.3']
+
+        pr = self.create_pr('feature/TEST-9997', 'stabilization/5.1.4')
+        self.process_pr_job(pr, 'Queued')
+
+        pr = self.create_pr('feature/TEST-9998', 'development/4.3')
+        self.process_pr_job(pr, 'Queued')
+
+        # merge everything so that branches advance
+        self.process_job(ForceMergeQueuesJob(bert_e=self.berte), 'Merged')
+
+        # test a branch creation with source sha1 specified
+        self.process_job(
+            CreateBranchJob(
+                settings={
+                    'branch': 'stabilization/4.3.18',
+                    'branch_from': sha1_4_3_old},
+                bert_e=self.berte),
+            'JobSuccess'
+        )
+
+        self.gitrepo._get_remote_branches(force=True)
+        self.assertEqual(
+            self.gitrepo._remote_branches['stabilization/4.3.18'],
+            sha1_4_3_old
+        )
+        self.assertNotEqual(
+            self.gitrepo._remote_branches['stabilization/4.3.18'],
+            self.gitrepo._remote_branches['development/4.3']
+        )
+
+        pr = self.create_pr('feature/TEST-9999', 'stabilization/4.3.18')
+        self.process_pr_job(pr, 'Queued')
+
+        expected_branches = [
+            'stabilization/4.3.18',
+            'development/4.3',
+            'development/5.1',
+            'stabilization/5.1.4',
+            'development/6.0',
+            'q/4.3.18',
+            'q/4.3',
+            'q/5.1',
+            'q/5.1.4',
+            'q/6.0',
+            'q/16/4.3.18/feature/TEST-9999',
+            'q/16/4.3/feature/TEST-9999',
+            'q/16/5.1/feature/TEST-9999',
+            'q/16/6.0/feature/TEST-9999',
+        ]
+        self.gitrepo._get_remote_branches(force=True)
+        for branch in expected_branches:
+            self.assertTrue(self.gitrepo.remote_branch_exists(branch),
+                            'branch %s not found' % branch)
 
     def test_job_evaluate_pull_request(self):
         self.init_berte(options=self.bypass_all)

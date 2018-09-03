@@ -242,6 +242,127 @@ $ bert-e_api_client --token $TOKEN \
 <job details>
 ```
 
+/api/gwf/branches/<branch>
+--------------------------
+
+**Methods**
+
+* **POST**
+
+    Create a job that will push a new GitWaterFlow destination branch
+    to the repository. Supported destination branches are development
+    branches (development/x.y) and stabilization branches
+    (stabilization/x.y.z).
+
+    The branching source point may optionally be specified by providing
+    the name of an existing development branch or a commit sha1 in POST
+    json data **branch_from**. If not specified, the following rules
+    apply:
+
+    * stabilization branches are branched off from the corresponding
+      development branch,
+    * development branches are branched off from the preceeding
+      development branch,
+    * __unless__ the new branch becomes the first
+      development branch in the GitWaterFlow cascade; in this case the
+      branch is branched off from the first development branch.
+
+    Before the branch is created, Bert-E will check that the shape of
+    the repository, including the new branch, respects the constraints of
+    GitWaterFlow. If not the case, the job will fail and the repository
+    left untouched.
+
+    Creating a new destination branch has the following impact on
+    existing queued data:
+
+    * creating a stabilization branch has no impact on queued pull
+      requests; the queues are left intact and will be merged when
+      build results are received,
+    * creating a development branch at the end of the GWF branch
+      cascade, will trigger a reboot of the queue; all PRs that were
+      in the queue will be re-evaluated (this, in effect, will force the
+      automatic creation of new integration branches, and, if builds are
+      successful, the pull requests will enter the new queue again without
+      additionnal user interaction),
+    * attempting to create a development branch at the start or
+      the middle of the GWF branch cascade, while there are pull requests
+      in the queues, is not permitted; in order to protect pull requests
+      forward-port conflict resolutions, it is necessary to wait for the
+      queue to be empty, or alternatively, trigger a force merge, before
+      attempting to create a new intermediary development branch.
+
+**Query parameters**
+
+* **branch**
+
+    The name of the branch to consider.
+
+**Body data**
+
+* **branch_from**
+
+    The commit sha1 to branch off from (POST only).
+
+**Responses**
+
+* **202 ACCEPTED**
+
+    The request has been accepted, and a job has been created. The returned
+    json contains the details of the job, including it's id.
+
+* **400 BAD REQUEST**
+
+    The syntax of the request is erroneous (typically: incorrect branch name)
+
+* **401 UNAUTHORIZED**
+
+    You are not authenticated.
+
+* **403 FORBIDDEN**
+
+    You are not authorized to access that resource.
+    Authenticate with the proper access level first.
+
+**Job results**
+
+* **NothingToDo**
+
+    The branch already exists (POST) or does not exist (DELETE).
+
+* **JobSuccess**
+
+    The branch has been created (POST) or deleted (DELETE).
+
+* **JobFailure**
+
+    Something went wrong during the job. In most cases this is an indication
+    that the requested modification of the repository is not compatible
+    with GitWaterFlow.
+
+**Examples**
+
+* With curl (after the authentication flow and session cookie has been created):
+
+```bash
+$ curl --cookie session \
+       --request POST \
+       --header "Content-type: application/json" \
+       "$URL/api/branches/development/4.3"
+
+<job details>
+```
+
+* With the Python API client:
+
+```bash
+$ bert-e_api_client --token $TOKEN \
+                    --base-url $URL \
+                    --httpmethod POST \
+                    --payload '{"branch_from": "123456abc"}'
+                    branches/stabilization/4.3.0
+
+<job details>
+```
 
 /api/gwf/queues
 ---------------
