@@ -19,6 +19,7 @@ from wtforms import StringField
 from wtforms.validators import DataRequired, Regexp
 
 from bert_e.jobs.create_branch import CreateBranchJob
+from bert_e.jobs.delete_branch import DeleteBranchJob
 
 from ..base import APIEndpoint, APIForm
 
@@ -27,7 +28,7 @@ BRANCH_REGEXP = '^development/(\d+)\.(\d+)$|^stabilization/(\d+)\.(\d+)\.(\d+)$'
 BRANCH_FROM_REGEXP = '^[a-fA-F0-9]*$|^development/(\d+)\.(\d+)$'
 
 
-class BranchForm(FlaskForm):
+class CreateBranchForm(FlaskForm):
     branch = StringField(
         'new branch name',
         validators=[
@@ -60,7 +61,7 @@ class CreateBranch(APIEndpoint):
 
 class CreateBranchForm(APIForm):
     endpoint_cls = CreateBranch
-    form_cls = BranchForm
+    form_cls = CreateBranchForm
     title = 'Create new destination branch'
     help_text = '''
         <p>Create a job that will push a new GitWaterFlow destination branch
@@ -116,4 +117,61 @@ class CreateBranchForm(APIForm):
         {{ form.branch.label }}: {{ form.branch(size=12) }}<br>
         {{ form.branch_from.label }}: {{ form.branch_from(size=12) }}<br>
         <button type="submit">create</button>
+        '''
+
+
+class DeleteBranchForm(FlaskForm):
+    branch = StringField(
+        'branch name to delete',
+        validators=[
+            DataRequired(),
+            Regexp(regex=BRANCH_REGEXP),
+        ]
+    )
+
+
+class DeleteBranch(APIEndpoint):
+    rule = '/gwf/branches/<path:branch>'
+    method = 'DELETE'
+    admin = True
+    job = DeleteBranchJob
+
+    @staticmethod
+    def validate_endpoint_data(branch, json):
+        if not re.match(BRANCH_REGEXP, branch):
+            raise ValueError()
+
+
+class DeleteBranchForm(APIForm):
+    endpoint_cls = DeleteBranch
+    form_cls = DeleteBranchForm
+    title = 'Delete a destination branch'
+    help_text = '''
+        <p>Create a job that will remove a GitWaterFlow destination branch
+        from the repository. Supported destination branches are development
+        branches (development/x.y) and stabilization branches
+        (stabilization/x.y.z).</p>
+
+        <p>A tag will be pushed in place of the branch: x.y for a deleted
+        development branch, and x.y.z for a deleted stabilization branch.</p>
+
+        <p>Deleting a destination branch has the following impact on existing
+        queued data:</p>
+
+        <ul>
+        <li>when there is no queued pull request targetting the branch to
+        delete, the branch is deleted and the rest of the queues remain
+        intact,</li>
+        <li>if there is queued data for the destination branch to delete, the
+        job fails. It is necessary to wait for the queued pull requests to be
+        merged, or force them to merge, before retrying to delete the
+        destination branch.</li>
+        </ul>
+
+        <p>This job can also be activated on api endpoint
+        <strong>/api/branches/&lt;branch&gt;[DELETE]</strong>.</p>
+        '''
+    form_inner_html = '''
+        {{ form.branch.label }}: {{ form.branch(size=12) }}<br>
+        <button type="submit">delete</button>
         '''

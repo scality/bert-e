@@ -33,8 +33,9 @@ from bert_e import exceptions as exns
 from bert_e.bert_e import main as bert_e_main
 from bert_e.bert_e import BertE
 from bert_e.jobs.create_branch import CreateBranchJob
-from bert_e.jobs.eval_pull_request import EvalPullRequestJob
+from bert_e.jobs.delete_branch import DeleteBranchJob
 from bert_e.jobs.delete_queues import DeleteQueuesJob
+from bert_e.jobs.eval_pull_request import EvalPullRequestJob
 from bert_e.jobs.force_merge_queues import ForceMergeQueuesJob
 from bert_e.jobs.rebuild_queues import RebuildQueuesJob
 from bert_e.git_host import bitbucket as bitbucket_api
@@ -4937,6 +4938,37 @@ class TaskQueueTests(RepositoryTests):
         pr = self.create_pr('feature/TEST-9999', 'development/1.0')
         self.process_pr_job(pr, 'SuccessMessage')
 
+    def test_job_delete_branch_dev_queues_disabled(self):
+        """Test deletion of development branches with queues disabled."""
+        self.init_berte(options=self.bypass_all, disable_queues=True)
+        self.process_job(
+            DeleteBranchJob(
+                settings={'branch': 'stabilization/5.1.4'},
+                bert_e=self.berte),
+            'JobSuccess'
+        )
+        self.process_job(
+            DeleteBranchJob(
+                settings={'branch': 'development/5.1'},
+                bert_e=self.berte),
+            'JobSuccess'
+        )
+        expected_branches = [
+            ('development/4.3', self.assertTrue),
+            ('development/5.1', self.assertFalse),
+            ('development/6.0', self.assertTrue),
+            ('stabilization/4.3.18', self.assertTrue),
+            ('stabilization/5.1.4', self.assertFalse),
+        ]
+        self.gitrepo._get_remote_branches(force=True)
+        for branch, func in expected_branches:
+            func(self.gitrepo.remote_branch_exists(branch),
+                 'branch %s incorrect' % branch)
+
+        self.gitrepo.cmd('git fetch')
+        pr = self.create_pr('feature/TEST-9999', 'development/4.3')
+        self.process_pr_job(pr, 'SuccessMessage')
+
     def test_job_create_branch_dev_failure_cases(self):
         """Test creation of development branches."""
         self.init_berte(options=self.bypass_all)
@@ -5079,6 +5111,78 @@ class TaskQueueTests(RepositoryTests):
         self.process_job(
             CreateBranchJob(
                 settings={'branch': 'development/5.9'},
+                bert_e=self.berte),
+            'JobFailure'
+        )
+
+    def test_job_delete_branch_dev_failure_cases(self):
+        """Test deletion of development branches."""
+        self.init_berte(options=self.bypass_all)
+        self.gitrepo.cmd('git push origin :stabilization/5.1.4')
+
+        # cannot del branch when branch does not exist
+        self.process_job(
+            DeleteBranchJob(
+                settings={'branch': 'stabilization/5.1.4'},
+                bert_e=self.berte),
+            'NothingToDo'
+        )
+
+        # cannot del a non GWF dest branch
+        self.process_job(
+            DeleteBranchJob(
+                settings={'branch': 'bar'},
+                bert_e=self.berte),
+            'JobFailure'
+        )
+        self.process_job(
+            DeleteBranchJob(
+                settings={'branch': 'q/7.0'},
+                bert_e=self.berte),
+            'JobFailure'
+        )
+
+        # cannot del branch when a tag archiving a branch already exists
+        self.gitrepo.cmd('git tag 4.3.18')
+        self.gitrepo.cmd('git push origin 4.3.18')
+        self.process_job(
+            DeleteBranchJob(
+                settings={'branch': 'stabilization/4.3.18'},
+                bert_e=self.berte),
+            'JobFailure'
+        )
+        self.gitrepo.cmd('git push origin :4.3.18')
+
+        self.gitrepo.cmd('git tag 4.3')
+        self.gitrepo.cmd('git push origin 4.3')
+        self.process_job(
+            DeleteBranchJob(
+                settings={'branch': 'development/4.3'},
+                bert_e=self.berte),
+            'JobFailure'
+        )
+        self.gitrepo.cmd('git push origin :4.3')
+
+        # cannot del a dev if there is a stab
+        self.process_job(
+            DeleteBranchJob(
+                settings={'branch': 'development/4.3'},
+                bert_e=self.berte),
+            'JobFailure'
+        )
+
+        # cannot del branch if queued data
+        pr = self.create_pr('feature/TEST-9999', 'development/5.1')
+        self.process_pr_job(pr, 'Queued')
+        self.process_job(
+            DeleteBranchJob(
+                settings={'branch': 'development/5.1'},
+                bert_e=self.berte),
+            'JobFailure'
+        )
+        self.process_job(
+            DeleteBranchJob(
+                settings={'branch': 'development/6.0'},
                 bert_e=self.berte),
             'JobFailure'
         )
@@ -5274,6 +5378,74 @@ class TaskQueueTests(RepositoryTests):
         # one last PR to check the repo is in order
         pr = self.create_pr('feature/TEST-9999', 'development/4.3')
         self.process_pr_job(pr, 'Queued')
+
+    def test_job_delete_branch(self):
+        """Test deletion of development and stabilization branches."""
+        self.init_berte(options=self.bypass_all)
+
+        # Create a couple PRs and queue them
+        prs = [
+            self.create_pr('feature/TEST-{:02d}'.format(n), 'development/5.1')
+            for n in range(1, 4)
+        ]
+
+        for pr in prs:
+            self.process_pr_job(pr, 'Queued')
+
+        self.process_job(
+            DeleteBranchJob(
+                settings={'branch': 'stabilization/4.3.18'},
+                bert_e=self.berte),
+            'JobSuccess'
+        )
+        self.process_job(
+            DeleteBranchJob(
+                settings={'branch': 'development/4.3'},
+                bert_e=self.berte),
+            'JobSuccess'
+        )
+        self.process_job(
+            DeleteBranchJob(
+                settings={'branch': 'stabilization/5.1.4'},
+                bert_e=self.berte),
+            'JobSuccess'
+        )
+
+        self.assertEqual(self.berte.task_queue.unfinished_tasks, 0)
+
+        pr = self.create_pr('feature/TEST-9998', 'development/5.1')
+        self.process_pr_job(pr, 'Queued')
+
+        expected_branches = [
+            ('stabilization/4.3.18', self.assertFalse),
+            ('development/4.3', self.assertFalse),
+            ('stabilization/5.1.4', self.assertFalse),
+            ('q/4.3', self.assertFalse),
+            ('q/4.3.18', self.assertFalse),
+            ('q/5.1.4', self.assertFalse),
+
+            ('development/5.1', self.assertTrue),
+            ('development/6.0', self.assertTrue),
+            ('q/6.0', self.assertTrue),
+            ('q/1/5.1/feature/TEST-01', self.assertTrue),
+            ('q/1/6.0/feature/TEST-01', self.assertTrue),
+            ('q/2/5.1/feature/TEST-02', self.assertTrue),
+            ('q/2/6.0/feature/TEST-02', self.assertTrue),
+            ('q/3/5.1/feature/TEST-03', self.assertTrue),
+            ('q/3/6.0/feature/TEST-03', self.assertTrue),
+            ('q/7/5.1/feature/TEST-9998', self.assertTrue),
+            ('q/7/6.0/feature/TEST-9998', self.assertTrue),
+        ]
+        self.gitrepo._get_remote_branches(force=True)
+        for branch, func in expected_branches:
+            func(self.gitrepo.remote_branch_exists(branch),
+                 'branch %s error' % branch)
+
+        self.gitrepo.cmd('git fetch')
+        tags = self.gitrepo.cmd('git tag').split('\n')
+        expected_tags = ['4.3', '4.3.18', '5.1.4']
+        for tag in expected_tags:
+            self.assertIn(tag, tags)
 
     def test_job_create_branch_stab(self):
         self.init_berte(options=self.bypass_all)

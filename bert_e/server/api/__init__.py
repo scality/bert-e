@@ -17,7 +17,8 @@
 from flask import Markup, render_template_string
 
 from .jobs import GetJob, ListJobs
-from .gwf.branches import (CreateBranch, CreateBranchForm)
+from .gwf.branches import (CreateBranch, CreateBranchForm,
+                           DeleteBranch, DeleteBranchForm)
 from .gwf.queues import (DeleteQueues, DeleteQueuesForm,
                          ForceMergeQueues, ForceMergeQueuesForm,
                          RebuildQueues, RebuildQueuesForm)
@@ -30,6 +31,7 @@ ENDPOINTS = [
     ListJobs,
     EvalPullRequest,
     CreateBranch,
+    DeleteBranch,
     ForceMergeQueues,
     RebuildQueues,
     DeleteQueues,
@@ -39,6 +41,7 @@ ENDPOINTS = [
 FORMS = [
     EvalPullRequestForm,
     CreateBranchForm,
+    DeleteBranchForm,
     ForceMergeQueuesForm,
     RebuildQueuesForm,
     DeleteQueuesForm,

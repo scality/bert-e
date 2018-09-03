@@ -109,7 +109,7 @@ def create_branch(job: CreateBranchJob):
     #
     # there are no restrictions for stabilization branches.
     if (job.settings.use_queue and
-            isinstance(new_branch, DevelopmentBranch) and
+            not isinstance(new_branch, StabilizationBranch) and
             new_branch < dev_branches[-1]):
         queue_collection = build_queue_collection(job)
         if queue_collection.queued_prs:

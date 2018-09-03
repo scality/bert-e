@@ -291,6 +291,25 @@ $ bert-e_api_client --token $TOKEN \
       queue to be empty, or alternatively, trigger a force merge, before
       attempting to create a new intermediary development branch.
 
+* **DELETE**
+
+    Create a job that will remove a GitWaterFlow destination branch from
+    the repository. Supported destination branches are development branches
+    (development/x.y) and stabilization branches (stabilization/x.y.z).
+
+    A tag will be pushed in place of the branch: x.y for a deleted development
+    branch, and x.y.z for a deleted stabilization branch.
+
+    Deleting a destination branch has the following impact on existing queued
+    data:
+
+    * when there is no queued pull request targetting the branch to delete,
+      the branch is deleted and the rest of the queues remain intact,
+    * if there is queued data for the destination branch to delete, the
+      job fails. It is necessary to wait for the queued pull requests to be
+      merged, or force them to merge, before retrying to delete the
+      destination branch.
+
 **Query parameters**
 
 * **branch**

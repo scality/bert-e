@@ -581,6 +581,10 @@ class QueueCollection(object):
         return list(reversed([branch.pr_id for branch in
                               last_entry[QueueIntegrationBranch]]))
 
+    def has_version_queued_prs(self, version):
+        return (self._queues.get(version, {}).get(QueueIntegrationBranch)
+                is not None)
+
 
 class BranchCascade(object):
     def __init__(self):
