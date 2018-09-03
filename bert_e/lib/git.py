@@ -264,14 +264,17 @@ class Branch(object):
             self.push()
         self.newly_created = True
 
-    def remove(self, do_push=False):
+    def remove(self, del_local=True, force=False, do_push=False):
         # security check since Bert-E is all-powerful on the repository
-        if not (self.name.startswith('w/') or self.name.startswith('q/') or
-                self.name.startswith('tmp/')):
+        if (not (self.name.startswith('w/') or
+                 self.name.startswith('q/') or
+                 self.name.startswith('tmp/')) and not force):
             raise ForbiddenOperation('cannot delete branch %s' %
                                      self.name)
 
-        self.repo.cmd('git branch -D %s', self.name)
+        if del_local:
+            self.repo.cmd('git branch -D %s', self.name)
+
         if not do_push:
             return
         try:

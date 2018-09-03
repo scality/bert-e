@@ -165,7 +165,7 @@ class IntegrationBranch(GWFBranch):
     def remove(self, do_push=False):
         # make sure we are not on the branch to remove
         self.dst_branch.checkout()
-        super().remove(do_push)
+        super().remove(do_push=do_push)
 
 
 class GhostIntegrationBranch(IntegrationBranch):
