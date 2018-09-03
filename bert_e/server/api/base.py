@@ -108,8 +108,8 @@ class APIEndpoint(BaseView):
         except ValueError:
             return invalid()
 
-        job = self.job(*args, **kwargs, user=user,
-                       json=json, bert_e=current_app.bert_e)
+        job = self.job(kwargs=kwargs, user=user,
+                       settings=json, bert_e=current_app.bert_e)
         current_app.bert_e.put_job(job)
 
         return Response(job.json(), 202, {'Content-Type': 'text/json'})

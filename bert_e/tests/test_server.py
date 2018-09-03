@@ -545,7 +545,7 @@ class TestServer(unittest.TestCase):
         self.assertEqual(server.BERTE.task_queue.unfinished_tasks, 1)
         job = server.BERTE.task_queue.get()
         self.assertEqual(type(job), EvalPullRequestJob)
-        self.assertEqual(job.pr_id, 1)
+        self.assertEqual(job.settings.pr_id, 1)
         resp_json = resp.data.decode()
         self.assertEqual(resp_json, job.json())
         self.assertIn('id', resp_json)

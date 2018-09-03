@@ -18,27 +18,23 @@ from bert_e.job import APIJob, PullRequestJob, handler
 
 class EvalPullRequestJob(APIJob):
     """Job that will evaluate a single pull request."""
-    def __init__(self, pr_id, **kwargs):
-        super().__init__(**kwargs)
-        self.pr_id = pr_id
-
     @property
     def url(self) -> str:
         return self.bert_e.settings.pull_request_base_url.format(
-            pr_id=self.pr_id)
+            pr_id=self.settings.pr_id)
 
     def __str__(self):
-        return "Evaluate PR #{}".format(self.pr_id)
+        return "Evaluate PR #{}".format(self.settings.pr_id)
 
 
 @handler(EvalPullRequestJob)
 def evaluate_pull_request(job: EvalPullRequestJob):
     """Evaluate a single pull request."""
     try:
-        pr = job.project_repo.get_pull_request(job.pr_id)
+        pr = job.project_repo.get_pull_request(job.settings.pr_id)
     except Exception:
         raise exceptions.JobFailure('Pull request %s was not found.' %
-                                    job.pr_id)
+                                    job.settings.pr_id)
 
     job.bert_e.process(
         PullRequestJob(

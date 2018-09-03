@@ -4903,13 +4903,13 @@ class TaskQueueTests(RepositoryTests):
 
         # test behaviour when PR does not exist
         self.process_job(
-            EvalPullRequestJob(1, bert_e=self.berte),
+            EvalPullRequestJob(settings={'pr_id': 1}, bert_e=self.berte),
             'JobFailure'
         )
 
         pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
         self.process_job(
-            EvalPullRequestJob(pr.id, bert_e=self.berte),
+            EvalPullRequestJob(settings={'pr_id': pr.id}, bert_e=self.berte),
             'Queued'
         )
 
