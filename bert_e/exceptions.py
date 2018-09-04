@@ -423,7 +423,7 @@ class MasterQueueMissing(QueueValidationError):
 
     def __init__(self, version):
         msg = 'there are integration queues on this version ' \
-              'but q/%s is missing' % version
+              'but q/%s.%s is missing' % version
         super(MasterQueueMissing, self).__init__(msg)
 
 

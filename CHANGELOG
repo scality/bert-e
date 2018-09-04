@@ -15,7 +15,8 @@ All notable changes to this project will be documented in this file.
 - Rework server files structure.
 - Move /api/rebuild_queues to /api/gwf/queues[POST].
 # Fixed
-- Updated requirements to fix python 3.7 support
+- Updated requirements to fix python 3.7 support.
+- Fix queue system for development branches > 10.0.
 
 ## [3.1.13] - 2018-07-16
 # Added

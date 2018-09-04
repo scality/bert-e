@@ -31,7 +31,7 @@ from .job import CommitJob, JobDispatcher, PullRequestJob
 from .lib.git import Repository as GitRepository
 from .settings import setup_settings
 from .workflow import gitwaterflow as gwf
-from .workflow.gitwaterflow.branches import QueueIntegrationBranch
+from .workflow.gitwaterflow.branches import QueueBranch, QueueIntegrationBranch
 
 SHA1_LENGTH = [12, 40]
 LOG = logging.getLogger(__name__)
@@ -235,13 +235,13 @@ class BertE(JobDispatcher):
 
         """
         queues = queue_collection._queues
-        qib = QueueIntegrationBranch
         status = OrderedDict()
         # initialize status dict
         for pr_id in queue_collection.queued_prs:
             status[pr_id] = []
-        for version, queue in reversed(queues.items()):
-            for branch in queue[qib]:
+        for _, queue in reversed(queues.items()):
+            version = queue[QueueBranch].version
+            for branch in queue[QueueIntegrationBranch]:
                 status[branch.pr_id].append((version,
                                              branch.get_latest_commit()))
         self.status['merge queue'] = status

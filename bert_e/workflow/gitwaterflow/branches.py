@@ -52,6 +52,13 @@ class GWFBranch(git.Branch):
     def __str__(self):
         return self.name
 
+    @property
+    def version_t(self):
+        if self.micro is not None:
+            return (self.major, self.minor, self.micro)
+
+        return (self.major, self.minor)
+
 
 class HotfixBranch(GWFBranch):
     pattern = '^hotfix/(?P<label>.+)$'
@@ -96,6 +103,10 @@ class DevelopmentBranch(GWFBranch):
                  (self.major == other.major and
                   self.minor < other.minor)))
 
+    @property
+    def version_t(self):
+        return (self.major, self.minor)
+
 
 @total_ordering
 class StabilizationBranch(DevelopmentBranch):
@@ -117,6 +128,10 @@ class StabilizationBranch(DevelopmentBranch):
                  (self.major == other.major and
                   self.minor == other.minor and
                   self.micro < other.micro)))
+
+    @property
+    def version_t(self):
+        return (self.major, self.minor, self.micro)
 
 
 class IntegrationBranch(GWFBranch):
@@ -273,7 +288,7 @@ class QueueCollection(object):
         # make sure we have a local copy of the branch
         # (enables get_latest_commit)
         branch.checkout()
-        version = branch.version
+        version = branch.version_t
         if version not in self._queues.keys():
             self._queues[version] = {
                 QueueBranch: None,
@@ -428,7 +443,7 @@ class QueueCollection(object):
             errs.extend(self._horizontal_validation(version))
 
         for merge_path in self.merge_paths:
-            versions = [branch.version for branch in merge_path]
+            versions = [branch.version_t for branch in merge_path]
             stack = deepcopy(self._queues)
             # remove versions not on this merge_path from consideration
             for version in list(stack.keys()):
@@ -503,7 +518,7 @@ class QueueCollection(object):
         # (i.e. ignore stab queues)
         greatest_dev = None
         for version in reversed(queues.keys()):
-            if re.match(r'^\d+\.\d+$', version):
+            if len(version) == 2:
                 greatest_dev = version
                 break
         if greatest_dev:
@@ -542,7 +557,7 @@ class QueueCollection(object):
 
         if not self.force_merge:
             for merge_path in self.merge_paths:
-                versions = [branch.version for branch in merge_path]
+                versions = [branch.version_t for branch in merge_path]
                 stack = deepcopy(self._queues)
                 # remove versions not on this merge_path from consideration
                 for version in list(stack.keys()):

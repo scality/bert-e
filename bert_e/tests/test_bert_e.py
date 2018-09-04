@@ -3641,6 +3641,7 @@ class TestQueueing(RepositoryTests):
 
         qbranch = gwfb.branch_factory(FakeGitRepo(), "q/5.1")
         self.assertEqual(type(qbranch), gwfb.QueueBranch)
+        self.assertEqual(qbranch.version_t, (5, 1))
         self.assertEqual(qbranch.version, "5.1")
         self.assertEqual(qbranch.major, 5)
         self.assertEqual(qbranch.minor, 1)
@@ -3655,6 +3656,7 @@ class TestQueueing(RepositoryTests):
         qint_branch = gwfb.branch_factory(FakeGitRepo(),
                                           "q/10/6.2/feature/RELENG-001-plop")
         self.assertEqual(type(qint_branch), gwfb.QueueIntegrationBranch)
+        self.assertEqual(qint_branch.version_t, (6, 2))
         self.assertEqual(qint_branch.version, "6.2")
         self.assertEqual(qint_branch.pr_id, 10)
         self.assertEqual(qint_branch.major, 6)
@@ -3691,15 +3693,15 @@ class TestQueueing(RepositoryTests):
     def empty_solution(self):
         """This is the solution when nothing can be merged."""
         return OrderedDict([
-            ('4.3', {
+            ((4, 3), {
                 gwfb.QueueBranch: self.queue_branch('q/4.3'),
                 gwfb.QueueIntegrationBranch: []
             }),
-            ('5.1', {
+            ((5, 1), {
                 gwfb.QueueBranch: self.queue_branch('q/5.1'),
                 gwfb.QueueIntegrationBranch: []
             }),
-            ('6.0', {
+            ((6, 0), {
                 gwfb.QueueBranch: self.queue_branch('q/6.0'),
                 gwfb.QueueIntegrationBranch: []
             }),
@@ -3709,14 +3711,14 @@ class TestQueueing(RepositoryTests):
     def standard_solution(self):
         """This is the solution to the standard problem."""
         return OrderedDict([
-            ('4.3', {
+            ((4, 3), {
                 gwfb.QueueBranch: self.queue_branch('q/4.3'),
                 gwfb.QueueIntegrationBranch: [
                     self.qint_branch('q/7/4.3/improvement/bar2'),
                     self.qint_branch('q/1/4.3/improvement/bar')
                 ]
             }),
-            ('5.1', {
+            ((5, 1), {
                 gwfb.QueueBranch: self.queue_branch('q/5.1'),
                 gwfb.QueueIntegrationBranch: [
                     self.qint_branch('q/7/5.1/improvement/bar2'),
@@ -3724,7 +3726,7 @@ class TestQueueing(RepositoryTests):
                     self.qint_branch('q/1/5.1/improvement/bar')
                 ]
             }),
-            ('6.0', {
+            ((6, 0), {
                 gwfb.QueueBranch: self.queue_branch('q/6.0'),
                 gwfb.QueueIntegrationBranch: [
                     self.qint_branch('q/7/6.0/improvement/bar2'),
@@ -3777,9 +3779,9 @@ class TestQueueing(RepositoryTests):
         problem = deepcopy(self.standard_problem)
         problem[4]['status'][2] = {}
         solution = deepcopy(self.standard_solution)
-        solution['4.3'][gwfb.QueueIntegrationBranch].pop(0)
-        solution['5.1'][gwfb.QueueIntegrationBranch].pop(0)
-        solution['6.0'][gwfb.QueueIntegrationBranch].pop(0)
+        solution[(4, 3)][gwfb.QueueIntegrationBranch].pop(0)
+        solution[(5, 1)][gwfb.QueueIntegrationBranch].pop(0)
+        solution[(6, 0)][gwfb.QueueIntegrationBranch].pop(0)
         qbranches = self.submit_problem(problem)
         qc = self.feed_queue_collection(qbranches)
         qc.finalize()
@@ -3793,9 +3795,9 @@ class TestQueueing(RepositoryTests):
         problem = deepcopy(self.standard_problem)
         problem[4]['status'][2] = {'pipeline': 'FAILED'}
         solution = deepcopy(self.standard_solution)
-        solution['4.3'][gwfb.QueueIntegrationBranch].pop(0)
-        solution['5.1'][gwfb.QueueIntegrationBranch].pop(0)
-        solution['6.0'][gwfb.QueueIntegrationBranch].pop(0)
+        solution[(4, 3)][gwfb.QueueIntegrationBranch].pop(0)
+        solution[(5, 1)][gwfb.QueueIntegrationBranch].pop(0)
+        solution[(6, 0)][gwfb.QueueIntegrationBranch].pop(0)
         qbranches = self.submit_problem(problem)
         qc = self.feed_queue_collection(qbranches)
         qc.finalize()
@@ -3809,9 +3811,9 @@ class TestQueueing(RepositoryTests):
         problem = deepcopy(self.standard_problem)
         problem[4]['status'][2] = {'other': 'SUCCESSFUL'}
         solution = deepcopy(self.standard_solution)
-        solution['4.3'][gwfb.QueueIntegrationBranch].pop(0)
-        solution['5.1'][gwfb.QueueIntegrationBranch].pop(0)
-        solution['6.0'][gwfb.QueueIntegrationBranch].pop(0)
+        solution[(4, 3)][gwfb.QueueIntegrationBranch].pop(0)
+        solution[(5, 1)][gwfb.QueueIntegrationBranch].pop(0)
+        solution[(6, 0)][gwfb.QueueIntegrationBranch].pop(0)
         qbranches = self.submit_problem(problem)
         qc = self.feed_queue_collection(qbranches)
         qc.finalize()
@@ -4028,13 +4030,13 @@ class TestQueueing(RepositoryTests):
                 'status': [status] * 3},
         })
         solution = OrderedDict([
-            ('4.3', {
+            ((4, 3), {
                 gwfb.QueueBranch: self.queue_branch('q/4.3'),
                 gwfb.QueueIntegrationBranch: [
                     self.qint_branch('q/7/4.3/bugfix/last')
                 ]
             }),
-            ('5.1', {
+            ((5, 1), {
                 gwfb.QueueBranch: self.queue_branch('q/5.1'),
                 gwfb.QueueIntegrationBranch: [
                     self.qint_branch('q/7/5.1/bugfix/last'),
@@ -4042,13 +4044,13 @@ class TestQueueing(RepositoryTests):
                     self.qint_branch('q/1/5.1/bugfix/bar')
                 ]
             }),
-            ('5.1.4', {
+            ((5, 1, 4), {
                 gwfb.QueueBranch: self.queue_branch('q/5.1.4'),
                 gwfb.QueueIntegrationBranch: [
                     self.qint_branch('q/4/5.1.4/bugfix/foo')
                 ]
             }),
-            ('6.0', {
+            ((6, 0), {
                 gwfb.QueueBranch: self.queue_branch('q/6.0'),
                 gwfb.QueueIntegrationBranch: [
                     self.qint_branch('q/7/6.0/bugfix/last'),
@@ -4083,26 +4085,26 @@ class TestQueueing(RepositoryTests):
         qc.finalize()
         qc.validate()
         queues = OrderedDict([
-            ('4.3', {
+            ((4, 3), {
                 gwfb.QueueBranch: self.queue_branch('q/4.3'),
                 gwfb.QueueIntegrationBranch: [
                     self.qint_branch('q/4/4.3/bugfix/targeting_old'),
                 ]
             }),
-            ('5.1', {
+            ((5, 1), {
                 gwfb.QueueBranch: self.queue_branch('q/5.1'),
                 gwfb.QueueIntegrationBranch: [
                     self.qint_branch('q/4/5.1/bugfix/targeting_old'),
                     self.qint_branch('q/1/5.1/bugfix/targeting_stab'),
                 ]
             }),
-            ('5.1.4', {
+            ((5, 1, 4), {
                 gwfb.QueueBranch: self.queue_branch('q/5.1.4'),
                 gwfb.QueueIntegrationBranch: [
                     self.qint_branch('q/1/5.1.4/bugfix/targeting_stab'),
                 ]
             }),
-            ('6.0', {
+            ((6, 0), {
                 gwfb.QueueBranch: self.queue_branch('q/6.0'),
                 gwfb.QueueIntegrationBranch: [
                     self.qint_branch('q/4/6.0/bugfix/targeting_old'),
@@ -4113,19 +4115,19 @@ class TestQueueing(RepositoryTests):
         self.assertEqual(qc._queues, queues)
         self.assertEqual(qc.mergeable_prs, [])
         solution = OrderedDict([
-            ('4.3', {
+            ((4, 3), {
                 gwfb.QueueBranch: self.queue_branch('q/4.3'),
                 gwfb.QueueIntegrationBranch: []
             }),
-            ('5.1', {
+            ((5, 1), {
                 gwfb.QueueBranch: self.queue_branch('q/5.1'),
                 gwfb.QueueIntegrationBranch: []
             }),
-            ('5.1.4', {
+            ((5, 1, 4), {
                 gwfb.QueueBranch: self.queue_branch('q/5.1.4'),
                 gwfb.QueueIntegrationBranch: []
             }),
-            ('6.0', {
+            ((6, 0), {
                 gwfb.QueueBranch: self.queue_branch('q/6.0'),
                 gwfb.QueueIntegrationBranch: []
             }),
