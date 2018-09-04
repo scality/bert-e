@@ -28,7 +28,7 @@ class Fields(object):
     def __init__(self):
         self.fixVersions = []
         self.fixVersions.append(Issue('5.1.4', '10693'))
-        self.fixVersions.append(Issue('6.0.1', '10800'))
+        self.fixVersions.append(Issue('10.0.1', '10800'))
         self.issuetype = IssueType()
 
 
