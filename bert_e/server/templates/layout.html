@@ -6,9 +6,9 @@
 {%- if 'user' in session %}
 logged in as {{ session['user'] }} (<a href="{{ url_for('auth.logout', _external=True) }}">logout</a>)
 |
-{%- if request.path == url_for('status page.display') %}
+{%- if request.base_url == url_for('status page.display', _external=True) %}
 <a href="{{ url_for('management page.display', _external=True) }}">manage</a>
-{%- elif request.path == url_for('management page.display') %}
+{%- elif request.base_url == url_for('management page.display', _external=True) %}
 <a href="{{ url_for('status page.display', _external=True) }}">status page</a>
 {%- endif %}
 {%- else %}

@@ -27,6 +27,7 @@ from ..settings import setup_settings, BertEContextFilter
 from .api import configure as configure_api
 from .auth import configure as configure_auth
 from .manage import blueprint as manage_blueprint
+from .reverse_proxy import ReverseProxied
 from .session import configure as configure_sessions
 from .status import blueprint as status_blueprint
 from .template_filter import configure as configure_filters
@@ -73,6 +74,8 @@ def setup_server(bert_e):
         'CLIENT_SECRET': os.environ['BERT_E_CLIENT_SECRET'],
         'WTF_CSRF_SECRET_KEY': secrets.token_hex(24),
     })
+
+    app.wsgi_app = ReverseProxied(app.wsgi_app)
 
     app.bert_e = bert_e
 
