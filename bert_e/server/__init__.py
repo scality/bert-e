@@ -26,6 +26,8 @@ from ..bert_e import BertE
 from ..settings import setup_settings, BertEContextFilter
 from .api import configure as configure_api
 from .auth import configure as configure_auth
+from .doc import (blueprint as doc_blueprint,
+                  configure as configure_doc)
 from .manage import blueprint as manage_blueprint
 from .reverse_proxy import ReverseProxied
 from .session import configure as configure_sessions
@@ -83,10 +85,12 @@ def setup_server(bert_e):
     configure_sessions(app)
     configure_auth(app)
     configure_api(app)
+    configure_doc(app)
 
     app.register_blueprint(webhook_blueprint)
     app.register_blueprint(status_blueprint)
     app.register_blueprint(manage_blueprint)
+    app.register_blueprint(doc_blueprint)
 
     @app.context_processor
     def inject_global_vars():

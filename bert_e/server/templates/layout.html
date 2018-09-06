@@ -5,16 +5,16 @@
 <td><p align="right">
 {%- if 'user' in session %}
 logged in as {{ session['user'] }} (<a href="{{ url_for('auth.logout', _external=True) }}">logout</a>)
-|
-{%- if request.base_url == url_for('status page.display', _external=True) %}
-<a href="{{ url_for('management page.display', _external=True) }}">manage</a>
-{%- elif request.base_url == url_for('management page.display', _external=True) %}
-<a href="{{ url_for('status page.display', _external=True) }}">status page</a>
-{%- endif %}
 {%- else %}
 <a href="{{ url_for('loginpass_' + githost + '.login', _external=True) }}")>login</a>
 {%- endif %}
-</p></td>
+|
+<a href="{{ url_for('status page.display', _external=True) }}">status</a>
+{%- if 'user' in session %}
+| <a href="{{ url_for('management page.display', _external=True) }}">manage</a>
+{%- endif %}
+| <a href="{{ url_for('doc.display', docname='user', _external=True) }}")>user doc</a>
+| <a href="{{ url_for('doc.display', docname='api', _external=True) }}")>API doc</a></p></td>
 </tr></table>
 
 <h2>Repository: {{ githost }}/{{ owner }}/{{ slug }}</h2>

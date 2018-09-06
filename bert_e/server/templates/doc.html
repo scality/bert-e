@@ -1,0 +1,7 @@
+{% extends 'layout.html' %}
+
+{% block body %}
+{% filter markdown %}
+{{ content }}
+{% endfilter %}
+{% endblock %}
