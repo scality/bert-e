@@ -2,7 +2,7 @@ __Bert-E__'s API documentation
 ==============================
 
 Authentication
-==============
+--------------
 
 __Bert-E__'s API can be accessed by users registered with GitHub or Bitbucket.
 An OAuth token is required to identify the user and access the API. The token
@@ -10,7 +10,7 @@ can be obtained from the Git host provider:
 
 * **Bitbucket**
 
-    Go to https://bitbucket.org/account/user/<your_username>/api
+    Go to https://bitbucket.org/account/user/< your_username >/api
     and create a new consumer with the settings below:
 
     - permissions:  
@@ -46,18 +46,16 @@ to create a session.
 
 In all examples below:
 
-* **$URL** contains the full URL to the instance of __Bert-E__
+* **$URL** contains the full URL to the instance of __Bert-E__,
 * **$TOKEN** contains a valid token obtained from GitHub. It can be replaced
   with a consumer id and consumer secret when working with a Bitbucket
   repository.
 
 
 Endpoints
-=========
-
-
-/api/auth
 ---------
+
+### <a name="/api/auth" class="bert-e-anchor"></a>/api/auth
 
 **Methods**
 
@@ -73,7 +71,7 @@ Endpoints
 
 **Body data**
 
-Json with user details.
+* Json with user details.
 
 **Responses**
 
@@ -104,8 +102,7 @@ $ curl --cookie-jar session \
 }
 ```
 
-/api/jobs
----------
+### <a name="/jobs" class="bert-e-anchor"></a>/api/jobs
 
 **Methods**
 
@@ -115,11 +112,11 @@ $ curl --cookie-jar session \
 
 **Query parameters**
 
-<None>
+* None
 
 **Body data**
 
-Json with details of all jobs: past (limited to 1000), current and in queue.
+* Json with details of all jobs: past (limited to 1000), current and in queue.
 
 **Responses**
 
@@ -132,8 +129,7 @@ Json with details of all jobs: past (limited to 1000), current and in queue.
 
     You are not authenticated.
 
-/api/jobs/<id>
---------------
+### <a name="/jobs/id" class="bert-e-anchor"></a>/api/jobs/< id >
 
 **Methods**
 
@@ -149,7 +145,7 @@ Json with details of all jobs: past (limited to 1000), current and in queue.
 
 **Body data**
 
-Json with details of the specified jobs.
+* Json with details of the specified jobs.
 
 **Responses**
 
@@ -166,8 +162,8 @@ Json with details of the specified jobs.
 
     The requested job does not exist or has expired.
 
-/api/pull-requests/<id>
------------------------
+
+### <a name="/pull-requests/pr_id" class="bert-e-anchor"></a>/api/pull-requests/< id >
 
 **Methods**
 
@@ -184,7 +180,7 @@ Json with details of the specified jobs.
 
 **Body data**
 
-<None>
+* None
 
 **Responses**
 
@@ -221,9 +217,9 @@ Json with details of the specified jobs.
 
 **Examples**
 
-* With curl (after the authentication flow and session cookie has been created):
-
 ```bash
+# With curl
+# (after the authentication flow and session cookie has been created)
 $ curl --cookie session \
        --request POST \
        --header "Content-type: application/json" \
@@ -232,9 +228,8 @@ $ curl --cookie session \
 <job details>
 ```
 
-* With the Python API client:
-
 ```bash
+# With the Python API client:
 $ bert-e_api_client --token $TOKEN \
                     --base-url $URL \
                     pull-requests/1337
@@ -242,8 +237,7 @@ $ bert-e_api_client --token $TOKEN \
 <job details>
 ```
 
-/api/gwf/branches/<branch>
---------------------------
+### <a name="/gwf/branches/branch" class="bert-e-anchor"></a>/api/gwf/branches/< branch >
 
 **Methods**
 
@@ -360,9 +354,9 @@ $ bert-e_api_client --token $TOKEN \
 
 **Examples**
 
-* With curl (after the authentication flow and session cookie has been created):
-
 ```bash
+# With curl
+# (after the authentication flow and session cookie has been created)
 $ curl --cookie session \
        --request POST \
        --header "Content-type: application/json" \
@@ -371,9 +365,8 @@ $ curl --cookie session \
 <job details>
 ```
 
-* With the Python API client:
-
 ```bash
+# With the Python API client:
 $ bert-e_api_client --token $TOKEN \
                     --base-url $URL \
                     --httpmethod POST \
@@ -383,8 +376,7 @@ $ bert-e_api_client --token $TOKEN \
 <job details>
 ```
 
-/api/gwf/queues
----------------
+### <a name="/gwf/queues" class="bert-e-anchor"></a>/api/gwf/queues
 
 **Methods**
 
@@ -424,16 +416,16 @@ $ bert-e_api_client --token $TOKEN \
     will be recreated automatically on the next job. Any pull request that
     was queued at the time of the reset will __NOT__ be queued anymore. It
     will be required to evaluate each pull request manually to add them to
-    the queues again (see /api/pull-requests/<id>, or comment the pull
+    the queues again (see /api/pull-requests/< id >, or comment the pull
     requests).
 
 **Query parameters**
 
-<None>
+* None
 
 **Body data**
 
-<None>
+* None
 
 **Responses**
 
@@ -467,9 +459,9 @@ $ bert-e_api_client --token $TOKEN \
 
 **Examples**
 
-* With curl (after the authentication flow and session cookie has been created):
-
 ```bash
+# With curl
+# (after the authentication flow and session cookie has been created)
 $ curl --cookie session \
        --request POST \
        --header "Content-type: application/json" \
@@ -478,9 +470,8 @@ $ curl --cookie session \
 <job details>
 ```
 
-* With the Python API client:
-
 ```bash
+# With the Python API client:
 $ bert-e_api_client --token $TOKEN \
                     --base-url $URL \
                     --httpmethod DELETE \

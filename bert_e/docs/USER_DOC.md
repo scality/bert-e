@@ -73,17 +73,17 @@ problem is still present, nothing will happen. If the problem is resolved,
 __Bert-E__ will proceed to the next step towards the merge.
 
 __Bert-E__ includes a message-code and the active options in the footer of the
-message. This is useful to send this information to Release Engineering when
+message. This is useful to send this information to the admin team when
 you want to raise an issue with us.
 
-> **Example: Greetings message**
->
-> Hello <author name>,
->
-> My name is __Bert-E__. My role is to assist you with the merge of this pull
-> request. Please type @bert-e help to get information on this process.
->
-> There are currently no active options. Type @bert-e help to obtain the list.
+    **Example: Greetings message**
+
+    Hello <author name>,
+
+    My name is __Bert-E__. My role is to assist you with the merge of this pull
+    request. Please type @bert-e help to get information on this process.
+
+    There are currently no active options. Type @bert-e help to obtain the list.
 
 Options
 -------
@@ -110,9 +110,8 @@ __Bert-E__.
 
 | options name              | description              | requires admin rights? |
 |:------------------------- |:------------------------ |:----------------------:|
-| after_pull_request        | Wait for the given pull request id to be merged before continuing with the current one. May be used like this: @bert-e after_pull_request=<pr_id_1> ... | no
-| bypass_author_approval    | Bypass the pull request author's approval (**This
-option has no effect on GitHub** where author approvals are not supported)   | yes
+| after_pull_request        | Wait for the given pull request id to be merged before continuing with the current one. May be used like this: @bert-e after_pull_request=< pr_id_1 > ... | no
+| bypass_author_approval    | Bypass the pull request author's approval (**This option has no effect on GitHub** where author approvals are not supported)   | yes
 | bypass_build_status       | Bypass the build and test status| yes
 | bypass_incompatible_branch | Bypass the check on the source branch prefix | yes
 | bypass_jira_check         | Bypass the Jira issue check| yes |
@@ -155,7 +154,7 @@ __Bert-E__:
 
 | command name          | description              | requires admin rights? |
 |:--------------------- |:------------------------ |:----------------------:|
-| help                  | Print __Bert-E__'s manual in the pull request | yes
+| help                  | Print __Bert-E__'s manual in the pull request | no
 | reset                 | Let __Bert-E__ reset the integration branches associated to the current pull request with a warning if the developer manually modified one of the the integration branches | no
 | force_reset           | Let __Bert-E__ reset the integration branches associated to the current pull request **without warning**. | no
 
@@ -462,8 +461,7 @@ to progress to the next step.  message code
 | 115   | Waiting for approvals | Some approvals are missing. The author, peers and project leaders should approve the work submitted in the pull request. Alternatively, an administrator can bypass the approvals. The number of peers and leaders that must approve the work are defined in Bert-E's configuration for the repository. In case Unanimity option has been set, all of the participants in the pull request should approve the work, in addition to the previously mentionned requirements.
 | 118   | Build failed | A build has failed on one of the integrations branches. In this situation, commenting the pull request has no effect (in most cases). Analyse the reason for the build failure. If the failure is due to your changes: fix the problem push the new code on the same branch; If the failure is due to an instability of the pipeline or a failure of the build environement: log the problem in JIRA (or update an existing ticket with the link to the new failure) launch a new build on your branch. Commenting the pull request only may work, but only in the case where some other code has been merged in the destination branches. In this case, __Bert-E__ will merge the new code in the integration branches, which will trigger new builds. You should not count on this behaviour however, unless you know for sure that another pull request was merged since the last build report.
 | 120   | After pull request | The after_pull_request option has been activated, and the target pull request is not merged yet work on merging the pending pull request or remove the option
-| 121   | Integration data created | __Bert-E__ notifies the owner that he succesfully created the integration branches and the related pull requests, and provides a link to
-them. No action required
+| 121   | Integration data created | __Bert-E__ notifies the owner that he succesfully created the integration branches and the related pull requests, and provides a link to them. No action required
 | 122   | Unknown command | One of the participants asked __Bert-E__ to activate an option, or execute a command he doesn't know. Edit the corresponding message if it contains a typo. Delete it otherwise
 | 123   | Not authorized | One of the participants asked __Bert-E__ to activate a privileged option, or execute a privileged  command, but doesn't have enough credentials to do so. Delete the corresponding command ask a __Bert-E__ administrator to run/set the desired command/option. Note that the even if the author of the pull request has administrator credentials, he cannot use privileged commands or options on his own pull requests.
 

@@ -25,7 +25,7 @@ The following branches will **NOT** be impacted:
 
 There is no action required on your side. You will be notified here once
 the changeset has been merged. In the unlikely event that the changeset
-fails permanently on the queue, a member of Release Engineering will
+fails permanently on the queue, a member of the admin team will
 contact you to help resolve the matter.
 
 *IMPORTANT*
@@ -37,5 +37,5 @@ Please do not attempt to modify this pull request.
 * Any commit you add on one of the integration branches will be **lost**.
 
 If you need this pull request to be removed from the queue, please contact a
-member of Release Engineering now.
+member of the admin team now.
 {% endblock %}

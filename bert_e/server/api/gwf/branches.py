@@ -65,53 +65,7 @@ class CreateBranchForm(APIForm):
     title = 'Create new destination branch'
     help_text = '''
         <p>Create a job that will push a new GitWaterFlow destination branch
-        to the repository. Supported destination branches are development
-        branches (development/x.y) and stabilization branches
-        (stabilization/x.y.z).</p>
-
-        <p>The branching source point may optionally be specified by inputing
-        the name of an existing development branch or a commit sha1 in the
-        form. If not specified, the following rules apply:</p>
-
-        <ul>
-        <li>stabilization branches are branched off from the corresponding
-        development branch,</li>
-        <li>development branches are branched off from the preceeding
-        development branch,</li>
-        <li><strong>unless</strong> the new branch becomes the first
-        development branch in the GitWaterFlow cascade; in this case the
-        branch is branched off from the first development branch.</li>
-        </ul>
-
-        <p>Before the branch is created, Bert-E will check that the shape of
-        the repository, including the new branch, respects the constraints of
-        GitWaterFlow. If not the case, the job will fail and the repository
-        left untouched.</p>
-
-        <p>Creating a new destination branch has the following impact on
-        existing queued data:</p>
-
-        <ul>
-        <li>creating a stabilization branch has no impact on queued pull
-        requests; the queues are left intact and will be merged when
-        build results are received,</li>
-        <li>creating a development branch at the end of the GWF branch
-        cascade, will trigger a reboot of the queue; all PRs that were
-        in the queue will be re-evaluated (this, in effect, will force the
-        automatic creation of new integration branches, and, if builds are
-        successful, the pull requests will enter the new queue again without
-        additionnal user interaction),</li>
-        <li>attempting to create a development branch at the start or
-        the middle of the GWF branch cascade, while there are pull requests
-        in the queues, is not permitted; in order to protect pull requests
-        forward-port conflict resolutions, it is necessary to wait for the
-        queue to be empty, or alternatively, trigger a force merge, before
-        attempting to create a new intermediary development branch.
-        </li>
-        </ul>
-
-        <p>This job can also be activated on api endpoint
-        <strong>/api/branches/&lt;branch&gt;[POST]</strong>.</p>
+        to the repository.</p>
         '''
     form_inner_html = '''
         {{ form.branch.label }}: {{ form.branch(size=12) }}<br>
@@ -148,28 +102,7 @@ class DeleteBranchForm(APIForm):
     title = 'Delete a destination branch'
     help_text = '''
         <p>Create a job that will remove a GitWaterFlow destination branch
-        from the repository. Supported destination branches are development
-        branches (development/x.y) and stabilization branches
-        (stabilization/x.y.z).</p>
-
-        <p>A tag will be pushed in place of the branch: x.y for a deleted
-        development branch, and x.y.z for a deleted stabilization branch.</p>
-
-        <p>Deleting a destination branch has the following impact on existing
-        queued data:</p>
-
-        <ul>
-        <li>when there is no queued pull request targetting the branch to
-        delete, the branch is deleted and the rest of the queues remain
-        intact,</li>
-        <li>if there is queued data for the destination branch to delete, the
-        job fails. It is necessary to wait for the queued pull requests to be
-        merged, or force them to merge, before retrying to delete the
-        destination branch.</li>
-        </ul>
-
-        <p>This job can also be activated on api endpoint
-        <strong>/api/branches/&lt;branch&gt;[DELETE]</strong>.</p>
+        from the repository.</p>
         '''
     form_inner_html = '''
         {{ form.branch.label }}: {{ form.branch(size=12) }}<br>

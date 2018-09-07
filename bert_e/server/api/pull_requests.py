@@ -45,14 +45,6 @@ class EvalPullRequestForm(APIForm):
     help_text = '''
         <p>Create a job that will evaluate a single pull request and attempt
         at merging it.</p>
-
-        <p>The result is equivalent to commenting a pull request and waking
-        Bert-E up through a webhook, without the comment and without the
-        webhook.  This can be used for example in cron'd scripts to wake up
-        Bert-E regularly on open pull requests.</p>
-
-        <p>This can also be activated on api endpoint <strong>/api/
-        pull-requests/&lt;id&gt;[POST]</strong>.</p>
         '''
     form_inner_html = '''
         {{ form.pr_id.label }}: {{ form.pr_id(size=3) }}<br>

@@ -32,19 +32,6 @@ class RebuildQueuesForm(APIForm):
     help_text = '''
         <p>Create a job that will reset all queues and reconstruct them
         automatically.</p>
-
-        <p>When to use this:</p>
-
-        <ul>
-        <li>When Bert-E reports that queues are out of order,</li>
-        <li>When it is required to remove a pull request from the queue,
-        before it is merged to the target development branches. In this case,
-        comment the said pull request with a <strong>wait</strong> comment to
-        Bert-E, then instruct the robot to rebuild the queues.</li>
-        </ul>
-
-        <p>This can also be activated on api endpoint
-        <strong>/api/queues[POST]</strong>.</p>
         '''
     form_inner_html = '''
         <button type="submit">rebuild</button>
@@ -64,21 +51,6 @@ class DeleteQueuesForm(APIForm):
     help_text = '''
         <p>Create a job that will remove all queue data created by
         Bert-E.</p>
-
-        <p>Can be used as a last resort when Bert-E reports a status of
-        QueueOutOfOrder for example.</p>
-
-        <p>All branches q/ will be safely removed from the repository. The
-        queues will be recreated automatically on the next job. Any pull
-        request that was queued at the time of the reset will <strong>NOT
-        </strong> be queued anymore. It will be required to evaluate each
-        pull request manually to add them to the queues again
-        (see /api/pull-requests/&lt;id&gt;, or comment the pull requests
-        accordingly).
-        </p>
-
-        <p>This can also be activated on api endpoint
-        <strong>/api/queues[DELETE]</strong>.</p>
         '''
     form_inner_html = '''
         <button type="submit">delete</button>
@@ -98,16 +70,6 @@ class ForceMergeQueuesForm(APIForm):
     help_text = '''
         <p>Create a job that will merge all pull requests currently in
         the queues, irrespective of the status of builds.</p>
-
-        <p>This is useful in case a flaky build is blocking the merge for
-        example.</p>
-
-        <p>To be used with extreme caution, since any work landing on
-        development branches without proper validation, will impact all
-        developpers branching from that point.</p>
-
-        <p>This can also be activated on api endpoint
-        <strong>/api/queues[PATCH]</strong>.</p>
         '''
     form_inner_html = '''
         <button type="submit">merge</button>
