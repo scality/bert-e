@@ -154,7 +154,8 @@ def check_fix_versions(job, issue):
 
     if checked_versions != expected_versions:
         raise exceptions.IncorrectFixVersion(
-            issue=issue, issue_versions=issue_versions,
-            expect_versions=expected_versions,
+            issue=issue,
+            issue_versions=sorted(issue_versions),
+            expect_versions=sorted(expected_versions),
             active_options=job.active_options
         )
