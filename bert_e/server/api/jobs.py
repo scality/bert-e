@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from flask import abort, current_app, jsonify
+from flask import abort, current_app
 
 from .base import APIEndpoint
 
@@ -23,10 +23,10 @@ class GetJob(APIEndpoint):
     admin = False
 
     def view(self, job_id):
-        job = current_app.bert_e.get_job_as_dict(job_id)
+        job = current_app.bert_e.get_job_as_json(job_id)
         if job is None:
             abort(404)
-        return jsonify(job), 200, {'Content-Type': 'text/json'}
+        return job, 200, {'Content-Type': 'application/json'}
 
 
 class ListJobs(APIEndpoint):
@@ -35,5 +35,5 @@ class ListJobs(APIEndpoint):
     admin = False
 
     def view(self):
-        jobs = current_app.bert_e.get_jobs_as_dict()
-        return jsonify(jobs), 200, {'Content-Type': 'text/json'}
+        jobs = current_app.bert_e.get_jobs_as_json()
+        return jobs, 200, {'Content-Type': 'application/json'}

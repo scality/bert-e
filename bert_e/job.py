@@ -91,7 +91,7 @@ class Job:
             'settings': self.settings.maps[0]
         }
 
-    def json(self):
+    def as_json(self):
         return dump_schema(JobSchema, self.as_dict())
 
     def __str__(self):

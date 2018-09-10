@@ -105,33 +105,33 @@ class BertE(JobDispatcher):
             self.status.pop('current job')
         return job
 
-    def get_job_as_dict(self, job_id):
+    def get_job_as_json(self, job_id):
         """Get a single job from the task queue or done queue."""
         current_job = self.status.get('current job', None)
         if current_job and str(current_job.id) == job_id:
-            return current_job.as_dict()
+            return current_job.as_json()
 
         for job in self.task_queue.queue:
             if str(job.id) == job_id:
-                return job.as_dict()
+                return job.as_json()
 
         for job in self.tasks_done:
             if str(job.id) == job_id:
-                return job.as_dict()
+                return job.as_json()
 
         return None
 
-    def get_jobs_as_dict(self):
+    def get_jobs_as_json(self):
         """Get list of all jobs as JSON."""
         jobs = []
         current_job = self.status.get('current job', None)
         if current_job:
-            jobs = [current_job.as_dict()]
+            jobs = [current_job.as_json()]
         for job in self.task_queue.queue:
-            jobs.append(job.as_dict())
+            jobs.append(job.as_json())
         for job in self.tasks_done:
-            jobs.append(job.as_dict())
-        return jobs
+            jobs.append(job.as_json())
+        return "[" + ",".join(jobs) + "]"
 
     def put_job(self, job):
         """Put a job and ensure there is not any similar job in the

@@ -112,7 +112,7 @@ class APIEndpoint(BaseView):
                        settings=json, bert_e=current_app.bert_e)
         current_app.bert_e.put_job(job)
 
-        return Response(job.json(), 202, {'Content-Type': 'text/json'})
+        return Response(job.as_json(), 202, {'Content-Type': 'text/json'})
 
 
 class APIForm(BaseView):

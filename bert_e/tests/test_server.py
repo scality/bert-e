@@ -637,7 +637,7 @@ class TestServer(unittest.TestCase):
         job = server.BERTE.task_queue.get()
         self.assertEqual(type(job), RebuildQueuesJob)
         resp_json = resp.data.decode()
-        self.assertEqual(resp_json, job.json())
+        self.assertEqual(resp_json, job.as_json())
         self.assertIn('id', resp_json)
 
     def test_force_merge_queues_api_call(self):
@@ -656,7 +656,7 @@ class TestServer(unittest.TestCase):
         job = server.BERTE.task_queue.get()
         self.assertEqual(type(job), ForceMergeQueuesJob)
         resp_json = resp.data.decode()
-        self.assertEqual(resp_json, job.json())
+        self.assertEqual(resp_json, job.as_json())
         self.assertIn('id', resp_json)
 
     def test_delete_queues_api_call(self):
@@ -675,7 +675,7 @@ class TestServer(unittest.TestCase):
         job = server.BERTE.task_queue.get()
         self.assertEqual(type(job), DeleteQueuesJob)
         resp_json = resp.data.decode()
-        self.assertEqual(resp_json, job.json())
+        self.assertEqual(resp_json, job.as_json())
         self.assertIn('id', resp_json)
 
     def test_pull_request_api_call(self):
@@ -695,7 +695,7 @@ class TestServer(unittest.TestCase):
         self.assertEqual(type(job), EvalPullRequestJob)
         self.assertEqual(job.settings.pr_id, 1)
         resp_json = resp.data.decode()
-        self.assertEqual(resp_json, job.json())
+        self.assertEqual(resp_json, job.as_json())
         self.assertIn('id', resp_json)
 
     def test_management_page(self):
