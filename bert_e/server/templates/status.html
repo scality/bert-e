@@ -1,61 +1,181 @@
 {% extends 'layout.html' %}
 
 {% block body %}
-{%- if current_job %}
-<h3>Current job:</h3>
-<p>[{{ current_job.start_time.strftime("%Y-%m-%d %H:%M:%S") }}] - {% if current_job.url %}<a href="{{ current_job.url }}">{{ current_job }}</a>{% else %}{{ current_job }}{% endif %}{% if current_job.user %} (requested by: {{ current_job.user }}){% endif %}</p>
-{%- endif %}
 
-{%- for pr in merged_prs %}
-{%- if loop.first %}<h3>Recently merged pull requests:</h3><ul>{% endif %}
-<li>[{{ pr['merge_time'].strftime("%Y-%m-%d %H:%M:%S") }}] - <a href="{{ pr['id']|pr_url }}">#{{ pr['id'] }}</a></li>
-{%- if loop.last %}</ul>{% endif %}
-{%- endfor %}
+<h1>Gating & merging status</h1>
 
-{%- for line in queue_lines %}
-{%- if loop.first %}
-<h3>Merge queue status:</h3><p>
-<table border="1" cellpadding="10">
-<tr align="center">
-{%- for v in versions %}
-{%- if loop.first %}
-<td></td>
-{%- endif %}
-<td>{{ v }}</td>
-{%- endfor %}
-</tr>
-{%- endif %}
-{%- for v in versions %}
-{%- if loop.first %}
-<tr align="center">
-<td><a href="{{ line['pr_id']|pr_url }}">#{{ line['pr_id'] }}</a></td>
-{%- endif %}
-{%- if v in line %}<td>
-{%- if line[v].get('status', 'NOTSTARTED') != 'NOTSTARTED' -%}
-<a href="{{ line[v]['sha1']|build_url }}">{{ line[v]['status'] }}</a>
-{%- else %}NOTSTARTED{% endif %}</td>
-{%- else %}<td></td>{% endif %}
-{%- if loop.last %}
-</tr>
-{%- endif %}
-{%- endfor %}
-{%- if loop.last %}
-</table>
-</p>
-{%- endif %}
-{%- endfor %}
+<div id="queue-status">
+  <h2>Merge queue status</h2>
+    {%- for line in queue_lines %}
+    {% set pr_first = loop.first and not loop.last %}
+    {% set pr_last = loop.last and not loop.first %}
+    {%- if loop.first %}
+    <table id="bert-e-queue-table">
+      <thead>
+        <tr>
+          {%- if loop.first %}
+          <th scope="col">
+          </th>
+          {%- endif %}
+          {%- for v in versions %}
+          <th scope="col" class="text-center">
+            {{ v }}
+          </th>
+          {%- endfor %}
+        </tr>
+      </thead>
+      <tbody>
+      {%- endif %}
+        <tr>
+        {%- for v in versions %}
+          {%- if loop.first %}
+          <th scope="row">
+            <a href="{{ line['pr_id']|pr_url }}" target="_blank">
+              <span class="text-dark">PR #{{ line['pr_id'] }}</span>
+            </a>
+            {%- if pr_first %}
+            <br><span class="bert-e-queue-indication text-secondary">(first in queue)</span>
+            {% endif %}
+            {%- if pr_last %}
+            <br><span class="bert-e-queue-indication text-secondary">(last in queue)</span>
+            {% endif %}
+          </th>
+          {%- endif %}
+          <td class="text-center">
+            {%- if line.get(v, {}).get('status') == 'FAILED' %}
+            <a href="{{ line[v]['sha1']|build_url }}" target="_blank">
+              <span class="text-danger"><img src="{{ url_for('static', filename='failed.png') }}" alt="FAILED"></span>
+            </a>
+            {%- elif line.get(v, {}).get('status') == 'SUCCESSFUL' %}
+            <a href="{{ line[v]['sha1']|build_url }}" target="_blank">
+              <span class="text-success"><img src="{{ url_for('static', filename='successful.png') }}" alt="SUCCESSFUL"></span>
+            </a>
+            {%- elif line.get(v, {}).get('status') == 'INPROGRESS' %}
+            <a href="{{ line[v]['sha1']|build_url }}" target="_blank">
+              <span class="text-info"><img src="{{ url_for('static', filename='inprogress.png') }}" alt="INPROGRESS"></span>
+            </a>
+            {%- elif line.get(v, {}).get('status') == 'NOTSTARTED' %}
+            <a href="{{ line[v]['sha1']|build_url }}" target="_blank">
+              <span class="text-secondary"><img src="{{ url_for('static', filename='notstarted.png') }}" alt="NOTSTARTED"></span>
+            </a>
+            {%- else %}
+            <span class="text-dark">{{ line.get(v, {}).get('status', '') }}</span>
+            {%- endif %}
+          </td>
+        {%- endfor %}
+        </tr>
+    {% if loop.last %}
+      </tbody>
+    </table>
+    {% endif %}
+  {%- else %}
+  <p class="bert-e-empty-section">The queues are empty right now.</p>
+  {%- endfor %}
+</div>
 
-{%- for job in pending_jobs %}
-{%- if loop.first %}
-<h3>{{ pending_jobs|length }} pending jobs:</h3><ul>
-{% endif %}
-<li>[{{ job.start_time.strftime("%Y-%m-%d %H:%M:%S") }}] - {% if job.url %}<a href="{{ job.url }}">{{ job }}</a>{% else %}{{ job }}{% endif %}{% if job.user %} (requested by: {{ job.user }}){% endif %}</li>
-{%- if loop.last %}</ul>{% endif %}
-{%- endfor %}
+<div id="recently-merged">
+  <h2>Recently merged</h2>
+  {%- for pr in merged_prs %}
+    <div class="bert-e-job pb-2">
+      <div class="row">
+        <div class="col-3">
+          {{ pr['merge_time'].strftime("%Y-%m-%d %H:%M:%S") }}
+        </div>
+        <div class="col-5">
+          <a href="{{ pr['id']|pr_url }}" target="_blank">Pull request #{{ pr['id'] }}</a>
+        </div>
+      </div>
+    </div>
+  {% else %}
+  <p class="bert-e-empty-section">Nothing here for now.</p>
+  {%- endfor %}
+</div>
 
-{%- for job in completed_jobs %}
-{%- if loop.first %}<h3>Completed jobs:</h3><ul>{% endif %}
-<li>[{{ job.start_time.strftime("%Y-%m-%d %H:%M:%S") }}] - {% if job.url %}<a href="{{ job.url }}">{{ job }}</a>{% else %}{{ job }}{% endif %}{% if job.user %} (requested by: {{ job.user }}){% endif %} -> {{ job.status }}{% if job.details %}<p>{{ job.details }}</p>{% endif %}</li>
-{%- if loop.last %}</ul>{% endif %}
-{%- endfor %}
-{% endblock %}
+<hr>
+<div id="jobs">
+  <h2>Jobs</h2>
+
+  {%- if not pending_jobs and not current_job and not completed_jobs %}
+  <p class="bert-e-empty-section">Nothing here for now.</p>
+  {%- endif %}
+
+  {%- for job in pending_jobs %}
+  <div class="bert-e-job pb-2">
+    <div class="row text-muted">
+      <div class="col-3">
+        {{ job.start_time.strftime("%Y-%m-%d %H:%M:%S") }}
+      </div>
+      <div class="col-5">
+        {%- if job.url %}
+        <a href="{{ job.url }}" target="_blank">{{ job }}</a>
+        {%- else %}
+        {{ job }}
+        {%- endif %}
+      </div>
+      <div class="col-2">
+        {{ job.user }}
+      </div>
+      <div class="col-2">
+        pending...
+      </div>
+    </div>
+  </div>
+  {%- endfor %}
+
+  {%- if current_job %}
+  <div class="bert-e-job pb-2">
+    <div class="row bg-dark text-light">
+      <div class="col-3">
+        {{ current_job.start_time.strftime("%Y-%m-%d %H:%M:%S") }}
+      </div>
+      <div class="col-5">
+        {%- if current_job.url %}
+        <a href="{{ current_job.url }}" target="_blank" class="text-warning">{{ current_job }}</a>
+        {%- else %}
+        {{ current_job }}
+        {%- endif %}
+      </div>
+      <div class="col-2">
+        {%- if current_job.user %}
+        {{ current_job.user }}
+        {%- endif %}
+      </div>
+      <div class="col-2">
+        in progress...
+      </div>
+    </div>
+  </div>
+  {%- endif %}
+
+  {%- for job in completed_jobs %}
+  <div class="bert-e-job pb-2">
+    <div class="row text-dark">
+      <div class="col-3">
+        {{ job.start_time.strftime("%Y-%m-%d %H:%M:%S") }}
+      </div>
+      <div class="col-5">
+        {%- if job.url %}
+        <a href="{{ job.url }}" target="_blank">{{ job }}</a>
+        {%- else %}
+        {{ job }}
+        {%- endif %}
+      </div>
+      <div class="col-2">
+        {{ job.user }}
+      </div>
+      <div class="col-2">
+        {{ job.status }}
+      </div>
+    </div>
+    {%- if job.details %}
+    <div class="row text-danger">
+      <div class="col">
+        {{ job.details }}
+      </div>
+    </div>
+    {%- endif %}
+  </div>
+  {%- endfor %}
+</div>
+
+{%- endblock %}

@@ -33,7 +33,8 @@ def display():
     current_job = current_app.bert_e.status.get('current job', None)
     merged_prs = current_app.bert_e.status.get('merged PRs', [])
     queue_data = current_app.bert_e.status.get('merge queue', None)
-    pending_jobs = current_app.bert_e.task_queue.queue
+    pending_jobs = list(current_app.bert_e.task_queue.queue)
+    pending_jobs.reverse()
 
     queue_lines = []
     versions = set()
@@ -66,6 +67,7 @@ def display():
 
     return render_template(
         file_template,
+        navigation=request.args.get('navoff', True),
         current_job=current_job,
         merged_prs=merged_prs,
         queue_lines=queue_lines,

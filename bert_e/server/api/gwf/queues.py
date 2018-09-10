@@ -27,14 +27,16 @@ class RebuildQueues(APIEndpoint):
 
 
 class RebuildQueuesForm(APIForm):
+    doc = '/gwf/queues'
     endpoint_cls = RebuildQueues
-    title = 'Rebuild queues'
+    title = 'Rebuild the queue'
     help_text = '''
-        <p>Create a job that will reset all queues and reconstruct them
-        automatically.</p>
+        <p>Create a job that will reset all queue data and reconstruct
+        them automatically.</p>
         '''
     form_inner_html = '''
-        <button type="submit">rebuild</button>
+        <button type="submit" class="btn btn-outline-danger
+        btn-block">rebuild</button>
         '''
 
 
@@ -46,14 +48,16 @@ class DeleteQueues(APIEndpoint):
 
 
 class DeleteQueuesForm(APIForm):
+    doc = '/gwf/queues'
     endpoint_cls = DeleteQueues
-    title = 'Delete queues'
+    title = 'Delete the queue'
     help_text = '''
         <p>Create a job that will remove all queue data created by
         Bert-E.</p>
         '''
     form_inner_html = '''
-        <button type="submit">delete</button>
+        <button type="submit" class="btn btn-outline-danger
+        btn-block">delete</button>
         '''
 
 
@@ -65,12 +69,14 @@ class ForceMergeQueues(APIEndpoint):
 
 
 class ForceMergeQueuesForm(APIForm):
+    doc = '/gwf/queues'
     endpoint_cls = ForceMergeQueues
-    title = 'Force merge queues'
+    title = 'Merge the queue'
     help_text = '''
         <p>Create a job that will merge all pull requests currently in
-        the queues, irrespective of the status of builds.</p>
+        the queue, irrespective of the status of builds.</p>
         '''
     form_inner_html = '''
-        <button type="submit">merge</button>
+        <button type="submit" class="btn btn-outline-danger
+        btn-block">merge</button>
         '''

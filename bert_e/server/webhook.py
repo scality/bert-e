@@ -55,16 +55,15 @@ def handle_bitbucket_repo_event(bert_e, event, json_data):
         LOG.info('The build status of commit <%s> has been updated to %s. '
                  'More information at %s',
                  commit_sha1, build_status, build_url)
-        return CommitJob(bert_e=bert_e, commit=commit_sha1, url=commit_url)
+        return CommitJob(bert_e=bert_e, commit=commit_sha1)
 
 
 def handle_bitbucket_pr_event(bert_e, event, json_data):
     """Handle a Bitbucket webhook sent on a pull request event."""
     pr_id = json_data['pullrequest']['id']
-    pr_url = json_data['pullrequest']['links']['html']['href']
     pr = PullRequest(bert_e.client, **json_data['pullrequest'])
     LOG.info('The pull request <%s> has been updated', pr_id)
-    return PullRequestJob(bert_e=bert_e, pull_request=pr, url=pr_url)
+    return PullRequestJob(bert_e=bert_e, pull_request=pr)
 
 
 def handle_github_pr_event(bert_e, json_data):
@@ -72,7 +71,7 @@ def handle_github_pr_event(bert_e, json_data):
     event = github.PullRequestEvent(client=bert_e.client, **json_data)
     pr = event.pull_request
     if event.action != "closed":
-        return PullRequestJob(bert_e=bert_e, pull_request=pr, url=pr.url)
+        return PullRequestJob(bert_e=bert_e, pull_request=pr)
     else:
         LOG.debug('PR #%s closed, ignoring event', pr.id)
 
@@ -82,7 +81,7 @@ def handle_github_issue_comment(bert_e, json_data):
     event = github.IssueCommentEvent(client=bert_e.client, **json_data)
     pr = event.pull_request
     if pr:
-        return PullRequestJob(bert_e=bert_e, pull_request=pr, url=pr.url)
+        return PullRequestJob(bert_e=bert_e, pull_request=pr)
 
 
 def handle_github_pr_review_event(bert_e, json_data):
@@ -90,7 +89,7 @@ def handle_github_pr_review_event(bert_e, json_data):
     event = github.PullRequestReviewEvent(client=bert_e.client, **json_data)
     pr = event.pull_request
     LOG.debug("A review was submitted or dismissed on pull request #%d", pr.id)
-    return PullRequestJob(bert_e=bert_e, pull_request=pr, url=pr.url)
+    return PullRequestJob(bert_e=bert_e, pull_request=pr)
 
 
 def handle_github_status_event(bert_e, json_data):
@@ -106,8 +105,7 @@ def handle_github_status_event(bert_e, json_data):
         LOG.debug("The build just started on %s, ignoring event", event.commit)
         return
 
-    commit_url = json_data['commit']['html_url']
-    return CommitJob(bert_e=bert_e, commit=event.commit, url=commit_url)
+    return CommitJob(bert_e=bert_e, commit=event.commit)
 
 
 @blueprint.route('/bitbucket', methods=['POST'])

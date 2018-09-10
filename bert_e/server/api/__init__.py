@@ -61,9 +61,11 @@ def configure(app):
             form_html = '''
                 <form action="{{ url_for(endpoint) }}" method="post"
                 onsubmit="return confirm(
-                'Are you sure you want to create this job?');">
+                    'Are you sure you want to create this job?');">
+                <div class="form-group">
                 %s
                 {{ form.csrf_token }}
+                </div>
                 </form>
             ''' % view.form_inner_html
             rendered = render_template_string(

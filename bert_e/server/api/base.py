@@ -136,6 +136,9 @@ class APIForm(BaseView):
     help_text = ''
     """str: help section of section on management page."""
 
+    doc = ''
+    """str: name of an anchor in the API doc to refer to."""
+
     form_inner_html = ''
     """str: content of the HTML form on management page."""
 
@@ -197,4 +200,7 @@ class APIForm(BaseView):
             if response.status_code == 202:
                 return redirect(url_for('status page.display'), code=302)
 
-        return invalid('The form data is not correct.')
+        return redirect(url_for('management page.display',
+                                error=self.form_cls.__name__,
+                                _anchor=self.form_cls.__name__),
+                        code=302)

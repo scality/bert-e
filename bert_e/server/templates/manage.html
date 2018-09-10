@@ -1,23 +1,41 @@
 {% extends 'layout.html' %}
 
-{% block body %}
+{%- block body %}
+
+<h1>Repository management utilities</h1>
 
 {%- for form in forms %}
 {%- if not form.admin or session['admin'] %}
-<div style="margin-top:30px;padding-bottom:30px">
-<h3>{{ form.title|safe }}</h3>
-<table width="100%"><tr>
-<td width="500px" style="vertical-align:top;padding:20px 80px 20px 20px">
-{{- form.help_text|safe -}}
-</td>
-<td style="vertical-align:top;padding-top:20px">
-{{ render_form(form) }}
-</td></tr></table></div>
+<div>
+<a id="{{ form.__name__ }}" class="bert-e-anchor"></a>
+<div class="row">
+  <div class="col-9">
+    <h2>{{ form.title|safe }}</h2>
+    {{- form.help_text|safe -}}
+    {%- if form.doc %}
+    <p class="bert-e-doc-ref">
+      Documentation:
+      <a href="{{ url_for('doc.display', docname='api', _anchor=form.doc, _external=True) }}">
+        <span class="font-weight-bold text-monospace">
+          /api{{ form.endpoint_cls.rule }} [{{ form.endpoint_cls.method }}]
+        </span>
+      </a>
+    </p>
+    {%- endif %}
+  </div>
+  <div class="col-3">
+    {{ render_form(form) }}
+    {%- if form_error == form.form_cls.__name__ %}
+    <p class="text-danger">Invalid input.</p>
+    {%- endif %}
+  </div>
+</div>
+<hr>
 {%- endif %}
 {%- endfor %}
 
-{% if not session['admin'] %}
-<p>Admin level tools are deactivated for this account.</p>
-{% endif %}
+{%- if not session['admin'] %}
+<p class="bert-e-empty-section">Admin level tools are deactivated for this account.</p>
+{%- endif %}
 
-{% endblock %}
+{%- endblock %}

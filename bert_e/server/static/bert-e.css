@@ -1,0 +1,144 @@
+h1 {
+  font-size: 1.8em;
+  margin-bottom: 40px;
+}
+
+h1:after {
+  content: ' ';
+  display: block;
+  border: 2px solid black;
+}
+
+h2 {
+  font-size: 1.6em;
+  margin-top: 40px;
+}
+
+form {
+  margin-top: 40px;
+}
+
+h3 {
+  font-size: 1.4em;
+  margin-top: 20px;
+}
+
+.bert-e-brand {
+  font-size: 0.6em;
+}
+
+#margin-top {
+  display: block;
+  padding-top: 150px;
+}
+
+.bert-e-main-navoff {
+  padding: 20px;
+}
+
+.bert-e-job {
+  font-size: 0.9em;
+}
+
+.bert-e-empty-section {
+  font-size: 0.8em;
+  font-style: italic;
+}
+
+.bert-e-anchor {
+  display: block;
+  position: relative;
+  visibility: hidden;
+  top: -100px;
+}
+
+.bert-e-doc-ref {
+  font-size: 0.8em;
+}
+
+#doc-api h3 {
+  margin-top: 50px;
+  padding-bottom: 10px;
+  font-weight: bold;
+  font-style: italic;
+  font-family: monospace;
+}
+
+#doc-api h3:after {
+  content: ' ';
+  display: block;
+  border: 0.1px solid black;
+}
+
+.bert-e-doc li {
+  padding-top: 10px;
+  margin-bottom: 10px;
+  width: 96%
+}
+
+.bert-e-doc ul {
+  padding-bottom: 10px;
+}
+
+.bert-e-doc li p {
+  margin-top: 0px;
+  margin-bottom: 6px;
+  width: 96%
+}
+
+.bert-e-doc pre {
+  margin-top: 0px;
+  margin-bottom: 20px;
+  margin-left: 40px;
+  margin-right: 40px;
+  padding: 10px;
+  background: #f0f0f0;
+  white-space:pre-wrap;
+}
+
+.bert-e-doc code {
+  color: black;
+  background: #f0f0f0;
+  padding: 2px;
+}
+
+.bert-e-doc table, th, td {
+  border: 1px solid #808080;
+}
+
+.bert-e-doc table {
+  margin-bottom: 40px;
+}
+
+.bert-e-doc th, td {
+  padding: 4px;
+}
+
+#bert-e-queue-table td {
+  border: 0px;
+  border-bottom: 1px solid lightgrey;
+  padding: 10px;
+  width: 90px;
+}
+
+#bert-e-queue-table tr {
+  height: 60px;
+}
+
+#bert-e-queue-table th {
+  border: 0px;
+  border-bottom: 1px solid lightgrey;
+  padding: 10px;
+  width: 110px;
+}
+
+#bert-e-queue-table table {
+  width: auto;
+  table-layout: fixed;
+  word-wrap: break-word;
+}
+
+.bert-e-queue-indication {
+  font-size: 0.8em;
+  font-style: italic;
+}

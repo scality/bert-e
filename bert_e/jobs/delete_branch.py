@@ -42,8 +42,8 @@ def do_delete(branch, force=False):
         if branch.exists():
             branch.remove(del_local=False, force=force, do_push=True)
     except RemoveFailedException:
-        raise exceptions.JobFailure('Unable to push new branch, '
-                                    'keep pushing.')
+        raise exceptions.JobFailure('Unable to delete branch on repository, '
+                                    'please check branch permissions.')
 
 
 @handler(DeleteBranchJob)

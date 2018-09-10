@@ -44,7 +44,7 @@ class JobSchema(Schema):
 
 class Job:
     """Generic job class."""
-    def __init__(self, bert_e, settings=None, user='', url=''):
+    def __init__(self, bert_e, settings=None, user=''):
         settings = settings or {}
         self.id = uuid()
         self.bert_e = bert_e
@@ -55,7 +55,6 @@ class Job:
         self.details = ''
         self.type = self.__class__.__name__
         self.user = user
-        self.external_url = url
 
     def complete(self):
         self.end_time = datetime.now()
@@ -69,7 +68,7 @@ class Job:
 
     @property
     def url(self) -> str:
-        return self.external_url
+        return ''
 
     @property
     def active_options(self):
@@ -104,7 +103,7 @@ class Job:
             ''.join((
                 str(self),
                 ', start_time={}'.format(self.start_time),
-                ', url={}'.format(self.url) if self.url else ''
+                ', url={}'.format(self.url)
             ))
         )
 
@@ -127,8 +126,13 @@ class PullRequestJob(RepoJob):
         self.git.src_branch = None
         self.git.dst_branch = None
 
+    @property
+    def url(self):
+        return self.bert_e.settings.pull_request_base_url.format(
+            pr_id=self.pull_request.id)
+
     def __str__(self):
-        return "Webhook PR #{}".format(self.pull_request.id)
+        return "Webhook for pull request #{}".format(self.pull_request.id)
 
     def __eq__(self, other):
         return (isinstance(other, PullRequestJob) and
@@ -142,8 +146,13 @@ class CommitJob(RepoJob):
         super().__init__(**kwargs)
         self.commit = commit
 
+    @property
+    def url(self):
+        return self.bert_e.settings.commit_base_url.format(
+            commit_id=self.commit)
+
     def __str__(self):
-        return "Commit {}".format(self.commit)
+        return "Webhook for commit {}".format(self.commit[:8])
 
     def __eq__(self, other):
         return (isinstance(other, CommitJob) and

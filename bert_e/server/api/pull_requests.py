@@ -39,14 +39,17 @@ class EvalPullRequest(APIEndpoint):
 
 
 class EvalPullRequestForm(APIForm):
+    doc = '/pull-requests/pr_id'
     endpoint_cls = EvalPullRequest
     form_cls = PullRequestForm
-    title = 'Evaluate pull request'
+    title = 'Evaluate a pull request'
     help_text = '''
         <p>Create a job that will evaluate a single pull request and attempt
         at merging it.</p>
         '''
     form_inner_html = '''
-        {{ form.pr_id.label }}: {{ form.pr_id(size=3) }}<br>
-        <button type="submit">evaluate</button>
+        <input id="pr_id" name="pr_id" placeholder="pull request id"
+        class="form-control" required>
+        <button type="submit" class="btn btn-outline-danger
+        btn-block">evaluate</button>
         '''

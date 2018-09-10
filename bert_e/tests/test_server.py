@@ -145,7 +145,7 @@ class TestServer(unittest.TestCase):
         self.assertEqual(200, resp.status_code)
         self.assertEqual(server.BERTE.task_queue.unfinished_tasks, 0)
 
-        data['commit_status']['state'] = 'SUCCESS'
+        data['commit_status']['state'] = 'SUCCESSFUL'
         resp = self.handle_webhook('repo:commit_status_created', data)
         self.assertEqual(server.BERTE.task_queue.unfinished_tasks, 1)
 
@@ -180,30 +180,31 @@ class TestServer(unittest.TestCase):
 
         res = client.get('/')
         data = res.data.decode()
-        assert 'Recently merged pull requests:' in data
-        assert '<li>[2016-12-09 14:54:20] - <a href="https://bitbucket.or' \
-               'g/foo/bar/pull-requests/1">#1</a></li>' in data
-        assert '<li>[2016-12-09 14:54:21] - <a href="https://bitbucket.or' \
-               'g/foo/bar/pull-requests/2">#2</a></li>' in data
-        assert '<li>[2016-12-08 14:54:22] - <a href="https://bitbucket.or' \
-               'g/foo/bar/pull-requests/3">#3</a></li>' in data
-        assert 'Merge queue status:' in data
-        assert '<td><a href="https://bitbucket.org/foo/bar/pull-requests/' \
-               '10">#10</a></td><td>NOTSTARTED</td><td><a href="fakeurl">' \
-               'INPROGRESS</a></td>' in data
+        assert 'Recently merged' in data
+        assert '2016-12-09 14:54:20' in data
+        assert '<a href="https://bitbucket.org/foo/bar/pull-requests/1" target="_blank">Pull request #1</a>' in data  # noqa
+        assert '2016-12-09 14:54:21'
+        assert '<a href="https://bitbucket.org/foo/bar/pull-requests/2" target="_blank">Pull request #2</a>' in data  # noqa
+        assert '2016-12-08 14:54:22' in data
+        assert '<a href="https://bitbucket.org/foo/bar/pull-requests/3" target="_blank">Pull request #3</a>' in data  # noqa
+        assert 'Merge queue status' in data
+        assert '<a href="https://bitbucket.org/foo/bar/pull-requests/10" target="_blank">' in data  # noqa
+        assert '<span class="text-dark">PR #10</span>' in data
+        assert '<span class="text-info"><img src="/static/inprogress.png" alt="INPROGRESS"></span>' in data  # noqa
+        assert '<span class="text-secondary"><img src="/static/notstarted.png" alt="NOTSTARTED"></span>' in data  # noqa
 
         # Update cache with a successful and a failed build
         self.set_status_cache('0033deadbeef', 'FAILED', 'url2')
-        self.set_status_cache('13370badf00d', 'SUCCESS', 'url3')
+        self.set_status_cache('13370badf00d', 'SUCCESSFUL', 'url3')
 
         res = client.get('/?output=txt')
-        assert '   #10        SUCCESS         FAILED    ' in res.data.decode()
+        data = res.data.decode()
+        assert '   #10       SUCCESSFUL       FAILED    ' in data
 
         res = client.get('/')
-
-        assert '<td><a href="https://bitbucket.org/foo/bar/pull-requests/' \
-               '10">#10</a></td><td><a href="url3">SUCCESS</a></td><td><a' \
-               ' href="url2">FAILED</a></td>' in res.data.decode()
+        data = res.data.decode()
+        assert '<span class="text-success"><img src="/static/successful.png" alt="SUCCESSFUL"></span>' in data  # noqa
+        assert '<span class="text-danger"><img src="/static/failed.png" alt="FAILED"></span>' in data  # noqa
 
         # Everything is merged, the queue status shouldn't appear anymore
         server.BERTE.status['merged PRs'].append({
@@ -218,9 +219,8 @@ class TestServer(unittest.TestCase):
 
         res = client.get('/')
         data = res.data.decode()
-        assert '<li>[2016-12-09 14:54:20] - <a href="https://bitbucket.or' \
-               'g/foo/bar/pull-requests/10">#10</a></li>' in data
-        assert 'Merge queue status:' not in data
+        assert '2016-12-09 14:54:20' in data
+        assert '<a href="https://bitbucket.org/foo/bar/pull-requests/10" target="_blank">Pull request #10</a>' in data  # noqa
 
     def set_status_cache(self, sha1, state, url,
                          description='dummy', key='pre-merge'):
@@ -279,58 +279,33 @@ class TestServer(unittest.TestCase):
             self.assertIn(exp, data)
 
         expected = (
-            '<h3>Merge queue status:</h3>\n'
-            '<table border="1" cellpadding="10">\n'
-            '<tr align="center">\n'
-            '<td></td>\n'
-            '<td>6.4</td>\n'
-            '<td>6.3.0</td>\n'
-            '<td>6.3</td>\n'
-            '<td>6.2</td>\n'
-            '</tr>\n'
-            '<tr align="center">\n'
-            '<td><a href="https://bitbucket.org/foo/bar/pull-requests/4472">'
-            '#4472</a></td>\n'
-            '<td><a href="4472/6.4_url">SUCCESSFUL</a></td>\n'
-            '<td></td>\n'
-            '<td><a href="4472/6.3_url">SUCCESSFUL</a></td>\n'
-            '<td><a href="4472/6.2_url">INPROGRESS</a></td>\n'
-            '</tr>\n'
-            '<tr align="center">\n'
-            '<td><a href="https://bitbucket.org/foo/bar/pull-requests/5773">'
-            '#5773</a></td>\n'
-            '<td><a href="5773/6.4_url">FAILED</a></td>\n'
-            '<td></td>\n'
-            '<td></td>\n'
-            '<td></td>\n'
-            '</tr>\n'
-            '<tr align="center">\n'
-            '<td><a href="https://bitbucket.org/foo/bar/pull-requests/6050">'
-            '#6050</a></td>\n'
-            '<td><a href="6050/6.4_url">SUCCESSFUL</a></td>\n'
-            '<td></td>\n'
-            '<td></td>\n'
-            '<td></td>\n'
-            '</tr>\n'
-            '<tr align="center">\n'
-            '<td><a href="https://bitbucket.org/foo/bar/pull-requests/6086">'
-            '#6086</a></td>\n'
-            '<td><a href="6086/6.4_url">FAILED</a></td>\n'
-            '<td><a href="6086/6.3.0_url">SUCCESSFUL</a></td>\n'
-            '<td><a href="6086/6.3_url">SUCCESSFUL</a></td>\n'
-            '<td></td>\n'
-            '</tr>\n'
-            '<tr align="center">\n'
-            '<td><a href="https://bitbucket.org/foo/bar/pull-requests/5095">'
-            '#5095</a></td>\n'
-            '<td><a href="5095/6.4_urltoto">SUCCESSFUL</a></td>\n'
-            '<td></td>\n'
-            '<td></td>\n'
-            '<td></td>\n'
-            '</tr>\n'
-            '</table>\n'
+            '<h2>Merge queue status</h2>',
+            '        <tr>\n'
+            '          <th scope="row">\n'
+            '            <a href="https://bitbucket.org/foo/bar/pull-requests/6086" target="_blank">\n'  # noqa
+            '              <span class="text-dark">PR #6086</span>\n'
+            '            </a>\n'
+            '          </th>\n'
+            '          <td class="text-center">\n'
+            '            <a href="6086/6.4_url" target="_blank">\n'
+            '              <span class="text-danger"><img src="/static/failed.png" alt="FAILED"></span>\n'  # noqa
+            '            </a>\n'
+            '          </td>\n'
+            '          <td class="text-center">\n'
+            '            <a href="6086/6.3.0_url" target="_blank">\n'
+            '              <span class="text-success"><img src="/static/successful.png" alt="SUCCESSFUL"></span>\n'  # noqa
+            '            </a>\n'
+            '          </td>\n'
+            '          <td class="text-center">\n'
+            '            <a href="6086/6.3_url" target="_blank">\n'
+            '              <span class="text-success"><img src="/static/successful.png" alt="SUCCESSFUL"></span>\n'  # noqa
+            '            </a>\n'
+            '          </td>\n'
+            '          <td class="text-center">\n'
+            '            <span class="text-dark"></span>\n'
+            '          </td>\n'
+            '        </tr>'  # noqa
         )
-
         res = client.get('/')
         data = res.data.decode()
         for exp in expected:
@@ -339,7 +314,8 @@ class TestServer(unittest.TestCase):
     def test_current_job_print(self):
         job = berte_job.CommitJob(
             bert_e=server.BERTE,
-            commit="456deadbeef12345678901234567890123456789")
+            commit="456deadbeef12345678901234567890123456789"
+        )
         job.start_time = datetime(2016, 12, 8, 14, 54, 20, 123456)
         server.BERTE.status['current job'] = job
 
@@ -348,22 +324,19 @@ class TestServer(unittest.TestCase):
         data = res.data.decode()
 
         assert 'Current job: [2016-12-08 14:54:20]' \
-               ' - Commit 456deadbeef12345678901234567890123456789' in data
+               ' - Webhook for commit 456deadb' in data
 
     def test_pending_jobs_print(self):
         job = berte_job.CommitJob(
             bert_e=server.BERTE,
-            commit="123deadbeef12345678901234567890123456789",
-            url=("https://bitbucket.org/foo/bar/commits/"
-                 "123deadbeef12345678901234567890123456789")
+            commit="123deadbeef12345678901234567890123456789"
         )
         job.start_time = datetime(2016, 12, 8, 14, 54, 18, 123456)
         server.BERTE.put_job(job)
 
         job = berte_job.PullRequestJob(
             bert_e=server.BERTE,
-            pull_request=SimpleNamespace(id=666),
-            url="https://bitbucket.org/foo/bar/pull-requests/666"
+            pull_request=SimpleNamespace(id=666)
         )
         job.start_time = datetime(2016, 12, 8, 14, 54, 19, 123456)
         job.status = 'NothingToDo'
@@ -372,9 +345,8 @@ class TestServer(unittest.TestCase):
 
         expected = (
             '2 pending jobs:',
-            '* [2016-12-08 14:54:18] - Commit 123deadbeef'
-            '12345678901234567890123456789',
-            '* [2016-12-08 14:54:19] - Webhook PR #666'
+            '* [2016-12-08 14:54:18] - Webhook for commit 123deadb',
+            '* [2016-12-08 14:54:19] - Webhook for pull request #666'
         )
 
         client = self.test_client()
@@ -385,14 +357,11 @@ class TestServer(unittest.TestCase):
             self.assertIn(exp, data)
 
         expected = (
-            '<h3>2 pending jobs:</h3>',
-            '<li>[2016-12-08 14:54:18] - <a href='
-            '"https://bitbucket.org/foo/bar/commits/123deadbeef123456789'
-            '01234567890123456789">Commit '
-            '123deadbeef12345678901234567890123456789</a></li>',
-            '<li>[2016-12-08 14:54:19] - <a href='
-            '"https://bitbucket.org/foo/bar/pull-requests/666">'
-            'Webhook PR #666</a></li>'
+            '<h2>Jobs</h2>',
+            '2016-12-08 14:54:18',
+            '<a href="https://bitbucket.org/foo/bar/commits/123deadbeef12345678901234567890123456789" target="_blank">Webhook for commit 123deadb</a>',  # noqa
+            '2016-12-08 14:54:19',
+            '<a href="https://bitbucket.org/foo/bar/pull-requests/666" target="_blank">Webhook for pull request #666</a>',  # noqa
         )
 
         res = client.get('/')
@@ -404,9 +373,7 @@ class TestServer(unittest.TestCase):
 
         job = berte_job.CommitJob(
             bert_e=server.BERTE,
-            commit="123deadbeef12345678901234567890123456789",
-            url=("https://bitbucket.org/foo/bar/commits/"
-                 "123deadbeef12345678901234567890123456789")
+            commit="123deadbeef12345678901234567890123456789"
         )
         job.start_time = datetime(2016, 12, 8, 14, 54, 18, 123456)
         job.status = 'NothingToDo'
@@ -414,8 +381,7 @@ class TestServer(unittest.TestCase):
 
         job = berte_job.PullRequestJob(
             bert_e=server.BERTE,
-            pull_request=SimpleNamespace(id=666),
-            url="https://bitbucket.org/foo/bar/pull-requests/666"
+            pull_request=SimpleNamespace(id=666)
         )
         job.start_time = datetime(2016, 12, 8, 14, 54, 19, 123456)
         job.status = 'NothingToDo'
@@ -425,9 +391,9 @@ class TestServer(unittest.TestCase):
         expected = (
             'Completed jobs:',
             '* [2016-12-08 14:54:19] - '
-            'Webhook PR #666 -> NothingToDo\ndetails',
+            'Webhook for pull request #666 -> NothingToDo\ndetails',
             '* [2016-12-08 14:54:18] - '
-            'Commit 123deadbeef12345678901234567890123456789 -> NothingToDo'
+            'Webhook for commit 123deadb -> NothingToDo'
         )
 
         client = self.test_client()
@@ -438,13 +404,57 @@ class TestServer(unittest.TestCase):
 
         expected = (
             '<h3>Completed jobs:</h3>',
-            '<li>[2016-12-08 14:54:19] - <a href="https://bitbucket.org/'
-            'foo/bar/pull-requests/666">Webhook PR #666</a> -> NothingToDo'
+            '<li>[2016-12-08 14:54:19] - '
+            '<a href="https://bitbucket.org/foo/bar/pull-requests/666"'
+            ' target="_blank">Webhook for pull request #666</a>'
+            ' -> NothingToDo'
             '<p>details</p></li>',
-            '<li>[2016-12-08 14:54:18] - <a href="https://bitbucket.org/'
-            'foo/bar/commits/123deadbeef12345678901234567890123456789">'
-            'Commit 123deadbeef12345678901234567890123456789</a> '
+            '<li>[2016-12-08 14:54:18] - '
+            '<a href="https://bitbucket.org/foo/bar/commits/123deadbeef12345678901234567890123456789"'  # noqa
+            ' target="_blank">'
+            'Webhook for commit 123deadb</a> '
             '-> NothingToDo</li>'
+        )
+
+        expected = (
+            '  <h2>Jobs</h2>\n'
+            '  <div class="bert-e-job pb-2">\n'
+            '    <div class="row text-dark">\n'
+            '      <div class="col-3">\n'
+            '        2016-12-08 14:54:19\n'
+            '      </div>\n'
+            '      <div class="col-5">\n'
+            '        <a href="https://bitbucket.org/foo/bar/pull-requests/666" target="_blank">Webhook for pull request #666</a>\n'  # noqa
+            '      </div>\n'
+            '      <div class="col-2">\n'
+            '        \n'
+            '      </div>\n'
+            '      <div class="col-2">\n'
+            '        NothingToDo\n'
+            '      </div>\n'
+            '    </div>\n'
+            '    <div class="row text-danger">\n'
+            '      <div class="col">\n'
+            '        details\n'
+            '      </div>\n'
+            '    </div>\n'
+            '  </div>\n'
+            '  <div class="bert-e-job pb-2">\n'
+            '    <div class="row text-dark">\n'
+            '      <div class="col-3">\n'
+            '        2016-12-08 14:54:18\n'
+            '      </div>\n'
+            '      <div class="col-5">\n'
+            '        <a href="https://bitbucket.org/foo/bar/commits/123deadbeef12345678901234567890123456789" target="_blank">Webhook for commit 123deadb</a>\n'  # noqa
+            '      </div>\n'
+            '      <div class="col-2">\n'
+            '        \n'
+            '      </div>\n'
+            '      <div class="col-2">\n'
+            '        NothingToDo\n'
+            '      </div>\n'
+            '    </div>\n'
+            '  </div>',
         )
 
         res = client.get('/')
@@ -715,7 +725,7 @@ class TestServer(unittest.TestCase):
         client = self.test_client(user='test_user')
         resp = client.get('/manage')
         data = resp.data.decode()
-        self.assertNotIn('Create new destination branch', data)
+        self.assertNotIn('Create a new destination branch', data)
         self.assertNotIn(
             '<form action="/form/CreateBranchForm" '
             'method="post"', data
@@ -724,7 +734,7 @@ class TestServer(unittest.TestCase):
         client = self.test_client(user='test_admin')
         resp = client.get('/manage')
         data = resp.data.decode()
-        self.assertIn('Create new destination branch', data)
+        self.assertIn('Create a new destination branch', data)
         self.assertIn(
             '<form action="/form/CreateBranchForm" '
             'method="post"', data
@@ -733,13 +743,14 @@ class TestServer(unittest.TestCase):
         # hard extract session csrf token
         token = re.match(
             '.*<input id="csrf_token" name="csrf_token" '
-            'type="hidden" value="(.*)">.*', data, re.S).group(1)
+            'type="hidden" value="([^"]*)">.*', data, re.S).group(1)
 
         # post should fail csrf from another client
         client2 = self.test_client(user='test_admin_2')
         resp = client2.post('/form/CreateBranchForm', data=dict(
             csrf_token=token))
-        self.assertEqual(400, resp.status_code)
+        self.assertEqual(302, resp.status_code)
+        mock_request.assert_not_called()
 
         # test creation of Job
         resp = client.post('/form/CreateBranchForm', data=dict(
@@ -782,13 +793,14 @@ class TestServer(unittest.TestCase):
         # hard extract session csrf token
         token = re.match(
             '.*<input id="csrf_token" name="csrf_token" '
-            'type="hidden" value="(.*)">.*', data, re.S).group(1)
+            'type="hidden" value="([^"]*)">.*', data, re.S).group(1)
 
         # post should fail csrf from another client
         client2 = self.test_client(user='test_admin_2')
         resp = client2.post('/form/DeleteBranchForm', data=dict(
             csrf_token=token))
-        self.assertEqual(400, resp.status_code)
+        self.assertEqual(302, resp.status_code)
+        mock_request.assert_not_called()
 
         # test creation of Job
         resp = client.post('/form/DeleteBranchForm', data=dict(
@@ -811,14 +823,21 @@ class TestServer(unittest.TestCase):
         client = self.test_client(user='test_user')
         resp = client.get('/manage')
         data = resp.data.decode()
-        self.assertIn('Rebuild queues', data)
+        self.assertIn('Rebuild the queue', data)
         self.assertIn('<form action="/form/RebuildQueuesForm" '
                       'method="post"', data)
 
         # hard extract session csrf token
         token = re.match(
             '.*<input id="csrf_token" name="csrf_token" '
-            'type="hidden" value="(.*)">.*', data, re.S).group(1)
+            'type="hidden" value="([^"]*)">.*', data, re.S).group(1)
+
+        # post should fail csrf from another client
+        client2 = self.test_client(user='test_user_2')
+        resp = client2.post('/form/RebuildQueuesForm', data=dict(
+            csrf_token=token))
+        self.assertEqual(302, resp.status_code)
+        mock_request.assert_not_called()
 
         # test creation of Job
         resp = client.post('/form/RebuildQueuesForm', data=dict(
@@ -831,12 +850,6 @@ class TestServer(unittest.TestCase):
             'http://localhost/api/gwf/queues'
         )
 
-        # post should fail csrf from another client
-        client2 = self.test_client(user='test_user_2')
-        resp = client2.post('/form/RebuildQueuesForm', data=dict(
-            csrf_token=token))
-        self.assertEqual(400, resp.status_code)
-
     @unittest.mock.patch('bert_e.server.api.base.requests.request')
     def test_management_page_force_merge_queues(self, mock_request):
         # configure mock
@@ -847,7 +860,7 @@ class TestServer(unittest.TestCase):
         client = self.test_client(user='test_user')
         resp = client.get('/manage')
         data = resp.data.decode()
-        self.assertNotIn('Force merge queues', data)
+        self.assertNotIn('Merge the queue', data)
         self.assertNotIn(
             '<form action="/form/ForceMergeQueuesForm" '
             'method="post"', data
@@ -856,20 +869,21 @@ class TestServer(unittest.TestCase):
         client = self.test_client(user='test_admin')
         resp = client.get('/manage')
         data = resp.data.decode()
-        self.assertIn('Force merge queues', data)
+        self.assertIn('Merge the queue', data)
         self.assertIn('<form action="/form/ForceMergeQueuesForm" '
                       'method="post"', data)
 
         # hard extract session csrf token
         token = re.match(
             '.*<input id="csrf_token" name="csrf_token" '
-            'type="hidden" value="(.*)">.*', data, re.S).group(1)
+            'type="hidden" value="([^"]*)">.*', data, re.S).group(1)
 
         # post should fail csrf from another client
         client2 = self.test_client(user='test_admin_2')
         resp = client2.post('/form/ForceMergeQueuesForm', data=dict(
             csrf_token=token))
-        self.assertEqual(400, resp.status_code)
+        self.assertEqual(302, resp.status_code)
+        mock_request.assert_not_called()
 
         # test creation of Job
         resp = client.post('/form/ForceMergeQueuesForm', data=dict(
@@ -892,7 +906,7 @@ class TestServer(unittest.TestCase):
         client = self.test_client(user='test_user')
         resp = client.get('/manage')
         data = resp.data.decode()
-        self.assertNotIn('Delete queues', data)
+        self.assertNotIn('Delete the queue', data)
         self.assertNotIn(
             '<form action="/form/DeleteQueuesForm" '
             'method="post"', data
@@ -901,20 +915,21 @@ class TestServer(unittest.TestCase):
         client = self.test_client(user='test_admin')
         resp = client.get('/manage')
         data = resp.data.decode()
-        self.assertIn('Delete queues', data)
+        self.assertIn('Delete the queue', data)
         self.assertIn('<form action="/form/DeleteQueuesForm" '
                       'method="post"', data)
 
         # hard extract session csrf token
         token = re.match(
             '.*<input id="csrf_token" name="csrf_token" '
-            'type="hidden" value="(.*)">.*', data, re.S).group(1)
+            'type="hidden" value="([^"]*)">.*', data, re.S).group(1)
 
         # post should fail csrf from another client
         client2 = self.test_client(user='test_admin_2')
         resp = client2.post('/form/DeleteQueuesForm', data=dict(
             csrf_token=token))
-        self.assertEqual(400, resp.status_code)
+        self.assertEqual(302, resp.status_code)
+        mock_request.assert_not_called()
 
         # test creation of Job
         resp = client.post('/form/DeleteQueuesForm', data=dict(
@@ -936,27 +951,37 @@ class TestServer(unittest.TestCase):
         client = self.test_client(user='test_user')
         resp = client.get('/manage')
         data = resp.data.decode()
-        self.assertIn('Evaluate pull request', data)
+        self.assertIn('Evaluate a pull request', data)
         self.assertIn('<form action="/form/EvalPullRequestForm" '
                       'method="post"', data)
 
         # hard extract session csrf token
         token = re.match(
             '.*<input id="csrf_token" name="csrf_token" '
-            'type="hidden" value="(.*)">.*', data, re.S).group(1)
+            'type="hidden" value="([^"]*)">.*', data, re.S).group(1)
 
         # test invalid data in form
         resp = client.post('/form/EvalPullRequestForm', data=dict(
             csrf_token=token, pr_id='invalid_int'))
-        self.assertEqual(400, resp.status_code)
+        self.assertEqual(302, resp.status_code)
+        mock_request.assert_not_called()
 
         resp = client.post('/form/EvalPullRequestForm', data=dict(
             csrf_token=token, pr_id=0))
-        self.assertEqual(400, resp.status_code)
+        self.assertEqual(302, resp.status_code)
+        mock_request.assert_not_called()
 
         resp = client.post('/form/EvalPullRequestForm', data=dict(
             csrf_token=token))
-        self.assertEqual(400, resp.status_code)
+        self.assertEqual(302, resp.status_code)
+        mock_request.assert_not_called()
+
+        # post should fail csrf from another client
+        client2 = self.test_client(user='test_user_2')
+        resp = client2.post('/form/EvalPullRequestForm', data=dict(
+            csrf_token=token, pr_id=1))
+        self.assertEqual(302, resp.status_code)
+        mock_request.assert_not_called()
 
         # test creation of Job
         resp = client.post('/form/EvalPullRequestForm', data=dict(
@@ -968,12 +993,6 @@ class TestServer(unittest.TestCase):
             mock_request.call_args_list[0][0][1],
             'http://localhost/api/pull-requests/1'
         )
-
-        # post should fail csrf from another client
-        client2 = self.test_client(user='test_user_2')
-        resp = client2.post('/form/EvalPullRequestForm', data=dict(
-            csrf_token=token, pr_id=1))
-        self.assertEqual(400, resp.status_code)
 
 
 if __name__ == '__main__':

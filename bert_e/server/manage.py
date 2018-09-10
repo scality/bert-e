@@ -14,7 +14,7 @@
 
 """This module defines the repository management web page."""
 
-from flask import Blueprint, render_template
+from flask import Blueprint, render_template, request
 
 from .auth import requires_auth
 from .api import FORMS
@@ -22,10 +22,13 @@ from .api import FORMS
 blueprint = Blueprint('management page', __name__)
 
 
-@blueprint.route('/manage', methods=['GET'])
+@blueprint.route('/manage/<string:error>', methods=['GET'])
+@blueprint.route('/manage', methods=['GET'], defaults={'error': None})
 @requires_auth()
-def display():
+def display(error):
     return render_template(
         'manage.html',
+        navigation=request.args.get('navoff', True),
         forms=FORMS,
+        form_error=error,
     ), 200

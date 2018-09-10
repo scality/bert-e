@@ -24,7 +24,7 @@ class EvalPullRequestJob(APIJob):
             pr_id=self.settings.pr_id)
 
     def __str__(self):
-        return "Evaluate PR #{}".format(self.settings.pr_id)
+        return "Evaluate pull request #{}".format(self.settings.pr_id)
 
 
 @handler(EvalPullRequestJob)

@@ -16,7 +16,7 @@
 
 from pathlib import Path
 
-from flask import Blueprint, abort, render_template
+from flask import Blueprint, abort, render_template, request
 from flaskext.markdown import Markdown
 from markdown.extensions.codehilite import CodeHiliteExtension
 from markdown.extensions.fenced_code import FencedCodeExtension
@@ -41,6 +41,8 @@ def display(docname):
 
     return render_template(
         'doc.html',
+        navigation=request.args.get('navoff', True),
+        name=docname,
         content=content,
     ), 200
 

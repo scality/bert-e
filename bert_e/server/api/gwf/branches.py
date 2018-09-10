@@ -30,7 +30,7 @@ BRANCH_FROM_REGEXP = '^[a-fA-F0-9]*$|^development/(\d+)\.(\d+)$'
 
 class CreateBranchForm(FlaskForm):
     branch = StringField(
-        'new branch name',
+        'branch name',
         validators=[
             DataRequired(),
             Regexp(regex=BRANCH_REGEXP),
@@ -38,7 +38,7 @@ class CreateBranchForm(FlaskForm):
     )
 
     branch_from = StringField(
-        'branch off from (optional sha1/branch name)',
+        'branch from',
         validators=[Regexp(regex=BRANCH_FROM_REGEXP)]
     )
 
@@ -60,17 +60,21 @@ class CreateBranch(APIEndpoint):
 
 
 class CreateBranchForm(APIForm):
+    doc = '/gwf/branches/branch'
     endpoint_cls = CreateBranch
     form_cls = CreateBranchForm
-    title = 'Create new destination branch'
+    title = 'Create a new destination branch'
     help_text = '''
         <p>Create a job that will push a new GitWaterFlow destination branch
         to the repository.</p>
         '''
     form_inner_html = '''
-        {{ form.branch.label }}: {{ form.branch(size=12) }}<br>
-        {{ form.branch_from.label }}: {{ form.branch_from(size=12) }}<br>
-        <button type="submit">create</button>
+        <input id="branch" name="branch" placeholder="branch name"
+        class="form-control" required>
+        <input id="branch_from" name="branch_from"
+        placeholder="branch from (optional)" class="form-control">
+        <button type="submit" class="btn btn-outline-danger
+        btn-block">create</button>
         '''
 
 
@@ -97,6 +101,7 @@ class DeleteBranch(APIEndpoint):
 
 
 class DeleteBranchForm(APIForm):
+    doc = '/gwf/branches/branch'
     endpoint_cls = DeleteBranch
     form_cls = DeleteBranchForm
     title = 'Delete a destination branch'
@@ -105,6 +110,8 @@ class DeleteBranchForm(APIForm):
         from the repository.</p>
         '''
     form_inner_html = '''
-        {{ form.branch.label }}: {{ form.branch(size=12) }}<br>
-        <button type="submit">delete</button>
+        <input id="branch" name="branch" placeholder="branch name"
+        class="form-control" required>
+        <button type="submit" class="btn btn-outline-danger btn-block">
+        delete</button>
         '''

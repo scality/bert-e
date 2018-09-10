@@ -1,26 +1,81 @@
-<html>
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="description" content="Bert-E, gating and merging robot by Scality">
+    <meta name="author" content="Scality Release Engineering">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <link rel="icon" href="{{ url_for('static', filename='favicon.png') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='bootstrap.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='bert-e.css') }}">
+    {%- if request.base_url == url_for('status page.display', _external=True) %}
+    <meta http-equiv="refresh" content="120">
+    {%- endif %}
+  </head>
 
-<table width="100%"><tr>
-<td><p><strong>Bert-E, gating and merging robot</strong> ({{ bert_e_version }})</p></td>
-<td><p align="right">
-{%- if 'user' in session %}
-logged in as {{ session['user'] }} (<a href="{{ url_for('auth.logout', _external=True) }}">logout</a>)
-{%- else %}
-<a href="{{ url_for('loginpass_' + githost + '.login', _external=True) }}")>login</a>
-{%- endif %}
-|
-<a href="{{ url_for('status page.display', _external=True) }}">status</a>
-{%- if 'user' in session %}
-| <a href="{{ url_for('management page.display', _external=True) }}">manage</a>
-{%- endif %}
-| <a href="{{ url_for('doc.display', docname='user', _external=True) }}")>user doc</a>
-| <a href="{{ url_for('doc.display', docname='api', _external=True) }}")>API doc</a></p></td>
-</tr></table>
+  <body>
+    {%- if navigation %}
+    <nav class="navbar navbar-expand navbar-dark bg-dark fixed-top">
+      <span class="navbar-brand">
+        <span class="bert-e-brand">Bert-E, gating and merging robot ({{ bert_e_version }})</span><br>
+        <span class="font-weight-bold">{{ githost }} / {{ owner }} / {{ slug }}</span>
+      </span>
 
-<h2>Repository: {{ githost }}/{{ owner }}/{{ slug }}</h2>
-<hr>
+      <div class="collapse navbar-collapse navbar-middle" id="internalLinks">
+        <ul class="navbar-nav ml-auto mr-5">
+          {% set url = url_for('status page.display', _external=True) %}
+          <li class="nav-item {% if request.base_url == url %}active{% endif %}">
+            <a class="nav-link" href="{{ url }}">Status</a>
+          </li>
+          {%- if 'user' in session %}
+          {% set url = url_for('management page.display', _external=True) %}
+          <li class="nav-item {% if request.base_url == url %}active{% endif %}">
+            <a class="nav-link" href="{{ url }}">Manage</a>
+          </li>
+          {% endif %}
+          {% set url = url_for('doc.display', docname='user', _external=True) %}
+          <li class="nav-item {% if request.base_url == url %}active{% endif %}">
+            <a class="nav-link" href="{{ url }}">User doc</a>
+          </li>
+          {% set url = url_for('doc.display', docname='api', _external=True) %}
+          <li class="nav-item">
+            <a class="nav-link" href="{{ url }}">API doc</a>
+          </li>
+        </ul>
+      </div>
 
-{% block body %}
-{% endblock %}
+      <div class="navbar-left" id="loginSection">
+        <ul class="navbar-nav">
+          {%- if 'user' in session %}
+          <li class="nav-item active">
+            <span class="nav-link pl-0 ml-0 text-right">{{ session['user'] }}</span>
+          </li>
+          {%- endif %}
+          <li class="nav-item">
+            {%- if 'user' in session %}
+            <a class="nav-link" href="{{ url_for('auth.logout', _external=True) }}">(logout)</a>
+            {%- else %}
+            <a class="nav-link" href="{{ url_for('loginpass_' + githost + '.login', _external=True) }}")>login</a>
+            {%- endif %}
+          </li>
+        </ul>
+      </div>
+    </nav>
 
+    <main role="main" class="container">
+      <div id="margin-top"></div>
+      <div class="bert-e-main" id="bert-e-main">
+
+    {%- else %}
+
+    <main role="main">
+      <div class="bert-e-main-navoff" id="bert-e-main">
+
+    {%- endif %}
+
+      {% block body %}
+      {% endblock %}
+      </div>
+    </main>
+  </body>
 </html>

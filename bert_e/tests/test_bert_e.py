@@ -4750,7 +4750,6 @@ class TaskQueueTests(RepositoryTests):
         pr.client = self.berte.client
         job = PullRequestJob(
             bert_e=self.berte, pull_request=deepcopy(pr),
-            url=self.berte.settings.pull_request_base_url.format(pr_id=pr.id),
             settings=settings
         )
         pr.client = client
@@ -4775,7 +4774,6 @@ class TaskQueueTests(RepositoryTests):
     def make_sha1_job(self, sha1, **settings):
         job = CommitJob(
             bert_e=self.berte, commit=sha1,
-            url=self.berte.settings.commit_base_url.format(commit_id=sha1),
             settings=settings
         )
         return job

@@ -88,7 +88,7 @@ def create_branch(job: CreateBranchJob):
             if job.settings.branch_from not in dev_branches:
                 raise exceptions.JobFailure('Cannot create a stabilization '
                                             'branch %r without a supporting '
-                                            'development branch ' %
+                                            'development branch.' %
                                             new_branch)
 
         else:
@@ -125,7 +125,7 @@ def create_branch(job: CreateBranchJob):
         new_cascade.validate()
     except exceptions.BertE_Exception as excp:
         raise exceptions.JobFailure('Requested new branch %r does not '
-                                    'conform to GWF rules (%s)' %
+                                    'conform to GWF rules (%s).' %
                                     (new_branch, excp.__class__.__name__))
 
     try:

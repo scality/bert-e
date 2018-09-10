@@ -212,11 +212,11 @@ class BertE(JobDispatcher):
     def add_merged_pr(self, pr_id):
         """Add pr_id to the list of merged pull requests.
 
-        This list is an inspectable dequeue containing the last 10 merged pull
+        This list is an inspectable dequeue containing the last 5 merged pull
         requests' IDs.
 
         """
-        merged_prs = self.status.setdefault('merged PRs', deque(maxlen=10))
+        merged_prs = self.status.setdefault('merged PRs', deque(maxlen=5))
         merged_prs.append({'id': pr_id, 'merge_time': datetime.now()})
 
     def update_queue_status(self, queue_collection):
