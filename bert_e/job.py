@@ -92,7 +92,19 @@ class Job:
         }
 
     def as_json(self):
-        return dump_schema(JobSchema, self.as_dict())
+        data = self.as_dict()
+
+        def set2list(value):
+            if isinstance(value, set):
+                return list(value)
+            return value
+
+        # sets are not serializable, so convert sets that may come from PR
+        # options such as after_pull_requests to lists
+        settings = {k: set2list(v) for k, v in data['settings'].items()}
+        data['settings'] = settings
+
+        return dump_schema(JobSchema, data)
 
     def __str__(self):
         return '{}(id={})'.format(type(self).__name__, self.id)
