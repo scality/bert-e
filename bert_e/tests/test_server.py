@@ -468,7 +468,7 @@ class TestServer(unittest.TestCase):
             method='POST',
             user=None
         )
-        self.assertEqual(403, resp.status_code)
+        self.assertEqual(401, resp.status_code)
 
         resp = self.handle_api_call(
             'gwf/branches/stabilization/7.4.0',
@@ -546,7 +546,7 @@ class TestServer(unittest.TestCase):
             method='DELETE',
             user=None
         )
-        self.assertEqual(403, resp.status_code)
+        self.assertEqual(401, resp.status_code)
 
         resp = self.handle_api_call(
             'gwf/branches/stabilization/7.4.0',
@@ -600,10 +600,10 @@ class TestServer(unittest.TestCase):
 
     def test_get_jobs_api_call(self):
         resp = self.handle_api_call('jobs', method='GET', user=None)
-        self.assertEqual(403, resp.status_code)
+        self.assertEqual(401, resp.status_code)
 
         resp = self.handle_api_call('jobs/1', method='GET', user=None)
-        self.assertEqual(403, resp.status_code)
+        self.assertEqual(401, resp.status_code)
 
         resp = self.handle_api_call('jobs/1', method='GET', user='test_user')
         self.assertEqual(404, resp.status_code)
@@ -629,7 +629,7 @@ class TestServer(unittest.TestCase):
 
     def test_rebuild_queues_api_call(self):
         resp = self.handle_api_call('gwf/queues', user=None)
-        self.assertEqual(403, resp.status_code)
+        self.assertEqual(401, resp.status_code)
 
         resp = self.handle_api_call('gwf/queues', user='test_user')
         self.assertEqual(202, resp.status_code)
@@ -643,7 +643,7 @@ class TestServer(unittest.TestCase):
     def test_force_merge_queues_api_call(self):
         resp = self.handle_api_call(
             'gwf/queues', method='PATCH', user=None)
-        self.assertEqual(403, resp.status_code)
+        self.assertEqual(401, resp.status_code)
 
         resp = self.handle_api_call(
             'gwf/queues', method='PATCH', user='test_user')
@@ -662,7 +662,7 @@ class TestServer(unittest.TestCase):
     def test_delete_queues_api_call(self):
         resp = self.handle_api_call(
             'gwf/queues', method='DELETE', user=None)
-        self.assertEqual(403, resp.status_code)
+        self.assertEqual(401, resp.status_code)
 
         resp = self.handle_api_call(
             'gwf/queues', method='DELETE', user='test_user')
@@ -680,7 +680,7 @@ class TestServer(unittest.TestCase):
 
     def test_pull_request_api_call(self):
         resp = self.handle_api_call('pull-requests/1', user=None)
-        self.assertEqual(403, resp.status_code)
+        self.assertEqual(401, resp.status_code)
 
         resp = self.handle_api_call('pull-requests/0', user='test_user')
         self.assertEqual(400, resp.status_code)
@@ -701,7 +701,7 @@ class TestServer(unittest.TestCase):
     def test_management_page(self):
         client = self.test_client()
         resp = client.get('/manage')
-        self.assertEqual(403, resp.status_code)
+        self.assertEqual(401, resp.status_code)
 
         client = self.test_client(user='test_user')
         resp = client.get('/manage')

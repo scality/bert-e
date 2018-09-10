@@ -18,28 +18,45 @@ from functools import wraps
 
 from authlib.flask.client import OAuth, RemoteApp
 from flask import Blueprint, Response, current_app, jsonify, \
-    request, session, url_for, redirect
+    render_template, request, session, url_for, redirect
 from loginpass import Bitbucket, GitHub, create_flask_blueprint
 from loginpass._core import register_to
 
 
 def invalid(message='The request is invalid for that endpoint.'):
     """Sends a 400 response."""
-    return Response(message, 400)
+    if request.is_json:
+        return message, 400
+
+    return render_template(
+        'error.html',
+        navigation=request.args.get('navoff', True),
+        error_msg=message
+    ), 400
 
 
-def authenticate():
+def authenticate(message='Unauthorized.'):
     """Sends a 401 response."""
-    return Response(
-        'Could not verify your access level for that URL.\n'
-        'You have to login with proper credentials.', 401)
+    if request.is_json:
+        return message, 401
+
+    return render_template(
+        'error.html',
+        navigation=request.args.get('navoff', True),
+        error_msg=message
+    ), 401
 
 
-def unauthorized():
+def unauthorized(message="Forbidden."):
     """Sends a 403 response."""
-    return Response(
-        'You are not authorized to access that resource.\n'
-        'You have to login with sufficient privileges.', 403)
+    if request.is_json:
+        return message, 403
+
+    return render_template(
+        'error.html',
+        navigation=request.args.get('navoff', True),
+        error_msg=message
+    ), 403
 
 
 def authenticate_basic():
@@ -80,11 +97,11 @@ def requires_auth(admin=False):
         @wraps(func)
         def decorated(*args, **kwargs):
             if not session.get('user'):
-                return unauthorized()
+                return authenticate('You are not logged in.')
 
             user_admin = session.get('admin')
             if admin and not user_admin:
-                return unauthorized()
+                return unauthorized('You do not have admin privileges.')
 
             return func(*args, **kwargs)
         return decorated
@@ -114,13 +131,14 @@ def _handle_authorize(bert_e, user_info):
     """
     user = user_info.get('preferred_username', None)
     if not user:
-        return unauthorized()
+        return unauthorized('preferred_username missing in user info!')
 
     org = bert_e.settings.organization
     if org:
         email = user_info.get('email', None)
         if not email or not email.endswith('@{}'.format(org)):
-            return unauthorized()
+            return unauthorized('Your email does not belong to '
+                                'organization %r.' % org)
 
     session['user'] = user
     session['admin'] = user in bert_e.settings.admins
@@ -161,7 +179,7 @@ def configure(app):
             token = {'access_token': access_token, 'token_type': 'bearer'}
             user_info = remote.profile(token=token)
             return handle_authorize(remote, access_token, user_info)
-        return unauthorized()
+        return unauthorized('Missing access token in request.')
 
     @bp.route('/logout')
     def logout():

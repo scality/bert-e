@@ -20,7 +20,7 @@ import pkg_resources
 import secrets
 from threading import Thread
 
-from flask import Flask
+from flask import Flask, render_template, request
 
 from ..bert_e import BertE
 from ..settings import setup_settings, BertEContextFilter
@@ -105,5 +105,17 @@ def setup_server(bert_e):
             'owner': bert_e.settings.repository_owner,
             'slug': bert_e.settings.repository_slug,
         }
+
+    @app.errorhandler(404)
+    def not_found(e):
+        """Sends a 404 response."""
+        if request.is_json:
+            return 'not found', 404
+
+        return render_template(
+            'error.html',
+            navigation=request.args.get('navoff', True),
+            error_msg='Page not found.'
+        ), 404
 
     return app
