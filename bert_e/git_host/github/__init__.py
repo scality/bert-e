@@ -17,6 +17,7 @@ from collections import defaultdict, namedtuple
 
 from requests import HTTPError
 from requests.auth import HTTPBasicAuth
+from urllib.parse import quote_plus as quote
 
 from bert_e.exceptions import TaskAPIError
 from bert_e.lib.lru_cache import LRUCache
@@ -59,6 +60,7 @@ class Client(base.AbstractClient):
         self.session.auth = HTTPBasicAuth(login, password)
 
         self.login = login
+        self.password = password
         self.email = email
         self.org = org
         self.base_url = base_url.rstrip('/')
@@ -480,7 +482,11 @@ class Repository(GithubObject, base.AbstractRepository):
 
     @property
     def git_url(self) -> str:
-        return 'git@github.com:{}/{}'.format(self.owner, self.slug)
+        return 'https://{}:{}@github.com/{}/{}.git'.format(
+            quote(self.client.login),
+            quote(self.client.password),
+            self.owner,
+            self.slug)
 
     def get_commit_url(self, revision):
         return 'https://github.com/{}/{}/commit/{}'.format(self.owner,
