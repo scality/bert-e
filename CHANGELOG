@@ -1,21 +1,22 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
-## [3.2.0] - 2018-08-14
+## [3.2.0] - 2018-09-11
 # Added
-- Containerized server (docker).
+- Add docker container for Bert-E and server.
 - Add Kubernetes chart.
-- Add OAuth based authentication.
-- Add repository management page.
-- Extend API.
+- Add repository management page to server.
+- Add documentation pages to server.
+- Add OAuth based authentication to server.
+- Add API system.
 - Add API command line client.
 - Add API documentation.
+- Extend API with pull-request, branch and queue endpoints.
 # Changed
 - Rename BERT_E_BB_PWD into BERT_E_GITHOST_PWD.
-- Rework server files structure.
 - Move /api/rebuild_queues to /api/gwf/queues[POST].
 # Fixed
-- Updated requirements to fix python 3.7 support.
+- Update requirements to fix python 3.7 support.
 - Fix queue system for development branches > 10.0.
 
 ## [3.1.13] - 2018-07-16
