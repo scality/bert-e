@@ -1,4 +1,3 @@
-eve
-settings.sample.yml
-test_settings.yml
 venv
+*.pyc
+*~

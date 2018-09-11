@@ -16,7 +16,7 @@
 
 import logging
 import os
-import pkg_resources
+from pkg_resources import get_distribution
 import secrets
 from threading import Thread
 
@@ -95,7 +95,7 @@ def setup_server(bert_e):
     @app.context_processor
     def inject_global_vars():
         try:
-            version = pkg_resources.require("bert-e")[0].version
+            version = get_distribution('bert_e').version
         except Exception:
             version = 'unset_version'
 
