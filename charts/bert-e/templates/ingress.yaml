@@ -23,7 +23,7 @@ spec:
           backend:
             serviceName: {{ template "fullname" $ }}
             servicePort: {{ $.Values.deployment.servicePort }}
-{{- if .tlsSecret }}
+{{- if .tls }}
   tls:
   - hosts:
     - {{ .fqdn }}
