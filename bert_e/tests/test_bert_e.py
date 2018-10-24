@@ -3527,6 +3527,56 @@ project_leaders:
                         backtrace=True)
 
 
+    def test_simple_auto_merge_setting(self):
+        """Test the a simple workflow with auto merge deactivated."""
+        settings = """
+    repository_owner: {owner}
+    repository_slug: {slug}
+    repository_host: {host}
+    robot_username: {robot}
+    robot_email: nobody@nowhere.com
+    pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
+    commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
+    build_key: pre-merge
+    required_leader_approvals: 0
+    required_peer_approvals: 1
+    auto_merge: False
+    admins:
+    - {admin}
+    """ # noqa
+
+        options = ['bypass_jira_check']
+        pr = self.create_pr('feature/TEST-007', 'development/4.3')
+        with self.assertRaises(exns.ApprovalRequired):
+            self.handle(pr.id, settings=settings, options=options,
+                        backtrace=True)
+        pr.approve()
+        pr_peer = self.robot_bb.get_pull_request(
+            pull_request_id=pr.id)
+        pr_peer.approve()
+        with self.assertRaises(exns.BuildNotStarted):
+            self.handle(pr.id, settings=settings, options=options,
+                        backtrace=True)
+        self.set_build_status_on_pr_id(pr.id, 'SUCCESSFUL')
+        self.set_build_status_on_pr_id(pr.id + 1, 'SUCCESSFUL')
+        self.set_build_status_on_pr_id(pr.id + 2, 'INPROGRESS')
+        with self.assertRaises(exns.BuildInProgress):
+            self.handle(pr.id, settings=settings, options=options,
+                        backtrace=True)
+        self.set_build_status_on_pr_id(pr.id + 2, 'FAILED')
+        with self.assertRaises(exns.BuildFailed):
+            self.handle(pr.id, settings=settings, options=options,
+                        backtrace=True)
+        self.set_build_status_on_pr_id(pr.id + 2, 'SUCCESSFUL')
+        with self.assertRaises(exns.ReadyToMerge):
+            self.handle(pr.id, settings=settings, options=options,
+                        backtrace=True)
+        pr.add_comment("@%s merge" % self.args.robot_username)
+        with self.assertRaises(exns.SuccessMessage):
+            self.handle(pr.id, settings=settings, options=options,
+                        backtrace=True)
+
+
 class TestQueueing(RepositoryTests):
     """Tests which validate all things related to the merge queue.
 

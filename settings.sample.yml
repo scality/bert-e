@@ -169,6 +169,15 @@ max_commit_diff: 100
 sentry_dsn: ''
 
 
+# auto_merge [OPTIONAL]:
+#   Bert-E will automatically merge without users confirmation when all
+#   required checks are OK (peer approvals, build status...).
+#   When deactivated, users will need to confirm that the PR is mergeable.
+#
+#   default value: true
+auto_merge: true
+
+
 # always_create_integration_pull_requests [OPTIONAL]:
 #   Bert-E will create pull requests on integration branches by default.
 #   You can set this setting to false if you don't wan't any integration

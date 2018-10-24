@@ -224,6 +224,11 @@ class FlakyGitHost(TemplateException):
     template = "flaky_git_host.md"
 
 
+class ReadyToMerge(TemplateException):
+    code = 134
+    template = 'ready_to_merge.md'
+
+
 # internal exceptions
 class UnableToSendEmail(InternalException):
     code = 201

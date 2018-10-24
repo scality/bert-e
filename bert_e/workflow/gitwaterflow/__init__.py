@@ -190,6 +190,7 @@ def _handle_pull_request(job: PullRequestJob):
 
     check_approvals(job)
     check_build_status(job, wbranches)
+    check_merge(job)
 
     interactive = job.settings.interactive
     if interactive and not confirm('Do you want to merge/queue?'):
@@ -631,3 +632,17 @@ def check_build_status(job, wbranches):
     elif worst_status == 'INPROGRESS':
         raise messages.BuildInProgress()
     assert worst_status == 'SUCCESSFUL'
+
+
+def check_merge(job):
+    """Check settings to apply the proper merge workflow.
+
+    Raises:
+        ReadyToMerge: if auto merge is off and no merge option is set.
+
+    """
+    if job.settings.auto_merge or job.settings.merge:
+        return
+    raise messages.ReadyToMerge(
+        active_options=job.active_options,
+        bert_e=job.settings.robot_username)

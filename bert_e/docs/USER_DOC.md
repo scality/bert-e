@@ -121,6 +121,7 @@ __Bert-E__.
 | no_octopus                | Prevent Wall-E from doing any octopus merge and use multiple consecutive merge instead | yes
 | unanimity                 | Change review acceptance criteria from `one reviewer at least` to `all reviewers` (**this feature is not supported on GitHub**) | no
 | wait                      | Instruct __Bert-E__ not to run until further notice | no
+| merge                     | When auto merge is deactivated, this command tells __Bert-E__ that the PR is ready to be merged | no
 
 > **Example: Unanimity option**
 >
@@ -464,6 +465,7 @@ to progress to the next step.  message code
 | 121   | Integration data created | __Bert-E__ notifies the owner that he succesfully created the integration branches and the related pull requests, and provides a link to them. No action required
 | 122   | Unknown command | One of the participants asked __Bert-E__ to activate an option, or execute a command he doesn't know. Edit the corresponding message if it contains a typo. Delete it otherwise
 | 123   | Not authorized | One of the participants asked __Bert-E__ to activate a privileged option, or execute a privileged  command, but doesn't have enough credentials to do so. Delete the corresponding command ask a __Bert-E__ administrator to run/set the desired command/option. Note that the even if the author of the pull request has administrator credentials, he cannot use privileged commands or options on his own pull requests.
+| 134   | Ready To Merge | When the auto merge option is deactivated, __Bert-E__ is now waiting for one of the participants to authorize it to merge the PR.
 
 Queues
 ------

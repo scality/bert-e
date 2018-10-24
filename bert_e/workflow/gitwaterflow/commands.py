@@ -199,6 +199,11 @@ def setup(defaults={}):
 
     # Other options
     Reactor.add_option(
+        "merge",
+        "Tells Bert-E that the PR is ready to be merged.",
+        privileged=False,
+        default=defaults.get("merge", False))
+    Reactor.add_option(
         "create_pull_requests",
         "Allow the creation of integration pull requests.",
         privileged=False,
