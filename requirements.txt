@@ -6,6 +6,7 @@ flake8==3.5.0
 Flask==1.0.2
 Flask-Markdown==0.3
 Flask-WTF==0.14.2
+ItsDangerous==0.24
 Jinja2==2.10
 jira==2.0.0
 marshmallow==2.15.4
