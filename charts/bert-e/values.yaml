@@ -251,6 +251,12 @@ bertE:
     ##
     issueTypeToBranchPrefixes: {}
 
+  addon:
+    ## Bitbucket addon details (link to Bert-E in side bar)
+    bitbucket:
+      baseUrl: ""
+      clientId: ""
+      url: ""
 
 ## Bert-E container image
 image:

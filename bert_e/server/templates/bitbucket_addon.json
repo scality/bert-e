@@ -1,0 +1,35 @@
+{
+    "key": "Bert-E",
+    "name": "Bert-E",
+    "description": "Bert-E, gating and merging robot!",
+    "vendor": {
+        "name": "Scality",
+        "url": "https://bitbucket.org/scality/bert-e"
+    },
+    "baseUrl": "{{ base_url }}",
+    "authentication": {
+        "type": "jwt"
+    },
+    "modules": {
+        "oauthConsumer": {
+            "clientId": "{{ client_id }}"
+        },
+        "webItem": [
+            {
+                "url": "{{ url }}",
+                "name": {
+                    "value": "Bert-E"
+                },
+                "location": "org.bitbucket.repository.navigation",
+                "key": "bert-e-main",
+                "params": {
+                    "auiIcon": "aui-iconfont-workflow"
+                }
+            }
+        ],
+        "repoPage": [],
+        "webPanel": []
+    },
+    "scopes": ["account", "repository"],
+    "contexts": ["account"]
+}
