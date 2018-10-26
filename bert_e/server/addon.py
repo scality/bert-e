@@ -23,7 +23,7 @@ LOG = logging.getLogger(__name__)
 blueprint = Blueprint('Bert-E server githost addon endpoints', __name__)
 
 
-@blueprint.route('/bitbucket-addon', methods=['POST'])
+@blueprint.route('/bitbucket-addon', methods=['GET'])
 def bitbucket_addon():
     if current_app.bert_e.settings.repository_host != 'bitbucket':
         abort(404)
