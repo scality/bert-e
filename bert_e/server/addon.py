@@ -14,10 +14,9 @@
 
 """This module defines the server webhook endpoints."""
 
-import json
 import logging
 
-from flask import abort, Blueprint, Response, current_app, request
+from flask import abort, Blueprint, current_app, render_template
 
 LOG = logging.getLogger(__name__)
 blueprint = Blueprint('Bert-E server githost addon endpoints', __name__)
@@ -28,9 +27,9 @@ def bitbucket_addon():
     if current_app.bert_e.settings.repository_host != 'bitbucket':
         abort(404)
 
-    if (not current_app.bert_e.settings.bitbucket_addon_base_url
-            or not current_app.bert_e.settings.bitbucket_addon_client_id
-            or not current_app.bert_e.settings.bitbucket_addon_url):
+    if (not current_app.bert_e.settings.bitbucket_addon_base_url or
+            not current_app.bert_e.settings.bitbucket_addon_client_id or
+            not current_app.bert_e.settings.bitbucket_addon_url):
         abort(404)
 
     return render_template(
