@@ -66,3 +66,6 @@ data:
       {{- end }}
     {{- end }}
     {{- end }}
+    bitbucket_addon_base_url: {{ .Values.bertE.addon.bitbucket.baseUrl }}
+    bitbucket_addon_client_id: {{ .Values.bertE.addon.bitbucket.clientId }}
+    bitbucket_addon_url: {{ .Values.bertE.addon.bitbucket.url }}

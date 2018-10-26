@@ -62,6 +62,10 @@ class SettingsSchema(Schema):
 
     sentry_dsn = fields.Str(missing='')
 
+    bitbucket_addon_base_url = fields.Str(missing='')
+    bitbucket_addon_client_id = fields.Str(missing='')
+    bitbucket_addon_url = fields.Str(missing='')
+
     # Settings coming from CLI arguments
     robot_password = fields.Str(missing='')
     jira_password = fields.Str(missing='')

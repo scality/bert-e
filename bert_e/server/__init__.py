@@ -24,6 +24,7 @@ from flask import Flask, render_template, request
 
 from ..bert_e import BertE
 from ..settings import setup_settings, BertEContextFilter
+from .addon import blueprint as addon_blueprint
 from .api import configure as configure_api
 from .auth import configure as configure_auth
 from .doc import (blueprint as doc_blueprint,
@@ -91,6 +92,7 @@ def setup_server(bert_e):
     app.register_blueprint(status_blueprint)
     app.register_blueprint(manage_blueprint)
     app.register_blueprint(doc_blueprint)
+    app.register_blueprint(addon_blueprint)
 
     @app.context_processor
     def inject_global_vars():

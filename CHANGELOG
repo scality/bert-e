@@ -1,6 +1,10 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [3.2.2] - 2018-10-26
+# Added
+- Add support for installing a link in Bitbucket
+
 ## [3.2.1] - 2018-10-15
 # Fixed
 - Chart deployment can now be set without tls on ingress.

@@ -994,6 +994,22 @@ class TestServer(unittest.TestCase):
             'http://localhost/api/pull-requests/1'
         )
 
+    def test_bitbucket_addon(self):
+        server.BERTE.settings.bitbucket_addon_base_url = ""
+        server.BERTE.settings.bitbucket_addon_client_id = ""
+        server.BERTE.settings.bitbucket_addon_url = ""
+
+        client = self.test_client()
+        resp = client.get('/install-bitbucket-addon')
+        self.assertEqual(404, resp.status_code)
+
+        server.BERTE.settings.bitbucket_addon_base_url = "riri"
+        server.BERTE.settings.bitbucket_addon_client_id = "fifi"
+        server.BERTE.settings.bitbucket_addon_url = "loulou"
+
+        resp = client.get('/install-bitbucket-addon')
+        self.assertEqual(200, resp.status_code)
+
 
 if __name__ == '__main__':
     unittest.main(failfast=True)
