@@ -22,7 +22,7 @@ import re
 from bert_e import exceptions as messages
 from bert_e.job import handler, CommitJob, PullRequestJob, QueuesJob
 from bert_e.lib.cli import confirm
-from bert_e.reactor import Reactor, NotFound, NotPrivileged
+from bert_e.reactor import Reactor, NotFound, NotPrivileged, NotAuthored
 from ..git_utils import push, clone_git_repo
 from ..pr_utils import find_comment, send_comment, create_task
 from .branches import (
@@ -290,9 +290,10 @@ def handle_comments(job):
     for comment in job.pull_request.comments:
         author = comment.author
         privileged = author in admins and author != pr_author
+        authored = author == pr_author
         text = comment.text
         try:
-            reactor.handle_options(job, text, prefix, privileged)
+            reactor.handle_options(job, text, prefix, privileged, authored)
         except NotFound as err:
             raise messages.UnknownCommand(
                 active_options=job.active_options, command=err.keyword,
@@ -302,6 +303,11 @@ def handle_comments(job):
             raise messages.NotEnoughCredentials(
                 active_options=job.active_options, command=err.keyword,
                 author=author, self_pr=(author == pr_author), comment=text
+            ) from err
+        except NotAuthored as err:
+            raise messages.NotAuthor(
+                active_options=job.active_options, command=err.keyword,
+                author=author, pr_author=pr_author, authored=authored
             ) from err
         except TypeError as err:
             raise messages.IncorrectCommandSyntax(
@@ -534,7 +540,8 @@ def check_approvals(job):
         current_leader_approvals = required_leader_approvals
 
     approved_by_author = (not job.settings.need_author_approval or
-                          job.settings.bypass_author_approval)
+                          job.settings.bypass_author_approval or
+                          job.settings.approved)
     requires_unanimity = job.settings.unanimity
     is_unanimous = True
 
@@ -550,6 +557,8 @@ def check_approvals(job):
 
     participants = set(job.pull_request.get_participants())
     approvals = set(job.pull_request.get_approvals())
+    if job.settings.approved:
+        approvals.add(job.pull_request.author)
 
     # Exclude Bert-E from consideration
     participants -= {username}

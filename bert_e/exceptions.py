@@ -224,6 +224,11 @@ class FlakyGitHost(TemplateException):
     template = "flaky_git_host.md"
 
 
+class NotAuthor(TemplateException):
+    code = 134
+    template = "not_author.md"
+
+
 # internal exceptions
 class UnableToSendEmail(InternalException):
     code = 201

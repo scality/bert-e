@@ -3580,6 +3580,107 @@ project_leaders:
                         settings=settings,
                         backtrace=True)
 
+    def test_comment_authored(self):
+        settings = """
+repository_owner: {owner}
+repository_slug: {slug}
+repository_host: {host}
+robot_username: {robot}
+robot_email: nobody@nowhere.com
+pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
+commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
+build_key: pre-merge
+required_peer_approvals: 1
+need_author_approval: True
+admins:
+  - {admin}
+""" # noqa
+        pr = self.create_pr('bugfix/TEST-994', 'development/4.3')
+        pr_peer = self.admin_bb.get_pull_request(pull_request_id=pr.id)
+        comment = pr_peer.add_comment('@%s approved' %
+                                      self.args.robot_username)
+        # Ensure that only authors can use this option
+        with self.assertRaises(exns.NotAuthor):
+            self.handle(pr.id,
+                        settings=settings,
+                        options=[
+                            'bypass_build_status',
+                            'bypass_jira_check',
+                        ],
+                        backtrace=True)
+        comment.delete()
+        pr_peer.approve()
+        with self.assertRaises(exns.ApprovalRequired):
+            self.handle(pr.id,
+                        settings=settings,
+                        options=[
+                            'bypass_build_status',
+                            'bypass_jira_check',
+                        ],
+                        backtrace=True)
+        pr.add_comment('@%s approved' % self.args.robot_username)
+        with self.assertRaises(exns.SuccessMessage):
+            self.handle(pr.id,
+                        settings=settings,
+                        options=[
+                            'bypass_build_status',
+                            'bypass_jira_check',
+                        ],
+                        backtrace=True)
+
+    def test_author_approval_option(self):
+        """Test the author approval option."""
+        settings = """
+repository_owner: {owner}
+repository_slug: {slug}
+repository_host: {host}
+robot_username: {robot}
+robot_email: nobody@nowhere.com
+pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
+commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
+build_key: pre-merge
+required_leader_approvals: 1
+required_peer_approvals: 1
+need_author_approval: True
+admins:
+  - {admin}
+project_leaders:
+  - {contributor}
+  - another_leader_handle
+""" # noqa
+        pr = self.create_pr('bugfix/TEST-00003', 'development/4.3')
+        pr_admin = self.admin_bb.get_pull_request(
+            pull_request_id=pr.id)
+        with self.assertRaises(exns.ApprovalRequired):
+            self.handle(
+                pr.id,
+                options=[
+                    'bypass_jira_check',
+                    'bypass_build_status',
+                ],
+                settings=settings,
+                backtrace=True)
+        pr_admin.approve()
+        with self.assertRaises(exns.ApprovalRequired):
+            self.handle(
+                pr.id,
+                options=[
+                    'bypass_jira_check',
+                    'bypass_build_status',
+                ],
+                settings=settings,
+                backtrace=True)
+        pr.add_comment('@%s approved' % self.args.robot_username)
+        with self.assertRaises(exns.SuccessMessage):
+            self.handle(
+                pr.id,
+                options=[
+                    'bypass_jira_check',
+                    'bypass_build_status',
+                ],
+                settings=settings,
+                backtrace=True)
+
 
 class TestQueueing(RepositoryTests):
     """Tests which validate all things related to the merge queue.

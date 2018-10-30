@@ -108,19 +108,20 @@ __Bert-E__:
 The active options will also be reminded in the footer each message sent by
 __Bert-E__.
 
-| options name              | description              | requires admin rights? |
-|:------------------------- |:------------------------ |:----------------------:|
-| after_pull_request        | Wait for the given pull request id to be merged before continuing with the current one. May be used like this: @bert-e after_pull_request=< pr_id_1 > ... | no
-| bypass_author_approval    | Bypass the pull request author's approval (**This option has no effect on GitHub** where author approvals are not supported)   | yes
-| bypass_build_status       | Bypass the build and test status| yes
-| bypass_incompatible_branch | Bypass the check on the source branch prefix | yes
-| bypass_jira_check         | Bypass the Jira issue check| yes |
-| bypass_peer_approval      | Bypass the pull request peer's approval | yes
-| bypass_leader_approval    | Bypass the pull request leader's approval | yes
-| create_pull_requests      | Let __Bert-E__ create pull requests corresponding to integration branches | no
-| no_octopus                | Prevent Wall-E from doing any octopus merge and use multiple consecutive merge instead | yes
-| unanimity                 | Change review acceptance criteria from `one reviewer at least` to `all reviewers` (**this feature is not supported on GitHub**) | no
-| wait                      | Instruct __Bert-E__ not to run until further notice | no
+| options name              | description              | requires admin rights? | requires pull request author? |
+|:------------------------- |:------------------------ |:----------------------:|:-----------------------------:|
+| after_pull_request        | Wait for the given pull request id to be merged before continuing with the current one. May be used like this: @bert-e after_pull_request=< pr_id_1 > ... | no | no
+| bypass_author_approval    | Bypass the pull request author's approval (**This option has no effect on GitHub** where author approvals are not supported)   | yes | no
+| bypass_build_status       | Bypass the build and test status| yes | no
+| bypass_incompatible_branch | Bypass the check on the source branch prefix | yes | no
+| bypass_jira_check         | Bypass the Jira issue check | yes | no
+| bypass_peer_approval      | Bypass the pull request peer's approval | yes | no
+| bypass_leader_approval    | Bypass the pull request leader's approval | yes | no
+| create_pull_requests      | Let __Bert-E__ create pull requests corresponding to integration branches | no | no
+| no_octopus                | Prevent Wall-E from doing any octopus merge and use multiple consecutive merge instead | yes | no
+| unanimity                 | Change review acceptance criteria from `one reviewer at least` to `all reviewers` (**this feature is not supported on GitHub**) | no | no
+| wait                      | Instruct __Bert-E__ not to run until further notice | no | no
+| approved                  | Tells __Bert-E__ that the author has approved the PR | no | yes
 
 > **Example: Unanimity option**
 >
@@ -464,6 +465,7 @@ to progress to the next step.  message code
 | 121   | Integration data created | __Bert-E__ notifies the owner that he succesfully created the integration branches and the related pull requests, and provides a link to them. No action required
 | 122   | Unknown command | One of the participants asked __Bert-E__ to activate an option, or execute a command he doesn't know. Edit the corresponding message if it contains a typo. Delete it otherwise
 | 123   | Not authorized | One of the participants asked __Bert-E__ to activate a privileged option, or execute a privileged  command, but doesn't have enough credentials to do so. Delete the corresponding command ask a __Bert-E__ administrator to run/set the desired command/option. Note that the even if the author of the pull request has administrator credentials, he cannot use privileged commands or options on his own pull requests.
+| 134   | Not author | One of the participants asked __Bert-E__ to activate an authored option, but the participant is not the author of the pull request.
 
 Queues
 ------

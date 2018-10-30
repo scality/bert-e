@@ -145,6 +145,13 @@ class NotPrivileged(Error):
         self.keyword = keyword
 
 
+class NotAuthored(Error):
+    """A user tried to use an author only command or option."""
+    def __init__(self, keyword: str):
+        super().__init__()
+        self.keyword = keyword
+
+
 class NotFound(Error):
     """The requested command or option doesn't exist."""
     def __init__(self, keyword: str):
@@ -154,8 +161,9 @@ class NotFound(Error):
 
 LOG = logging.getLogger(__name__)
 
-Command = namedtuple('Command', ['handler', 'help', 'privileged'])
-Option = namedtuple('Option', ['handler', 'default', 'help', 'privileged'])
+Command = namedtuple('Command', ['handler', 'help', 'privileged', 'authored'])
+Option = namedtuple('Option', ['handler', 'default', 'help', 'privileged',
+                               'authored'])
 
 
 def normalize_whitespace(msg):
@@ -174,10 +182,11 @@ class Reactor(Dispatcher):
     """Central dispatching class for comment-based commands and options."""
 
     @classmethod
-    def add_command(cls, key, handler, help_=None, privileged=False):
+    def add_command(cls, key, handler, help_=None, privileged=False,
+                    authored=False):
         """Register a new command to the reactor."""
         help_ = normalize_whitespace(help_ or handler.__doc__)
-        cls.set_callback(key, Command(handler, help_, privileged))
+        cls.set_callback(key, Command(handler, help_, privileged, authored))
 
     @classmethod
     def command(cls, key=None, help_=None, privileged=False):
@@ -208,17 +217,20 @@ class Reactor(Dispatcher):
         return decorator
 
     @classmethod
-    def add_option(cls, key, help_=None, privileged=False, default=None):
+    def add_option(cls, key, help_=None, privileged=False, default=None,
+                   authored=False):
         """Add a basic option to the reactor."""
 
         def set_option(job, arg=True):
             job.settings[key] = arg
 
         help_ = normalize_whitespace(help_)
-        cls.set_callback(key, Option(set_option, default, help_, privileged))
+        cls.set_callback(key, Option(set_option, default, help_, privileged,
+                                     authored))
 
     @classmethod
-    def option(cls, key=None, default=None, help_=None, privileged=False):
+    def option(cls, key=None, default=None, help_=None, privileged=False,
+               authored=False):
         """Decorator to register an option handler.
 
         Args:
@@ -233,7 +245,8 @@ class Reactor(Dispatcher):
             func = key
             help_ = normalize_whitespace(help_ or func.__doc__)
             cls.set_callback(
-                func.__name__, Option(func, default, help_, privileged)
+                func.__name__, Option(func, default, help_, privileged,
+                                      authored)
             )
             return func
 
@@ -241,7 +254,8 @@ class Reactor(Dispatcher):
         def decorator(func):
             _key = key or func.__name__
             _help = normalize_whitespace(help_ or func.__doc__)
-            cls.set_callback(_key, Option(func, default, _help, privileged))
+            cls.set_callback(_key, Option(func, default, _help, privileged,
+                                          authored))
             return func
         return decorator
 
@@ -265,7 +279,8 @@ class Reactor(Dispatcher):
         for key, option in self.get_options().items():
             job.settings[key] = copy(option.default)
 
-    def handle_options(self, job, text, prefix, privileged=False):
+    def handle_options(self, job, text, prefix, privileged=False,
+                       authored=False):
         """Find option calls in given text string, and execute the
         corresponding option handlers if any is found.
 
@@ -291,6 +306,8 @@ class Reactor(Dispatcher):
                       an unknown option.
             NotPrivileged: when a privileged option declaration is found
                            and the method is called with privileged=False.
+            NotAuthored: when an authored option declaration is found and the
+                         method is called with authored=False.
 
         """
         raw = text.strip()
@@ -321,6 +338,9 @@ class Reactor(Dispatcher):
 
             if option.privileged and not privileged:
                 raise NotPrivileged(key)
+
+            if option.authored and not authored:
+                raise NotAuthored(key)
 
             # Everything is okay, apply the option
             option.handler(job, *args)
