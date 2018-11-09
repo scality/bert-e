@@ -572,6 +572,8 @@ def check_approvals(job):
     missing_peer_approvals = (
         required_peer_approvals - current_peer_approvals)
 
+    LOG.info('approvals: %s' % locals())
+
     if not approved_by_author or \
             missing_leader_approvals > 0 or \
             missing_peer_approvals > 0 or \
