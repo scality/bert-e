@@ -26,6 +26,18 @@ class BertEContextFilter(logging.Filter):
         return True
 
 
+class Users(fields.List):
+    """Return the usernames in lower case"""
+
+    def _deserialize(self, value, attr, data, **kwargs):
+        return [x.lower() for x in value]
+
+
+class User(fields.Str):
+    def _deserialize(self, value, attr, data, **kwargs):
+        return value.lower()
+
+
 class SettingsSchema(Schema):
     # Settings defined in config files
     always_create_integration_pull_requests = fields.Bool(missing=True)
@@ -34,7 +46,7 @@ class SettingsSchema(Schema):
     repository_slug = fields.Str(required=True)
     repository_host = fields.Str(required=True)
 
-    robot_username = fields.Str(required=True)
+    robot_username = User(required=True)
     robot_email = fields.Str(required=True)
 
     pull_request_base_url = fields.Str(required=True)
@@ -54,8 +66,8 @@ class SettingsSchema(Schema):
     bypass_prefixes = fields.List(fields.Str(), missing=[])
 
     organization = fields.Str(fields.Str(), missing='')
-    admins = fields.List(fields.Str(), missing=[])
-    project_leaders = fields.List(fields.Str(), missing=[])
+    admins = Users(fields.Str(), missing=[])
+    project_leaders = Users(fields.Str(), missing=[])
     tasks = fields.List(fields.Str(), missing=[])
 
     max_commit_diff = fields.Int(missing=0)

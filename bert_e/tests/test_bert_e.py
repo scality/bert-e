@@ -3526,6 +3526,60 @@ project_leaders:
                         settings=settings,
                         backtrace=True)
 
+    def test_upper_case_users(self):
+        """Test a pull request with usernames defined in upper case."""
+
+        settings = """
+repository_owner: {owner}
+repository_slug: {slug}
+repository_host: {host}
+robot_username: {robot}
+robot_email: nobody@nowhere.com
+pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
+commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
+build_key: pre-merge
+need_author_approval: True
+required_leader_approvals: 1
+required_peer_approvals: 1
+admins:
+  - %s
+project_leaders:
+  - %s
+  - another_leader_handle
+""" % (self.args.admin_username.upper(), self.args.contributor_username.upper()) # noqa
+
+        pr = self.create_pr('bugfix/TEST-00003', 'development/4.3')
+        with self.assertRaises(exns.ApprovalRequired):
+            self.handle(pr.id,
+                        options=[
+                            'bypass_jira_check',
+                            'bypass_build_status',
+                        ],
+                        settings=settings,
+                        backtrace=True)
+
+        pr_peer = self.admin_bb.get_pull_request(
+            pull_request_id=pr.id)
+        pr_peer.approve()
+        with self.assertRaises(exns.ApprovalRequired):
+            self.handle(pr.id,
+                        options=[
+                            'bypass_jira_check',
+                            'bypass_build_status',
+                        ],
+                        settings=settings,
+                        backtrace=True)
+
+        pr.approve()
+        with self.assertRaises(exns.SuccessMessage):
+            self.handle(pr.id,
+                        options=[
+                            'bypass_jira_check',
+                            'bypass_build_status',
+                        ],
+                        settings=settings,
+                        backtrace=True)
+
 
 class TestQueueing(RepositoryTests):
     """Tests which validate all things related to the merge queue.
@@ -5759,15 +5813,15 @@ def main():
     parser.add_argument(
         'owner',
         help='Owner of test repository (aka Bitbucket/GitHub team)')
-    parser.add_argument('robot_username',
+    parser.add_argument('robot_username', type=str.lower,
                         help='Robot Bitbucket/GitHub username')
     parser.add_argument('robot_password',
                         help='Robot Bitbucket/GitHub password')
-    parser.add_argument('contributor_username',
+    parser.add_argument('contributor_username', type=str.lower,
                         help='Contributor Bitbucket/GitHub username')
     parser.add_argument('contributor_password',
                         help='Contributor Bitbucket/GitHub password')
-    parser.add_argument('admin_username',
+    parser.add_argument('admin_username', type=str.lower,
                         help='Privileged user Bitbucket/GitHub username')
     parser.add_argument('admin_password',
                         help='Privileged user Bitbucket/GitHub password')

@@ -739,7 +739,7 @@ class PullRequest(GithubObject, base.AbstractPullRequest):
 
     def get_participants(self):
         reviews = self._reviews or self.get_reviews()
-        return (r.author for r in reviews)
+        return (r.author.lower() for r in reviews)
 
     def get_approvals(self):
         reviews = self._reviews or self.get_reviews()
@@ -749,7 +749,7 @@ class PullRequest(GithubObject, base.AbstractPullRequest):
             if r.author not in squash or r.id > squash[r.author]['id']:
                 squash[r.author] = {'approved': r.approved, 'id': r.id}
 
-        return (a for a in squash if squash[a]['approved'])
+        return (a.lower() for a in squash if squash[a]['approved'])
 
     def approve(self):
         rev = Review.create(

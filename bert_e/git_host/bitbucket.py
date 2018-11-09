@@ -339,11 +339,11 @@ class PullRequest(BitBucketObject, base.AbstractPullRequest):
     def get_approvals(self):
         for participant in self['participants']:
             if participant['approved']:
-                yield participant['user']['username']
+                yield participant['user']['username'].lower()
 
     def get_participants(self):
         for participant in self['participants']:
-            yield participant['user']['username']
+            yield participant['user']['username'].lower()
 
     def merge(self):
         self._json_data['full_name'] = self.full_name()
