@@ -3529,7 +3529,7 @@ robot_email: nobody@nowhere.com
 pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
 commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
 build_key: pre-merge
-need_author_approval: False
+need_author_approval: True
 required_leader_approvals: 1
 required_peer_approvals: 1
 admins:
@@ -3549,7 +3549,7 @@ project_leaders:
                         settings=settings,
                         backtrace=True)
 
-        pr_peer = self.robot_bb.get_pull_request(
+        pr_peer = self.admin_bb.get_pull_request(
             pull_request_id=pr.id)
         pr_peer.approve()
         with self.assertRaises(exns.ApprovalRequired):

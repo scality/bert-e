@@ -1,4 +1,4 @@
-coverage==4.2
+coverage==4.5.1
 flake8==3.0.2
 jira==1.0.3
 requests==2.9.1
