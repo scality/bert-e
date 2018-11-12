@@ -1,9 +1,13 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
-## [3.2.2] - 2018-10-26
+## [3.2.2] - 2018-11-12
+# Fixed
+- Handle insensitive case for usernames
+
 # Added
 - Add support for installing a link in Bitbucket
+- Add support of author approval via comments (useful for Github)
 
 ## [3.2.1] - 2018-10-15
 # Fixed
