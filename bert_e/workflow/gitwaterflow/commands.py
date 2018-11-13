@@ -199,10 +199,10 @@ def setup(defaults={}):
 
     # Other options
     Reactor.add_option(
-        "approved",
+        "approve",
         "Instruct Bert-E that the author has approved the pull request.",
         authored=True,
-        default=defaults.get("approved", False)
+        default=defaults.get("approve", False)
     )
     Reactor.add_option(
         "create_pull_requests",

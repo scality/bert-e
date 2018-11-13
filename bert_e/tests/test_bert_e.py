@@ -3597,7 +3597,7 @@ admins:
 """ # noqa
         pr = self.create_pr('bugfix/TEST-994', 'development/4.3')
         pr_peer = self.admin_bb.get_pull_request(pull_request_id=pr.id)
-        comment = pr_peer.add_comment('@%s approved' %
+        comment = pr_peer.add_comment('@%s approve' %
                                       self.args.robot_username)
         # Ensure that only authors can use this option
         with self.assertRaises(exns.NotAuthor):
@@ -3618,7 +3618,7 @@ admins:
                             'bypass_jira_check',
                         ],
                         backtrace=True)
-        pr.add_comment('@%s approved' % self.args.robot_username)
+        pr.add_comment('@%s approve' % self.args.robot_username)
         with self.assertRaises(exns.SuccessMessage):
             self.handle(pr.id,
                         settings=settings,
@@ -3670,7 +3670,7 @@ project_leaders:
                 ],
                 settings=settings,
                 backtrace=True)
-        pr.add_comment('@%s approved' % self.args.robot_username)
+        pr.add_comment('@%s approve' % self.args.robot_username)
         with self.assertRaises(exns.SuccessMessage):
             self.handle(
                 pr.id,

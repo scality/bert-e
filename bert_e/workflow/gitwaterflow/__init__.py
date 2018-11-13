@@ -541,7 +541,7 @@ def check_approvals(job):
 
     approved_by_author = (not job.settings.need_author_approval or
                           job.settings.bypass_author_approval or
-                          job.settings.approved)
+                          job.settings.approve)
     requires_unanimity = job.settings.unanimity
     is_unanimous = True
 
@@ -557,7 +557,7 @@ def check_approvals(job):
 
     participants = set(job.pull_request.get_participants())
     approvals = set(job.pull_request.get_approvals())
-    if job.settings.approved:
+    if job.settings.approve:
         approvals.add(job.pull_request.author)
 
     # Exclude Bert-E from consideration

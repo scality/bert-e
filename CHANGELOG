@@ -1,6 +1,10 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [3.2.3] - 2018-11-13
+# Fixed
+- Change the author approval option from "approved" to "approve"
+
 ## [3.2.2] - 2018-11-12
 # Fixed
 - Handle insensitive case for usernames
