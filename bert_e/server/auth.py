@@ -132,7 +132,7 @@ def _handle_authorize(bert_e, user_info):
     user = user_info.get('preferred_username', None)
     if not user:
         return unauthorized('preferred_username missing in user info!')
-
+    user = user.lower()
     org = bert_e.settings.organization
     if org:
         email = user_info.get('email', None)

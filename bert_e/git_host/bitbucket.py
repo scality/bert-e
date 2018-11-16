@@ -383,7 +383,7 @@ class PullRequest(BitBucketObject, base.AbstractPullRequest):
 
     @property
     def author(self):
-        return self['author']['username']
+        return self['author']['username'].lower()
 
     @property
     def author_display_name(self):
@@ -471,7 +471,7 @@ class Comment(BitBucketObject, base.AbstractComment):
 
     @property
     def author(self):
-        return self['user']['username']
+        return self['user']['username'].lower()
 
     @property
     def text(self):

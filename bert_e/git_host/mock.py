@@ -333,7 +333,7 @@ class PullRequestController(Controller, base.AbstractPullRequest):
 
     @property
     def author(self):
-        return self['author']['username']
+        return self['author']['username'].lower()
 
     @property
     def author_display_name(self):
@@ -383,7 +383,7 @@ class CommentController(Controller, base.AbstractComment):
 
     @property
     def author(self):
-        return self['user']['username']
+        return self['user']['username'].lower()
 
     @property
     def text(self):

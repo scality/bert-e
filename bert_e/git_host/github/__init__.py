@@ -667,7 +667,7 @@ class PullRequest(GithubObject, base.AbstractPullRequest):
 
     @property
     def author(self) -> str:
-        return self.data['user']['login']
+        return self.data['user']['login'].lower()
 
     @property
     def author_display_name(self) -> str:
@@ -781,7 +781,7 @@ class Comment(GithubObject, base.AbstractComment):
 
     @property
     def author(self) -> str:
-        return self.data['user']['login']
+        return self.data['user']['login'].lower()
 
     @property
     def text(self) -> str:
@@ -805,7 +805,7 @@ class Review(GithubObject):
 
     @property
     def author(self) -> str:
-        return self.data['user']['login']
+        return self.data['user']['login'].lower()
 
     @property
     def approved(self) -> str:
