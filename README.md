@@ -1,6 +1,6 @@
 # README
 
-Scality's automated branch merging tool. Version 3.1.
+Scality's automated branch merging tool.
 
 ### How to install?
 

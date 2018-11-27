@@ -65,6 +65,8 @@ class SettingsSchema(Schema):
     prefixes = fields.Dict(missing={})
     bypass_prefixes = fields.List(fields.Str(), missing=[])
 
+    disable_version_checks = fields.Bool(missing=False)
+
     organization = fields.Str(fields.Str(), missing='')
     admins = Users(fields.Str(), missing=[])
     project_leaders = Users(fields.Str(), missing=[])

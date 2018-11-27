@@ -1,6 +1,11 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [3.2.5] - 2018-11-28
+# Added
+- Add a configuration flag to allow disabling version checks for a bert-e
+  instance
+
 ## [3.2.4] - 2018-11-16
 # Fixed
 - Lower case bugs on admin page and with PR authors

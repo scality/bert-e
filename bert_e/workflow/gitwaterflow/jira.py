@@ -51,7 +51,9 @@ def jira_checks(job):
     issue = get_jira_issue(job)
     check_project(job, issue)
     check_issue_type(job, issue)
-    check_fix_versions(job, issue)
+
+    if not job.settings.disable_version_checks:
+        check_fix_versions(job, issue)
 
 
 def get_jira_issue(job):

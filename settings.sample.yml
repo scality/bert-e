@@ -129,6 +129,15 @@ bypass_prefixes:
   - documentation
 
 
+# disable_version_checks [OPTIONAL]
+#
+# Disable the fix_version checks when the project has jira_keys set
+#
+#   default value: false
+#   accepted values: true or false
+disable_version_checks: true
+
+
 # admins [OPTIONAL]:
 #   The list of githost accounts allowed to post privileged messages
 #   to the bot

@@ -3681,6 +3681,22 @@ project_leaders:
                 settings=settings,
                 backtrace=True)
 
+    def test_disable_version_checks(self):
+        """Test the version checks disabling option."""
+        settings = DEFAULT_SETTINGS + 'disable_version_checks: true'
+        pr = self.create_pr('bugfix/TEST-2048', 'development/4.3')
+        with self.assertRaises(exns.SuccessMessage):
+            self.handle(
+                pr.id,
+                options=[
+                    'bypass_author_approval',
+                    'bypass_peer_approval',
+                    'bypass_leader_approval',
+                    'bypass_build_status',
+                ],
+                settings=settings,
+                backtrace=True)
+
 
 class TestQueueing(RepositoryTests):
     """Tests which validate all things related to the merge queue.
