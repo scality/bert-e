@@ -203,6 +203,15 @@ bertE:
     ##
     maxCommitDiff: 0
 
+    ## disableVersionChecks specifies whether the issue tracker's version
+    ## checks should be disabled.
+    ##
+    ##   Only relevant if jira projects are set
+    ##
+    ##  default value: false
+    ##
+    disableVersionChecks: false
+
   ## Bert-E can optionnaly check that a Jira ticket exists and is in the expected
   ## correct state before agreeing on merging some code.
   jira:

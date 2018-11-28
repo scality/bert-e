@@ -29,6 +29,7 @@ data:
     need_author_approval: {{ .Values.bertE.gating.needAuthorApproval }}
     required_peer_approvals: {{ .Values.bertE.gating.requiredPeerApprovals }}
     required_leader_approvals: {{ .Values.bertE.gating.requiredProjectLeaderApprovals }}
+    disable_version_checks: {{ .Values.bertE.gating.disableVersionChecks }}
     {{- if .Values.bertE.gating.projectAdmins }}
     admins:
       {{- range .Values.bertE.gating.projectAdmins }}
