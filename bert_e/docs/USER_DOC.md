@@ -50,7 +50,8 @@ specific messages.
       branch
     * the branch name must contain a valid Jira ticket (on the corresponding
       project)
-    * check that the Fix Version/s field in the Jira ticket is coherent
+    * check that the Fix Version/s field in the Jira ticket is coherent (can be
+      deactivated by configuration of Bert-E)
     * the diff introduced by the branch is less than 1000 lines
 
 * The rules to progress to the **final merge** are, in addition to the rules
@@ -336,6 +337,7 @@ release notes. It is therefore important that this information is correct.
 *__Bert-E__ sends message code 112 in case of non-conformance.*
 
 > This check can be bypassed by an admin with the __bypass_jira_check__ option.
+> This check can also be permanently deactivated through Bert-E's configuration.
 
 ---
 
