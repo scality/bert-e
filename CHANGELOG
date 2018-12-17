@@ -1,6 +1,10 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [3.2.6] - 2018-11-28
+# Fixed
+- Fixed the user documentation for the disable_version_check flag
+
 ## [3.2.5] - 2018-11-28
 # Added
 - Add a configuration flag to allow disabling version checks for a bert-e
