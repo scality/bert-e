@@ -10,6 +10,7 @@ metadata:
     heritage: "{{ .Release.Service }}"
 data:
   settings.yml: |-
+    frontend_url: {{ .Values.bertE.robot.frontend_url }}
     repository_host: {{ .Values.bertE.repository.gitHost | quote }}
     repository_owner: {{ .Values.bertE.repository.owner | quote }}
     repository_slug: {{ .Values.bertE.repository.slug | quote }}

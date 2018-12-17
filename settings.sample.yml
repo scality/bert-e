@@ -1,3 +1,8 @@
+# frontend_url [OPTIONAL]:
+#   The URL on which bert-e's frontend is accessible for the users.
+#   It is used in bert-e's init messages to provide a link to the UI.
+frontend_url: https://bert-e.mydomain.com/bitbucket/my_company/my_repository/bert-e/
+
 # repository_host [MANDATORY]:
 #   The git hosting provider for the repository. Either bitbucket or github.
 repository_host: bitbucket

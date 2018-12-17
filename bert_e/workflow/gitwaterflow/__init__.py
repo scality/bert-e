@@ -259,7 +259,8 @@ def send_greetings(job):
     comment = send_comment(
         job.settings, job.pull_request, messages.InitMessage(
             bert_e=username, author=job.pull_request.author_display_name,
-            status={}, active_options=job.active_options, tasks=tasks
+            status={}, active_options=job.active_options, tasks=tasks,
+            frontend_url=job.settings.frontend_url
         )
     )
 

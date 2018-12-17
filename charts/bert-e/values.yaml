@@ -81,6 +81,12 @@ bertE:
     ##
     password: "a_secret_password"
 
+    ## frontend_url contains the url where the running bert-e's UI is reachable
+    ##
+    ##   This URL will be provided in the init messages for each PR.
+    ##
+    frontend_url: None
+
   ## Authentication details for webhook.
   ##
   ##   Bert-E wakes up on wehooks received from the git host, which must be
