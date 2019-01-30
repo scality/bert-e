@@ -260,7 +260,7 @@ def send_greetings(job):
         job.settings, job.pull_request, messages.InitMessage(
             bert_e=username, author=job.pull_request.author_display_name,
             status={}, active_options=job.active_options, tasks=tasks,
-            frontend_url=job.settings.frontend_url
+            frontend_url=job.bert_e.settings.frontend_url
         )
     )
 

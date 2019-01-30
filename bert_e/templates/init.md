@@ -6,10 +6,10 @@ Hello {{ author }},
 
 {% block message %}
 My role is to assist you with the merge of this
-pull request. {% if frontend_url and frontend_url != ''
+pull request. {% if frontend_url
 %}Please type `@{{ bert_e }} help` to get information
-on this process, or consult the
-[user documentation]({{ frontend_url }}/doc/user).{% endif %}
+on this process, or consult the [user documentation](
+{{ frontend_url }}/doc/user).{% endif %}
 
 {% if tasks %}
 I have created below the minimum set of tasks expected to be performed during

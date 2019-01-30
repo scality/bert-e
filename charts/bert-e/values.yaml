@@ -85,7 +85,7 @@ bertE:
     ##
     ##   This URL will be provided in the init messages for each PR.
     ##
-    frontend_url: None
+    frontend_url:
 
   ## Authentication details for webhook.
   ##
