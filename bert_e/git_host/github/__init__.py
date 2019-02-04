@@ -741,7 +741,7 @@ class PullRequest(GithubObject, base.AbstractPullRequest):
         reviews = self._reviews or self.get_reviews()
         return (r.author.lower() for r in reviews)
 
-    def get_approvals(self):
+    def get_summarized_reviews(self):
         """
         Github API provides three statuses relevant for gating:
             APPROVED, DISMISSED, CHANGES_REQUESTED.
@@ -758,11 +758,31 @@ class PullRequest(GithubObject, base.AbstractPullRequest):
         filtered.sort(key=lambda r: r.id)
         # ID-based ordering ensure that we can simply select the last for any
         # author, to get the "current" status.
-        squash = {
+        summary = {
             author: list(filter(lambda r: r.author == author, filtered))[-1]
             for author in self.get_participants()}
 
-        return (a.lower() for a in squash.values() if squash[a]['approved'])
+        return summary
+
+    def get_change_requests(self):
+        summary = self.get_summarized_reviews()
+        return (r.author.lower()
+                for r in summary.values() if r.changes_requested)
+
+    def get_approvals(self):
+        summary = self.get_summarized_reviews()
+        return (r.author.lower() for r in summary.values() if r.approved)
+
+    def request_changes(self):
+        rev = Review.create(
+            client=self.client,
+            data={'body': 'NOPE', 'event': 'REQUEST_CHANGES'},
+            headers={
+                'Accept': 'application/vnd.github.black-cat-preview+json'
+            },
+            owner=self.repo.owner, repo=self.repo.slug, number=self.id
+        )
+        return rev
 
     def approve(self):
         rev = Review.create(
@@ -842,6 +862,10 @@ class Review(GithubObject):
     @property
     def commented(self) -> str:
         return self.data['state'].lower() == 'commented'
+
+    @property
+    def changes_requested(self) -> str:
+        return self.data['state'].lower() == 'changes_requested'
 
     @property
     def id(self) -> int:

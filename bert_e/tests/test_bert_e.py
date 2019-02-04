@@ -1445,6 +1445,98 @@ admins:
                         backtrace=True)
         self.assertNotIn('expecting changes', raised.exception.msg)
 
+    def test_change_requests(self):
+        """ Test that change_requests block the gating
+        This test relies on both approve() and dismiss() methods.
+        """
+        feature_branch = 'bugfix/TEST-0007-request-changes'
+        dst_branch = 'development/4.3'
+
+        if self.args.git_host == 'bitbucket':
+            self.skipTest("Change requests/dismissals are not supported" +
+                          " on Bitbucket")
+
+        # test bert-e with only one required peer approval
+        settings = """
+repository_owner: {owner}
+repository_slug: {slug}
+repository_host: {host}
+robot_username: {robot}
+robot_email: nobody@nowhere.com
+pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
+commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
+build_key: pre-merge
+required_leader_approvals: 0
+required_peer_approvals: 1
+admins:
+  - {admin}
+""" # noqa
+
+        # Having one change_requests blocks the gating on github
+        pr = self.create_pr(feature_branch, dst_branch)
+
+        # Check that Approvals are required at this point.
+        with self.assertRaises(exns.ApprovalRequired) as raised:
+            self.handle(pr.id, options=['bypass_jira_check'],
+                        settings=settings, backtrace=True)
+        self.assertNotIn('expecting changes', raised.exception.msg)
+
+        # Add a change request from a second peer
+        pr_peer2 = self.robot_bb.get_pull_request(pull_request_id=pr.id)
+        review_peer2 = pr_peer2.request_changes()
+
+        # Check that Approvals are still required, and that the request change
+        # is mentionned
+        with self.assertRaises(exns.ApprovalRequired) as raised:
+            self.handle(pr.id, options=['bypass_jira_check'],
+                        settings=settings, backtrace=True)
+        self.assertIn('expecting changes', raised.exception.msg)
+
+        # Add the required approvals
+        if self.args.git_host == 'github':
+            pr.add_comment('@%s approve' % (self.args.robot_username))
+        else:
+            pr.approve()
+        pr_peer1 = self.admin_bb.get_pull_request(pull_request_id=pr.id)
+        pr_peer1.approve()
+
+        # Check that only the change request is still blocking the PR
+        with self.assertRaises(exns.ApprovalRequired) as raised:
+            self.handle(pr.id, options=['bypass_jira_check'],
+                        settings=settings, backtrace=True)
+        self.assertIn('expecting changes', raised.exception.msg)
+
+        # Dismiss with the third user,
+        # effectively nullifying the change request
+        pr_peer2.dismiss(review_peer2)
+
+        # Check that the PR is now passing.
+        with self.assertRaises(exns.BuildNotStarted) as raised:
+            self.handle(pr.id,
+                        options=['bypass_jira_check'],
+                        settings=settings, backtrace=True)
+
+        # Add a change request again from the third user
+        pr_peer2 = self.admin_bb.get_pull_request(pull_request_id=pr.id)
+        review_peer2 = pr_peer2.request_changes()
+
+        # Check that he's blocking the process again
+        with self.assertRaises(exns.ApprovalRequired) as raised:
+            self.handle(pr.id, options=['bypass_jira_check'],
+                        settings=settings, backtrace=True)
+        self.assertIn('expecting changes', raised.exception.msg)
+
+        # Approve with the third user,
+        # effectively nullifying the change request
+        pr_peer2.approve()
+
+        # Check that the PR is now passing.
+        with self.assertRaises(exns.SuccessMessage) as raised:
+            self.handle(pr.id,
+                        options=['bypass_jira_check',
+                                 'bypass_build_status'],
+                        settings=settings, backtrace=True)
+
     def test_branches_creation_main_pr_not_approved(self):
         """Test if Bert-e creates integration pull-requests when the main
         pull-request isn't approved.

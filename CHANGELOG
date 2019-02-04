@@ -6,6 +6,9 @@ All notable changes to this project will be documented in this file.
 - Fix rendering of the Init Message for open PRs including the user doc link
 - Fix the author approval counting logic for github when commenting after an
   approval
+# Added
+- Add support for review dismissal and request for changes in github review
+  system. Requests for change now block bert-e's progress.
 
 ## [3.2.7] - 2018-12-17
 # Added

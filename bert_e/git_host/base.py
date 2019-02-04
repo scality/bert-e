@@ -172,6 +172,11 @@ class AbstractPullRequest(metaclass=ABCMeta):
         """
 
     @abstractmethod
+    def get_change_requests(self) -> Iterable[str]:
+        """Get the usernames of participants who requested changes on
+        this pull request."""
+
+    @abstractmethod
     def get_approvals(self) -> Iterable[str]:
         """Get the usernames of participants who approved this pull request."""
 
@@ -186,6 +191,10 @@ class AbstractPullRequest(metaclass=ABCMeta):
         Returns: an iterable over the Task objects.
 
         """
+
+    @abstractmethod
+    def request_changes(self):
+        """Request changes on this pull request."""
 
     @abstractmethod
     def approve(self):

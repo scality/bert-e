@@ -275,14 +275,19 @@ class PullRequestController(Controller, base.AbstractPullRequest):
     def merge(self):
         raise NotImplemented('Merge')
 
+    def request_changes(self):
+        self.update_participant(changes_requested=True, role='REVIEWER')
+
     def approve(self):
-        self.update_participant(approved=True, role='REVIEWER')
+        self.update_participant(approved=True, changes_requested=False,
+                                role='REVIEWER')
 
     def dismiss(self, review):
         self.update_participant(approved=False, changes_requested=False,
                                 role='REVIEWER')
 
-    def update_participant(self, approved=None, role=None):
+    def update_participant(self, approved=None, role=None,
+                           changes_requested=None):
         # locate participant
         exists = False
         for participant in self['participants']:
@@ -298,6 +303,8 @@ class PullRequestController(Controller, base.AbstractPullRequest):
         # update it
         if approved is not None:
             participant['approved'] = approved
+        if changes_requested is not None:
+            participant['changes_requested'] = changes_requested
         if role is not None:
             # role cannot downgrade from REVIEWER to PARTICIPANT
             if participant['role'] == 'REVIEWER' and role == 'PARTICIPANT':
@@ -308,7 +315,13 @@ class PullRequestController(Controller, base.AbstractPullRequest):
         self['participants'].append({
             'user': user_struct,
             'approved': False,
+            'changes_requested': False,
             'role': 'PARTICIPANT'})
+
+    def get_change_requests(self):
+        for participant in self['participants']:
+            if participant['changes_requested']:
+                yield participant['user']['username'].lower()
 
     def get_approvals(self):
         for participant in self['participants']:
@@ -432,7 +445,7 @@ class PullRequest(BitBucketObject):
         }
         self.id = len(PullRequest.items) + 1
         self.links = fake_links_dict(
-            ['activity', 'approve', 'comments', 'commits',
+            ['activity', 'request_change', 'approve', 'comments', 'commits',
              'decline', 'diff', 'html', 'merge', 'self'])
         self.merge_commit = None
         self.participants = []

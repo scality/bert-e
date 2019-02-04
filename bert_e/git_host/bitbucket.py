@@ -336,6 +336,10 @@ class PullRequest(BitBucketObject, base.AbstractPullRequest):
         return Task.get_list(self.client, full_name=self.full_name(),
                              pull_request_id=self['id'])
 
+    def get_change_requests(self):
+        # Not supported by bitbucket, default to an empty tuple of usernames
+        return tuple()
+
     def get_approvals(self):
         for participant in self['participants']:
             if participant['approved']:
@@ -353,6 +357,10 @@ class PullRequest(BitBucketObject, base.AbstractPullRequest):
                                     .substitute(self._json_data),
                                     json_str)
         response.raise_for_status()
+
+    def request_changes(self):
+        raise NotImplemented('"request changes" feature ' +
+                             'is not available in bitbucket')
 
     def approve(self):
         self._json_data['full_name'] = self.full_name()

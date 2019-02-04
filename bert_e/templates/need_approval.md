@@ -30,4 +30,11 @@ Peer approvals *must* include at least {{ required_leader_approvals }} approval{
 {% endif %}
 {% endif %}
 
+{% if change_requesters|length > 0 %}
+The following reviewers are expecting changes from the author, or must review again:
+{% for reviewer in change_requesters %}
+* @{{ reviewer }}
+{% endfor %}
+{% endif %}
+
 {% endblock %}

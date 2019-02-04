@@ -582,12 +582,15 @@ def check_approvals(job):
     missing_peer_approvals = (
         required_peer_approvals - current_peer_approvals)
 
+    change_requests = set(job.pull_request.get_change_requests())
+
     LOG.info('approvals: %s' % locals())
 
     if not approved_by_author or \
             missing_leader_approvals > 0 or \
             missing_peer_approvals > 0 or \
-            (requires_unanimity and not is_unanimous):
+            (requires_unanimity and not is_unanimous) or \
+            len(change_requests) > 0:
         raise messages.ApprovalRequired(
             pr=job.pull_request,
             required_leader_approvals=required_leader_approvals,
@@ -595,7 +598,8 @@ def check_approvals(job):
             required_peer_approvals=required_peer_approvals,
             requires_unanimity=requires_unanimity,
             requires_author_approval=job.settings.need_author_approval,
-            active_options=job.active_options
+            active_options=job.active_options,
+            change_requesters=list(change_requests)
         )
 
 
