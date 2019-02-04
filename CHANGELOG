@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 ## [3.2.8] - 2019-01-30
 # Fixed
 - Fix rendering of the Init Message for open PRs including the user doc link
+- Fix the author approval counting logic for github when commenting after an
+  approval
 
 ## [3.2.7] - 2018-12-17
 # Added

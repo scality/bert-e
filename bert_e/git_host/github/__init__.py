@@ -742,14 +742,27 @@ class PullRequest(GithubObject, base.AbstractPullRequest):
         return (r.author.lower() for r in reviews)
 
     def get_approvals(self):
+        """
+        Github API provides three statuses relevant for gating:
+            APPROVED, DISMISSED, CHANGES_REQUESTED.
+        Any dismissed review means that either a change_request was dismissed
+        (but no approval since) or that the latest approval was dismissed. As
+        such, only the last "relevant" review item shall be accounted for each
+        reviewer, as any remaining approval from that author (in the API) may
+        not be the latest status.
+        """
         reviews = self._reviews or self.get_reviews()
-        # squash reviews from identical users and consider only the latest
-        squash = dict()
-        for r in reviews:
-            if r.author not in squash or r.id > squash[r.author]['id']:
-                squash[r.author] = {'approved': r.approved, 'id': r.id}
+        # Filter reviews (remove COMMENTED entries)
+        filtered = list(filter(lambda r: not r.commented, reviews))
+        # Order the reviews by id (so the order matches the PR's timeline)
+        filtered.sort(key=lambda r: r.id)
+        # ID-based ordering ensure that we can simply select the last for any
+        # author, to get the "current" status.
+        squash = {
+            author: list(filter(lambda r: r.author == author, filtered))[-1]
+            for author in self.get_participants()}
 
-        return (a.lower() for a in squash if squash[a]['approved'])
+        return (a.lower() for a in squash.values() if squash[a]['approved'])
 
     def approve(self):
         rev = Review.create(
@@ -810,6 +823,10 @@ class Review(GithubObject):
     @property
     def approved(self) -> str:
         return self.data['state'].lower() == 'approved'
+
+    @property
+    def commented(self) -> str:
+        return self.data['state'].lower() == 'commented'
 
     @property
     def id(self) -> int:
