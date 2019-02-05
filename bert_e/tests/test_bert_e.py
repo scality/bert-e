@@ -1402,6 +1402,49 @@ admins:
         self.assertNotIn('*must* include a mandatory', raised.exception.msg)
         self.assertNotIn('*must* include at least', raised.exception.msg)
 
+    def test_dismiss(self):
+        """ Test that dismiss nullifies the provided review """
+        feature_branch = 'bugfix/TEST-0007-request-changes'
+        dst_branch = 'development/4.3'
+
+        if self.args.git_host == 'bitbucket':
+            self.skipTest("Change requests/dismissals are not supported" +
+                          " on Bitbucket")
+
+        # Having one change_requests blocks the gating on github
+        pr = self.create_pr(feature_branch, dst_branch)
+
+        # Check that Approvals are required at this point.
+        with self.assertRaises(exns.ApprovalRequired) as raised:
+            self.handle(pr.id, options=['bypass_jira_check'],
+                        backtrace=True)
+        self.assertNotIn('expecting changes', raised.exception.msg)
+
+        # Add the required approvals
+        if self.args.git_host == 'github':
+            pr.add_comment('@%s approve' % (self.args.robot_username))
+        else:
+            pr.approve()
+        pr_peer1 = self.admin_bb.get_pull_request(pull_request_id=pr.id)
+        pr_peer1.approve()
+        pr_peer2 = self.robot_bb.get_pull_request(pull_request_id=pr.id)
+        review_peer2 = pr_peer2.approve()
+
+        # Check that the PR is now passing.
+        with self.assertRaises(exns.BuildNotStarted) as raised:
+            self.handle(pr.id,
+                        options=['bypass_jira_check'],
+                        backtrace=True)
+
+        # Dismiss one peer approval
+        pr_peer2.dismiss(review_peer2)
+
+        # Check that one peer approval is required again
+        with self.assertRaises(exns.ApprovalRequired) as raised:
+            self.handle(pr.id, options=['bypass_jira_check'],
+                        backtrace=True)
+        self.assertNotIn('expecting changes', raised.exception.msg)
+
     def test_branches_creation_main_pr_not_approved(self):
         """Test if Bert-e creates integration pull-requests when the main
         pull-request isn't approved.

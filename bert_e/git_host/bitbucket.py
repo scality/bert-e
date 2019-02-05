@@ -373,6 +373,10 @@ class PullRequest(BitBucketObject, base.AbstractPullRequest):
                                     json_str)
         response.raise_for_status()
 
+    def dismiss(self):
+        raise NotImplemented('"dismiss" feature ' +
+                             'is not available in bitbucket')
+
     @property
     def id(self):
         return self['id']

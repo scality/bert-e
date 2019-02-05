@@ -278,6 +278,10 @@ class PullRequestController(Controller, base.AbstractPullRequest):
     def approve(self):
         self.update_participant(approved=True, role='REVIEWER')
 
+    def dismiss(self, review):
+        self.update_participant(approved=False, changes_requested=False,
+                                role='REVIEWER')
+
     def update_participant(self, approved=None, role=None):
         # locate participant
         exists = False

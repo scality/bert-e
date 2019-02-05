@@ -780,6 +780,19 @@ class PullRequest(GithubObject, base.AbstractPullRequest):
                     repo=self.repo.slug, number=self.id,
                     data={'state': 'closed'})
 
+    def dismiss(self, review):
+        self.client.put(
+            url=Review.DISMISS_URL.format(
+                owner=self.repo.owner, repo=self.repo.slug,
+                number=self.id, id=review.id),
+            headers={
+                'Accept': 'application/vnd.github.black-cat-preview+json',
+            },
+            data=json.dumps({
+                "message": "no longer relevant.",
+            })
+        )
+
 
 class Comment(GithubObject, base.AbstractComment):
     GET_URL = '/repos/{owner}/{repo}/issues/{number}/comments/{id}'
@@ -812,6 +825,8 @@ class Review(GithubObject):
     LIST_URL = '/repos/{owner}/{repo}/pulls/{number}/reviews'
     CREATE_URL = LIST_URL
     APPROVE_URL = '/repos/{owner}/{repo}/pulls/{number}/reviews/{id}/events'
+    DISMISS_URL = \
+        '/repos/{owner}/{repo}/pulls/{number}/reviews/{id}/dismissals'
 
     SCHEMA = schema.Review
     CREATE_SCHEMA = schema.CreateReview
