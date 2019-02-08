@@ -758,9 +758,12 @@ class PullRequest(GithubObject, base.AbstractPullRequest):
         filtered.sort(key=lambda r: r.id)
         # ID-based ordering ensure that we can simply select the last for any
         # author, to get the "current" status.
-        summary = {
-            author: list(filter(lambda r: r.author == author, filtered))[-1]
-            for author in self.get_participants()}
+        summary = {}
+        for author in self.get_participants():
+            author_reviews = list(
+                filter(lambda r: r.author == author, filtered))
+            if len(author_reviews):
+                summary[author] = author_reviews[-1]
 
         return summary
 
