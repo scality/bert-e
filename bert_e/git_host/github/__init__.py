@@ -773,6 +773,17 @@ class PullRequest(GithubObject, base.AbstractPullRequest):
         summary = self.get_summarized_reviews()
         return (r.author.lower() for r in summary.values() if r.approved)
 
+    def comment_review(self):
+        rev = Review.create(
+            client=self.client,
+            data={'body': 'not wanting to block', 'event': 'COMMENT'},
+            headers={
+                'Accept': 'application/vnd.github.black-cat-preview+json'
+            },
+            owner=self.repo.owner, repo=self.repo.slug, number=self.id
+        )
+        return rev
+
     def request_changes(self):
         rev = Review.create(
             client=self.client,

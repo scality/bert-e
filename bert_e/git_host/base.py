@@ -193,6 +193,10 @@ class AbstractPullRequest(metaclass=ABCMeta):
         """
 
     @abstractmethod
+    def comment_review(self):
+        """Request changes on this pull request."""
+
+    @abstractmethod
     def request_changes(self):
         """Request changes on this pull request."""
 

@@ -1245,6 +1245,36 @@ admins:
         self.assertTrue(self.gitrepo.remote_branch_exists(
             "w/5.1/improvement/TEST-0006-last", True))
 
+    def test_commented_reviews(self):
+        """ Test that change_requests block the gating
+        This test relies on both approve() and dismiss() methods.
+        """
+        feature_branch = 'bugfix/TEST-0007-commented-changes'
+        dst_branch = 'development/4.3'
+
+        if self.args.git_host == 'bitbucket':
+            self.skipTest("Comment-only Review are not supported" +
+                          " on Bitbucket")
+
+        # Having one change_requests blocks the gating on github
+        pr = self.create_pr(feature_branch, dst_branch)
+
+        # Check that Approvals are required at this point.
+        # No further checks required.
+        with self.assertRaises(exns.ApprovalRequired):
+            self.handle(pr.id, options=['bypass_jira_check'],
+                        backtrace=True)
+
+        # Add a Commented review
+        pr_peer = self.robot_bb.get_pull_request(pull_request_id=pr.id)
+        pr_peer.comment_review()
+
+        # Check that Approvals are still required, and that the request change
+        # is mentionned
+        with self.assertRaises(exns.ApprovalRequired):
+            self.handle(pr.id, options=['bypass_jira_check'],
+                        backtrace=True)
+
     def test_approvals(self):
         """Test approvals of author, reviewer and leader."""
         feature_branch = 'bugfix/TEST-0007'

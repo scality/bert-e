@@ -358,6 +358,10 @@ class PullRequest(BitBucketObject, base.AbstractPullRequest):
                                     json_str)
         response.raise_for_status()
 
+    def comment_review(self):
+        raise NotImplemented('"Commented review" feature ' +
+                             'is not available in bitbucket')
+
     def request_changes(self):
         raise NotImplemented('"request changes" feature ' +
                              'is not available in bitbucket')
