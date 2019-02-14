@@ -1,7 +1,12 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [3.2.10] - 2019-02-14
+# Added
+- Add support for the "design" branch prefix
+
 ## [3.2.9] - 2019-02-08
+# Fixed
 - Fix the github review summarizing function to handle reviewers with only
 "COMMENTED" reviews.
 
