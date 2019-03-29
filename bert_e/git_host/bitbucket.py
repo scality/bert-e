@@ -457,16 +457,13 @@ class Comment(BitBucketObject, base.AbstractComment):
 
     def add_task(self, msg):
         return Task(self.client, content=msg, full_name=self.full_name(),
-                    pull_request_id=self['pull_request_id'],
-                    comment_id=self['comment_id']).create()
+                    pull_request_id=self['pullrequest']['id'],
+                    comment_id=self['id']).create()
 
     def create(self):
-        json_str = json.dumps({'content': self._json_data['content']})
+        json_str = json.dumps({'content': {'raw': self._json_data['content']}})
         response = self.client.post(Template(self.add_url)
-                                    .substitute(self._json_data)
-                                    .replace('/2.0/', '/1.0/'),
-                                    # The 2.0 API does not create
-                                    # comments :(
+                                    .substitute(self._json_data),
                                     json_str)
         response.raise_for_status()
         return self.__class__(self.client, **response.json())
@@ -481,8 +478,7 @@ class Comment(BitBucketObject, base.AbstractComment):
             # the proper value
             pass
         response = self.client.delete(Template(self.get_url)
-                                      .substitute(self._json_data)
-                                      .replace('/2.0/', '/1.0/'))
+                                      .substitute(self._json_data))
         response.raise_for_status()
 
     @property
