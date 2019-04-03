@@ -21,9 +21,6 @@ from urllib.parse import quote_plus as quote
 
 from bert_e.exceptions import TaskAPIError
 from bert_e.lib.lru_cache import LRUCache
-from bert_e.lib.schema import (load as load_schema,
-                               validate as validate_schema,
-                               dumps as dump_schema)
 from . import schema
 from .. import base, cache, factory
 
@@ -31,10 +28,6 @@ LOG = logging.getLogger(__name__)
 
 
 class Error(base.Error):
-    pass
-
-
-class InvalidOperation(Error):
     pass
 
 
@@ -319,146 +312,7 @@ class Client(base.AbstractClient):
             raise
 
 
-class GithubObject:
-    """Generic implementation of a Github API object.
-
-    A Github API object is basically a collection of classmethods to list, get,
-    create or delete objects of this kind.
-
-    To make concrete implementations shorter, any action that can be performed
-    should define:
-        - the URL to perform the action.
-        - an optional schema to validate the request's data.
-        - an optional schema to parse the response.
-
-    GithubObject instances encapulate json-like data in their obj.data
-    attribute.
-
-    """
-
-    LIST_URL = None         # URL used to list objects
-    GET_URL = None          # URL used to get a specific object
-    CREATE_URL = None       # URL used to create an object
-    DELETE_URL = None       # URL used to delete an object
-    UPDATE_URL = None       # URL used to update an object
-
-    SCHEMA = None           # Default schema
-    GET_SCHEMA = None       # Specific schema returned by GET requests
-    LIST_SCHEMA = None      # Specific schema returned by LIST requests
-    CREATE_SCHEMA = None    # Specific schema to create new objects
-    UPDATE_SCHEMA = None    # Specific schema to update objects
-
-    def __init__(self, client=None, _validate=True, **data):
-        self.client = client
-        if _validate and self.SCHEMA is not None:
-            validate_schema(self.SCHEMA, data)
-        self.data = data
-
-    @classmethod
-    def get(cls, client: Client, url=None, params={}, headers={}, **kwargs):
-        """Get a Github API object.
-
-        The result is parsed using cls.GET_SCHEMA, or cls.SCHEMA if absent.
-
-        Args:
-            - client: the Github client to use to perform the request.
-            - url: a specific url to use for this request. Defaults to GET_URL.
-            - params: the parameters of the GET request.
-            - **kwargs: the parameters of the URL (named str.format style).
-
-        Returns:
-            The result of the query, parsed by the schema.
-
-        """
-        url = url or cls.GET_URL
-        if url is None:
-            raise InvalidOperation(
-                'GET is not supported on {} objects'.format(cls.__name__))
-        schema_cls = cls.GET_SCHEMA or cls.SCHEMA
-        obj = cls.load(client.get(url.format(**kwargs), params=params,
-                                  headers=headers),
-                       schema_cls)
-        obj.client = client
-        return obj
-
-    @classmethod
-    def list(cls, client: Client, url=None, params={}, headers={}, **kwargs):
-        """List objects.
-
-        The result is parsed using cls.LIST_SCHEMA, or cls.GET_SCHEMA if
-        absent, or cls.SCHEMA if both are absent.
-
-        Args:
-            - same as get()
-
-        Yields:
-            The elements of the response as they are parsed by the schema.
-
-        """
-        url = url or cls.LIST_URL
-        if url is None:
-            raise InvalidOperation(
-                'LIST is not supported on {} objects.'.format(cls.__name__))
-        schema_cls = cls.LIST_SCHEMA or cls.GET_SCHEMA or cls.SCHEMA
-        for data in client.iter_get(url.format(**kwargs),
-                                    params=params,
-                                    headers=headers):
-            obj = cls.load(data, schema_cls)
-            obj.client = client
-            yield obj
-
-    @classmethod
-    def load(cls, data, schema_cls=None, **kwargs):
-        """Load data using the class' schema.
-
-        Return a Github object
-        """
-        if schema_cls is None:
-            schema_cls = cls.SCHEMA
-        return cls(**load_schema(schema_cls, data, **kwargs), _validate=False)
-
-    @classmethod
-    def create(cls, client: Client, data, headers={}, url=None, **kwargs):
-        """Create an object."""
-        url = url or cls.CREATE_URL
-        if url is None:
-            raise InvalidOperation(
-                'CREATE is not supported on {} objects.'.format(cls.__name__))
-
-        create_schema_cls = cls.CREATE_SCHEMA or cls.SCHEMA
-        json = dump_schema(create_schema_cls, data)
-        obj = cls.load(
-            client.post(url.format(**kwargs), data=json, headers=headers)
-        )
-        obj.client = client
-        return obj
-
-    @classmethod
-    def update(cls, client: Client, data, headers={}, url=None, **kwargs):
-        """Update an object."""
-        url = url or cls.UPDATE_URL or cls.GET_URL
-        if url is None:
-            raise InvalidOperation(
-                'CREATE is not supported on {} objects.'.format(cls.__name__))
-
-        create_schema_cls = cls.UPDATE_SCHEMA or cls.SCHEMA
-        json = dump_schema(create_schema_cls, data)
-        obj = cls.load(
-            client.patch(url.format(**kwargs), data=json, headers=headers)
-        )
-        obj.client = client
-        return obj
-
-    @classmethod
-    def delete(cls, client: Client, **kwargs):
-        """Delete an object."""
-        if cls.DELETE_URL is None:
-            raise InvalidOperation(
-                'DELETE is not supported on {} objects.'.format(cls.__name__))
-        client.delete(cls.DELETE_URL.format(**kwargs))
-
-
-class Repository(GithubObject, base.AbstractRepository):
+class Repository(base.AbstractGitHostObject, base.AbstractRepository):
     GET_URL = '/repos/{owner}/{repo}'
     DELETE_URL = GET_URL
     CREATE_URL = '/user/repos'
@@ -592,7 +446,7 @@ class Repository(GithubObject, base.AbstractRepository):
                                   repo=self.slug)
 
 
-class AggregatedStatus(GithubObject):
+class AggregatedStatus(base.AbstractGitHostObject):
     GET_URL = '/repos/{owner}/{repo}/commits/{ref}/status'
     SCHEMA = schema.AggregatedStatus
 
@@ -612,7 +466,7 @@ class AggregatedStatus(GithubObject):
         return self._status
 
 
-class Status(GithubObject, base.AbstractBuildStatus):
+class Status(base.AbstractGitHostObject, base.AbstractBuildStatus):
     CREATE_URL = '/repos/{owner}/{repo}/statuses/{sha}'
 
     SCHEMA = schema.Status
@@ -645,7 +499,7 @@ class Status(GithubObject, base.AbstractBuildStatus):
         return self.state
 
 
-class PullRequest(GithubObject, base.AbstractPullRequest):
+class PullRequest(base.AbstractGitHostObject, base.AbstractPullRequest):
     LIST_URL = '/repos/{owner}/{repo}/pulls'
     GET_URL = '/repos/{owner}/{repo}/pulls/{number}'
     CREATE_URL = LIST_URL
@@ -828,7 +682,7 @@ class PullRequest(GithubObject, base.AbstractPullRequest):
         )
 
 
-class Comment(GithubObject, base.AbstractComment):
+class Comment(base.AbstractGitHostObject, base.AbstractComment):
     GET_URL = '/repos/{owner}/{repo}/issues/{number}/comments/{id}'
     LIST_URL = '/repos/{owner}/{repo}/issues/{number}/comments'
     CREATE_URL = LIST_URL
@@ -855,7 +709,7 @@ class Comment(GithubObject, base.AbstractComment):
         self.client.delete(self.data['url'])
 
 
-class Review(GithubObject):
+class Review(base.AbstractGitHostObject):
     LIST_URL = '/repos/{owner}/{repo}/pulls/{number}/reviews'
     CREATE_URL = LIST_URL
     APPROVE_URL = '/repos/{owner}/{repo}/pulls/{number}/reviews/{id}/events'
@@ -886,7 +740,7 @@ class Review(GithubObject):
         return self.data['id']
 
 
-class PullRequestEvent(GithubObject):
+class PullRequestEvent(base.AbstractGitHostObject):
     SCHEMA = schema.PullRequestEvent
 
     @property
@@ -899,7 +753,7 @@ class PullRequestEvent(GithubObject):
                            **self.data['pull_request'])
 
 
-class IssueCommentEvent(GithubObject):
+class IssueCommentEvent(base.AbstractGitHostObject):
     SCHEMA = schema.IssueCommentEvent
 
     @property
@@ -915,7 +769,7 @@ class IssueCommentEvent(GithubObject):
                   self.data['issue']['number'])
 
 
-class PullRequestReviewEvent(GithubObject):
+class PullRequestReviewEvent(base.AbstractGitHostObject):
     SCHEMA = schema.PullRequestReviewEvent
 
     @property
@@ -924,7 +778,7 @@ class PullRequestReviewEvent(GithubObject):
                            **self.data['pull_request'])
 
 
-class StatusEvent(GithubObject):
+class StatusEvent(base.AbstractGitHostObject):
     SCHEMA = schema.StatusEvent
 
     @property

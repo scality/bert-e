@@ -20,10 +20,16 @@ Typical implementations would be Bitbucket, Github or Gitlab.
 
 import logging
 import time
+
+import requests
+
 from abc import ABCMeta, abstractmethod
 from typing import Iterable
 from requests import Session
 
+from bert_e.lib.schema import (load as load_schema,
+                               validate as validate_schema,
+                               dumps as dump_schema)
 from ..exceptions import FlakyGitHost
 
 LOG = logging.getLogger(__name__)
@@ -31,6 +37,10 @@ LOG = logging.getLogger(__name__)
 
 class Error(Exception):
     """Base class for git host api related errors."""
+
+
+class InvalidOperation(Error):
+    """Invalid request made to a githost object."""
 
 
 class RepositoryExists(Error):
@@ -81,6 +91,132 @@ class BertESession(Session):
             raise FlakyGitHost(git_host=self.git_provider, active_options=[])
 
         return response
+
+
+class AbstractGitHostObject(metaclass=ABCMeta):
+    """Abstract githaost defining schema validation"""
+    LIST_URL = None         # URL used to list objects
+    GET_URL = None          # URL used to get a specific object
+    CREATE_URL = None       # URL used to create an object
+    DELETE_URL = None       # URL used to delete an object
+    UPDATE_URL = None       # URL used to update an object
+
+    SCHEMA = None           # Default schema
+    GET_SCHEMA = None       # Specific schema returned by GET requests
+    LIST_SCHEMA = None      # Specific schema returned by LIST requests
+    CREATE_SCHEMA = None    # Specific schema to create new objects
+    UPDATE_SCHEMA = None    # Specific schema to update objects
+
+    def __init__(self, client=None, _validate=True, **data):
+        self.client = client
+        if _validate and self.SCHEMA is not None:
+            validate_schema(self.SCHEMA, data)
+        self.data = data
+
+    @classmethod
+    def get(cls, client, url=None, params={}, headers={}, **kwargs):
+        """Get a Githost object.
+
+        The result is parsed using cls.GET_SCHEMA, of cls.SCHEMA if absent.
+
+        Args:
+            - client: the Githost client to use to perform the request.
+            - url: a specific url to use for this request. Defaults to GET_URL.
+            - params: the parametes of the GET request.
+            - **kwargs: the parameters of the URL (name str.format style).
+
+        Returns:
+            The result of the query, parsed by the shema.
+        """
+        url = url or cls.GET_URL
+        if url is None:
+            raise InvalidOperation(
+                'GET is not supported on {} objects'.format(cls.__name__))
+        schema_cls = cls.GET_SCHEMA or cls.SCHEMA
+        obj = cls.load(client.get(url.format(**kwargs), params=params,
+                                  headers=headers),
+                       schema_cls)
+        obj.client = client
+        return obj
+
+    @classmethod
+    def list(cls, client, url=None, params={}, headers={}, **kwargs):
+        """List objects.
+
+        The result is parsed using cls.LIST_SCHEMA, or cls.GET_SCHEMA if
+        absent, or cls.SCHEMA if both are absent.
+
+        Args:
+            - same as get()
+
+        Yields:
+            The elements of the response as they are parsed by the schema.
+
+        """
+        url = url or cls.LIST_URL
+        if url is None:
+            raise InvalidOperation(
+                'LIST is not supported on {} objects.'.format(cls.__name__))
+        schema_cls = cls.LIST_SCHEMA or cls.GET_SCHEMA or cls.SCHEMA
+        for data in client.iter_get(url.format(**kwargs),
+                                    params=params,
+                                    headers=headers):
+            obj = cls.load(data, schema_cls)
+            obj.client = client
+            yield obj
+
+    @classmethod
+    def load(cls, data, schema_cls=None, **kwargs):
+        """Load data using the class' schema.
+
+        Return a Githost object
+        """
+        if schema_cls is None:
+            schema_cls = cls.SCHEMA
+        if isinstance(data, requests.Response):
+            data.raise_for_status()
+            data = data.json()
+        return cls(**load_schema(schema_cls, data, **kwargs), _validate=False)
+
+    @classmethod
+    def create(cls, client, data, headers={}, url=None, **kwargs):
+        """Create an object."""
+        url = url or cls.CREATE_URL
+        if url is None:
+            raise InvalidOperation(
+                'CREATE is not supported on {} objects.'.format(cls.__name__))
+
+        create_schema_cls = cls.CREATE_SCHEMA or cls.SCHEMA
+        json = dump_schema(create_schema_cls, data)
+        obj = cls.load(
+            client.post(url.format(**kwargs), data=json, headers=headers)
+        )
+        obj.client = client
+        return obj
+
+    @classmethod
+    def update(cls, client, data, headers={}, url=None, **kwargs):
+        """Update an object."""
+        url = url or cls.UPDATE_URL or cls.GET_URL
+        if url is None:
+            raise InvalidOperation(
+                'CREATE is not supported on {} objects.'.format(cls.__name__))
+
+        create_schema_cls = cls.UPDATE_SCHEMA or cls.SCHEMA
+        json = dump_schema(create_schema_cls, data)
+        obj = cls.load(
+            client.patch(url.format(**kwargs), data=json, headers=headers)
+        )
+        obj.client = client
+        return obj
+
+    @classmethod
+    def delete(cls, client, **kwargs):
+        """Delete an object."""
+        if cls.DELETE_URL is None:
+            raise InvalidOperation(
+                'DELETE is not supported on {} objects.'.format(cls.__name__))
+        client.delete(cls.DELETE_URL.format(**kwargs))
 
 
 class AbstractBuildStatus(metaclass=ABCMeta):
