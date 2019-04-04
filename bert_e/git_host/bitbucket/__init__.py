@@ -388,12 +388,12 @@ class PullRequest(BitBucketObject, base.AbstractPullRequest):
         response.raise_for_status()
 
     def comment_review(self):
-        raise NotImplemented('"Commented review" feature ' +
-                             'is not available in bitbucket')
+        raise NotImplementedError('"Commented review" feature '
+                                  'is not available in bitbucket')
 
     def request_changes(self):
-        raise NotImplemented('"request changes" feature ' +
-                             'is not available in bitbucket')
+        raise NotImplementedError('"request changes" feature '
+                                  'is not available in bitbucket')
 
     def approve(self):
         self._json_data['full_name'] = self.full_name()
@@ -415,8 +415,8 @@ class PullRequest(BitBucketObject, base.AbstractPullRequest):
         response.raise_for_status()
 
     def dismiss(self):
-        raise NotImplemented('"dismiss" feature ' +
-                             'is not available in bitbucket')
+        raise NotImplementedError('"dismiss" feature '
+                                  'is not available in bitbucket')
 
     @property
     def id(self):
