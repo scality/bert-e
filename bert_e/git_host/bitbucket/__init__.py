@@ -21,8 +21,9 @@ from urllib.parse import quote_plus as quote, urlparse
 from requests import HTTPError
 from requests.auth import HTTPBasicAuth
 
-from . import base, cache, factory
-from ..exceptions import TaskAPIError
+from . import schema
+from .. import base, cache, factory
+from bert_e.exceptions import TaskAPIError
 
 MAX_PR_TITLE_LEN = 255
 
@@ -99,6 +100,30 @@ class Client(base.BertESession, base.AbstractClient):
             if err.response.status_code == 404:
                 raise base.NoSuchRepository('/'.join((owner, slug))) from err
             raise
+
+    def _get(self, url, **kwargs):
+        """Perform an HTTP GET request to the bitbucket API.
+
+        Args: same as requests.get()
+
+        Returns: a deserialized json structure
+
+        Raises: requests.HTTPError
+
+        """
+        response = super().get(url, **kwargs)
+        response.raise_for_status()
+        return json.loads(response.text)
+
+    def iter_get(self, url, **kwargs):
+        next_page = url
+        while next_page:
+            result = self._get(next_page)
+            try:
+                next_page = result['next']
+            except KeyError:
+                next_page = None
+            yield from result['values']
 
 
 class BitBucketObject(object):
@@ -318,14 +343,18 @@ class PullRequest(BitBucketObject, base.AbstractPullRequest):
         return self['destination']['repository']['full_name']
 
     def add_comment(self, msg):
-        return Comment(self.client, content=msg, full_name=self.full_name(),
-                       pull_request_id=self['id']).create()
+        return Comment.create(
+            self.client,
+            data=msg,
+            full_name=self.full_name(),
+            pull_request_id=self['id']
+        )
 
     def get_comments(self, deleted=False):
         return sorted(
             (comment
              for comment
-             in Comment.get_list(
+             in Comment.list(
                  self.client, full_name=self.full_name(),
                  pull_request_id=self.id)
              if not comment.deleted or deleted),
@@ -436,70 +465,49 @@ class PullRequest(BitBucketObject, base.AbstractPullRequest):
         return self._comments
 
 
-class Comment(BitBucketObject, base.AbstractComment):
-    add_url = ('https://api.bitbucket.org/2.0/repositories/'
-               '$full_name/pullrequests/$pull_request_id/comments')
-    list_url = add_url + '?page=$page'
-    get_url = ('https://api.bitbucket.org/2.0/repositories/'
-               '$full_name/pullrequests/$pull_request_id/comments/$comment_id')
+class Comment(base.AbstractGitHostObject, base.AbstractComment):
+    CREATE_URL = ('https://api.bitbucket.org/2.0/repositories/'
+                  '{full_name}/pullrequests/{pull_request_id}/comments')
+    LIST_URL = CREATE_URL
+    GET_URL = CREATE_URL + '/{comment_id}'
+    DELETE_URL = GET_URL
+
+    SCHEMA = schema.Comment
+    CREATE_SCHEMA = schema.CreateComment
 
     def full_name(self):
-        try:
-            # If the Comment was just created with a POST to bitbucket API, we
-            # have attributes readily available for this
-            return '%s/%s' % (self['pr_repo']['owner'],
-                              self['pr_repo']['slug'])
-        except KeyError:
-            # But if the Comment was retrieved with a GET to bitbucket API, we
-            # have nothing left but the url to guess the full_name
-            p = Path(urlparse(self['links']['self']['href']).path).resolve()
-            return '%s/%s' % p.parts[3:5]
+        p = Path(urlparse(self.data['links']['self']['href']).path).resolve()
+        return '%s/%s' % p.parts[3:5]
 
     def add_task(self, msg):
         return Task(self.client, content=msg, full_name=self.full_name(),
-                    pull_request_id=self['pull_request_id'],
-                    comment_id=self['comment_id']).create()
-
-    def create(self):
-        json_str = json.dumps({'content': self._json_data['content']})
-        response = self.client.post(Template(self.add_url)
-                                    .substitute(self._json_data)
-                                    .replace('/2.0/', '/1.0/'),
-                                    # The 2.0 API does not create
-                                    # comments :(
-                                    json_str)
-        response.raise_for_status()
-        return self.__class__(self.client, **response.json())
+                    pull_request_id=self.data['pullrequest']['id'],
+                    comment_id=self.id).create()
 
     def delete(self):
-        self['full_name'] = self.full_name()
-        try:
-            self['pull_request_id'] = self['pullrequest']['id']
-            self['comment_id'] = self['id']
-        except KeyError:
-            # Depending on the API endpoint the key might already exist with
-            # the proper value
-            pass
-        response = self.client.delete(Template(self.get_url)
-                                      .substitute(self._json_data)
-                                      .replace('/2.0/', '/1.0/'))
-        response.raise_for_status()
+        return super().delete(self.client, full_name=self.full_name(),
+                              pull_request_id=self.data['pullrequest']['id'],
+                              comment_id=self.id)
+
+    @classmethod
+    def create(cls, client, data, **kwargs):
+        return super().create(client, {'content': {'raw': data}}, **kwargs)
 
     @property
     def author(self):
-        return self['user']['username'].lower()
+        return self.data['user']['username'].lower()
 
     @property
     def text(self):
-        return self['content']['raw']
+        return self.data['content']['raw']
 
     @property
     def id(self):
-        return self['id']
+        return self.data['links']['self']['href'].rsplit('/', 1)[-1]
 
     @property
     def deleted(self):
-        return self['deleted']
+        return self.data['deleted']
 
 
 class Task(BitBucketObject, base.AbstractTask):
