@@ -2523,6 +2523,9 @@ admins:
                         backtrace=True)
 
     def test_source_branch_history_changed(self):
+        if self.args.git_host == 'github':
+            self.skipTest("deleting a branch when a PR is open referencing it,"
+                          "marks the PR as closed and make this test unusable")
         pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
         with self.assertRaises(exns.BuildNotStarted):
             self.handle(pr.id,
