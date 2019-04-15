@@ -1100,7 +1100,10 @@ admins:
         self.set_build_status_on_pr_id(pr.id, 'SUCCESSFUL')
         self.set_build_status(sha1=sha1_w_5_1, state='SUCCESSFUL')
         self.set_build_status(sha1=sha1_w_10_0, state='INPROGRESS')
-        pr.approve()
+        if self.args.git_host == 'github':
+            pr.add_comment('@%s approve' % (self.args.robot_username))
+        else:
+            pr.approve()
         with self.assertRaises(exns.BuildInProgress):
             self.handle(pr.id, settings=settings,
                         options=options, backtrace=True)
@@ -3735,7 +3738,10 @@ project_leaders:
                         settings=settings,
                         backtrace=True)
 
-        pr.approve()
+        if self.args.git_host == 'github':
+            pr.add_comment('@%s approve' % (self.args.robot_username))
+        else:
+            pr.approve()
         with self.assertRaises(exns.SuccessMessage):
             self.handle(pr.id,
                         options=[
