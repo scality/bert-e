@@ -3536,8 +3536,31 @@ tasks:
                              reuse_branch=True)
         with self.assertRaises(exns.SuccessMessage):
             self.handle(pr2.id, options=self.bypass_all, backtrace=True)
-        with self.assertRaises(exns.SuccessMessage):
-            self.handle(pr1.id, options=self.bypass_all, backtrace=True)
+
+        # Tracking BERTE-504
+        # Github and Bitbucket don't allow creating a PR
+        # where the destination is equal to the source.
+        # This might be annoying when we would want to backport a fix.
+        # As a workaround we can deactivate the creation
+        # of integration PR to avoid it.
+        # So here, in this test, when not using the mocked git host,
+        # we ensure that the real one fails as expected and Skip the tests
+        if self.args.git_host != 'mock':
+            try:
+                self.handle(pr1.id, options=self.bypass_all, backtrace=True)
+            except requests.exceptions.HTTPError as exp:
+                resp = exp.response
+                if self.args.git_host == 'bitbucket':
+                    self.assertEqual(400, resp.status_code)
+                    self.assertEqual('There are no changes to be pulled',
+                                     resp.json()['error']['message'])
+                elif self.args.git_host == 'github':
+                    self.assertEqual(422, resp.status_code)
+                    self.assertEqual('Validation Failed',
+                                     resp.json()['message'])
+        else:
+            with self.assertRaises(exns.SuccessMessage):
+                self.handle(pr1.id, options=self.bypass_all, backtrace=True)
 
     def test_mandatory_approval(self):
         """Test a pull request does not merge without mandatory approvals."""
