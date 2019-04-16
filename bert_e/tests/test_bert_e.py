@@ -2504,7 +2504,7 @@ admins:
         self.set_build_status_on_pr_id(
             pr.id, 'FAILED',
             # github enforces valid build urls
-            url='https://builds/test.com/DEADBEEF'
+            url='https://builds.test.com/DEADBEEF'
         )
         self.set_build_status_on_pr_id(pr.id + 1, 'SUCCESSFUL')
 
@@ -2514,7 +2514,7 @@ admins:
             self.handle(childpr.src_commit,
                         options=self.bypass_all_but(['bypass_build_status']),
                         backtrace=True)
-            self.assertIn('https://builds/test.com/DEADBEEF', err.msg)
+            self.assertIn('https://builds.test.com/DEADBEEF', err.msg)
 
         self.set_build_status_on_pr_id(pr.id, 'SUCCESSFUL')
         with self.assertRaises(exns.SuccessMessage):
