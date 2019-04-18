@@ -2,7 +2,7 @@ from os.path import exists
 
 import yaml
 import logging
-from marshmallow import Schema, fields, post_load
+from marshmallow import Schema, fields, post_load, pre_load
 
 from bert_e.exceptions import (IncorrectSettingsFile, MalformedSettings,
                                SettingsFileNotFound)
@@ -26,16 +26,60 @@ class BertEContextFilter(logging.Filter):
         return True
 
 
-class Users(fields.List):
-    """Return the usernames in lower case"""
-
-    def _deserialize(self, value, attr, data, **kwargs):
-        return [x.lower() for x in value]
-
-
-class User(fields.Str):
+class Username(fields.Str):
     def _deserialize(self, value, attr, data, **kwargs):
         return value.lower()
+
+
+class UserDict(SettingsDict):
+
+    def __repr__(self):
+        repr = "<User(username=%s, account_id=%s)>" %\
+            (self.username, self.account_id)
+        return repr
+
+    def __hash__(self):
+        if self.account_id:
+            return hash(self.account_id)
+        return hash(self.username)
+
+    def __str__(self):
+        return str(self.username)
+
+    def __eq__(self, other):
+        if isinstance(other, self.__class__):
+            if other.account_id and self.account_id:
+                return other.account_id == self.account_id
+            return other.username == self.username
+
+        elif isinstance(other, str):
+            return other == self.account_id or other == self.username
+        else:
+            raise ValueError('Comparing %s with %s' %
+                             (self.__class__, type(other)))
+
+    def lower(self):
+        return self.__str__().lower()
+
+    def encode(self, arg):
+        return self.username.encode(arg)
+
+
+class UserSettingSchema(Schema):
+    username = Username(required=True)
+    account_id = fields.Str(required=False, missing=None)
+
+    @pre_load
+    def split_usernames(self, username):
+        data = iter(username.split('@'))
+        user = dict(username=None, account_id=None)
+        user['username'] = next(data, None)
+        user['account_id'] = next(data, None)
+        return user
+
+    @post_load
+    def output(self, data):
+        return UserDict(data)
 
 
 class SettingsSchema(Schema):
@@ -48,7 +92,7 @@ class SettingsSchema(Schema):
     repository_slug = fields.Str(required=True)
     repository_host = fields.Str(required=True)
 
-    robot_username = User(required=True)
+    robot_username = fields.Nested(UserSettingSchema, required=True)
     robot_email = fields.Str(required=True)
 
     pull_request_base_url = fields.Str(required=True)
@@ -70,8 +114,8 @@ class SettingsSchema(Schema):
     disable_version_checks = fields.Bool(missing=False)
 
     organization = fields.Str(fields.Str(), missing='')
-    admins = Users(fields.Str(), missing=[])
-    project_leaders = Users(fields.Str(), missing=[])
+    admins = fields.Nested(UserSettingSchema, many=True, missing=[])
+    project_leaders = fields.Nested(UserSettingSchema, many=True, missing=[])
     tasks = fields.List(fields.Str(), missing=[])
 
     max_commit_diff = fields.Int(missing=0)
