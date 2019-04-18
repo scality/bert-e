@@ -284,6 +284,9 @@ class Client(base.AbstractClient):
                     '{}/{}'.format(owner, slug)) from err
             raise
 
+    def get_user_id(self) -> int:
+        return User.get(self).data['id']
+
     def create_repository(self, slug: str, owner=None, **kwargs):
         """See AbstractClient.create_repository()"""
         url = Repository.CREATE_URL
@@ -793,3 +796,8 @@ class StatusEvent(base.AbstractGitHostObject):
             description=self.data.get('description'),
             context=self.data['context']
         )
+
+
+class User(base.AbstractGitHostObject):
+    SCHEMA = schema.User
+    GET_URL = '/user'

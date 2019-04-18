@@ -30,6 +30,7 @@ def fake_user_dict(username):
         "display_name": username,
         "uuid": "{1cd06601-cd0e-4fce-be03-e9ac226978b7}",
         "links": fake_links_dict(['avatar', 'html', 'self']),
+        "id": str(hash(username)),
     }
 
 
@@ -87,6 +88,9 @@ class Client(base.AbstractClient):
             )
         return Repository(self, owner=owner, repo_slug=slug, scm='git',
                           is_private=True)
+
+    def get_user_id(self):
+        return User.get(self)['id']
 
     def delete_repository(self, slug, owner=None):
         if owner is None:
@@ -538,3 +542,10 @@ class Task(BitBucketObject, base.AbstractTask):
 
 class BuildStatus(BitBucketObject, base.AbstractBuildStatus):
     pass
+
+
+class User(BitBucketObject):
+    get_url = 'legit_get_url'
+
+    def get(self):
+        return fake_user_dict(self.login)

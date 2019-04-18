@@ -76,6 +76,9 @@ class Client(base.BertESession, base.AbstractClient):
         repo['repo_slug'] = slug
         return repo
 
+    def get_user_id(self):
+        return User.get(self)['account_id']
+
     def create_repository(self, slug, owner=None, scm='git', is_private=True):
         """Create a Bitbucket Repository"""
         owner = owner or self.login
@@ -583,3 +586,7 @@ class WebHook(BitBucketObject):
     add_url = 'https://api.bitbucket.org/2.0/repositories/$owner/$repo_slug/'\
         'hooks'
     list_url = add_url + '?page=$page'
+
+
+class User(BitBucketObject):
+    get_url = 'https://api.bitbucket.org/2.0/user'
