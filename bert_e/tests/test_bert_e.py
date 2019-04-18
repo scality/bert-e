@@ -676,7 +676,7 @@ class RepositoryTests(unittest.TestCase):
             owner=self.args.owner,
             slug=('%s_%s' % (self.args.repo_prefix, self.args.admin_username))
         )
-
+        self.admin_id = client.get_user_id()
         # unprivileged user connection
         client = client_factory(
             host,
@@ -689,6 +689,7 @@ class RepositoryTests(unittest.TestCase):
             slug=('%s_%s' % (self.args.repo_prefix,
                              self.args.admin_username)),
         )
+        self.contributor_id = client.get_user_id()
         # Bert-E may want to comment manually too
         client = client_factory(
             host,
@@ -826,6 +827,8 @@ class RepositoryTests(unittest.TestCase):
                backtrace=False,
                settings=DEFAULT_SETTINGS):
         sys.argv = ["bert_e.py"]
+        admin = self.args.admin_username
+        contributor = self.args.contributor_username
         for option in options:
             sys.argv.append('-o')
             sys.argv.append(option)
@@ -836,9 +839,13 @@ class RepositoryTests(unittest.TestCase):
         if backtrace:
             sys.argv.append('--backtrace')
         sys.argv.append('--quiet')
+        if self.args.git_host == 'bitbucket':
+            admin = '%s@%s' % (self.args.admin_username, self.admin_id)
+            contributor = '%s@%s' % (self.args.contributor_username,
+                                     self.contributor_id)
         data = settings.format(
-            admin=self.args.admin_username,
-            contributor=self.args.contributor_username,
+            admin=admin,
+            contributor=contributor,
             robot=self.args.robot_username,
             owner=self.args.owner,
             slug='%s_%s' % (self.args.repo_prefix, self.args.admin_username),
@@ -3743,7 +3750,9 @@ project_leaders:
   - %s
   - another_leader_handle
 """ % (self.args.admin_username.upper(), self.args.contributor_username.upper()) # noqa
-
+        if self.args.git_host == 'bitbucket':
+            self.skipTest('As bitbucket now use user ids which are case'
+                          'sensitive, this test make no sense anymore')
         pr = self.create_pr('bugfix/TEST-00003', 'development/4.3')
         with self.assertRaises(exns.ApprovalRequired):
             self.handle(pr.id,
