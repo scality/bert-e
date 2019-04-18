@@ -214,7 +214,7 @@ class Repository(BitBucketObject, base.AbstractRepository):
     def get_pull_requests(self, author=None, src_branch=None, status='OPEN'):
         filters = {'state': [status.lower()]}
         if author:
-            filters['author.username'] = [author]
+            filters['author.account_id'] = [author]
         if isinstance(src_branch, str):
             filters['source.branch.name'] = [src_branch]
         elif src_branch is not None:
@@ -372,11 +372,11 @@ class PullRequest(BitBucketObject, base.AbstractPullRequest):
     def get_approvals(self):
         for participant in self['participants']:
             if participant['approved']:
-                yield participant['user']['username'].lower()
+                yield participant['user']['account_id'].lower()
 
     def get_participants(self):
         for participant in self['participants']:
-            yield participant['user']['username'].lower()
+            yield participant['user']['account_id'].lower()
 
     def merge(self):
         self._json_data['full_name'] = self.full_name()
@@ -428,7 +428,7 @@ class PullRequest(BitBucketObject, base.AbstractPullRequest):
 
     @property
     def author(self):
-        return self['author']['username'].lower()
+        return self['author']['account_id'].lower()
 
     @property
     def author_display_name(self):
@@ -495,7 +495,7 @@ class Comment(base.AbstractGitHostObject, base.AbstractComment):
 
     @property
     def author(self):
-        return self.data['user']['username'].lower()
+        return self.data['user']['account_id'].lower()
 
     @property
     def text(self):
