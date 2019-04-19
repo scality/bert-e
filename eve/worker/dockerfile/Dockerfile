@@ -25,6 +25,7 @@ RUN apt-get --assume-yes update \
     python-pkg-resources \
     python-setuptools \
     sudo \
+    tox \
     wget
 
 COPY requirements.txt /tmp/
