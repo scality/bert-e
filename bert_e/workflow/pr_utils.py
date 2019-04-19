@@ -41,7 +41,7 @@ def find_comment(pull_request: AbstractPullRequest, username=None,
     if max_history not in (None, -1):
         comments = itertools.islice(comments, 0, max_history)
     for comment in comments:
-        if isinstance(username, str) and comment.author != username:
+        if comment.author != username:
             continue
         if startswith and not comment.text.startswith(startswith):
             if max_history == -1:
