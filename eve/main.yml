@@ -43,7 +43,7 @@ stages:
         haltOnFailure: true
 
   tests:
-    worker:
+    worker: &test_worker
       type: kube_pod
       path: eve/worker/worker.yaml
       images:
@@ -68,3 +68,21 @@ stages:
     - ShellCommand:
         name: Coverage report
         command: tox -e coverage-report
+
+  tests-bitbucket:
+    worker: *test_worker
+    steps:
+    - Git: *git_pull
+    - ShellCommand:
+        name: Bert-E tests with real git host
+        command: tox -e tests-githost
+        env:
+          BERT_E_GITHOST: 'bitbucket'
+          BERT_E_REPO_PREFIX: '%(prop:bootstrap)s-%(prop:buildnumber)s-bert-e'
+          BERT_E_GITHOST_TEAM: '%(secret:bitbucket_team)s'
+          BERT_E_ROBOT_USERNAME: '%(secret:bitbucket_robot_username)s'
+          BERT_E_ROBOT_PASSWORD: '%(secret:bitbucket_robot_password)s'
+          BERT_E_CONTRIBUTOR_USERNAME: '%(secret:bitbucket_contributor_username)s'
+          BERT_E_CONTRIBUTOR_PASSWORD: '%(secret:bitbucket_contributor_password)s'
+          BERT_E_ADMIN_USERNAME: '%(secret:bitbucket_admin_username)s'
+          BERT_E_ADMIN_PASSWORD: '%(secret:bitbucket_admin_password)s'
