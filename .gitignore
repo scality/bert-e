@@ -5,3 +5,4 @@ test_settings.yml
 __pycache__
 .eggs
 bert_e.egg-info
+.tox/
