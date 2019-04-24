@@ -75,7 +75,7 @@ class BertESession(Session):
                 LOG.error('{method} {url}'.format(method=method, url=url))
                 raise
 
-            if response.status_code not in [429, 500]:
+            if response.status_code not in [429, 500, 502]:
                 break
 
             nap = 30 * attempt
