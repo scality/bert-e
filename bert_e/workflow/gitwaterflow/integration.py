@@ -187,7 +187,7 @@ def notify_integration_data(job, wbranches, child_prs):
         send_comment(
             job.settings, job.pull_request,
             exceptions.IntegrationDataCreated(
-                bert_e=job.settings.robot_username,
+                bert_e=job.settings.robot,
                 pr=job.pull_request,
                 wbranches=wbranches,
                 child_prs=child_prs,

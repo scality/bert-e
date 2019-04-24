@@ -10,6 +10,8 @@ https://developer.atlassian.com/cloud/bitbucket/bitbucket-api-changes-gdpr/
 
 # Fixed
 - No more API v1 calls for bitbucket.
+# Changed
+- Robot username setting is now robot and not robot_username.
 
 ## [3.2.10] - 2019-02-14
 # Added

@@ -42,7 +42,7 @@ class BertE(JobDispatcher):
         self.settings = settings
         self.client = client_factory(
             settings.repository_host,
-            settings.robot_username,
+            settings.robot,
             settings.robot_password,
             settings.robot_email
         )
@@ -52,7 +52,7 @@ class BertE(JobDispatcher):
         )
         settings['use_queue'] = not settings.disable_queues
         if settings.repository_host == 'bitbucket':
-            self.settings.robot_username.account_id = self.client.get_user_id()
+            self.settings.robot.account_id = self.client.get_user_id()
         if settings.repository_host == 'github':
             if settings['tasks']:
                 LOG.warning("Disabling tasks on GitHub repo")

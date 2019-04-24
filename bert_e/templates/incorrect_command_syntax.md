@@ -8,7 +8,7 @@ Incorrect command syntax
 It seems that your command syntax is incorrect. The correct usage is:
 
 ```
-@{{ robot_username }} option[=argument]
+@{{ robot }} option[=argument]
 ```
 
 Please **edit** or **delete** the corresponding comment so I can move on.

@@ -45,7 +45,7 @@ LOG = logging.getLogger(__name__)
 @handler(PullRequestJob)
 def handle_pull_request(job: PullRequestJob):
     """Analyse and handle a pull request that has just been updated."""
-    if job.pull_request.author == job.settings.robot_username:
+    if job.pull_request.author == job.settings.robot:
         return handle_parent_pull_request(job, job.pull_request)
     try:
         _handle_pull_request(job)
@@ -250,7 +250,7 @@ def send_greetings(job):
     """Send welcome message to the pull request's author and set default tasks.
 
     """
-    username = job.settings.robot_username
+    username = job.settings.robot
     if find_comment(job.pull_request, username=username):
         return
 
@@ -283,7 +283,7 @@ def handle_comments(job):
 
     reactor.init_settings(job)
 
-    prefix = '@{}'.format(job.settings.robot_username)
+    prefix = '@{}'.format(job.settings.robot)
     LOG.debug('looking for prefix: %s', prefix)
 
     # Handle options
@@ -319,7 +319,7 @@ def handle_comments(job):
     # Look for commands in comments posted after BertE's last message.
     for comment in reversed(job.pull_request.comments):
         author = comment.author
-        if author == job.settings.robot_username:
+        if author == job.settings.robot:
             return
         privileged = author in admins and author != pr_author
         text = comment.text
@@ -554,7 +554,7 @@ def check_approvals(job):
 
     # NB: when author hasn't approved the PR, author isn't listed in
     # 'participants'
-    username = job.settings.robot_username
+    username = job.settings.robot
 
     participants = set(job.pull_request.get_participants())
     approvals = set(job.pull_request.get_approvals())

@@ -66,7 +66,7 @@ DEFAULT_SETTINGS = """
 repository_owner: {owner}
 repository_slug: {slug}
 repository_host: {host}
-robot_username: {robot}
+robot: {robot}
 robot_email: nobody@nowhere.com
 always_create_integration_pull_requests: True
 pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
@@ -945,7 +945,7 @@ class TestBertE(RepositoryTests):
 repository_owner: {owner}
 repository_slug: {slug}
 repository_host: {host}
-robot_username: {robot}
+robot: {robot}
 robot_email: nobody@nowhere.com
 pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
 commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
@@ -987,7 +987,7 @@ admins:
 repository_owner: {owner}
 repository_slug: {slug}
 repository_host: {host}
-robot_username: {robot}
+robot: {robot}
 robot_email: nobody@nowhere.com
 pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
 commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
@@ -1019,7 +1019,7 @@ admins:
 repository_owner: {owner}
 repository_slug: {slug}
 repository_host: {host}
-robot_username: {robot}
+robot: {robot}
 robot_email: nobody@nowhere.com
 pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
 commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
@@ -1072,7 +1072,7 @@ admins:
 repository_owner: {owner}
 repository_slug: {slug}
 repository_host: {host}
-robot_username: {robot}
+robot: {robot}
 robot_email: nobody@nowhere.com
 pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
 commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
@@ -1330,7 +1330,7 @@ admins:
 repository_owner: {owner}
 repository_slug: {slug}
 repository_host: {host}
-robot_username: {robot}
+robot: {robot}
 robot_email: nobody@nowhere.com
 pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
 commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
@@ -1359,7 +1359,7 @@ project_leaders:
 repository_owner: {owner}
 repository_slug: {slug}
 repository_host: {host}
-robot_username: {robot}
+robot: {robot}
 robot_email: nobody@nowhere.com
 pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
 commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
@@ -1386,7 +1386,7 @@ project_leaders:
 repository_owner: {owner}
 repository_slug: {slug}
 repository_host: {host}
-robot_username: {robot}
+robot: {robot}
 robot_email: nobody@nowhere.com
 pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
 commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
@@ -1424,7 +1424,7 @@ project_leaders:
 repository_owner: {owner}
 repository_slug: {slug}
 repository_host: {host}
-robot_username: {robot}
+robot: {robot}
 robot_email: nobody@nowhere.com
 pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
 commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
@@ -1501,7 +1501,7 @@ admins:
 repository_owner: {owner}
 repository_slug: {slug}
 repository_host: {host}
-robot_username: {robot}
+robot: {robot}
 robot_email: nobody@nowhere.com
 pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
 commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
@@ -3102,7 +3102,7 @@ admins:
 repository_owner: {owner}
 repository_slug: {slug}
 repository_host: {host}
-robot_username: {robot}
+robot: {robot}
 robot_email: nobody@nowhere.com
 pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
 commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
@@ -3124,7 +3124,7 @@ admins:
 repository_owner: {owner}
 repository_slug: {slug}
 repository_host: {host}
-robot_username: {robot}
+robot: {robot}
 robot_email: nobody@nowhere.com
 pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
 commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
@@ -3144,7 +3144,7 @@ required_peer_approvals: 0
 repository_owner: {owner}
 repository_slug: {slug}
 repository_host: {host}
-robot_username: {robot}
+robot: {robot}
 robot_email: nobody@nowhere.com
 pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
 commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
@@ -3170,7 +3170,7 @@ admins:
         settings = """
 repository_slug: {slug}
 repository_host: {host}
-robot_username: {robot}
+robot: {robot}
 robot_email: nobody@nowhere.com
 pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
 commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
@@ -3191,7 +3191,7 @@ admins:
 repository_owner: {owner}
 repository_slug: {slug}
 repository_host: {host}
-robot_username: {robot}
+robot: {robot}
 robot_email: nobody@nowhere.com
 pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
 commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
@@ -3214,7 +3214,7 @@ project_leaders:
 repository_owner: {owner}
 repository_slug: {slug}
 repository_host: {host}
-robot_username: {robot}
+robot: {robot}
 robot_email: nobody@nowhere.com
 pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
 commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
@@ -3255,7 +3255,7 @@ project_leaders:
 repository_owner: {owner}
 repository_slug: {slug}
 repository_host: {host}
-robot_username: {robot}
+robot: {robot}
 robot_email: nobody@nowhere.com
 pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
 commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
@@ -3283,7 +3283,7 @@ admins:
 repository_owner: {owner}
 repository_slug: {slug}
 repository_host: {host}
-robot_username: {robot}
+robot: {robot}
 robot_email: nobody@nowhere.com
 pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
 commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
@@ -3325,7 +3325,7 @@ tasks:
 repository_owner: {owner}
 repository_slug: {slug}
 repository_host: {host}
-robot_username: {robot}
+robot: {robot}
 robot_email: nobody@nowhere.com
 pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
 commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
@@ -3580,7 +3580,7 @@ tasks:
 repository_owner: {owner}
 repository_slug: {slug}
 repository_host: {host}
-robot_username: {robot}
+robot: {robot}
 robot_email: nobody@nowhere.com
 pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
 commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
@@ -3625,7 +3625,7 @@ project_leaders:
 repository_owner: {owner}
 repository_slug: {slug}
 repository_host: {host}
-robot_username: {robot}
+robot: {robot}
 robot_email: nobody@nowhere.com
 pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
 commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
@@ -3675,7 +3675,7 @@ project_leaders:
 repository_owner: {owner}
 repository_slug: {slug}
 repository_host: {host}
-robot_username: {robot}
+robot: {robot}
 robot_email: nobody@nowhere.com
 pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
 commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
@@ -3736,7 +3736,7 @@ project_leaders:
 repository_owner: {owner}
 repository_slug: {slug}
 repository_host: {host}
-robot_username: {robot}
+robot: {robot}
 robot_email: nobody@nowhere.com
 pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
 commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
@@ -3793,7 +3793,7 @@ project_leaders:
 repository_owner: {owner}
 repository_slug: {slug}
 repository_host: {host}
-robot_username: {robot}
+robot: {robot}
 robot_email: nobody@nowhere.com
 pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
 commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
@@ -3842,7 +3842,7 @@ admins:
 repository_owner: {owner}
 repository_slug: {slug}
 repository_host: {host}
-robot_username: {robot}
+robot: {robot}
 robot_email: nobody@nowhere.com
 pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
 commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}

@@ -92,7 +92,7 @@ class SettingsSchema(Schema):
     repository_slug = fields.Str(required=True)
     repository_host = fields.Str(required=True)
 
-    robot_username = fields.Nested(UserSettingSchema, required=True)
+    robot = fields.Nested(UserSettingSchema, required=True)
     robot_email = fields.Str(required=True)
 
     pull_request_base_url = fields.Str(required=True)

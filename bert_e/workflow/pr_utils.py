@@ -69,7 +69,7 @@ def _send_comment(settings, pull_request: AbstractPullRequest, msg: str,
         return
 
     if dont_repeat_if_in_history:
-        if find_comment(pull_request, settings.robot_username, msg,
+        if find_comment(pull_request, settings.robot, msg,
                         dont_repeat_if_in_history):
             raise exceptions.CommentAlreadyExists(
                 "The same comment has already been posted in the history."

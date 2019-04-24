@@ -21,7 +21,7 @@ repository_owner: my_company
 repository_slug: my_repository
 
 
-# robot_username [MANDATORY]:
+# robot [MANDATORY]:
 #   The Bitbucket/GitHub account to use for interactions with pull requests
 #
 #   This user will act as the robot and will:
@@ -34,7 +34,7 @@ repository_slug: my_repository
 #
 #   The password associated to the account is passed on the command line.
 #
-robot_username: robot_username
+robot: robot_username
 
 
 # robot_email [MANDATORY]:

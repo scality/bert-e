@@ -35,7 +35,7 @@ def after_pull_request(job, pr_id=None, **kwargs):
     """
     if pr_id is None:
         raise IncorrectCommandSyntax(
-            robot_username=job.bert_e.client.login,
+            robot=job.bert_e.client.login,
             active_options=job.active_options)
 
     try:
@@ -95,7 +95,7 @@ def _reset(job, force=False):
             if rev in feature:
                 continue
 
-            if rev.author == job.settings.robot_username:
+            if rev.author == job.settings.robot:
                 continue
 
             # At this point, we want to avoid blocking on commits that were

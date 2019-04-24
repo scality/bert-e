@@ -16,7 +16,7 @@ data:
     repository_host: {{ .Values.bertE.repository.gitHost | quote }}
     repository_owner: {{ .Values.bertE.repository.owner | quote }}
     repository_slug: {{ .Values.bertE.repository.slug | quote }}
-    robot_username: {{ .Values.bertE.robot.username | quote }}
+    robot: {{ .Values.bertE.robot.username | quote }}
     robot_email: {{ .Values.bertE.robot.email | quote }}
     organization: {{ .Values.bertE.oauth.organization }}
     always_create_integration_pull_requests: {{ .Values.bertE.gating.alwaysCreateIntegrationPullRequests }}
