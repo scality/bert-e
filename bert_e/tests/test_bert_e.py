@@ -4449,8 +4449,7 @@ class TestQueueing(RepositoryTests):
                            {'pipeline': 'SUCCESSFUL'}]},
             2: {'dst': 'development/4.3', 'src': 'bugfix/targeting_old',
                 'status': [{'pipeline': 'SUCCESSFUL'},
-                           {'pipeline': 'INPROGRESS'},
-                           {'pipeline': None}]},
+                           {'pipeline': 'INPROGRESS'}]},
         })
         qbranches = self.submit_problem(problem)
         qc = self.feed_queue_collection(qbranches)
