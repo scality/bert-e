@@ -1,6 +1,16 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [3.3.0] - 2019-04-25
+# Added
+- Enabling Schema validation for all githosts.
+- Changing the way Bitbucket API Client works, due to GDPR breaking
+changes on their API. Therefore removing the usage of the 'username' field:
+https://developer.atlassian.com/cloud/bitbucket/bitbucket-api-changes-gdpr/
+
+# Fixed
+- No more API v1 calls for bitbucket.
+
 ## [3.2.10] - 2019-02-14
 # Added
 - Add support for the "design" branch prefix
