@@ -1655,6 +1655,8 @@ admins:
 
     def test_main_pr_retrieval(self):
         # create integration PRs first:
+        if self.args.git_host != 'mock' and not self.args.disable_queues:
+            self.skipTest('We can\'t bypass queues branches on githost')
         pr = self.create_pr('bugfix/TEST-00066', 'development/4.3')
         with self.assertRaises(exns.ApprovalRequired):
             self.handle(pr.id, options=['bypass_jira_check'], backtrace=True)
