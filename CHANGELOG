@@ -1,6 +1,11 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [3.3.1] - 2019-04-26
+# Fixed
+- Broken dependencies due to update on markdown upstream. Now
+fixing it with a proper constraint.
+
 ## [3.3.0] - 2019-04-25
 # Added
 - Enabling Schema validation for all githosts.
