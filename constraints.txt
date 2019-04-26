@@ -1,0 +1,3 @@
+# py-gfm can't install when markdown is > 3.0
+# therefore the following constraint
+markdown<3.0
