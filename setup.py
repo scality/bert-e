@@ -4,12 +4,24 @@ from os.path import abspath, dirname, join
 
 from setuptools import setup
 
+# Besides not advised,
+# https://pip.pypa.io/en/stable/user_guide/#using-pip-from-your-program
+# That's the only sane way to parse requirements.txt
+try: # for pip >= 10
+    from pip._internal.download import PipSession
+    from pip._internal.req import parse_requirements
+except ImportError: # for pip <= 9.0.3
+    from pip.download import PipSession
+    from pip.req import parse_requirements
+
 CWD = dirname(abspath(__file__))
 
 
 def requires():
-    with open(join(CWD, 'requirements.txt'), 'r') as fp:
-        return fp.read().split()
+    reqs_file = join(CWD, 'requirements.txt')
+    reqs_install = parse_requirements(reqs_file, session=PipSession())
+
+    return [str(ir.req) for ir in reqs_install]
 
 
 setup(
