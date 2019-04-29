@@ -15,6 +15,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from datetime import datetime
 import requests
 
 from . import base
@@ -411,6 +412,10 @@ class CommentController(Controller, base.AbstractComment):
         return self['user']['username'].lower()
 
     @property
+    def created_on(self):
+        return self['created_on']
+
+    @property
     def text(self):
         return self['content']['raw']
 
@@ -496,7 +501,7 @@ class Comment(BitBucketObject):
         #  JSON params #
         self.links = fake_links_dict(['self', 'html'])
         self.content = {"raw": content, "markup": "markdown", "html": content}
-        self.created_on = "2013-11-19T21:19:24.138375+00:00"
+        self.created_on = datetime.now()
         self.user = fake_user_dict(client.login)
         self.updated_on = "2013-11-19T21:19:24.141013+00:00"
         self.id = len(Comment.items) + 1

@@ -701,6 +701,11 @@ class Comment(base.AbstractGitHostObject, base.AbstractComment):
         return self.data['user']['login'].lower()
 
     @property
+    def created_on(self):
+        # note that Github's field is created_at and not created_on
+        return self.data['created_at']
+
+    @property
     def text(self) -> str:
         return self.data['body']
 

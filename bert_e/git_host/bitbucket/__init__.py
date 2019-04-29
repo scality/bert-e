@@ -501,6 +501,10 @@ class Comment(base.AbstractGitHostObject, base.AbstractComment):
         return self.data['user']['account_id'].lower()
 
     @property
+    def created_on(self):
+        return self.data['created_on']
+
+    @property
     def text(self):
         return self.data['content']['raw']
 

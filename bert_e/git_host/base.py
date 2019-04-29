@@ -24,6 +24,7 @@ import time
 import requests
 
 from abc import ABCMeta, abstractmethod
+from datetime import datetime
 from typing import Iterable
 from requests import Session
 
@@ -275,6 +276,11 @@ class AbstractComment(metaclass=ABCMeta):
     @abstractmethod
     def author(self) -> str:
         """The comment author's username (login)."""
+
+    @property
+    @abstractmethod
+    def created_on(self) -> datetime:
+        """The creation date of the comment"""
 
     @property
     @abstractmethod
