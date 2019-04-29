@@ -361,7 +361,7 @@ class PullRequest(BitBucketObject, base.AbstractPullRequest):
                  self.client, full_name=self.full_name(),
                  pull_request_id=self.id)
              if not comment.deleted or deleted),
-            key=lambda c: c.id
+            key=lambda c: c.created_on
         )
 
     def get_tasks(self):
