@@ -61,9 +61,6 @@ class UserDict(SettingsDict):
     def lower(self):
         return self.__str__().lower()
 
-    def encode(self, arg):
-        return self.username.encode(arg)
-
 
 class UserSettingSchema(Schema):
     username = Username(required=True)

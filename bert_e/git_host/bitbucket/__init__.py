@@ -192,7 +192,7 @@ class Repository(BitBucketObject, base.AbstractRepository):
 
     def get_git_url(self):
         return 'https://%s:%s@bitbucket.org/%s/%s.git' % (
-            quote(self.client.auth.username.encode('utf-8')),
+            quote(self.client.auth.username),
             quote(self.client.auth.password),
             self.owner,
             self.slug)
