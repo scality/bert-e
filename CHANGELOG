@@ -1,6 +1,12 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [3.3.2] - 2019-04-29
+# Added
+- Comments base abstract method now contains created_on property
+# Fixed
+- Ensure comments are sorted by creation date on Bitbucket API client.
+
 ## [3.3.1] - 2019-04-26
 # Fixed
 - Broken dependencies due to update on markdown upstream. Now
