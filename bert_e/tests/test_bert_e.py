@@ -658,6 +658,8 @@ class RepositoryTests(unittest.TestCase):
     def setUp(self):
         warnings.resetwarnings()
         warnings.simplefilter('ignore')
+        self.admin_id = None
+        self.contributor_id = None
         # repo creator and reviewer
         self.creator = self.args.admin_username
         host = RepositoryTests.args.git_host
@@ -676,7 +678,6 @@ class RepositoryTests(unittest.TestCase):
             owner=self.args.owner,
             slug=('%s_%s' % (self.args.repo_prefix, self.args.admin_username))
         )
-        self.admin_id = client.get_user_id()
         # unprivileged user connection
         client = client_factory(
             host,
@@ -689,7 +690,6 @@ class RepositoryTests(unittest.TestCase):
             slug=('%s_%s' % (self.args.repo_prefix,
                              self.args.admin_username)),
         )
-        self.contributor_id = client.get_user_id()
         # Bert-E may want to comment manually too
         client = client_factory(
             host,
@@ -705,6 +705,10 @@ class RepositoryTests(unittest.TestCase):
             self.admin_bb.git_url,
             mask_pwd=quote_plus(self.args.admin_password)
         )
+        if self.args.git_host == 'bitbucket':
+            self.contributor_id = self.contributor_bb.client.get_user_id()
+            self.admin_id = self.admin_bb.client.get_user_id()
+
         initialize_git_repo(self.gitrepo,
                             self.args.admin_username,
                             "bert-e@scality.com")
