@@ -3905,6 +3905,23 @@ project_leaders:
                 settings=settings,
                 backtrace=True)
 
+    def test_comments_sorted(self):
+        """Test that the comments on the githost are sorted by date.
+
+        Bert-E no repeat strategy relies on the fact that comment must be
+        sorted by creation date.
+
+        """
+        pr = self.create_pr('bugfix/TEST-42', 'development/4.3')
+
+        for i in range(20):
+            pr.add_comment('comment number %s' % i)
+
+        comments = list(pr.get_comments())
+        comments_sorted = sorted(comments, key=lambda c: c.created_on)
+        for i in range(len(comments)):
+            self.assertEqual(comments[i], comments_sorted[i])
+
 
 class TestQueueing(RepositoryTests):
     """Tests which validate all things related to the merge queue.
