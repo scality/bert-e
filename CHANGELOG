@@ -1,6 +1,10 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [3.3.3] - 2019-04-29
+# Added
+- Ensure we use byte based objects on all githost clients
+
 ## [3.3.2] - 2019-04-29
 # Added
 - Comments base abstract method now contains created_on property

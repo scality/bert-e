@@ -42,7 +42,7 @@ class BertE(JobDispatcher):
         self.settings = settings
         self.client = client_factory(
             settings.repository_host,
-            settings.robot,
+            settings.robot.username,
             settings.robot_password,
             settings.robot_email
         )
