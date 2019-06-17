@@ -33,7 +33,7 @@ class Fields(object):
 
 
 class JiraIssue(object):
-    def __init__(self, account_url, issue_id, login, passwd):
+    def __init__(self, account_url, issue_id, email, token):
         # fields = {u'fixVersions': [{u'name':u'5.1.4', u'id':u'10693'},
         #                           {u'name':u'6.0.1', u'id':u'10800'}],
         #          u'issuetype': u'Bug'}

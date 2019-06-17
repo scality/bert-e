@@ -19,6 +19,9 @@ spec:
         app: {{ template "fullname" $ }}
         chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
         release: "{{ .Release.Name }}"
+      annotations:
+        checksum/settings: {{ include (print $.Template.BasePath "/settings.yaml") . | sha256sum }}
+        checksum/secret: {{ include (print $.Template.BasePath "/secrets.yaml") . | sha256sum }}
     spec:
       {{- if .Values.image.pullSecrets }}
       imagePullSecrets:
