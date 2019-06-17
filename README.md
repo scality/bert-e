@@ -33,7 +33,7 @@ optional arguments:
 First you have to export the following environment variables:
 
 * `BERT_E_GITHOST_PWD` Bert-E's password on Bitbucket or Github.
-* `BERT_E_JIRA_PWD` Bert-E's password on Jira.
+* `BERT_E_JIRA_TOKEN` Bert-E's API token on Jira. Can be created [here](https://id.atlassian.com/manage/api-tokens)
 * `WEBHOOK_LOGIN`, `WEBHOOK_PWD` The HTTP BasicAuth credentials used to
   authenticate the git host webhook requests.
 * `BERT_E_CLIENT_ID`, `BERT_E_CLIENT_SECRET` the OAuth key

@@ -91,12 +91,12 @@ need_author_approval: true
 jira_account_url: https://my_account.atlassian.net
 
 
-# jira_username [OPTIONAL]:
-#   The login to use to retrieve information from Jira.
+# jira_email [OPTIONAL]:
+#   The email to use to retrieve information from Jira.
 #
 #   empty: no Jira checks will be performed.
 #
-jira_username: my_jira_username
+jira_email: my_jira@email.com
 
 
 # jira_keys [OPTIONAL]:

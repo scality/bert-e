@@ -234,13 +234,13 @@ bertE:
     ##
     accountUrl: "https://myaccount.atlassian.net"
 
-    ## username is the login to use to retrieve information from Jira.
+    ## the jira email to use to retrieve information from Jira.
     ##
-    username: "a_jira_account"
+    email: "a_jira_account"
 
-    ## password is the password of the Jira account specified in username.
+    ## token is the API token of the Jira account.
     ##
-    password: "jira_password"
+    token: "jira_token"
 
     ## acceptedProjectKeys is the list of accepted Jira keys for this project.
     ##

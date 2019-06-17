@@ -18,8 +18,8 @@ from jira import JIRA
 
 
 class JiraIssue:
-    def __init__(self, account_url, issue_id, login, passwd):
-        self._credentials = (login, passwd)
+    def __init__(self, account_url, issue_id, email, token):
+        self._credentials = (email, token)
         self._jira = JIRA(account_url, basic_auth=self._credentials)
         issue = self._jira.issue(issue_id)
         self.fields = issue.fields

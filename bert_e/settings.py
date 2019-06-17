@@ -102,7 +102,7 @@ class SettingsSchema(Schema):
     required_peer_approvals = fields.Int(missing=2)
 
     jira_account_url = fields.Str(missing='')
-    jira_username = fields.Str(missing='')
+    jira_email = fields.Str(missing='')
     jira_keys = fields.List(fields.Str(), missing=[])
 
     prefixes = fields.Dict(missing={})
@@ -125,7 +125,7 @@ class SettingsSchema(Schema):
 
     # Settings coming from CLI arguments
     robot_password = fields.Str(missing='')
-    jira_password = fields.Str(missing='')
+    jira_token = fields.Str(missing='')
 
     backtrace = fields.Bool(missing=False)
     interactive = fields.Bool(missing=False)

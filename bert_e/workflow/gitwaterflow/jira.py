@@ -41,7 +41,7 @@ def jira_checks(job):
         return
 
     if not all([job.settings.jira_keys,
-                job.settings.jira_username,
+                job.settings.jira_email,
                 job.settings.jira_account_url]):
         return
 
@@ -67,8 +67,8 @@ def get_jira_issue(job):
         return jira_api.JiraIssue(
             account_url=job.settings.jira_account_url,
             issue_id=job.git.src_branch.jira_issue_key,
-            login=job.settings.jira_username,
-            passwd=job.settings.jira_password
+            email=job.settings.jira_email,
+            token=job.settings.jira_token
         )
     except JIRAError as err:
         if err.status_code == 404:

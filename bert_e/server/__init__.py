@@ -41,7 +41,7 @@ def setup_bert_e(settings_file, debug):
     """Create and configure Bert-E instance."""
     settings = setup_settings(settings_file)
     settings['robot_password'] = os.environ['BERT_E_GITHOST_PWD']
-    settings['jira_password'] = os.environ['BERT_E_JIRA_PWD']
+    settings['jira_token'] = os.environ['BERT_E_JIRA_TOKEN']
     settings['backtrace'] = True
 
     bert_e = BertE(settings)

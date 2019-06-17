@@ -255,7 +255,7 @@ def setup_parser():
         'robot_password',
         help="Robot Bitbucket/GitHub password")
     parser.add_argument(
-        'jira_password',
+        'jira_token',
         help="Robot Jira password")
     parser.add_argument(
         'token', type=str,

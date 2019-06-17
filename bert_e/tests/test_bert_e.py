@@ -79,7 +79,7 @@ prefixes:
   Bug: bugfix
   Improvement: improvement
 jira_account_url: dummy
-jira_username: dummy
+jira_email: dummy@mail.com
 jira_keys:
   - TEST
 admins:
@@ -762,7 +762,7 @@ class RepositoryTests(unittest.TestCase):
         argv_copy = list(sys.argv)
         sys.argv.append('test_settings.yml')
         sys.argv.append(self.args.robot_password)
-        sys.argv.append('dummy_jira_password')
+        sys.argv.append('dummy_jira_token')
         sys.argv.append(str(token))
         try:
             bert_e_main()
@@ -806,7 +806,7 @@ class RepositoryTests(unittest.TestCase):
         token = sha1
         sys.argv.append('test_settings.yml')
         sys.argv.append(self.args.robot_password)
-        sys.argv.append('dummy_jira_password')
+        sys.argv.append('dummy_jira_token')
         sys.argv.append(str(token))
         try:
             bert_e_main()
@@ -865,7 +865,7 @@ class RepositoryTests(unittest.TestCase):
 
         sys.argv.append('test_settings.yml')
         sys.argv.append(self.args.robot_password)
-        sys.argv.append('dummy_jira_password')
+        sys.argv.append('dummy_jira_token')
         sys.argv.append(str(token))
         return bert_e_main()
 
@@ -5129,7 +5129,7 @@ class TaskQueueTests(RepositoryTests):
             settings_file.write(data)
         settings = setup_settings('test_settings.yml')
         settings['robot_password'] = self.args.robot_password
-        settings['jira_password'] = 'dummy_jira_password'
+        settings['jira_token'] = 'dummy_jira_token'
         settings['cmd_line_options'] = options
         settings['backtrace'] = backtrace
         settings['sentry_dsn'] = self.args.sentry_dsn
