@@ -1,6 +1,10 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [3.3.4] - 2019-06-18
+# Fixed
+- Renaming jira related variables due to authentication changes in the API.
+
 ## [3.3.3] - 2019-04-29
 # Added
 - Ensure we use byte based objects on all githost clients
