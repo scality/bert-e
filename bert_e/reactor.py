@@ -311,10 +311,19 @@ class Reactor(Dispatcher):
 
         """
         raw = text.strip()
-        if not raw.startswith(prefix):
+        canonical_raw = None
+        canonical_prefix = None
+        if raw.startswith(prefix):
+            canonical_raw = raw
+            canonical_prefix = prefix
+        elif re.match('^/\w', raw):
+            canonical_raw = raw.replace("/", "/ ", 1)
+            canonical_prefix = "/"
+        if not canonical_raw:
             return
         LOG.debug('Found a potential option: %r', raw)
-        cleaned = re.sub(r'[,.\-/:;|+]', ' ', raw[len(prefix):])
+        cleaned = re.sub(r'[,.\-/:;|+]', ' ',
+                         canonical_raw[len(canonical_prefix):])
         match = re.match(r'\s*(?P<keywords>(\s+[\w=]+)+)\s*$', cleaned)
         if not match:
             LOG.debug('Ignoring comment. Unknown format')
@@ -372,11 +381,20 @@ class Reactor(Dispatcher):
 
         """
         raw = text.strip()
-        if not raw.startswith(prefix):
+        canonical_raw = None
+        canonical_prefix = None
+        if raw.startswith(prefix):
+            canonical_raw = raw
+            canonical_prefix = prefix
+        elif re.match('^/\w', raw):
+            canonical_raw = raw.replace("/", "/ ", 1)
+            canonical_prefix = "/"
+        if not canonical_raw:
             return
         LOG.debug('Found a potential command: %r', raw)
-        regex = r"%s[\s:]*(?P<command>[A-Za-z_]+[^= ,])(?P<args>.*)$" % prefix
-        match = re.match(regex, raw)
+        regex = r"%s[\s:]*(?P<command>[A-Za-z_]+[^= ,])(?P<args>.*)$" % \
+                canonical_prefix
+        match = re.match(regex, canonical_raw)
         if not match:
             LOG.warning("Command ignored. Unknown format.")
             return
