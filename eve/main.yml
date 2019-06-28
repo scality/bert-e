@@ -1,5 +1,5 @@
 ---
-version: 0.1
+version: 0.2
 
 branches:
   user/*, feature/*, improvement/*, bugfix/*, w/*, q/*:
@@ -10,80 +10,15 @@ stages:
     worker:
       type: local
     steps:
-    - TriggerStages:
-        name: Syntax checker
-        haltOnFailure: true
-        stage_names:
-        - lint
-    - TriggerStages:
-        name: trigger all the tests
-        haltOnFailure: true
-        stage_names:
-        - tests
-  lint:
-    worker:
-      type: kube_pod
-      path: eve/worker/worker.yaml
-      images:
-        worker: eve/worker/dockerfile
-    steps:
-    - Git: &git_pull
-        name: git pull
-        repourl: "%(prop:git_reference)s"
-        shallow: True
-        retryFetch: True
-        haltOnFailure: True
-    - ShellCommand:
-        name: 'flake8'
-        haltOnFailure: true
-        command: tox -e flake8
-    - ShellCommand:
-        name: 'check helm packaging'
-        command: helm lint charts/bert-e
-        haltOnFailure: true
-
-  tests:
-    worker: &test_worker
-      type: kube_pod
-      path: eve/worker/worker.yaml
-      images:
-        worker: eve/worker/dockerfile
-    steps:
-    - Git: *git_pull
-    - ShellCommand:
-        name: unit tests
-        command: tox -e utests
-    - ShellCommand:
-        name: Git host API mock tests
-        command: tox -e tests-api-mock
-    - ShellCommand:
-        name: Bert-E server tests
-        command: tox -e tests-server
-    - ShellCommand:
-        name: Bert-E tests (no queue support)
-        command: tox -e tests-noqueue
-    - ShellCommand:
-        name: Bert-E tests (with queue support)
-        command: tox -e tests
-    - ShellCommand: &coverage_report
-        name: Coverage report
-        command: tox -e coverage-report
-
-  tests-bitbucket:
-    worker: *test_worker
-    steps:
-    - Git: *git_pull
-    - ShellCommand:
-        name: Bert-E tests with real git host
-        command: tox -e tests-githost
-        env:
-          BERT_E_GITHOST: 'bitbucket'
-          BERT_E_REPO_PREFIX: '%(prop:bootstrap)s-%(prop:buildnumber)s-bert-e'
-          BERT_E_GITHOST_TEAM: '%(secret:bitbucket_team)s'
-          BERT_E_ROBOT_USERNAME: '%(secret:bitbucket_robot_username)s'
-          BERT_E_ROBOT_PASSWORD: '%(secret:bitbucket_robot_password)s'
-          BERT_E_CONTRIBUTOR_USERNAME: '%(secret:bitbucket_contributor_username)s'
-          BERT_E_CONTRIBUTOR_PASSWORD: '%(secret:bitbucket_contributor_password)s'
-          BERT_E_ADMIN_USERNAME: '%(secret:bitbucket_admin_username)s'
-          BERT_E_ADMIN_PASSWORD: '%(secret:bitbucket_admin_password)s'
-    - ShellCommand: *coverage_report
+      - ShellCommand:
+          name: MyStep
+          command: echo 1
+      - ShellCommand:
+          name: MyStep
+          command: echo 2
+      - ShellCommand:
+          name: MyStep
+          command: echo 3
+      - ShellCommand:
+          name: MyStep
+          command: echo 4
