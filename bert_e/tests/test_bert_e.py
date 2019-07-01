@@ -1930,6 +1930,11 @@ admins:
         pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
 
         # option: wait
+        comment = pr.add_comment('/wait')
+        with self.assertRaises(exns.NothingToDo):
+            self.handle(pr.id, backtrace=True)
+        comment.delete()
+
         comment = pr.add_comment('@%s wait' % self.args.robot_username)
         with self.assertRaises(exns.NothingToDo):
             self.handle(pr.id, backtrace=True)
@@ -1991,6 +1996,10 @@ admins:
             self.handle(pr.id, backtrace=True)
 
         # test help command
+        pr.add_comment('/help')
+        with self.assertRaises(exns.HelpMessage):
+            self.handle(pr.id, backtrace=True)
+
         pr.add_comment('@%s help' % self.args.robot_username)
         with self.assertRaises(exns.HelpMessage):
             self.handle(pr.id, backtrace=True)
@@ -2010,12 +2019,21 @@ admins:
             self.handle(pr.id, options=['bypass_jira_check'], backtrace=True)
 
         # test unknown command
+        comment = pr.add_comment('/helpp')
+        with self.assertRaises(exns.UnknownCommand):
+            self.handle(pr.id, options=['bypass_jira_check'], backtrace=True)
+        comment.delete()
+
         comment = pr.add_comment('@%s helpp' % self.args.robot_username)
         with self.assertRaises(exns.UnknownCommand):
             self.handle(pr.id, options=['bypass_jira_check'], backtrace=True)
         comment.delete()
 
         # test command args
+        pr.add_comment('/help some arguments --hehe')
+        with self.assertRaises(exns.HelpMessage):
+            self.handle(pr.id, backtrace=True)
+
         pr.add_comment('@%s help some arguments --hehe' %
                        self.args.robot_username)
         with self.assertRaises(exns.HelpMessage):
