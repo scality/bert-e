@@ -1930,11 +1930,6 @@ admins:
         pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
 
         # option: wait
-        comment = pr.add_comment('/wait')
-        with self.assertRaises(exns.NothingToDo):
-            self.handle(pr.id, backtrace=True)
-        comment.delete()
-
         comment = pr.add_comment('@%s wait' % self.args.robot_username)
         with self.assertRaises(exns.NothingToDo):
             self.handle(pr.id, backtrace=True)
