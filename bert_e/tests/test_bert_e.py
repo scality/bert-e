@@ -1973,12 +1973,12 @@ admins:
             self.handle(pr.id, backtrace=True)
 
         # command: force reset
-        pr.add_comment('/bert force_reset')
+        pr.add_comment('!force_reset')
         with self.assertRaises(exns.ResetComplete):
             self.handle(pr.id, backtrace=True)
 
         # command: force reset and garbage
-        pr.add_comment('/bert force_reset some arguments --hehe')
+        pr.add_comment('!force_reset some arguments --hehe')
         with self.assertRaises(exns.ResetComplete):
             self.handle(pr.id, backtrace=True)
 
@@ -1989,13 +1989,13 @@ admins:
             self.handle(pr.id, backtrace=True)
 
         # moved broken test
-        comment = pr.add_comment('/bert wait')
+        comment = pr.add_comment('!wait')
         with self.assertRaises(exns.NothingToDo):
             self.handle(pr.id, backtrace=True)
         comment.delete()
 
         # test help command
-        pr.add_comment('/bert help')
+        pr.add_comment('!help')
         with self.assertRaises(exns.HelpMessage):
             self.handle(pr.id, backtrace=True)
 
@@ -2018,7 +2018,7 @@ admins:
             self.handle(pr.id, options=['bypass_jira_check'], backtrace=True)
 
         # test unknown command
-        comment = pr.add_comment('/bert helpp')
+        comment = pr.add_comment('!helpp')
         with self.assertRaises(exns.UnknownCommand):
             self.handle(pr.id, options=['bypass_jira_check'], backtrace=True)
         comment.delete()
@@ -2029,7 +2029,7 @@ admins:
         comment.delete()
 
         # test command args
-        pr.add_comment('/bert help some arguments --hehe')
+        pr.add_comment('!help some arguments --hehe')
         with self.assertRaises(exns.HelpMessage):
             self.handle(pr.id, backtrace=True)
 

@@ -279,7 +279,7 @@ class Reactor(Dispatcher):
         for key, option in self.get_options().items():
             job.settings[key] = copy(option.default)
 
-    def handle_options(self, job, text, prefixes, privileged=False,
+    def handle_options(self, job, text, prefix, privileged=False,
                        authored=False):
         """Find option calls in given text string, and execute the
         corresponding option handlers if any is found.
@@ -311,16 +311,17 @@ class Reactor(Dispatcher):
 
         """
         raw = text.strip()
-        prefix = None
-        for i in prefixes:
-            if raw.startswith(i):
-                prefix = i
-                break
-        if not prefix:
+        re_prefix = None
+        if raw.startswith(prefix):
+            re_prefix = r"%s" % prefix
+        elif raw.startswith('!'):
+            re_prefix = r"!"
+        if not re_prefix:
             return
         LOG.debug('Found a potential option: %r', raw)
-        cleaned = re.sub(r'[,.\-/:;|+]', ' ', raw[len(prefix):])
-        match = re.match(r'\s*(?P<keywords>(\s+[\w=]+)+)\s*$', cleaned)
+        cleaned = re.sub(r'[,.\-/:;|+]', ' ', raw[len(re_prefix):])
+        match = re.match(r'%s(?P<keywords>(\s*[\w=]+)+)\s*$' % re_prefix,
+                         cleaned)
         if not match:
             LOG.debug('Ignoring comment. Unknown format')
             return
@@ -350,7 +351,7 @@ class Reactor(Dispatcher):
             # Everything is okay, apply the option
             option.handler(job, *args)
 
-    def handle_commands(self, job, text, prefixes, privileged=False):
+    def handle_commands(self, job, text, prefix, privileged=False):
         """Find a command call in given text string, and execute the
         corresponding handler if any is found.
 
@@ -377,15 +378,15 @@ class Reactor(Dispatcher):
 
         """
         raw = text.strip()
-        prefix = None
-        for i in prefixes:
-            if raw.startswith(i):
-                prefix = i
-                break
-        if not prefix:
+        re_prefix = None
+        if raw.startswith(prefix):
+            re_prefix = r"%s[\s:]*" % prefix
+        elif raw.startswith('!'):
+            re_prefix = r"!"
+        if not re_prefix:
             return
         LOG.debug('Found a potential command: %r', raw)
-        regex = r"%s[\s:]*(?P<command>[A-Za-z_]+[^= ,])(?P<args>.*)$" % prefix
+        regex = r"%s(?P<command>[A-Za-z_]+[^= ,])(?P<args>.*)$" % re_prefix
         match = re.match(regex, raw)
         if not match:
             LOG.warning("Command ignored. Unknown format.")

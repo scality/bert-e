@@ -294,7 +294,7 @@ def handle_comments(job):
         authored = author == pr_author
         text = comment.text
         try:
-            reactor.handle_options(job, text, [prefix, '/bert'], privileged, authored)
+            reactor.handle_options(job, text, prefix, privileged, authored)
         except NotFound as err:
             raise messages.UnknownCommand(
                 active_options=job.active_options, command=err.keyword,
@@ -324,7 +324,7 @@ def handle_comments(job):
         privileged = author in admins and author != pr_author
         text = comment.text
         try:
-            reactor.handle_commands(job, text, [prefix, '/bert'], privileged)
+            reactor.handle_commands(job, text, prefix, privileged)
         except NotFound as err:
             raise messages.UnknownCommand(
                 active_options=job.active_options, command=err.keyword,
