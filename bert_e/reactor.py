@@ -312,19 +312,16 @@ class Reactor(Dispatcher):
         """
         raw = text.strip()
         real_prefix = None
-        regex_prefix = None
         if raw.startswith(prefix):
             real_prefix = prefix
-            regex_prefix = '%s[\s:]*' % prefix
-        elif raw.startswith('/'):
-            real_prefix = '/'
-            regex_prefix = '/'
+        elif re.match(r'^/\w', raw):
+            real_prefix = "/ "
+            raw.replace("/", "/ ", 1)
         if not real_prefix:
             return
         LOG.debug('Found a potential option: %r', raw)
         cleaned = re.sub(r'[,.\-/:;|+]', ' ', raw[len(real_prefix):])
-        match = re.match(r'%s(?P<keywords>(\s*[\w=]+)+)\s*$' % regex_prefix,
-                         cleaned)
+        match = re.match(r'\s*(?P<keywords>(\s+[\w=]+)+)\s*$', cleaned)
         if not match:
             LOG.debug('Ignoring comment. Unknown format')
             return
