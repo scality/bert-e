@@ -314,7 +314,7 @@ class Reactor(Dispatcher):
         real_prefix = None
         if raw.startswith(prefix):
             real_prefix = prefix
-        elif re.match(r'^/\w', raw):
+        elif re.match('^/\w', raw):
             real_prefix = "/ "
             raw.replace("/", "/ ", 1)
         if not real_prefix:
