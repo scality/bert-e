@@ -315,7 +315,7 @@ class Reactor(Dispatcher):
         if raw.startswith(prefix):
             real_prefix = prefix
         elif raw.startswith('!'):
-            real_prefix = "!"
+            real_prefix = '!'
         if not real_prefix:
             return
         LOG.debug('Found a potential option: %r', raw)
@@ -378,15 +378,15 @@ class Reactor(Dispatcher):
 
         """
         raw = text.strip()
-        re_prefix = None
+        regex_prefix = None
         if raw.startswith(prefix):
-            re_prefix = r"%s[\s:]*" % prefix
+            regex_prefix = '%s[\s:]*' % prefix
         elif raw.startswith('!'):
-            re_prefix = r"!"
-        if not re_prefix:
+            regex_prefix = '!'
+        if not regex_prefix:
             return
         LOG.debug('Found a potential command: %r', raw)
-        regex = r"%s(?P<command>[A-Za-z_]+[^= ,])(?P<args>.*)$" % re_prefix
+        regex = r"%s(?P<command>[A-Za-z_]+[^= ,])(?P<args>.*)$" % regex_prefix
         match = re.match(regex, raw)
         if not match:
             LOG.warning("Command ignored. Unknown format.")
