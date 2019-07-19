@@ -314,8 +314,8 @@ class Reactor(Dispatcher):
         real_prefix = None
         if raw.startswith(prefix):
             real_prefix = prefix
-        elif raw.startswith('!'):
-            real_prefix = '!'
+        elif raw.startswith('/'):
+            real_prefix = '/'
         if not real_prefix:
             return
         LOG.debug('Found a potential option: %r', raw)
@@ -381,8 +381,8 @@ class Reactor(Dispatcher):
         regex_prefix = None
         if raw.startswith(prefix):
             regex_prefix = '%s[\s:]*' % prefix
-        elif raw.startswith('!'):
-            regex_prefix = '!'
+        elif raw.startswith('/'):
+            regex_prefix = '/'
         if not regex_prefix:
             return
         LOG.debug('Found a potential command: %r', raw)
