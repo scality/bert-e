@@ -1930,6 +1930,11 @@ admins:
         pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
 
         # option: wait
+        comment = pr.add_comment('/wait')
+        with self.assertRaises(exns.NothingToDo):
+            self.handle(pr.id, backtrace=True)
+        comment.delete()
+
         comment = pr.add_comment('@%s wait' % self.args.robot_username)
         with self.assertRaises(exns.NothingToDo):
             self.handle(pr.id, backtrace=True)
@@ -1973,12 +1978,14 @@ admins:
             self.handle(pr.id, backtrace=True)
 
         # command: force reset
-        pr.add_comment('/force_reset')
+        pr.add_comment('@%s force_reset' %
+                       self.args.robot_username)
         with self.assertRaises(exns.ResetComplete):
             self.handle(pr.id, backtrace=True)
 
         # command: force reset and garbage
-        pr.add_comment('/force_reset some arguments --hehe')
+        pr.add_comment('@%s force_reset some arguments --hehe' %
+                       self.args.robot_username)
         with self.assertRaises(exns.ResetComplete):
             self.handle(pr.id, backtrace=True)
 
@@ -1987,12 +1994,6 @@ admins:
         pr.add_comment('@%s status' % self.args.robot_username)
         with self.assertRaises(exns.StatusReport):
             self.handle(pr.id, backtrace=True)
-
-        # moved broken test
-        comment = pr.add_comment('/wait')
-        with self.assertRaises(exns.NothingToDo):
-            self.handle(pr.id, backtrace=True)
-        comment.delete()
 
         # test help command
         pr.add_comment('/help')
@@ -2004,6 +2005,11 @@ admins:
             self.handle(pr.id, backtrace=True)
 
         # test help command with inter comment
+        pr.add_comment('/help')
+        pr.add_comment('an irrelevant comment')
+        with self.assertRaises(exns.HelpMessage):
+            self.handle(pr.id, backtrace=True)
+
         pr.add_comment('@%s: help' % self.args.robot_username)
         pr.add_comment('an irrelevant comment')
         with self.assertRaises(exns.HelpMessage):
