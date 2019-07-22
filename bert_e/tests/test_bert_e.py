@@ -2005,11 +2005,6 @@ admins:
             self.handle(pr.id, backtrace=True)
 
         # test help command with inter comment
-        pr.add_comment('/help')
-        pr.add_comment('an irrelevant comment')
-        with self.assertRaises(exns.HelpMessage):
-            self.handle(pr.id, backtrace=True)
-
         pr.add_comment('@%s: help' % self.args.robot_username)
         pr.add_comment('an irrelevant comment')
         with self.assertRaises(exns.HelpMessage):
