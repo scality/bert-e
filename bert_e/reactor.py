@@ -381,16 +381,20 @@ class Reactor(Dispatcher):
 
         """
         raw = text.strip()
-        regex_prefix = None
+        canonical_raw = None
+        canonical_prefix = None
         if raw.startswith(prefix):
-            regex_prefix = '%s[\s:]*' % prefix
-        elif raw.startswith('/'):
-            regex_prefix = '/'
-        if not regex_prefix:
+            canonical_raw = raw
+            canonical_prefix = prefix
+        elif re.match('^/\w', raw):
+            canonical_raw = raw.replace("/", "/ ", 1)
+            canonical_prefix = "/"
+        if not canonical_raw:
             return
         LOG.debug('Found a potential command: %r', raw)
-        regex = r"%s(?P<command>[A-Za-z_]+[^= ,])(?P<args>.*)$" % regex_prefix
-        match = re.match(regex, raw)
+        regex = r"%s[\s:]*(?P<command>[A-Za-z_]+[^= ,])(?P<args>.*)$" % \
+                canonical_prefix
+        match = re.match(regex, canonical_raw)
         if not match:
             LOG.warning("Command ignored. Unknown format.")
             return
