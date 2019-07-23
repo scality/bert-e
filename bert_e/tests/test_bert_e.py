@@ -2051,6 +2051,17 @@ admins:
 
         # test options set through deleted comment(self):
         comment = pr.add_comment(
+            '/bypass_author_approval\n'
+            ' /bypass_peer_approval'
+            ' /bypass_leader_approval'
+            ' /bypass_build_status'
+            ' /bypass_jira_check'
+        )
+        comment.delete()
+        with self.assertRaises(exns.ApprovalRequired):
+            self.handle(pr.id, options=['bypass_jira_check'], backtrace=True)
+
+        comment = pr.add_comment(
             '@%s'
             ' bypass_author_approval'
             ' bypass_peer_approval'

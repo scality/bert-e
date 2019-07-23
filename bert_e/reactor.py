@@ -316,9 +316,9 @@ class Reactor(Dispatcher):
         if raw.startswith(prefix):
             canonical_raw = raw
             canonical_prefix = prefix
-        elif re.match('^/\w', raw):
-            canonical_raw = raw.replace("/", "/ ", 1)
-            canonical_prefix = "/"
+        elif re.match('^/[\w=]+([\s,.\-:;|+]+/[\w=]+)*\s*$', raw):
+            canonical_raw = " " + raw
+            canonical_prefix = ""
         if not canonical_raw:
             return
         LOG.debug('Found a potential option: %r', raw)
