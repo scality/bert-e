@@ -271,6 +271,10 @@ class QuickTest(unittest.TestCase):
         self.assertIsNone(src.jira_issue_key)
         self.assertIsNone(src.jira_project)
 
+        src = self.feature_branch('dependabot/npm_and_yarn/ui/lodash-4.17.13')
+        self.assertIsNone(src.jira_issue_key)
+        self.assertIsNone(src.jira_project)
+
     def test_destination_branch_names(self):
 
         with self.assertRaises(exns.BranchNameInvalid):
@@ -1150,7 +1154,8 @@ admins:
                             'user/my_own_branch',
                             'project/invalid',
                             'feature/invalid',
-                            'hotfix/customer']:
+                            'hotfix/customer',
+                            'dependabot/npm_and_yarn/ui/lodash-4.17.13']:
             create_branch(self.gitrepo, destination, file_=True,
                           from_branch='development/4.3')
             pr = self.contributor_bb.create_pull_request(
@@ -3955,6 +3960,25 @@ project_leaders:
         for i in range(len(comments)):
             self.assertEqual(comments[i], comments_sorted[i])
 
+    def test_dependabot_pr(self):
+        """Test a simple dependabot PR.
+
+            Improvements to this test will be made later, per example
+            automatically bypass author approval.
+        """
+        pr = self.create_pr('dependabot/npm_and_yarn/ui/lodash-4.17.13', 'development/4.3')
+        with self.assertRaises(exns.SuccessMessage):
+            self.handle(
+                pr.id,
+                options=[
+                    'bypass_author_approval', # to be removed once we support properly
+                    'bypass_jira_check',
+                    'bypass_leader_approval',
+                    'bypass_build_status',
+                    'bypass_peer_approval',
+                ],
+                backtrace=True
+            )
 
 class TestQueueing(RepositoryTests):
     """Tests which validate all things related to the merge queue.

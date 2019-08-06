@@ -129,9 +129,10 @@ prefixes:
 # automatically bypass issue tracker related checks.
 #
 #   default value: empty
-#   accepted values: (improvement|bugfix|feature|project|documentation)
+#   accepted values: (improvement|bugfix|feature|project|documentation|dependabot)
 bypass_prefixes:
   - documentation
+  - dependabot
 
 
 # disable_version_checks [OPTIONAL]
