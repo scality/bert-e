@@ -1,6 +1,10 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [3.3.6] - 2019-08-07
+# Added
+- Support branches with the prefix dependabot.
+
 ## [3.3.5] - 2019-07-22
 # Added
 - Commands and options can now by called with the / prefix in a PR comment.

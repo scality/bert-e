@@ -3966,12 +3966,14 @@ project_leaders:
             Improvements to this test will be made later, per example
             automatically bypass author approval.
         """
-        pr = self.create_pr('dependabot/npm_and_yarn/ui/lodash-4.17.13', 'development/4.3')
+        pr = self.create_pr('dependabot/npm_and_yarn/ui/lodash-4.17.13',
+                            'development/4.3')
         with self.assertRaises(exns.SuccessMessage):
             self.handle(
                 pr.id,
                 options=[
-                    'bypass_author_approval', # to be removed once we support properly
+                    # bypass_author to be removed once we support it properly
+                    'bypass_author_approval',
                     'bypass_jira_check',
                     'bypass_leader_approval',
                     'bypass_build_status',
@@ -3979,6 +3981,7 @@ project_leaders:
                 ],
                 backtrace=True
             )
+
 
 class TestQueueing(RepositoryTests):
     """Tests which validate all things related to the merge queue.
