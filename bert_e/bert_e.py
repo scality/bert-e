@@ -51,6 +51,7 @@ class BertE(JobDispatcher):
             slug=settings.repository_slug
         )
         settings['use_queue'] = not settings.disable_queues
+        settings['delete_queues'] = False
 
         if settings.repository_host == 'github':
             if settings['tasks']:

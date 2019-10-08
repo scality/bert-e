@@ -85,11 +85,12 @@ def delete_branch(job: DeleteBranchJob):
                                         del_branch)
 
     if job.settings.use_queue:
-        queue_collection = build_queue_collection(job)
-        if queue_collection.has_version_queued_prs(del_branch.version_t):
-            raise exceptions.JobFailure('Requested branch %r cannot be '
-                                        'deleted now due to queued data.' %
-                                        del_branch)
+        if not job.settings.delete_queues:
+            queue_collection = build_queue_collection(job)
+            if queue_collection.has_version_queued_prs(del_branch.version_t):
+                raise exceptions.JobFailure('Requested branch %r cannot be '
+                                            'deleted now due to queued data.' %
+                                            del_branch)
 
         # delete local q branch
         del_queue = QueueBranch(repo, 'q/%s' % del_branch.version)

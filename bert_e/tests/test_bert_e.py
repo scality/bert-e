@@ -5342,6 +5342,55 @@ class TaskQueueTests(RepositoryTests):
         pr = self.create_pr('feature/TEST-9999', 'development/4.3')
         self.process_pr_job(pr, 'SuccessMessage')
 
+    def test_job_delete_branch_dev_queues_enabled(self):
+        """Test deletion of development branches with queues disabled."""
+        if self.args.disable_queues:
+            self.skipTest("skipping queue-related tests, "
+                          "remove --disable-queues to activate")
+        self.init_berte(options=self.bypass_all, disable_queues=False)
+        pr = self.create_pr('feature/test', 'development/4.3')
+
+        with self.assertRaises(exns.Queued):
+            self.handle(pr.id, options=self.bypass_all, backtrace=True)
+        self.set_build_status_on_pr_id(pr.id, 'SUCCESSFUL')
+        self.set_build_status_on_pr_id(pr.id + 1, 'SUCCESSFUL')
+        self.set_build_status_on_pr_id(pr.id + 2, 'SUCCESSFUL')
+        with self.assertRaises(exns.Merged):
+            self.handle(pr.id, options=self.bypass_all, backtrace=True)
+
+        self.process_job(
+            DeleteBranchJob(
+                settings={
+                    'branch': 'stabilization/5.1.4',
+                    'delete_queues': True},
+                bert_e=self.berte),
+            'JobSuccess'
+        )
+        self.process_job(
+            DeleteBranchJob(
+                settings={
+                    'branch': 'development/5.1',
+                    'delete_queues': True},
+                bert_e=self.berte),
+            'JobSuccess'
+        )
+
+        expected_branches = [
+            ('development/4.3', self.assertTrue),
+            ('development/5.1', self.assertFalse),
+            ('development/10.0', self.assertTrue),
+            ('stabilization/4.3.18', self.assertTrue),
+            ('stabilization/5.1.4', self.assertFalse),
+        ]
+        self.gitrepo._get_remote_branches(force=True)
+        for branch, func in expected_branches:
+            func(self.gitrepo.remote_branch_exists(branch),
+                 'branch %s incorrect' % branch)
+
+        self.gitrepo.cmd('git fetch')
+        pr = self.create_pr('feature/TEST-9999', 'development/4.3')
+        self.process_pr_job(pr, 'Queued')
+
     def test_job_create_branch_dev_failure_cases(self):
         """Test creation of development branches."""
         self.init_berte(options=self.bypass_all)
