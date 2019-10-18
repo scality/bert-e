@@ -122,7 +122,7 @@ __Bert-E__.
 | no_octopus                | Prevent Wall-E from doing any octopus merge and use multiple consecutive merge instead | yes | no
 | unanimity                 | Change review acceptance criteria from `one reviewer at least` to `all reviewers` (**this feature is not supported on GitHub**) | no | no
 | wait                      | Instruct __Bert-E__ not to run until further notice | no | no
-| approved                  | Tells __Bert-E__ that the author has approved the PR | no | yes
+| approve                   | Tells __Bert-E__ that the author approves the PR | no | yes
 
 > **Example: Unanimity option**
 >

@@ -1,6 +1,10 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [3.3.7] - 2019-10-18
+# Added
+- Fixe a typo in the help about the approve command.
+
 ## [3.3.6] - 2019-08-07
 # Added
 - Support branches with the prefix dependabot.
