@@ -713,11 +713,7 @@ class BranchCascade(object):
             dev_branch = branch_set[DevelopmentBranch]
             stb_branch = branch_set[StabilizationBranch]
 
-            if dev_branch is None:
-                raise errors.DevBranchDoesNotExist(
-                    'development/%d.%d' % (major, minor))
-
-            if stb_branch:
+            if stb_branch and dev_branch:
                 if dev_branch.micro + 1 != stb_branch.micro:
                     raise errors.VersionMismatch(dev_branch, stb_branch)
 
@@ -730,7 +726,7 @@ class BranchCascade(object):
                     raise errors.DevBranchesNotSelfContained(
                         previous_dev_branch, dev_branch)
 
-            previous_dev_branch = dev_branch
+            previous_dev_branch = dev_branch if dev_branch else stb_branch
 
     def _set_target_versions(self, dst_branch):
         """Compute list of expected Jira FixVersion/s.
@@ -741,6 +737,11 @@ class BranchCascade(object):
         for (major, minor), branch_set in self._cascade.items():
             dev_branch = branch_set[DevelopmentBranch]
             stb_branch = branch_set[StabilizationBranch]
+
+            if (dev_branch is None and stb_branch is None and
+                    isinstance(dst_branch, DevelopmentBranch)):
+                raise errors.DevBranchDoesNotExist(
+                    'development/%d.%d' % (dst_branch.major, dst_branch.minor))
 
             if stb_branch:
                 self.target_versions.append('%d.%d.%d' % (
@@ -775,13 +776,14 @@ class BranchCascade(object):
             dev_branch = branch_set[DevelopmentBranch]
             stb_branch = branch_set[StabilizationBranch]
 
-            if dev_branch is None:
+            if (dev_branch is None and stb_branch is None and
+                    isinstance(dst_branch, DevelopmentBranch)):
                 raise errors.DevBranchDoesNotExist(
-                    'development/%d.%d' % (major, minor))
+                    'development/%d.%d' % (dst_branch.major, dst_branch.minor))
 
             # remember if a stab is attached before it is removed
             # from path, for the correct target_version computation
-            if stb_branch:
+            if stb_branch and dev_branch:
                 dev_branch.has_stabilization = True
 
             # remove untargetted branches from cascade
@@ -797,7 +799,7 @@ class BranchCascade(object):
                 include_dev_branches = True
                 ignore_stb_branches = True
 
-            if not include_dev_branches:
+            if dev_branch is not None and not include_dev_branches:
                 branch_set[DevelopmentBranch] = None
                 self.ignored_branches.append(dev_branch.name)
 
@@ -814,7 +816,7 @@ class BranchCascade(object):
             if branch_set[DevelopmentBranch]:
                 self.dst_branches.append(dev_branch)
 
-        if not dev_branch:
+        if not any(self.dst_branches):
             raise errors.NotASingleDevBranch()
 
         self._set_target_versions(dst_branch)

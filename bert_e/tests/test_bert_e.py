@@ -443,9 +443,8 @@ class QuickTest(unittest.TestCase):
             2: {'name': 'development/5.1', 'ignore': False}
         })
         tags = ['4.3.17', '5.1.3']
-        fixver = ['5.1.4']
-        with self.assertRaises(exns.DevBranchDoesNotExist):
-            self.finalize_cascade(branches, tags, destination, fixver)
+        fixver = ['4.3.18', '5.1.4']
+        self.finalize_cascade(branches, tags, destination, fixver)
 
     def test_branch_targetting_dangling_stab(self):
         destination = 'stabilization/4.3.18'
@@ -455,8 +454,20 @@ class QuickTest(unittest.TestCase):
         })
         tags = ['4.3.17', '5.1.3']
         fixver = ['4.3.18', '5.1.4']
-        with self.assertRaises(exns.DevBranchDoesNotExist):
-            self.finalize_cascade(branches, tags, destination, fixver)
+        self.finalize_cascade(branches, tags, destination, fixver)
+
+    def test_branch_targetting_dangling_stab_multi_merge(self):
+        destination = 'stabilization/4.2.21'
+        branches = OrderedDict({
+            1: {'name': 'development/4.1', 'ignore': True},
+            2: {'name': 'stabilization/4.2.21', 'ignore': False},
+            3: {'name': 'development/5.1', 'ignore': False},
+            4: {'name': 'development/7.1', 'ignore': False},
+            5: {'name': 'development/8.1', 'ignore': False},
+        })
+        tags = ['4.1.1', '4.2.20', '5.1.3', '7.1.5', '4.1.5', '8.1.3']
+        fixver = ['4.2.21', '5.1.4', '7.1.6', '8.1.4']
+        self.finalize_cascade(branches, tags, destination, fixver)
 
     def test_branch_cascade_multi_stab_branches(self):
         destination = 'stabilization/4.3.18'
@@ -3981,6 +3992,14 @@ project_leaders:
                 ],
                 backtrace=True
             )
+
+    def test_lonely_stabilization_branch(self):
+        """Ensure that Bert-E can handle a lonely stabilization branch."""
+        branch = gwfb.branch_factory(self.gitrepo, 'development/5.1')
+        branch.remove(do_push=True, force=True)
+        pr = self.create_pr('feature/TEST-007', 'stabilization/5.1.4')
+        with self.assertRaises(exns.SuccessMessage):
+            self.handle(pr.id, options=self.bypass_all, backtrace=True)
 
 
 class TestQueueing(RepositoryTests):
