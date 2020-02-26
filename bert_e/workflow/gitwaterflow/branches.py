@@ -141,6 +141,7 @@ class IntegrationBranch(GWFBranch):
     feature_branch = ''
 
     def get_pull_request_from_list(self, open_prs):
+        import pdb; pdb.set_trace()
         for pr in open_prs:
             if pr.src_branch != self.name:
                 continue
@@ -150,11 +151,10 @@ class IntegrationBranch(GWFBranch):
                 continue
             return pr
 
-    def get_or_create_pull_request(self, parent_pr, open_prs, bitbucket_repo):
+    def get_or_create_pull_request(self, parent_pr, open_prs, githost_repo):
         title = 'INTEGRATION [PR#%s > %s] %s' % (
             parent_pr.id, self.dst_branch.name, parent_pr.title
         )
-
         # WARNING potential infinite loop:
         # creating a child pr will trigger a 'pr update' webhook
         # Bert-E will analyse it, retrieve the main pr, then
@@ -167,7 +167,7 @@ class IntegrationBranch(GWFBranch):
             description = render('pull_request_description.md',
                                  pr=parent_pr,
                                  branch=self.name)
-            pr = bitbucket_repo.create_pull_request(
+            pr = githost_repo.create_pull_request(
                 title=title,
                 name='name',
                 src_branch=self.name,
@@ -192,7 +192,7 @@ class GhostIntegrationBranch(IntegrationBranch):
         self.minor = dst_branch.minor
         super().__init__(repo, name)
 
-    def get_or_create_pull_request(self, parent_pr, open_prs, bitbucket_repo):
+    def get_or_create_pull_request(self, parent_pr, open_prs, githost_repo):
         return self.get_pull_request_from_list(open_prs), False
 
     def remove(self, do_push=False):
@@ -618,7 +618,6 @@ class BranchCascade(object):
                                   branch)
                 if match_:
                     flat_branches.add(match_.group('name'))
-
         for flat_branch in flat_branches:
             try:
                 branch = branch_factory(repo, flat_branch)
@@ -737,7 +736,7 @@ class BranchCascade(object):
         for (major, minor), branch_set in self._cascade.items():
             dev_branch = branch_set[DevelopmentBranch]
             stb_branch = branch_set[StabilizationBranch]
-
+            # TODO: rename this error. it doesn't make sense
             if (dev_branch is None and stb_branch is None and
                     isinstance(dst_branch, DevelopmentBranch)):
                 raise errors.DevBranchDoesNotExist(
@@ -771,11 +770,13 @@ class BranchCascade(object):
         ignore_stb_branches = False
         include_dev_branches = False
         dev_branch = None
-
+        if dst_branch.name == 'development/10.0':
+            import pdb; pdb.set_trace()
         for (major, minor), branch_set in list(self._cascade.items()):
             dev_branch = branch_set[DevelopmentBranch]
             stb_branch = branch_set[StabilizationBranch]
 
+            # TODO: rename this error. it doesn't make sense
             if (dev_branch is None and stb_branch is None and
                     isinstance(dst_branch, DevelopmentBranch)):
                 raise errors.DevBranchDoesNotExist(
@@ -794,6 +795,8 @@ class BranchCascade(object):
             if stb_branch and ignore_stb_branches:
                 branch_set[StabilizationBranch] = None
                 self.ignored_branches.append(stb_branch.name)
+                if dev_branch is None:
+                    del self._cascade[(major, minor)]
 
             if dst_branch == stb_branch:
                 include_dev_branches = True
@@ -811,11 +814,10 @@ class BranchCascade(object):
                 continue
 
             # add to dst_branches in the correct order
-            if branch_set[StabilizationBranch]:
+            if branch_set[StabilizationBranch] and isinstance(dst_branch, DevelopmentBranch):
                 self.dst_branches.append(stb_branch)
             if branch_set[DevelopmentBranch]:
                 self.dst_branches.append(dev_branch)
-
         if not any(self.dst_branches):
             raise errors.NotASingleDevBranch()
 

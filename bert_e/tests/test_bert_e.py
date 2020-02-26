@@ -469,6 +469,33 @@ class QuickTest(unittest.TestCase):
         fixver = ['4.2.21', '5.1.4', '7.1.6', '8.1.4']
         self.finalize_cascade(branches, tags, destination, fixver)
 
+    def test_branch_skip_multiple_stab_branches(self):
+        destination = 'development/4.1'
+        branches = OrderedDict({
+            1: {'name': 'development/4.1', 'ignore': False},
+            2: {'name': 'stabilization/4.2.21', 'ignore': True},
+            3: {'name': 'development/5.1', 'ignore': False},
+            4: {'name': 'development/7.1', 'ignore': False},
+            5: {'name': 'stabilization/7.1.6', 'ignore': True},
+            6: {'name': 'development/8.1', 'ignore': False},
+            7: {'name': 'development/8.3', 'ignore': False}
+        })
+        tags = ['4.3.1', '4.2.20', '5.1.3', '7.1.5', '4.1.5', '8.1.3']
+        fixver = ['4.1.6', '5.1.4', '7.1.7', '8.1.4', '8.3.0']
+        self.finalize_cascade(branches, tags, destination, fixver)
+
+    def test_branch_skip_top_stab_branches(self):
+        destination = 'development/7.1'
+        branches = OrderedDict({
+            1: {'name': 'development/7.1', 'ignore': False},
+            2: {'name': 'development/8.1', 'ignore': False},
+            3: {'name': 'development/8.3', 'ignore': False},
+            4: {'name': 'stabilization/8.4.1', 'ignore': True}
+        })
+        tags = ['7.1.4', '8.1.9', '8.3.2', '8.4.0']
+        fixver = ['7.1.5', '8.1.10', '8.3.3']
+        self.finalize_cascade(branches, tags, destination, fixver)
+
     def test_branch_cascade_multi_stab_branches(self):
         destination = 'stabilization/4.3.18'
         branches = OrderedDict({
@@ -5184,6 +5211,41 @@ class TestQueueing(RepositoryTests):
                              file_='toto.txt')
         with self.assertRaises(exns.QueueConflict):
             self.handle(pr2.id, options=self.bypass_all, backtrace=True)
+
+    def test_queue_lonely_stab_branch(self):
+        # removing development/5.1 from repo so that we can
+        # have a working stabilization branch
+        branch = gwfb.branch_factory(self.gitrepo, 'development/5.1')
+        branch.remove(do_push=True, force=True)
+
+        pr1 = self.create_pr('bugfix/TEST-42', 'stabilization/5.1.4')
+        with self.assertRaises(exns.Queued):
+            self.handle(pr1.id, options=self.bypass_all, backtrace=True)
+        pr2 = self.create_pr('bugfix/TEST-41', 'development/4.3')
+        with self.assertRaises(exns.Queued):
+            self.handle(pr2.id, options=self.bypass_all, backtrace=True)
+        pr3 = self.create_pr('feature/TEST-88', 'development/10.0')
+        with self.assertRaises(exns.Queued):
+            self.handle(pr3.id, options=self.bypass_all, backtrace=True)
+
+        self.assertEqual(self.prs_in_queue(), {pr1.id, pr2.id})
+
+        # testing a simple
+        self.set_build_status_on_branch_tip(
+            'q/%d/5.1.4/bugfix/TEST-42' % pr1.id, 'SUCCESSFUL')
+        self.set_build_status_on_branch_tip(
+            'q/%d/10.0/bugfix/TEST-42' % pr1.id, 'SUCCESSFUL')
+
+        self.set_build_status_on_branch_tip(
+            'q/%d/4.3/bugfix/TEST-41' % pr2.id, 'SUCCESSFUL')
+        self.set_build_status_on_branch_tip(
+            'q/%d/10.0/bugfix/TEST-41' % pr2.id, 'SUCCESSFUL')
+
+        sha1 = self.set_build_status_on_branch_tip(
+            'q/%d/10.0/bugfix/TEST-88' % pr3.id, 'SUCCESSFUL')
+        with self.assertRaises(exns.Merged):
+            self.handle(sha1, backtrace=True)
+
 
     def test_nothing_to_do_unknown_sha1(self):
         sha1 = "f" * 40
