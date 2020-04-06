@@ -417,7 +417,7 @@ class CommentController(Controller, base.AbstractComment):
 
     @property
     def text(self):
-        return self['content']['raw']
+        return self['content']['raw'].replace("\\\\", "")
 
     @property
     def id(self):

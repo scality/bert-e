@@ -1774,6 +1774,15 @@ admins:
         with self.assertRaises(exns.ApprovalRequired):
             self.handle(pr.id, options=['bypass_jira_check'], backtrace=True)
 
+        # Try force reset in enhanced bitbucket editor
+        pr.add_comment("@{} force\\\\_reset".format(self.args.robot_username))
+        with self.assertRaises(exns.ResetComplete):
+            self.handle(pr.id, options=['bypass_jira_check'], backtrace=True)
+
+        # Check that the work resumed normally
+        with self.assertRaises(exns.ApprovalRequired):
+            self.handle(pr.id, options=['bypass_jira_check'], backtrace=True)
+
     def test_reset_command(self):
         pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
         self.handle(pr.id, options=['bypass_jira_check'])
