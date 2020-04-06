@@ -506,7 +506,7 @@ class Comment(base.AbstractGitHostObject, base.AbstractComment):
 
     @property
     def text(self):
-        return self.data['content']['raw']
+        return self.data['content']['raw'].replace("\\\\", "")
 
     @property
     def id(self):
