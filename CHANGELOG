@@ -1,9 +1,10 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
-## [3.3.7] - 2019-10-18
+## [3.3.7] - 2020-04-06
 # Added
-- Fixe a typo in the help about the approve command.
+- Support enhanced bitbucket editor
+- Fixed a typo in the help about the approve command.
 
 ## [3.3.6] - 2019-08-07
 # Added
