@@ -1,6 +1,10 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [3.3.8] -
+# Added
+- Do not ignore fixVersion in X.Y.Z.0 format during jira check
+
 ## [3.3.7] - 2020-04-06
 # Added
 - Support enhanced bitbucket editor

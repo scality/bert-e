@@ -151,7 +151,8 @@ def check_fix_versions(job, issue):
     expected_versions = set(job.git.cascade.target_versions)
 
     # Ignore suffixed versions such as "5.1.9_hf7" in that check
-    vfilter = re.compile('^\d+\.\d+\.\d+$')
+    # Do not ignore X.Y.Z.0 version
+    vfilter = re.compile('^\d+\.\d+\.\d+(\.0|)$')
     checked_versions = set(v for v in issue_versions if vfilter.match(v))
 
     if checked_versions != expected_versions:
