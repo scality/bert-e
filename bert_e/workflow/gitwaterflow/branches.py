@@ -33,6 +33,7 @@ class GWFBranch(git.Branch):
     major = 0
     minor = 0
     micro = -1  # is incremented always, first version is 0
+    hfrev = -1  # hotfix revision
     cascade_producer = False
     cascade_consumer = False
     can_be_destination = False
@@ -60,7 +61,7 @@ class GWFBranch(git.Branch):
         return (self.major, self.minor)
 
 
-class HotfixBranch(GWFBranch):
+class LegacyHotfixBranch(GWFBranch):
     pattern = '^hotfix/(?P<label>.+)$'
 
 
@@ -81,6 +82,36 @@ class FeatureBranch(GWFBranch):
     pattern = "^(?P<feature_branch>%s/(?P<label>(?P<jira_issue_key>%s)?" \
               "(?(jira_issue_key).*|.+)))$" % (prefixes, jira_issue_pattern)
     cascade_producer = True
+
+
+class HotfixBranch(GWFBranch):
+    pattern = '^hotfix/(?P<version>(?P<major>\d+)\.(?P<minor>\d+)' \
+              '\.(?P<micro>\d+)\.(?P<hfrev>\d+))$'
+    allow_prefixes = FeatureBranch.all_prefixes
+
+    def __eq__(self, other):
+        return (self.__class__ == other.__class__ and
+                self.major == other.major and
+                self.minor == other.minor and
+                self.micro == other.micro and
+                self.hfrev == other.hfrev)
+
+    def __lt__(self, other):
+        return (self.__class__ == other.__class__ and
+                (self.major < other.major or
+                 (self.major == other.major and
+                  self.minor < other.minor) or
+                 (self.major == other.major and
+                  self.minor == other.minor and
+                  self.micro < other.micro) or
+                 (self.major == other.major and
+                  self.minor == other.minor and
+                  self.micro == other.micro and
+                  self.hfrev < other.hfrev)))
+
+    @property
+    def version_t(self):
+        return (self.major, self.minor, self.micro, self.hfrev)
 
 
 @total_ordering
@@ -611,7 +642,7 @@ class BranchCascade(object):
 
     def build(self, repo, dst_branch=None):
         flat_branches = set()
-        for prefix in ['development', 'stabilization']:
+        for prefix in ['development', 'stabilization', 'hotfix']:
             cmd = 'git branch -a --list *%s/*' % prefix
             for branch in repo.cmd(cmd).split('\n')[:-1]:
                 match_ = re.match('\*?\s*(remotes/origin/)?(?P<name>.*)',
@@ -840,7 +871,8 @@ def branch_factory(repo: git.Repository, branch_name: str) -> GWFBranch:
     """
     for cls in [StabilizationBranch, DevelopmentBranch, ReleaseBranch,
                 QueueBranch, QueueIntegrationBranch,
-                FeatureBranch, HotfixBranch, IntegrationBranch, UserBranch]:
+                FeatureBranch, HotfixBranch, LegacyHotfixBranch,
+                IntegrationBranch, UserBranch]:
         try:
             branch = cls(repo, branch_name)
             return branch
