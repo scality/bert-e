@@ -155,7 +155,22 @@ def check_fix_versions(job, issue):
     vfilter = re.compile('^\d+\.\d+\.\d+(\.0|)$')
     checked_versions = set(v for v in issue_versions if vfilter.match(v))
 
-    if checked_versions != expected_versions:
+    hf_target = None
+    if len(expected_versions) == 1:
+        target_version = list(expected_versions)[0]
+        hf_filter = re.compile('^\d+\.\d+\.\d+\.\d+$')
+        if hf_filter.match(target_version):
+            hf_target = target_version
+
+    if hf_target:
+        if hf_target not in issue_versions:
+            raise exceptions.IncorrectFixVersion(
+                issue=issue,
+                issue_versions=sorted(issue_versions),
+                expect_versions=sorted(expected_versions),
+                active_options=job.active_options
+            )
+    elif checked_versions != expected_versions:
         raise exceptions.IncorrectFixVersion(
             issue=issue,
             issue_versions=sorted(issue_versions),
