@@ -87,6 +87,7 @@ class FeatureBranch(GWFBranch):
 class HotfixBranch(GWFBranch):
     pattern = '^hotfix/(?P<version>(?P<major>\d+)\.(?P<minor>\d+)' \
               '\.(?P<micro>\d+)\.(?P<hfrev>\d+))$'
+    can_be_destination = True
     allow_prefixes = FeatureBranch.all_prefixes
 
     def __eq__(self, other):
