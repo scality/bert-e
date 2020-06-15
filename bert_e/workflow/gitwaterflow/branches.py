@@ -87,6 +87,8 @@ class FeatureBranch(GWFBranch):
 class HotfixBranch(GWFBranch):
     pattern = '^hotfix/(?P<version>(?P<major>\d+)\.(?P<minor>\d+)' \
               '\.(?P<micro>\d+)\.(?P<hfrev>\d+))$'
+    cascade_producer = True
+    cascade_consumer = True
     can_be_destination = True
     allow_prefixes = FeatureBranch.all_prefixes
 
