@@ -705,6 +705,7 @@ class BranchCascade(object):
             self._cascade[(major, minor)] = {
                 DevelopmentBranch: None,
                 StabilizationBranch: None,
+                HotfixBranch: None,
             }
             # Sort the cascade again
             self._cascade = OrderedDict(sorted(self._cascade.items()))
