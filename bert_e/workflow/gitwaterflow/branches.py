@@ -829,7 +829,7 @@ class BranchCascade(object):
                 include_dev_branches = True
                 ignore_stb_branches = True
 
-            if stb_branch and ignore_stb_branches:
+            if stb_branch and (ignore_stb_branches or dst_branch.hfrev != 1):
                 branch_set[StabilizationBranch] = None
                 self.ignored_branches.append(stb_branch.name)
 
@@ -837,7 +837,7 @@ class BranchCascade(object):
                 include_dev_branches = True
                 ignore_stb_branches = True
 
-            if not include_dev_branches:
+            if not include_dev_branches or dst_branch.hfrev != 1:
                 branch_set[DevelopmentBranch] = None
                 self.ignored_branches.append(dev_branch.name)
 
@@ -849,13 +849,17 @@ class BranchCascade(object):
                 continue
 
             # add to dst_branches in the correct order
-            if branch_set[StabilizationBranch]:
-                self.dst_branches.append(stb_branch)
-            if branch_set[DevelopmentBranch]:
-                self.dst_branches.append(dev_branch)
+            if dst_branch.hfrev == -1:
+                if branch_set[StabilizationBranch]:
+                    self.dst_branches.append(stb_branch)
+                if branch_set[DevelopmentBranch]:
+                    self.dst_branches.append(dev_branch)
 
-        if not dev_branch:
+        if not dev_branch and dst_branch.hfrev == -1:
             raise errors.NotASingleDevBranch()
+
+        if dst_branch.hfrev != -1:
+            self.dst_branches.append(dst_branch)
 
         self._set_target_versions(dst_branch)
         self.ignored_branches.sort()
