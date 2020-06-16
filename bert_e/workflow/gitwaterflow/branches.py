@@ -645,7 +645,7 @@ class BranchCascade(object):
 
     def build(self, repo, dst_branch=None):
         flat_branches = set()
-        for prefix in ['development', 'stabilization']:
+        for prefix in ['development', 'stabilization', 'hotfix']:
             cmd = 'git branch -a --list *%s/*' % prefix
             for branch in repo.cmd(cmd).split('\n')[:-1]:
                 match_ = re.match('\*?\s*(remotes/origin/)?(?P<name>.*)',
@@ -775,6 +775,11 @@ class BranchCascade(object):
         for (major, minor), branch_set in self._cascade.items():
             dev_branch = branch_set[DevelopmentBranch]
             stb_branch = branch_set[StabilizationBranch]
+            hf_branch = branch_set[HotfixBranch]
+
+            if hf_branch:
+                self.target_versions.append('%d.%d.%d.%d' % (
+                    major, minor, hf_branch.micro, hf_branch.hfrev))
 
             if stb_branch:
                 self.target_versions.append('%d.%d.%d' % (
