@@ -1155,7 +1155,6 @@ admins:
                             'project/invalid',
                             'feature/invalid',
                             'hotfix/customer',
-                            'hotfix/6.6.6.1',
                             'dependabot/npm_and_yarn/ui/lodash-4.17.13']:
             create_branch(self.gitrepo, destination, file_=True,
                           from_branch='development/4.3')
