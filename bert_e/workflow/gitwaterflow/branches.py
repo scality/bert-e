@@ -645,7 +645,7 @@ class BranchCascade(object):
 
     def build(self, repo, dst_branch=None):
         flat_branches = set()
-        for prefix in ['development', 'stabilization', 'hotfix']:
+        for prefix in ['development', 'stabilization']:
             cmd = 'git branch -a --list *%s/*' % prefix
             for branch in repo.cmd(cmd).split('\n')[:-1]:
                 match_ = re.match('\*?\s*(remotes/origin/)?(?P<name>.*)',
