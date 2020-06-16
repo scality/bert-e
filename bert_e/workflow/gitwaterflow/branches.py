@@ -829,7 +829,7 @@ class BranchCascade(object):
                 include_dev_branches = True
                 ignore_stb_branches = True
 
-            if stb_branch and (ignore_stb_branches or dst_branch.hfrev != 1):
+            if stb_branch and (ignore_stb_branches or dst_branch.hfrev != -1):
                 branch_set[StabilizationBranch] = None
                 self.ignored_branches.append(stb_branch.name)
 
@@ -837,7 +837,7 @@ class BranchCascade(object):
                 include_dev_branches = True
                 ignore_stb_branches = True
 
-            if not include_dev_branches or dst_branch.hfrev != 1:
+            if not include_dev_branches or dst_branch.hfrev != -1:
                 branch_set[DevelopmentBranch] = None
                 self.ignored_branches.append(dev_branch.name)
 
