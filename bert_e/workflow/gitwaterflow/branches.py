@@ -33,7 +33,6 @@ class GWFBranch(git.Branch):
     major = 0
     minor = 0
     micro = -1  # is incremented always, first version is 0
-    hfrev = -1  # hotfix revision
     cascade_producer = False
     cascade_consumer = False
     can_be_destination = False
@@ -84,9 +83,9 @@ class FeatureBranch(GWFBranch):
     cascade_producer = True
 
 
+@total_ordering
 class HotfixBranch(GWFBranch):
-    pattern = '^hotfix/(?P<version>(?P<major>\d+)\.(?P<minor>\d+)' \
-              '\.(?P<micro>\d+)\.(?P<hfrev>\d+))$'
+    pattern = '^hotfix/(?P<version>(?P<major>\d+)\.(?P<minor>\d+)\.(?P<micro>\d+))$'
     cascade_producer = False
     cascade_consumer = True
     can_be_destination = True
@@ -96,8 +95,7 @@ class HotfixBranch(GWFBranch):
         return (self.__class__ == other.__class__ and
                 self.major == other.major and
                 self.minor == other.minor and
-                self.micro == other.micro and
-                self.hfrev == other.hfrev)
+                self.micro == other.micro)
 
     def __lt__(self, other):
         return (self.__class__ == other.__class__ and
@@ -106,15 +104,11 @@ class HotfixBranch(GWFBranch):
                   self.minor < other.minor) or
                  (self.major == other.major and
                   self.minor == other.minor and
-                  self.micro < other.micro) or
-                 (self.major == other.major and
-                  self.minor == other.minor and
-                  self.micro == other.micro and
-                  self.hfrev < other.hfrev)))
+                  self.micro < other.micro)))
 
     @property
     def version_t(self):
-        return (self.major, self.minor, self.micro, self.hfrev)
+        return (self.major, self.minor, self.micro)
 
 
 @total_ordering
@@ -779,8 +773,8 @@ class BranchCascade(object):
             hf_branch = branch_set[HotfixBranch]
 
             if hf_branch:
-                self.target_versions.append('%d.%d.%d.%d' % (
-                    major, minor, hf_branch.micro, hf_branch.hfrev))
+                self.target_versions.append('%d.%d.%d' % (
+                    major, minor, hf_branch.micro))
 
             if stb_branch:
                 self.target_versions.append('%d.%d.%d' % (
@@ -811,6 +805,8 @@ class BranchCascade(object):
         include_dev_branches = False
         dev_branch = None
 
+        dst_hf = dst_branch.name.startswith('hotfix/')
+
         for (major, minor), branch_set in list(self._cascade.items()):
             dev_branch = branch_set[DevelopmentBranch]
             stb_branch = branch_set[StabilizationBranch]
@@ -829,7 +825,7 @@ class BranchCascade(object):
                 include_dev_branches = True
                 ignore_stb_branches = True
 
-            if stb_branch and (ignore_stb_branches or dst_branch.hfrev != -1):
+            if stb_branch and (ignore_stb_branches or dst_hf):
                 branch_set[StabilizationBranch] = None
                 self.ignored_branches.append(stb_branch.name)
 
@@ -837,7 +833,7 @@ class BranchCascade(object):
                 include_dev_branches = True
                 ignore_stb_branches = True
 
-            if not include_dev_branches or dst_branch.hfrev != -1:
+            if not include_dev_branches or dst_hf:
                 branch_set[DevelopmentBranch] = None
                 self.ignored_branches.append(dev_branch.name)
 
@@ -849,16 +845,16 @@ class BranchCascade(object):
                 continue
 
             # add to dst_branches in the correct order
-            if dst_branch.hfrev == -1:
+            if not dst_hf:
                 if branch_set[StabilizationBranch]:
                     self.dst_branches.append(stb_branch)
                 if branch_set[DevelopmentBranch]:
                     self.dst_branches.append(dev_branch)
 
-        if not dev_branch and dst_branch.hfrev == -1:
+        if not dev_branch and not dst_hf:
             raise errors.NotASingleDevBranch()
 
-        if dst_branch.hfrev != -1:
+        if dst_hf:
             self.dst_branches.append(dst_branch)
 
         self._set_target_versions(dst_branch)
