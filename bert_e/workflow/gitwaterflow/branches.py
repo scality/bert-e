@@ -85,7 +85,8 @@ class FeatureBranch(GWFBranch):
 
 @total_ordering
 class HotfixBranch(GWFBranch):
-    pattern = '^hotfix/(?P<version>(?P<major>\d+)\.(?P<minor>\d+)\.(?P<micro>\d+))$'
+    pattern = '^hotfix/(?P<version>(?P<major>\d+)\.(?P<minor>\d+)' \
+              '\.(?P<micro>\d+))$'
     cascade_producer = False
     cascade_consumer = True
     can_be_destination = True
