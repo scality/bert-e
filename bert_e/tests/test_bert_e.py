@@ -284,6 +284,8 @@ class QuickTest(unittest.TestCase):
         gwfb.DevelopmentBranch(repo=None, name='development/4.3')
         gwfb.DevelopmentBranch(repo=None, name='development/5.1')
         gwfb.DevelopmentBranch(repo=None, name='development/10.0')
+        gwfb.StabilizationBranch(repo=None, name='stabilization/6.6.6')
+        gwfb.HotfixBranch(repo=None, name='hotfix/6.6.6')
 
     def finalize_cascade(self, branches, tags, destination,
                          fixver, merge_paths=None):
@@ -412,6 +414,21 @@ class QuickTest(unittest.TestCase):
         })
         tags = ['4.3.16', '4.3.17', '4.3.18_rc1', '5.1.3', '5.1.4_rc1']
         fixver = ['10.0.0']
+        self.finalize_cascade(branches, tags, destination, fixver)
+
+    def test_branch_cascade_target_hotfix(self):
+        destination = 'hotfix/6.6.6'
+        branches = OrderedDict({
+            1: {'name': 'stabilization/4.3.18', 'ignore': True},
+            2: {'name': 'development/4.3', 'ignore': True},
+            3: {'name': 'stabilization/5.1.4', 'ignore': True},
+            4: {'name': 'development/5.1', 'ignore': True},
+            5: {'name': 'hotfix/6.6.6', 'ignore': False},
+            6: {'name': 'development/6.6', 'ignore': True},
+            7: {'name': 'development/10.0', 'ignore': True}
+        })
+        tags = ['4.3.16', '4.3.17', '4.3.18_rc1', '5.1.3', '5.1.4_rc1']
+        fixver = ['6.6.6.1']
         self.finalize_cascade(branches, tags, destination, fixver)
 
     def test_branch_incorrect_stab_name(self):
