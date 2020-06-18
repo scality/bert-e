@@ -427,7 +427,7 @@ class QuickTest(unittest.TestCase):
             6: {'name': 'development/6.6', 'ignore': True},
             7: {'name': 'development/10.0', 'ignore': True}
         })
-        tags = ['4.3.16', '4.3.17', '4.3.18_rc1', '5.1.3', '5.1.4_rc1']
+        tags = ['4.3.16', '4.3.17', '4.3.18_rc1', '5.1.3', '5.1.4_rc1', '6.6.6']
         fixver = ['6.6.6.1']
         self.finalize_cascade(branches, tags, destination, fixver)
 
