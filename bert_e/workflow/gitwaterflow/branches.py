@@ -33,6 +33,7 @@ class GWFBranch(git.Branch):
     major = 0
     minor = 0
     micro = -1  # is incremented always, first version is 0
+    hfrev = -1
     cascade_producer = False
     cascade_consumer = False
     can_be_destination = False
@@ -96,7 +97,8 @@ class HotfixBranch(GWFBranch):
         return (self.__class__ == other.__class__ and
                 self.major == other.major and
                 self.minor == other.minor and
-                self.micro == other.micro)
+                self.micro == other.micro and
+                self.hfrev == other.hfrev)
 
     def __lt__(self, other):
         return (self.__class__ == other.__class__ and
@@ -105,7 +107,11 @@ class HotfixBranch(GWFBranch):
                   self.minor < other.minor) or
                  (self.major == other.major and
                   self.minor == other.minor and
-                  self.micro < other.micro)))
+                  self.micro < other.micro) or
+                 (self.major == other.major and
+                  self.minor == other.minor and
+                  self.micro == other.micro and
+                  self.hfrev < other.hfrev)))
 
     @property
     def version_t(self):
@@ -713,7 +719,7 @@ class BranchCascade(object):
 
     def update_micro(self, tag):
         """Update development branch latest micro based on tag."""
-        pattern = "^(?P<major>\d+)\.(?P<minor>\d+)(\.(?P<micro>\d+))$"
+        pattern = "^(?P<major>\d+)\.(?P<minor>\d+)\.(?P<micro>\d+)(\.(?P<hfrev>\d+)|)$"
         match = re.match(pattern, tag)
         if not match:
             LOG.debug("Ignore tag: %s", tag)
@@ -722,6 +728,10 @@ class BranchCascade(object):
         major = int(match.groupdict()['major'])
         minor = int(match.groupdict()['minor'])
         micro = int(match.groupdict()['micro'])
+        hfrev = 0
+        if match.groupdict()['hfrev'] is not None:
+            hfrev = int(match.groupdict()['hfrev'])
+
         try:
             branches = self._cascade[(major, minor)]
         except KeyError:
@@ -736,6 +746,10 @@ class BranchCascade(object):
         dev_branch = branches[DevelopmentBranch]
         if dev_branch:
             dev_branch.micro = max(micro, dev_branch.micro)
+
+        hf_branch = branches[HotfixBranch]
+        if hf_branch:
+            hf_branch.hfrev = max(hfrev, hf_branch.hfrev)
 
     def validate(self):
         previous_dev_branch = None
@@ -768,14 +782,18 @@ class BranchCascade(object):
         Must be called after the cascade has been finalised.
 
         """
+        if dst_branch.name.startswith('hotfix/'):
+            self.target_versions.append('%d.%d.%d.%d' % (
+                dst_branch.major, dst_branch.minor, dst_branch.micro,
+                dst_branch.hfrev + 1))
+
+            # BEWARE ! Tag ?
+
+            return
+
         for (major, minor), branch_set in self._cascade.items():
             dev_branch = branch_set[DevelopmentBranch]
             stb_branch = branch_set[StabilizationBranch]
-            hf_branch = branch_set[HotfixBranch]
-
-            if hf_branch:
-                self.target_versions.append('%d.%d.%d' % (
-                    major, minor, hf_branch.micro))
 
             if stb_branch:
                 self.target_versions.append('%d.%d.%d' % (
