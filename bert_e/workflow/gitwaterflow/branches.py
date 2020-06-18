@@ -866,8 +866,11 @@ class BranchCascade(object):
                     branch_set[StabilizationBranch] = None
                     self.ignored_branches.append(stb_branch.name)
 
-                del self._cascade[(major, minor)]
-                continue
+                if not dst_hf or (hf_branch and dst_branch.name != hf_branch.name):
+                    del self._cascade[(major, minor)]
+
+                if not dst_hf:
+                    continue
 
             # add to dst_branches in the correct order
             if not dst_hf:
@@ -877,7 +880,7 @@ class BranchCascade(object):
                     self.dst_branches.append(dev_branch)
             else:
                 if branch_set[HotfixBranch]:
-                    LOG.debug("add HF branche for %d.%d", major, minor)
+                    LOG.debug("add HF branch for %d.%d", major, minor)
                     self.dst_branches.append(hf_branch)
 
         if not dev_branch and not dst_hf:
