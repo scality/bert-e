@@ -92,7 +92,7 @@ class HotfixBranch(GWFBranch):
     cascade_consumer = False
     can_be_destination = True
     allow_prefixes = FeatureBranch.all_prefixes
-    has_stabilization = False
+    # has_stabilization = False
 
     def __eq__(self, other):
         return (self.__class__ == other.__class__ and
