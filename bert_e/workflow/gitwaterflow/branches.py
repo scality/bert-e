@@ -92,6 +92,7 @@ class HotfixBranch(GWFBranch):
     cascade_consumer = False
     can_be_destination = True
     allow_prefixes = FeatureBranch.all_prefixes
+    has_stabilization = False
 
     def __eq__(self, other):
         return (self.__class__ == other.__class__ and
@@ -866,11 +867,16 @@ class BranchCascade(object):
                     branch_set[StabilizationBranch] = None
                     self.ignored_branches.append(stb_branch.name)
 
-                if not dst_hf or (hf_branch and dst_branch.name != hf_branch.name):
-                    del self._cascade[(major, minor)]
-
                 if not dst_hf:
+                    del self._cascade[(major, minor)]
                     continue
+
+                if not hf_branch:
+                    del self._cascade[(major, minor)]
+                elif dst_branch.name != hf_branch.name:
+                    if branch_set[DevelopmentBranch]:
+                        branch_set[DevelopmentBranch] = None
+                        self.ignored_branches.append(dev_branch.name)
 
             # add to dst_branches in the correct order
             if not dst_hf:
