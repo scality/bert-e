@@ -688,6 +688,9 @@ class BranchCascade(object):
         ret = [[]]
         for branches in self._cascade.values():
             if branches[DevelopmentBranch]:
+                if branches[HotfixBranch]:
+                    # create a new path starting from this hotfix
+                    ret.append([branches[HotfixBranch]])
                 if branches[StabilizationBranch]:
                     # create a new path starting from this stab
                     ret.append([branches[StabilizationBranch]])
@@ -737,8 +740,15 @@ class BranchCascade(object):
         except KeyError:
             LOG.debug("Ignore tag: %s", tag)
             return
-        stb_branch = branches[StabilizationBranch]
 
+        hf_branch = branches[HotfixBranch]
+        if hf_branch:
+            LOG.debug("FOUND HF !")
+            if hf_branch.micro == micro:
+                hf_branch.hfrev = max(hfrev, hf_branch.hfrev)
+                LOG.debug('HF: %d.%d.%d.%d', hf_branch.major, hf_branch.minor, hf_branch.micro, hf_branch.hfrev)
+
+        stb_branch = branches[StabilizationBranch]
         if stb_branch is not None and stb_branch.micro <= micro:
             # We have a tag but we did not remove the stabilization branch.
             raise errors.DeprecatedStabilizationBranch(stb_branch.name, tag)
@@ -746,10 +756,6 @@ class BranchCascade(object):
         dev_branch = branches[DevelopmentBranch]
         if dev_branch:
             dev_branch.micro = max(micro, dev_branch.micro)
-
-        hf_branch = branches[HotfixBranch]
-        if hf_branch:
-            hf_branch.hfrev = max(hfrev, hf_branch.hfrev)
 
     def validate(self):
         previous_dev_branch = None
@@ -782,18 +788,17 @@ class BranchCascade(object):
         Must be called after the cascade has been finalised.
 
         """
-        if dst_branch.name.startswith('hotfix/'):
-            self.target_versions.append('%d.%d.%d.%d' % (
-                dst_branch.major, dst_branch.minor, dst_branch.micro,
-                dst_branch.hfrev + 1))
-
-            # BEWARE ! Tag ?
-
-            return
-
         for (major, minor), branch_set in self._cascade.items():
             dev_branch = branch_set[DevelopmentBranch]
             stb_branch = branch_set[StabilizationBranch]
+            hf_branch = branch_set[HotfixBranch]
+
+            if hf_branch:
+                LOG.debug('HF branch for target version')
+            if hf_branch and dst_branch.name.startswith('hotfix/'):
+                self.target_versions.append('%d.%d.%d.%d' % (
+                    hf_branch.major, hf_branch.minor, hf_branch.micro,
+                    hf_branch.hfrev + 1))
 
             if stb_branch:
                 self.target_versions.append('%d.%d.%d' % (
@@ -829,6 +834,7 @@ class BranchCascade(object):
         for (major, minor), branch_set in list(self._cascade.items()):
             dev_branch = branch_set[DevelopmentBranch]
             stb_branch = branch_set[StabilizationBranch]
+            hf_branch = branch_set[HotfixBranch]
 
             if dev_branch is None:
                 raise errors.DevBranchDoesNotExist(
@@ -869,12 +875,13 @@ class BranchCascade(object):
                     self.dst_branches.append(stb_branch)
                 if branch_set[DevelopmentBranch]:
                     self.dst_branches.append(dev_branch)
+            else:
+                if branch_set[HotfixBranch]:
+                    LOG.debug("add HF branche for %d.%d", major, minor)
+                    self.dst_branches.append(hf_branch)
 
         if not dev_branch and not dst_hf:
             raise errors.NotASingleDevBranch()
-
-        if dst_hf:
-            self.dst_branches.append(dst_branch)
 
         self._set_target_versions(dst_branch)
         self.ignored_branches.sort()
