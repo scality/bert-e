@@ -804,7 +804,7 @@ class BranchCascade(object):
             if stb_branch:
                 self.target_versions.append('%d.%d.%d' % (
                     major, minor, stb_branch.micro))
-            else:
+            elif dev_branch:
                 offset = 2 if dev_branch.has_stabilization else 1
                 self.target_versions.append('%d.%d.%d' % (
                     major, minor, dev_branch.micro + offset))
