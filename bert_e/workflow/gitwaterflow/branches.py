@@ -873,12 +873,14 @@ class BranchCascade(object):
                     del self._cascade[(major, minor)]
                     continue
 
-                if not hf_branch:
-                    del self._cascade[(major, minor)]
-                elif dst_branch.name != hf_branch.name:
+                if not hf_branch or hf_branch.name != dst_branch.name:
+                    if branch_set[HotfixBranch]:
+                        branch_set[HotfixBranch] = None
+                        self.ignored_branches.append(hf_branch.name)
                     if branch_set[DevelopmentBranch]:
                         branch_set[DevelopmentBranch] = None
                         self.ignored_branches.append(dev_branch.name)
+                    del self._cascade[(major, minor)]
 
             # add to dst_branches in the correct order
             if not dst_hf:
@@ -888,8 +890,9 @@ class BranchCascade(object):
                     self.dst_branches.append(dev_branch)
             else:
                 if branch_set[HotfixBranch]:
-                    LOG.debug("add HF branch for %d.%d", major, minor)
-                    self.dst_branches.append(hf_branch)
+                    if dst_branch.name == hf_branch.name:
+                        LOG.debug("add HF branch for %d.%d", major, minor)
+                        self.dst_branches.append(hf_branch)
 
         if not dev_branch and not dst_hf:
             raise errors.NotASingleDevBranch()
