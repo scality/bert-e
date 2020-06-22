@@ -723,7 +723,8 @@ class BranchCascade(object):
 
     def update_micro(self, tag):
         """Update development branch latest micro based on tag."""
-        pattern = "^(?P<major>\d+)\.(?P<minor>\d+)\.(?P<micro>\d+)(\.(?P<hfrev>\d+)|)$"
+        pattern = "^(?P<major>\d+)\.(?P<minor>\d+)\.(?P<micro>\d+)" \
+                  "(\.(?P<hfrev>\d+)|)$"
         match = re.match(pattern, tag)
         if not match:
             LOG.debug("Ignore tag: %s", tag)
@@ -747,7 +748,8 @@ class BranchCascade(object):
             LOG.debug("FOUND HF !")
             if hf_branch.micro == micro:
                 hf_branch.hfrev = max(hfrev, hf_branch.hfrev)
-                LOG.debug('HF: %d.%d.%d.%d', hf_branch.major, hf_branch.minor, hf_branch.micro, hf_branch.hfrev)
+                LOG.debug('HF: %d.%d.%d.%d', hf_branch.major, hf_branch.minor,
+                          hf_branch.micro, hf_branch.hfrev)
 
         stb_branch = branches[StabilizationBranch]
         if stb_branch is not None and stb_branch.micro <= micro:
