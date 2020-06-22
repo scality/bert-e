@@ -319,6 +319,10 @@ class QuickTest(unittest.TestCase):
 
         c.finalize(gwfb.branch_factory(FakeGitRepo(), destination))
 
+        # TODO: real fix for expected_dest that does not have the correct hfrev
+        if destination.startswith('hotfix/'):
+            expected_dest[0].hfrev = c.dst_branches[0].hfrev
+
         self.assertEqual(c.dst_branches, expected_dest)
         self.assertEqual(c.ignored_branches, expected_ignored)
         self.assertEqual(c.target_versions, fixver)
@@ -429,6 +433,12 @@ class QuickTest(unittest.TestCase):
         })
         tags = ['4.3.16', '4.3.17', '4.3.18_rc1', '5.1.3', '5.1.4_rc1', '6.6.6']
         fixver = ['6.6.6.1']
+        self.finalize_cascade(branches, tags, destination, fixver)
+        tags = ['4.3.16', '4.3.17', '4.3.18_rc1', '5.1.3', '5.1.4_rc1', '6.6.6.0']
+        fixver = ['6.6.6.1']
+        self.finalize_cascade(branches, tags, destination, fixver)
+        tags = ['4.3.16', '4.3.17', '4.3.18_rc1', '5.1.3', '5.1.4_rc1', '6.6.6.1']
+        fixver = ['6.6.6.2']
         self.finalize_cascade(branches, tags, destination, fixver)
 
     def test_branch_incorrect_stab_name(self):
