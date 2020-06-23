@@ -56,6 +56,8 @@ class GWFBranch(git.Branch):
     @property
     def version_t(self):
         if self.micro is not None:
+            if self.hfrev is not None:
+                return (self.major, self.minor, self.micro, self.hfrev)
             return (self.major, self.minor, self.micro)
 
         return (self.major, self.minor)
@@ -89,7 +91,7 @@ class HotfixBranch(GWFBranch):
     pattern = '^hotfix/(?P<version>(?P<major>\d+)\.(?P<minor>\d+)' \
               '\.(?P<micro>\d+))$'
     cascade_producer = False
-    cascade_consumer = False
+    cascade_consumer = True
     can_be_destination = True
     allow_prefixes = FeatureBranch.all_prefixes
     # has_stabilization = False
@@ -116,7 +118,7 @@ class HotfixBranch(GWFBranch):
 
     @property
     def version_t(self):
-        return (self.major, self.minor, self.micro)
+        return (self.major, self.minor, self.micro, self.hfrev)
 
 
 @total_ordering
