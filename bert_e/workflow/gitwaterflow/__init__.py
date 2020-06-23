@@ -238,7 +238,8 @@ def early_checks(job):
 
     src, dst = job.pull_request.src_branch, job.pull_request.dst_branch
 
-    if not is_cascade_producer(src) or not is_cascade_consumer(dst):
+    if (not is_cascade_producer(src) or not is_cascade_consumer(dst)) and \
+       not dst.startswith('hotfix/'):
         raise messages.NotMyJob(src, dst)
 
     if not job.git.repo.remote_branch_exists(dst):

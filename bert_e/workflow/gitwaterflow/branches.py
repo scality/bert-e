@@ -765,6 +765,12 @@ class BranchCascade(object):
         for (major, minor), branch_set in self._cascade.items():
             dev_branch = branch_set[DevelopmentBranch]
             stb_branch = branch_set[StabilizationBranch]
+            hf_branch = branch_set[HotfixBranch]
+
+            if dev_branch is None and \
+               stb_branch is None and \
+               hf_branch is not None:
+                continue
 
             if dev_branch is None:
                 raise errors.DevBranchDoesNotExist(
