@@ -45,7 +45,7 @@ class GWFBranch(git.Branch):
         if not match:
             raise errors.BranchNameInvalid(name)
         for key, value in match.groupdict().items():
-            if (key in ('major', 'minor', 'micro', 'pr_id') and
+            if (key in ('major', 'minor', 'micro', 'hfrev', 'pr_id') and
                     value is not None):
                 value = int(value)
             self.__setattr__(key, value)
@@ -56,6 +56,8 @@ class GWFBranch(git.Branch):
     @property
     def version_t(self):
         if self.micro is not None:
+            # if self.hfrev is not None:
+            #     return (self.major, self.minor, self.micro, self.hfrev)
             return (self.major, self.minor, self.micro)
 
         return (self.major, self.minor)
@@ -243,7 +245,8 @@ class QueueBranch(GWFBranch):
     def __init__(self, repo, name):
         super(QueueBranch, self).__init__(repo, name)
         if self.hfrev is not None:
-            dest = branch_factory(repo, 'hotfix/%s' % self.version)
+            dest = branch_factory(repo, 'hotfix/%d.%d.%d' % self.major,
+                                  self.minor, self.micro)
         elif self.micro is not None:
             dest = branch_factory(repo, 'stabilization/%s' % self.version)
         else:
