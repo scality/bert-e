@@ -56,8 +56,6 @@ class GWFBranch(git.Branch):
     @property
     def version_t(self):
         if self.micro is not None:
-            if self.hfrev is not None:
-                return (self.major, self.minor, self.micro, self.hfrev)
             return (self.major, self.minor, self.micro)
 
         return (self.major, self.minor)
