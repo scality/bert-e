@@ -237,12 +237,14 @@ class GhostIntegrationBranch(IntegrationBranch):
 
 class QueueBranch(GWFBranch):
     pattern = '^q/(?P<version>(?P<major>\d+)\.(?P<minor>\d+)' \
-              '(\.(?P<micro>\d+))?)$'
+              '(\.(?P<micro>\d+)(\.(?P<hfrev>\d+))?)?)$'
     dst_branch = ''
 
     def __init__(self, repo, name):
         super(QueueBranch, self).__init__(repo, name)
-        if self.micro is not None:
+        if self.hfrev is not None:
+            dest = branch_factory(repo, 'hotfix/%s' % self.version)
+        elif self.micro is not None:
             dest = branch_factory(repo, 'stabilization/%s' % self.version)
         else:
             dest = branch_factory(repo, 'development/%s' % self.version)
