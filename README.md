@@ -8,9 +8,13 @@ Make sure you are using Python version 3.5 or above.
 
 ```bash
 $ mkdir bert-e && cd bert-e
-$ virtualenv venv
+$ virtualenv --python=python3 venv
 $ source venv/bin/activate
+$ pip install pip==9.0.1
+# Install bert-e from bitbucket
 $ pip install git+ssh://git@bitbucket.org/scality/bert-e.git
+# Or, install bert-e from a local checkout
+$ pip install --upgrade your_bert_e_code_directory_path
 ```
 
 ### How do I launch the standalone webhook listener (server.py) ?

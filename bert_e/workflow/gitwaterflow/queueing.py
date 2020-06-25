@@ -68,7 +68,11 @@ def get_queue_branch(job, dev_branch: DevelopmentBranch, create=True
     Create it if necessary.
 
     """
-    name = 'q/{}'.format(dev_branch.version)
+    name = None
+    if dev_branch.name.startswith('hotfix/'):
+        name = 'q/{}.{}'.format(dev_branch.version, dev_branch.hfrev)
+    else:
+        name = 'q/{}'.format(dev_branch.version)
     qbranch = branch_factory(job.git.repo, name)
     if not qbranch.exists() and create:
         qbranch.create(dev_branch)
@@ -78,9 +82,15 @@ def get_queue_branch(job, dev_branch: DevelopmentBranch, create=True
 def get_queue_integration_branch(job, pr_id, wbranch: IntegrationBranch
                                  ) -> QueueIntegrationBranch:
     """Get the q/pr_id/x.y/* branch corresponding to a w/x.y/* branch."""
-    name = 'q/{}/{}/{}'.format(
-        pr_id, wbranch.version, job.pull_request.src_branch
-    )
+    # Does not work, TODO fix it !
+    if wbranch.hfrev < 1:
+        name = 'q/{}/{}/{}'.format(
+            pr_id, wbranch.version, job.pull_request.src_branch
+        )
+    else:
+        name = 'q/{}/{}.{}/{}'.format(
+            pr_id, wbranch.version, wbranch.hfrev, job.pull_request.src_branch
+        )
     return branch_factory(job.git.repo, name)
 
 

@@ -174,7 +174,8 @@ class StabilizationBranch(DevelopmentBranch):
 
 class IntegrationBranch(GWFBranch):
     pattern = '^w/(?P<version>(?P<major>\d+)\.(?P<minor>\d+)' \
-              '(\.(?P<micro>\d+))?)/' + FeatureBranch.pattern[1:]
+              '(\.(?P<micro>\d+))?(\.(?P<hfrev>\d+))?)/' + \
+              FeatureBranch.pattern[1:]
     dst_branch = ''
     feature_branch = ''
 
@@ -245,8 +246,8 @@ class QueueBranch(GWFBranch):
     def __init__(self, repo, name):
         super(QueueBranch, self).__init__(repo, name)
         if self.hfrev is not None:
-            dest = branch_factory(repo, 'hotfix/%d.%d.%d' % self.major,
-                                  self.minor, self.micro)
+            dest = branch_factory(repo, 'hotfix/%d.%d.%d' % (self.major,
+                                  self.minor, self.micro))
         elif self.micro is not None:
             dest = branch_factory(repo, 'stabilization/%s' % self.version)
         else:
@@ -752,7 +753,7 @@ class BranchCascade(object):
         if hf_branch:
             LOG.debug("FOUND HF !")
             if hf_branch.micro == micro:
-                hf_branch.hfrev = max(hfrev, hf_branch.hfrev)
+                hf_branch.hfrev = max(hfrev + 1, hf_branch.hfrev)
                 LOG.debug('HF: %d.%d.%d.%d', hf_branch.major, hf_branch.minor,
                           hf_branch.micro, hf_branch.hfrev)
 
@@ -812,7 +813,7 @@ class BranchCascade(object):
             if hf_branch and dst_branch.name.startswith('hotfix/'):
                 self.target_versions.append('%d.%d.%d.%d' % (
                     hf_branch.major, hf_branch.minor, hf_branch.micro,
-                    hf_branch.hfrev + 1))
+                    hf_branch.hfrev ))
 
             if stb_branch:
                 self.target_versions.append('%d.%d.%d' % (
