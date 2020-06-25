@@ -754,6 +754,10 @@ class BranchCascade(object):
             LOG.debug("FOUND HF !")
             if hf_branch.micro == micro:
                 hf_branch.hfrev = max(hfrev + 1, hf_branch.hfrev)
+                hf_branch.version = '%d.%d.%d.%d' % (hf_branch.major,
+                                                     hf_branch.minor,
+                                                     hf_branch.micro,
+                                                     hf_branch.hfrev)
                 LOG.debug('HF: %d.%d.%d.%d', hf_branch.major, hf_branch.minor,
                           hf_branch.micro, hf_branch.hfrev)
 
