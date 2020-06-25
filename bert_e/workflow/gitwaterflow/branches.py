@@ -813,7 +813,7 @@ class BranchCascade(object):
             if hf_branch and dst_branch.name.startswith('hotfix/'):
                 self.target_versions.append('%d.%d.%d.%d' % (
                     hf_branch.major, hf_branch.minor, hf_branch.micro,
-                    hf_branch.hfrev ))
+                    hf_branch.hfrev))
 
             if stb_branch:
                 self.target_versions.append('%d.%d.%d' % (
