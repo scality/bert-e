@@ -82,15 +82,9 @@ def get_queue_branch(job, dev_branch: DevelopmentBranch, create=True
 def get_queue_integration_branch(job, pr_id, wbranch: IntegrationBranch
                                  ) -> QueueIntegrationBranch:
     """Get the q/pr_id/x.y/* branch corresponding to a w/x.y/* branch."""
-    # Does not work, TODO fix it !
-    if wbranch.hfrev < 1:
-        name = 'q/{}/{}/{}'.format(
-            pr_id, wbranch.version, job.pull_request.src_branch
-        )
-    else:
-        name = 'q/{}/{}.{}/{}'.format(
-            pr_id, wbranch.version, wbranch.hfrev, job.pull_request.src_branch
-        )
+    name = 'q/{}/{}.{}/{}'.format(
+        pr_id, wbranch.version, wbranch.hfrev, job.pull_request.src_branch
+    )
     return branch_factory(job.git.repo, name)
 
 
