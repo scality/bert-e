@@ -399,18 +399,24 @@ class QueueCollection(object):
         Called by validate().
 
         """
+
         prs = self._extract_pr_ids(stack)
         last_version = versions[-1]
+
+        hf_detected = False
+        if len(list(stack.keys())) == 1:
+            if len(list(stack.keys())[0]) == 4:
+                hf_detected = True
 
         # check all subsequent versions have a master queue
         has_queues = False
         for version in versions:
             if version not in stack:
-                if has_queues:
+                if has_queues and not hf_detected:
                     yield errors.MasterQueueMissing(version)
                 continue
             has_queues = True
-            if not stack[version][QueueBranch]:
+            if not stack[version][QueueBranch] and not hf_detected:
                 yield errors.MasterQueueMissing(version)
 
         # check queues are sync'ed vertically and included in each other
