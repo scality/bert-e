@@ -572,6 +572,12 @@ class QueueCollection(object):
         if greatest_dev:
             for qint in queues[greatest_dev][QueueIntegrationBranch]:
                 prs.insert(0, qint.pr_id)
+        else:
+            if len(list(queues.keys())) == 1:
+                greatest_dev = list(queues.keys())[0]
+                if len(greatest_dev) == 4:
+                    for qint in queues[greatest_dev][QueueIntegrationBranch]:
+                        prs.insert(0, qint.pr_id)
         return prs
 
     def _remove_unmergeable(self, prs, queues):
@@ -607,14 +613,16 @@ class QueueCollection(object):
             for merge_path in self.merge_paths:
                 versions = [branch.version_t for branch in merge_path]
                 stack = deepcopy(self._queues)
+
                 # remove versions not on this merge_path from consideration
                 for version in list(stack.keys()):
-                    if version not in versions:
+                    if version not in versions and len(version) < 4:
                         stack.pop(version)
 
                 # obtain list of mergeable prs on this merge_path
                 self._recursive_lookup(stack)
                 path_mergeable_prs = self._extract_pr_ids(stack)
+
                 # smallest table is the common denominator
                 if len(path_mergeable_prs) < len(mergeable_prs):
                     mergeable_prs = path_mergeable_prs
