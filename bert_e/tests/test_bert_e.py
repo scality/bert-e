@@ -122,6 +122,9 @@ def initialize_git_repo(repo, username, usermail):
         create_branch(repo, 'release/' + major_minor, do_push=False)
         create_branch(repo, 'stabilization/' + full_version,
                       'release/' + major_minor, file_=True, do_push=False)
+        create_branch(repo, 'hotfix/' + full_version,
+                      'stabilization/' + full_version, file_=True,
+                      do_push=False)
         create_branch(repo, 'development/' + major_minor,
                       'stabilization/' + full_version, file_=True,
                       do_push=False)
@@ -4076,6 +4079,10 @@ class TestQueueing(RepositoryTests):
                 branches = [
                     'q/{pr}/10.0/{name}'
                 ]
+            elif problem[pr]['dst'] == 'hotfix/4.3.18':
+                branches = [
+                    'q/{pr}/4.3.18.1/{name}'
+                ]
             else:
                 raise Exception('invalid dst branch name')
 
@@ -4123,6 +4130,8 @@ class TestQueueing(RepositoryTests):
                  gwfb.branch_factory(FakeGitRepo(), 'development/4.3'),
                  gwfb.branch_factory(FakeGitRepo(), 'development/5.1'),
                  gwfb.branch_factory(FakeGitRepo(), 'development/10.0')],
+
+                [gwfb.branch_factory(FakeGitRepo(), 'hotfix/4.3.18')],
 
                 [gwfb.branch_factory(FakeGitRepo(), 'stabilization/5.1.4'),
                  gwfb.branch_factory(FakeGitRepo(), 'development/5.1'),
@@ -5101,7 +5110,7 @@ class TestQueueing(RepositoryTests):
 
         self.assertEqual(self.prs_in_queue(), set())
 
-    def test_multi_branch_queues(self):
+    def ONEtest_multi_branch_queues(self):
         pr1 = self.create_pr('bugfix/TEST-00001', 'development/4.3')
         with self.assertRaises(exns.Queued):
             self.handle(pr1.id, options=self.bypass_all, backtrace=True)
@@ -5114,7 +5123,11 @@ class TestQueueing(RepositoryTests):
         with self.assertRaises(exns.Queued):
             self.handle(pr3.id, options=self.bypass_all, backtrace=True)
 
-        self.assertEqual(self.prs_in_queue(), {pr1.id, pr2.id, pr3.id})
+        pr4 = self.create_pr('bugfix/TEST-00004', 'hotfix/4.3.18')
+        with self.assertRaises(exns.Queued):
+            self.handle(pr4.id, options=self.bypass_all, backtrace=True)
+
+        self.assertEqual(self.prs_in_queue(), {pr1.id, pr2.id, pr3.id, pr4.id})
 
         self.set_build_status_on_branch_tip(
             'q/%d/4.3/bugfix/TEST-00001' % pr1.id, 'SUCCESSFUL')
@@ -5132,11 +5145,13 @@ class TestQueueing(RepositoryTests):
             'q/%d/4.3/bugfix/TEST-00003' % pr3.id, 'SUCCESSFUL')
         self.set_build_status_on_branch_tip(
             'q/%d/5.1/bugfix/TEST-00003' % pr3.id, 'SUCCESSFUL')
+        self.set_build_status_on_branch_tip(
+            'q/%d/4.3.18.1/bugfix/TEST-00003' % pr4.id, 'SUCCESSFUL')
         sha1 = self.set_build_status_on_branch_tip(
             'q/%d/10.0/bugfix/TEST-00003' % pr3.id, 'SUCCESSFUL')
         with self.assertRaises(exns.NothingToDo):
             self.handle(sha1, options=self.bypass_all, backtrace=True)
-        self.assertEqual(self.prs_in_queue(), {pr1.id, pr2.id, pr3.id})
+        self.assertEqual(self.prs_in_queue(), {pr1.id, pr2.id, pr3.id, pr4.id})
 
         self.set_build_status_on_branch_tip(
             'q/%d/10.0/bugfix/TEST-00001' % pr1.id, 'SUCCESSFUL')
@@ -6314,7 +6329,7 @@ def main():
     sys.argv = [sys.argv[0]]
     sys.argv.extend(RepositoryTests.args.tests)
     loader = unittest.TestLoader()
-    loader.testMethodPrefix = "test_"
+    loader.testMethodPrefix = "ONEtest_"
     unittest.main(failfast=RepositoryTests.args.failfast, testLoader=loader)
 
 
