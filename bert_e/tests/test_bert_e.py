@@ -5146,7 +5146,7 @@ class TestQueueing(RepositoryTests):
         self.set_build_status_on_branch_tip(
             'q/%d/5.1/bugfix/TEST-00003' % pr3.id, 'SUCCESSFUL')
         self.set_build_status_on_branch_tip(
-            'q/%d/4.3.18.1/bugfix/TEST-00003' % pr4.id, 'SUCCESSFUL')
+            'q/%d/4.3.18.1/bugfix/TEST-00004' % pr4.id, 'SUCCESSFUL')
         sha1 = self.set_build_status_on_branch_tip(
             'q/%d/10.0/bugfix/TEST-00003' % pr3.id, 'SUCCESSFUL')
         with self.assertRaises(exns.NothingToDo):
