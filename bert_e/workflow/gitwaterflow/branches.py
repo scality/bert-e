@@ -573,6 +573,7 @@ class QueueCollection(object):
             for qint in queues[greatest_dev][QueueIntegrationBranch]:
                 prs.insert(0, qint.pr_id)
         else:
+            # TODO: better check fot hotfix target
             if len(list(queues.keys())) == 1:
                 greatest_dev = list(queues.keys())[0]
                 if len(greatest_dev) == 4:
@@ -616,6 +617,7 @@ class QueueCollection(object):
 
                 # remove versions not on this merge_path from consideration
                 for version in list(stack.keys()):
+                    #TODO: better check ?
                     if version not in versions and len(version) < 4:
                         stack.pop(version)
 
