@@ -454,6 +454,9 @@ class QueueCollection(object):
                 # and stack should be empty too
                 for version in versions:
                     if (version in stack and
+                            # the line below make the multi queue with hf test
+                            # go further
+                            len(version) < 4 and
                             stack[version][QueueIntegrationBranch]):
                         yield errors.QueueInconsistentPullRequestsOrder()
 
