@@ -653,9 +653,19 @@ class QueueCollection(object):
         """Ordered list of queued PR IDs (oldest first)."""
         if not self._queues:
             return []
-        last_entry = self._queues[list(self._queues.keys())[-1]]
-        return list(reversed([branch.pr_id for branch in
-                              last_entry[QueueIntegrationBranch]]))
+
+        # Original optimized code:
+        # last_entry = self._queues[list(self._queues.keys())[-1]]
+        # return list(reversed([branch.pr_id for branch in
+        #                       last_entry[QueueIntegrationBranch]]))
+
+        pr_ids = []
+        for key in list(self._queues.keys()):
+            entry = self._queues[key]
+            pr_ids = pr_ids + [branch.pr_id for branch in entry[QueueIntegrationBranch]]
+        pr_ids = list(dict.fromkeys(pr_ids))
+        pr_ids.sort()
+        return pr_ids
 
     def has_version_queued_prs(self, version):
         return (self._queues.get(version, {}).get(QueueIntegrationBranch)

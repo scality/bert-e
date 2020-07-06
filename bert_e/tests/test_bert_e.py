@@ -5123,11 +5123,11 @@ class TestQueueing(RepositoryTests):
         with self.assertRaises(exns.Queued):
             self.handle(pr3.id, options=self.bypass_all, backtrace=True)
 
-        pr4 = self.create_pr('bugfix/TEST-00004', 'hotfix/4.3.17')
+        pr4317 = self.create_pr('bugfix/TEST-00004317', 'hotfix/4.3.17')
         with self.assertRaises(exns.Queued):
-            self.handle(pr4.id, options=self.bypass_all, backtrace=True)
+            self.handle(pr4317.id, options=self.bypass_all, backtrace=True)
 
-        self.assertEqual(self.prs_in_queue(), {pr1.id, pr2.id, pr3.id, pr4.id})
+        self.assertEqual(self.prs_in_queue(), {pr1.id, pr2.id, pr3.id, pr4317.id})
 
         self.set_build_status_on_branch_tip(
             'q/%d/4.3/bugfix/TEST-00001' % pr1.id, 'SUCCESSFUL')
@@ -5146,25 +5146,25 @@ class TestQueueing(RepositoryTests):
         self.set_build_status_on_branch_tip(
             'q/%d/5.1/bugfix/TEST-00003' % pr3.id, 'SUCCESSFUL')
         self.set_build_status_on_branch_tip(
-            'q/%d/4.3.17.1/bugfix/TEST-00004' % pr4.id, 'SUCCESSFUL')
+            'q/%d/4.3.17.1/bugfix/TEST-00004317' % pr4317.id, 'SUCCESSFUL')
         sha1 = self.set_build_status_on_branch_tip(
             'q/%d/10.0/bugfix/TEST-00003' % pr3.id, 'SUCCESSFUL')
         with self.assertRaises(exns.NothingToDo):
             self.handle(sha1, options=self.bypass_all, backtrace=True)
-        self.assertEqual(self.prs_in_queue(), {pr1.id, pr2.id, pr3.id, pr4.id})
+        self.assertEqual(self.prs_in_queue(), {pr1.id, pr2.id, pr3.id, pr4317.id})
 
         self.set_build_status_on_branch_tip(
             'q/%d/10.0/bugfix/TEST-00001' % pr1.id, 'SUCCESSFUL')
         with self.assertRaises(exns.Merged):
             self.handle(sha1, options=self.bypass_all, backtrace=True)
-        self.assertEqual(self.prs_in_queue(), {pr2.id, pr3.id})
+        self.assertEqual(self.prs_in_queue(), {pr2.id, pr3.id, pr4317.id})
 
         pr4 = self.create_pr('bugfix/TEST-00004', 'stabilization/5.1.4')
         with self.assertRaises(exns.Queued):
             self.handle(pr4.id, options=self.bypass_all, backtrace=True)
         with self.assertRaises(exns.NothingToDo):
             self.handle(sha1, options=self.bypass_all, backtrace=True)
-        self.assertEqual(self.prs_in_queue(), {pr2.id, pr3.id, pr4.id})
+        self.assertEqual(self.prs_in_queue(), {pr2.id, pr3.id, pr4317.id, pr4.id})
 
         self.set_build_status_on_branch_tip(
             'q/%d/5.1.4/bugfix/TEST-00004' % pr4.id, 'SUCCESSFUL')
@@ -5174,18 +5174,23 @@ class TestQueueing(RepositoryTests):
             'q/%d/10.0/bugfix/TEST-00004' % pr4.id, 'FAILED')
         with self.assertRaises(exns.NothingToDo):
             self.handle(sha1, options=self.bypass_all, backtrace=True)
-        self.assertEqual(self.prs_in_queue(), {pr2.id, pr3.id, pr4.id})
+        self.assertEqual(self.prs_in_queue(), {pr2.id, pr3.id, pr4317.id, pr4.id})
 
         pr5 = self.create_pr('bugfix/TEST-00005', 'development/10.0')
         with self.assertRaises(exns.Queued):
             self.handle(pr5.id, options=self.bypass_all, backtrace=True)
-        self.assertEqual(self.prs_in_queue(), {pr2.id, pr3.id, pr4.id, pr5.id})
+        self.assertEqual(self.prs_in_queue(), {pr2.id, pr3.id, pr4317.id, pr4.id, pr5.id})
 
         sha1 = self.set_build_status_on_branch_tip(
             'q/%d/10.0/bugfix/TEST-00005' % pr5.id, 'SUCCESSFUL')
 
         with self.assertRaises(exns.Merged):
             self.handle(sha1, options=self.bypass_all, backtrace=True)
+
+        # it seems PR 10 is still in self.prs_in_queue()
+        # import pdb
+        # pdb.set_trace()
+
         self.assertEqual(self.prs_in_queue(), set())
 
     def test_multi_branch_queues_2(self):
