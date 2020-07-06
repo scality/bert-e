@@ -620,7 +620,8 @@ class QueueCollection(object):
 
                 # remove versions not on this merge_path from consideration
                 for version in list(stack.keys()):
-                    #TODO: better check ?
+                    # TODO: better check ?
+                    # TODO: try without now
                     if version not in versions and len(version) < 4:
                         stack.pop(version)
 
@@ -662,7 +663,8 @@ class QueueCollection(object):
         pr_ids = []
         for key in list(self._queues.keys()):
             entry = self._queues[key]
-            pr_ids = pr_ids + [branch.pr_id for branch in entry[QueueIntegrationBranch]]
+            pr_ids = pr_ids + [branch.pr_id for branch in
+                               entry[QueueIntegrationBranch]]
         pr_ids = list(dict.fromkeys(pr_ids))
         pr_ids.sort()
         return pr_ids

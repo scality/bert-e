@@ -4131,8 +4131,6 @@ class TestQueueing(RepositoryTests):
                  gwfb.branch_factory(FakeGitRepo(), 'development/5.1'),
                  gwfb.branch_factory(FakeGitRepo(), 'development/10.0')],
 
-                #[gwfb.branch_factory(FakeGitRepo(), 'hotfix/4.3.17')],
-
                 [gwfb.branch_factory(FakeGitRepo(), 'stabilization/5.1.4'),
                  gwfb.branch_factory(FakeGitRepo(), 'development/5.1'),
                  gwfb.branch_factory(FakeGitRepo(), 'development/10.0')],
@@ -5127,7 +5125,8 @@ class TestQueueing(RepositoryTests):
         with self.assertRaises(exns.Queued):
             self.handle(pr4317.id, options=self.bypass_all, backtrace=True)
 
-        self.assertEqual(self.prs_in_queue(), {pr1.id, pr2.id, pr3.id, pr4317.id})
+        self.assertEqual(self.prs_in_queue(),
+                         {pr1.id, pr2.id, pr3.id, pr4317.id})
 
         self.set_build_status_on_branch_tip(
             'q/%d/4.3/bugfix/TEST-00001' % pr1.id, 'SUCCESSFUL')
@@ -5151,7 +5150,8 @@ class TestQueueing(RepositoryTests):
             'q/%d/10.0/bugfix/TEST-00003' % pr3.id, 'SUCCESSFUL')
         with self.assertRaises(exns.NothingToDo):
             self.handle(sha1, options=self.bypass_all, backtrace=True)
-        self.assertEqual(self.prs_in_queue(), {pr1.id, pr2.id, pr3.id, pr4317.id})
+        self.assertEqual(self.prs_in_queue(),
+                         {pr1.id, pr2.id, pr3.id, pr4317.id})
 
         self.set_build_status_on_branch_tip(
             'q/%d/10.0/bugfix/TEST-00001' % pr1.id, 'SUCCESSFUL')
@@ -5164,7 +5164,8 @@ class TestQueueing(RepositoryTests):
             self.handle(pr4.id, options=self.bypass_all, backtrace=True)
         with self.assertRaises(exns.NothingToDo):
             self.handle(sha1, options=self.bypass_all, backtrace=True)
-        self.assertEqual(self.prs_in_queue(), {pr2.id, pr3.id, pr4317.id, pr4.id})
+        self.assertEqual(self.prs_in_queue(),
+                         {pr2.id, pr3.id, pr4317.id, pr4.id})
 
         self.set_build_status_on_branch_tip(
             'q/%d/5.1.4/bugfix/TEST-00004' % pr4.id, 'SUCCESSFUL')
@@ -5174,12 +5175,14 @@ class TestQueueing(RepositoryTests):
             'q/%d/10.0/bugfix/TEST-00004' % pr4.id, 'FAILED')
         with self.assertRaises(exns.NothingToDo):
             self.handle(sha1, options=self.bypass_all, backtrace=True)
-        self.assertEqual(self.prs_in_queue(), {pr2.id, pr3.id, pr4317.id, pr4.id})
+        self.assertEqual(self.prs_in_queue(),
+                         {pr2.id, pr3.id, pr4317.id, pr4.id})
 
         pr5 = self.create_pr('bugfix/TEST-00005', 'development/10.0')
         with self.assertRaises(exns.Queued):
             self.handle(pr5.id, options=self.bypass_all, backtrace=True)
-        self.assertEqual(self.prs_in_queue(), {pr2.id, pr3.id, pr4317.id, pr4.id, pr5.id})
+        self.assertEqual(self.prs_in_queue(),
+                         {pr2.id, pr3.id, pr4317.id, pr4.id, pr5.id})
 
         sha1 = self.set_build_status_on_branch_tip(
             'q/%d/10.0/bugfix/TEST-00005' % pr5.id, 'SUCCESSFUL')
