@@ -403,20 +403,15 @@ class QueueCollection(object):
         prs = self._extract_pr_ids(stack)
         last_version = versions[-1]
 
-        hf_detected = False
-        if len(list(stack.keys())) == 1:
-            if len(list(stack.keys())[0]) == 4:
-                hf_detected = True
-
         # check all subsequent versions have a master queue
         has_queues = False
         for version in versions:
             if version not in stack:
-                if has_queues and not hf_detected:
+                if has_queues and len(version) < 4:
                     yield errors.MasterQueueMissing(version)
                 continue
             has_queues = True
-            if not stack[version][QueueBranch] and not hf_detected:
+            if not stack[version][QueueBranch] and len(version) < 4:
                 yield errors.MasterQueueMissing(version)
 
         # check queues are sync'ed vertically and included in each other
@@ -434,6 +429,9 @@ class QueueCollection(object):
                     if version not in stack:
                         # supposedly finished
                         break
+                    if len(version) == 4:
+                        # do not process hf version here
+                        continue
                     if (stack[version][QueueIntegrationBranch] and
                             stack[version][QueueIntegrationBranch][0].pr_id ==
                             pr):
@@ -446,7 +444,19 @@ class QueueCollection(object):
                         # this pr is supposedly entirely removed from the stack
                         # if it comes back again, its an error
                         break
+                LOG.debug("LOOP1: remove pr %d" % pr)
                 prs.remove(pr)
+            # skip hf version from final checks
+            for version in versions:
+                if len(version) == 4:
+                    if version not in stack:
+                        continue
+                    while stack[version][QueueIntegrationBranch]:
+                        pr_id = stack[version][QueueIntegrationBranch][0].pr_id
+                        stack[version][QueueIntegrationBranch].pop(0)
+                        if pr_id in prs:
+                            LOG.debug("LOOP2: remove pr %d" % pr_id)
+                            prs.remove(pr_id)
             if prs:
                 # after this algorithm prs should be empty
                 yield errors.QueueInconsistentPullRequestsOrder()
@@ -454,9 +464,6 @@ class QueueCollection(object):
                 # and stack should be empty too
                 for version in versions:
                     if (version in stack and
-                            # the line below make the multi queue with hf test
-                            # go further
-                            len(version) < 4 and
                             stack[version][QueueIntegrationBranch]):
                         yield errors.QueueInconsistentPullRequestsOrder()
 
@@ -569,19 +576,19 @@ class QueueCollection(object):
         # (i.e. ignore stab queues)
         greatest_dev = None
         for version in reversed(queues.keys()):
-            if len(version) == 2:
+            if len(version) == 2 and greatest_dev is None:
                 greatest_dev = version
-                break
+            if len(version) == 4:
+                for qint in queues[version][QueueIntegrationBranch]:
+                    if qint.pr_id not in prs:
+                        prs.insert(0, qint.pr_id)
         if greatest_dev:
             for qint in queues[greatest_dev][QueueIntegrationBranch]:
-                prs.insert(0, qint.pr_id)
-        else:
-            # TODO: better check fot hotfix target
-            if len(list(queues.keys())) == 1:
-                greatest_dev = list(queues.keys())[0]
-                if len(greatest_dev) == 4:
-                    for qint in queues[greatest_dev][QueueIntegrationBranch]:
-                        prs.insert(0, qint.pr_id)
+                if qint.pr_id not in prs:
+                    prs.insert(0, qint.pr_id)
+
+        prs.sort()
+        LOG.debug("_extract_pr_ids OUTPUT: " + str(prs))
         return prs
 
     def _remove_unmergeable(self, prs, queues):
@@ -613,6 +620,8 @@ class QueueCollection(object):
 
         mergeable_prs = self._extract_pr_ids(self._queues)
 
+        LOG.debug("number of mergeable_prs: %d", len(mergeable_prs))
+
         if not self.force_merge:
             for merge_path in self.merge_paths:
                 versions = [branch.version_t for branch in merge_path]
@@ -622,7 +631,8 @@ class QueueCollection(object):
                 for version in list(stack.keys()):
                     # TODO: better check ?
                     # TODO: try without now
-                    if version not in versions and len(version) < 4:
+                    if version not in versions:
+                        # and len(version) < 4:
                         stack.pop(version)
 
                 # obtain list of mergeable prs on this merge_path

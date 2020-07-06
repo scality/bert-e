@@ -5190,10 +5190,7 @@ class TestQueueing(RepositoryTests):
         with self.assertRaises(exns.Merged):
             self.handle(sha1, options=self.bypass_all, backtrace=True)
 
-        # it seems PR 10 is still in self.prs_in_queue()
-        # import pdb
-        # pdb.set_trace()
-
+        # TODO: fix: PR 10 is still in self.prs_in_queue()
         self.assertEqual(self.prs_in_queue(), set())
 
     def test_multi_branch_queues_2(self):
