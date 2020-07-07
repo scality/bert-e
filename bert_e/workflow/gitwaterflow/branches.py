@@ -895,7 +895,8 @@ class BranchCascade(object):
             stb_branch = branch_set[StabilizationBranch]
             hf_branch = branch_set[HotfixBranch]
 
-            if dev_branch is None:
+            # TODO: check is it safe to use hf_branch in this test ?
+            if dev_branch is None and hf_branch is None:
                 raise errors.DevBranchDoesNotExist(
                     'development/%d.%d' % (major, minor))
 
@@ -918,8 +919,10 @@ class BranchCascade(object):
                 ignore_stb_branches = True
 
             if not include_dev_branches or dst_hf:
-                branch_set[DevelopmentBranch] = None
-                self.ignored_branches.append(dev_branch.name)
+                # TODO: check that the rest is safe if dev is not present
+                if branch_set[DevelopmentBranch]:
+                    branch_set[DevelopmentBranch] = None
+                    self.ignored_branches.append(dev_branch.name)
 
                 if branch_set[StabilizationBranch]:
                     branch_set[StabilizationBranch] = None
