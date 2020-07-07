@@ -629,10 +629,9 @@ class QueueCollection(object):
 
                 # remove versions not on this merge_path from consideration
                 for version in list(stack.keys()):
-                    # TODO: better check ?
-                    # TODO: try without now
-                    if version not in versions:
-                        # and len(version) < 4:
+                    # TODO: better check ? probably have to fix something
+                    # around merge_paths instead
+                    if version not in versions and len(version) < 4:
                         stack.pop(version)
 
                 # obtain list of mergeable prs on this merge_path
