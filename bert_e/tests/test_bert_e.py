@@ -122,7 +122,7 @@ def initialize_git_repo(repo, username, usermail):
         create_branch(repo, 'release/' + major_minor, do_push=False)
         create_branch(repo, 'stabilization/' + full_version,
                       'release/' + major_minor, file_=True, do_push=False)
-        if major == 4: # TODO FIX: this makes test_job_delete_branch fail
+        if major == 4:  # TODO FIX: this makes test_job_delete_branch fail
             create_branch(repo, 'hotfix/%s.%s.%s' % (major, minor, micro - 1),
                           do_push=False)
         create_branch(repo, 'development/' + major_minor,
@@ -5144,7 +5144,7 @@ class TestQueueing(RepositoryTests):
             'q/%d/4.3/bugfix/TEST-00003' % pr3.id, 'SUCCESSFUL')
         self.set_build_status_on_branch_tip(
             'q/%d/5.1/bugfix/TEST-00003' % pr3.id, 'SUCCESSFUL')
-        hf_sha1 = self.set_build_status_on_branch_tip(
+        self.set_build_status_on_branch_tip(
             'q/%d/4.3.17.1/bugfix/TEST-00004317' % pr4317.id, 'SUCCESSFUL')
         sha1 = self.set_build_status_on_branch_tip(
             'q/%d/10.0/bugfix/TEST-00003' % pr3.id, 'SUCCESSFUL')
@@ -5187,11 +5187,9 @@ class TestQueueing(RepositoryTests):
         sha1 = self.set_build_status_on_branch_tip(
             'q/%d/10.0/bugfix/TEST-00005' % pr5.id, 'SUCCESSFUL')
 
-
         with self.assertRaises(exns.Merged):
             self.handle(sha1, options=self.bypass_all, backtrace=True)
 
-        # TODO: fix: PR 10 is still in self.prs_in_queue()
         self.assertEqual(self.prs_in_queue(), set())
 
     def test_multi_branch_queues_2(self):
