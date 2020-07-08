@@ -122,7 +122,7 @@ def initialize_git_repo(repo, username, usermail):
         create_branch(repo, 'release/' + major_minor, do_push=False)
         create_branch(repo, 'stabilization/' + full_version,
                       'release/' + major_minor, file_=True, do_push=False)
-        if major == 4:  # TODO FIX: this makes test_job_delete_branch fail
+        if major != 10:
             create_branch(repo, 'hotfix/%s.%s.%s' % (major, minor, micro - 1),
                           do_push=False)
         create_branch(repo, 'development/' + major_minor,
@@ -322,9 +322,13 @@ class QuickTest(unittest.TestCase):
 
         c.finalize(gwfb.branch_factory(FakeGitRepo(), destination))
 
-        # TODO: real fix for expected_dest that does not have the correct hfrev
-        if destination.startswith('hotfix/'):
-            expected_dest[0].hfrev = c.dst_branches[0].hfrev
+        # set hfrev in hotfix branches present in expected_dest list
+        for i in range(len(expected_dest)):
+            if expected_dest[i].name.startswith('hotfix/'):
+                for c_branch in c.dst_branches:
+                    if c_branch.name == expected_dest[i].name:
+                        expected_dest[i].hfrev = c_branch.hfrev
+                        break
 
         self.assertEqual(c.dst_branches, expected_dest)
         self.assertEqual(c.ignored_branches, expected_ignored)
@@ -5150,8 +5154,7 @@ class TestQueueing(RepositoryTests):
             'q/%d/10.0/bugfix/TEST-00003' % pr3.id, 'SUCCESSFUL')
         with self.assertRaises(exns.Merged):
             self.handle(sha1, options=self.bypass_all, backtrace=True)
-        self.assertEqual(self.prs_in_queue(),
-                         {pr1.id, pr2.id, pr3.id})
+        self.assertEqual(self.prs_in_queue(), {pr1.id, pr2.id, pr3.id})
 
         self.set_build_status_on_branch_tip(
             'q/%d/10.0/bugfix/TEST-00001' % pr1.id, 'SUCCESSFUL')
@@ -5164,8 +5167,7 @@ class TestQueueing(RepositoryTests):
             self.handle(pr4.id, options=self.bypass_all, backtrace=True)
         with self.assertRaises(exns.NothingToDo):
             self.handle(sha1, options=self.bypass_all, backtrace=True)
-        self.assertEqual(self.prs_in_queue(),
-                         {pr2.id, pr3.id, pr4.id})
+        self.assertEqual(self.prs_in_queue(), {pr2.id, pr3.id, pr4.id})
 
         self.set_build_status_on_branch_tip(
             'q/%d/5.1.4/bugfix/TEST-00004' % pr4.id, 'SUCCESSFUL')
@@ -5175,21 +5177,18 @@ class TestQueueing(RepositoryTests):
             'q/%d/10.0/bugfix/TEST-00004' % pr4.id, 'FAILED')
         with self.assertRaises(exns.NothingToDo):
             self.handle(sha1, options=self.bypass_all, backtrace=True)
-        self.assertEqual(self.prs_in_queue(),
-                         {pr2.id, pr3.id, pr4.id})
+        self.assertEqual(self.prs_in_queue(), {pr2.id, pr3.id, pr4.id})
 
         pr5 = self.create_pr('bugfix/TEST-00005', 'development/10.0')
         with self.assertRaises(exns.Queued):
             self.handle(pr5.id, options=self.bypass_all, backtrace=True)
-        self.assertEqual(self.prs_in_queue(),
-                         {pr2.id, pr3.id, pr4.id, pr5.id})
+        self.assertEqual(self.prs_in_queue(), {pr2.id, pr3.id, pr4.id, pr5.id})
 
         sha1 = self.set_build_status_on_branch_tip(
             'q/%d/10.0/bugfix/TEST-00005' % pr5.id, 'SUCCESSFUL')
 
         with self.assertRaises(exns.Merged):
             self.handle(sha1, options=self.bypass_all, backtrace=True)
-
         self.assertEqual(self.prs_in_queue(), set())
 
     def test_multi_branch_queues_2(self):
