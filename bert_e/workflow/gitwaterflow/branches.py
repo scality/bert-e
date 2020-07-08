@@ -56,7 +56,7 @@ class GWFBranch(git.Branch):
     @property
     def version_t(self):
         if self.micro is not None:
-            if self.hfrev is not None and self.hfrev > 0:
+            if self.hfrev is not None:
                 return (self.major, self.minor, self.micro, self.hfrev)
             return (self.major, self.minor, self.micro)
 
@@ -174,7 +174,7 @@ class StabilizationBranch(DevelopmentBranch):
 
 class IntegrationBranch(GWFBranch):
     pattern = '^w/(?P<version>(?P<major>\d+)\.(?P<minor>\d+)' \
-              '(\.(?P<micro>\d+))?(\.(?P<hfrev>\d+))?)/' + \
+              '(\.(?P<micro>\d+)(\.(?P<hfrev>\d+))?)?)/' + \
               FeatureBranch.pattern[1:]
     dst_branch = ''
     feature_branch = ''
@@ -399,7 +399,6 @@ class QueueCollection(object):
         Called by validate().
 
         """
-
         prs = self._extract_pr_ids(stack)
         last_version = versions[-1]
 
@@ -435,7 +434,7 @@ class QueueCollection(object):
                         # supposedly finished
                         break
                     if len(version) == 4:
-                        # do not process hf version here
+                        # skip hf from check loop
                         continue
                     if (stack[version][QueueIntegrationBranch] and
                             stack[version][QueueIntegrationBranch][0].pr_id ==
@@ -449,9 +448,9 @@ class QueueCollection(object):
                         # this pr is supposedly entirely removed from the stack
                         # if it comes back again, its an error
                         break
-                LOG.debug("LOOP1: remove pr %d" % pr)
                 prs.remove(pr)
-            # skip hf version from final checks
+
+            # skip hf from stack and prs before final checks
             for version in versions:
                 if len(version) == 4:
                     if version not in stack:
@@ -460,8 +459,8 @@ class QueueCollection(object):
                         pr_id = stack[version][QueueIntegrationBranch][0].pr_id
                         stack[version][QueueIntegrationBranch].pop(0)
                         if pr_id in prs:
-                            LOG.debug("LOOP2: remove pr %d" % pr_id)
                             prs.remove(pr_id)
+
             if prs:
                 # after this algorithm prs should be empty
                 yield errors.QueueInconsistentPullRequestsOrder()
@@ -584,16 +583,18 @@ class QueueCollection(object):
             if len(version) == 2 and greatest_dev is None:
                 greatest_dev = version
             if len(version) == 4:
+                # we will not catch the hf pr_id later from greatest_dev
+                # so insert them now
                 for qint in queues[version][QueueIntegrationBranch]:
                     if qint.pr_id not in prs:
                         prs.insert(0, qint.pr_id)
+
         if greatest_dev:
             for qint in queues[greatest_dev][QueueIntegrationBranch]:
                 if qint.pr_id not in prs:
                     prs.insert(0, qint.pr_id)
 
         prs.sort()
-        LOG.debug("_extract_pr_ids OUTPUT: " + str(prs))
         return prs
 
     def _remove_unmergeable(self, prs, queues):
@@ -625,17 +626,13 @@ class QueueCollection(object):
 
         mergeable_prs = self._extract_pr_ids(self._queues)
 
-        LOG.debug("number of mergeable_prs: %d", len(mergeable_prs))
-
         if not self.force_merge:
             for merge_path in self.merge_paths:
                 versions = [branch.version_t for branch in merge_path]
                 stack = deepcopy(self._queues)
-
                 # remove versions not on this merge_path from consideration
                 for version in list(stack.keys()):
-                    # TODO: better check ? probably have to fix something
-                    # around merge_paths instead
+                    # exclude hf version from this pop process
                     if version not in versions and len(version) < 4:
                         stack.pop(version)
 
@@ -669,21 +666,32 @@ class QueueCollection(object):
         if not self._queues:
             return []
 
-        # Original optimized code:
-        # last_entry = self._queues[list(self._queues.keys())[-1]]
-        # return list(reversed([branch.pr_id for branch in
-        #                       last_entry[QueueIntegrationBranch]]))
-
         pr_ids = []
         for key in list(self._queues.keys()):
             entry = self._queues[key]
             pr_ids = pr_ids + [branch.pr_id for branch in
                                entry[QueueIntegrationBranch]]
+
+        # remove duplicate entries from pr_ids
         pr_ids = list(dict.fromkeys(pr_ids))
+
         pr_ids.sort()
         return pr_ids
 
     def has_version_queued_prs(self, version):
+        # delete_branch() may call this property with a four numbers version
+        # finished by -1, so we can not rely on this last number to match.
+        if len(version) == 4 and version[3] == -1:
+            for queue_version in self._queues.keys():
+                if len(queue_version) == 4 and \
+                   len(version) == 4 and \
+                   queue_version[:3] == version[:3]:
+                    queued_pr = self._queues.get(queue_version)
+                    if queued_pr is not None and \
+                       queued_pr.get(QueueIntegrationBranch) is not None:
+                        return True
+            return False
+        # classic test otherwise
         return (self._queues.get(version, {}).get(QueueIntegrationBranch)
                 is not None)
 
@@ -711,7 +719,7 @@ class BranchCascade(object):
                 branch = branch_factory(repo, flat_branch)
             except errors.UnrecognizedBranchPattern:
                 continue
-            self.add_branch(branch)
+            self.add_branch(branch, dst_branch)
 
         for tag in repo.cmd('git tag').split('\n')[:-1]:
             self.update_micro(tag)
@@ -752,10 +760,22 @@ class BranchCascade(object):
         self._merge_paths = ret
         return ret
 
-    def add_branch(self, branch):
+    def add_branch(self, branch, dst_branch=None):
         if not branch.can_be_destination:
             LOG.debug("Discard non destination branch: %s", branch)
             return
+
+        if branch.__class__ is HotfixBranch:
+            if dst_branch and \
+               dst_branch.__class__ is HotfixBranch:
+                if branch.major != dst_branch.major or \
+                   branch.minor != dst_branch.minor or \
+                   branch.micro != dst_branch.micro:
+                    # this is not the hotfix branch we want to add
+                    return
+            else:
+                return
+
         (major, minor) = branch.major, branch.minor
         if (major, minor) not in self._cascade.keys():
             self._cascade[(major, minor)] = {
@@ -765,6 +785,7 @@ class BranchCascade(object):
             }
             # Sort the cascade again
             self._cascade = OrderedDict(sorted(self._cascade.items()))
+
         cur_branch = self._cascade[(major, minor)][branch.__class__]
 
         if cur_branch:
@@ -784,7 +805,7 @@ class BranchCascade(object):
         major = int(match.groupdict()['major'])
         minor = int(match.groupdict()['minor'])
         micro = int(match.groupdict()['micro'])
-        hfrev = 0
+        hfrev = 0  # default hfrev
         if match.groupdict()['hfrev'] is not None:
             hfrev = int(match.groupdict()['hfrev'])
 
@@ -795,23 +816,27 @@ class BranchCascade(object):
             return
 
         hf_branch = branches[HotfixBranch]
+        stb_branch = branches[StabilizationBranch]
+        dev_branch = branches[DevelopmentBranch]
+
         if hf_branch:
-            LOG.debug("FOUND HF !")
             if hf_branch.micro == micro:
                 hf_branch.hfrev = max(hfrev + 1, hf_branch.hfrev)
                 hf_branch.version = '%d.%d.%d.%d' % (hf_branch.major,
                                                      hf_branch.minor,
                                                      hf_branch.micro,
                                                      hf_branch.hfrev)
-                LOG.debug('HF: %d.%d.%d.%d', hf_branch.major, hf_branch.minor,
-                          hf_branch.micro, hf_branch.hfrev)
+            if stb_branch is not None and \
+               stb_branch.micro == hf_branch.micro:
+                # We have a hotfix branch but we did not remove the
+                # stabilization branch.
+                raise errors.DeprecatedStabilizationBranch(stb_branch.name,
+                                                           hf_branch.name)
 
-        stb_branch = branches[StabilizationBranch]
         if stb_branch is not None and stb_branch.micro <= micro:
             # We have a tag but we did not remove the stabilization branch.
             raise errors.DeprecatedStabilizationBranch(stb_branch.name, tag)
 
-        dev_branch = branches[DevelopmentBranch]
         if dev_branch:
             dev_branch.micro = max(micro, dev_branch.micro)
 
@@ -825,6 +850,7 @@ class BranchCascade(object):
             if dev_branch is None and \
                stb_branch is None and \
                hf_branch is not None:
+                # skip cascade validation for hf
                 continue
 
             if dev_branch is None:
@@ -857,8 +883,6 @@ class BranchCascade(object):
             stb_branch = branch_set[StabilizationBranch]
             hf_branch = branch_set[HotfixBranch]
 
-            if hf_branch:
-                LOG.debug('HF branch for target version')
             if hf_branch and dst_branch.name.startswith('hotfix/'):
                 self.target_versions.append('%d.%d.%d.%d' % (
                     hf_branch.major, hf_branch.minor, hf_branch.micro,
@@ -900,7 +924,7 @@ class BranchCascade(object):
             stb_branch = branch_set[StabilizationBranch]
             hf_branch = branch_set[HotfixBranch]
 
-            # TODO: check is it safe to use hf_branch in this test ?
+            # we have to target at least a hf or a dev branch
             if dev_branch is None and hf_branch is None:
                 raise errors.DevBranchDoesNotExist(
                     'development/%d.%d' % (major, minor))
@@ -924,7 +948,6 @@ class BranchCascade(object):
                 ignore_stb_branches = True
 
             if not include_dev_branches or dst_hf:
-                # TODO: check that the rest is safe if dev is not present
                 if branch_set[DevelopmentBranch]:
                     branch_set[DevelopmentBranch] = None
                     self.ignored_branches.append(dev_branch.name)
@@ -941,9 +964,6 @@ class BranchCascade(object):
                     if branch_set[HotfixBranch]:
                         branch_set[HotfixBranch] = None
                         self.ignored_branches.append(hf_branch.name)
-                    if branch_set[DevelopmentBranch]:
-                        branch_set[DevelopmentBranch] = None
-                        self.ignored_branches.append(dev_branch.name)
                     del self._cascade[(major, minor)]
 
             # add to dst_branches in the correct order
@@ -955,7 +975,6 @@ class BranchCascade(object):
             else:
                 if branch_set[HotfixBranch]:
                     if dst_branch.name == hf_branch.name:
-                        LOG.debug("add HF branch for %d.%d", major, minor)
                         self.dst_branches.append(hf_branch)
 
         if not dev_branch and not dst_hf:
@@ -965,7 +984,8 @@ class BranchCascade(object):
         self.ignored_branches.sort()
 
     def get_development_branches(self):
-        return [b[DevelopmentBranch] for _, b in self._cascade.items()]
+        return [b[DevelopmentBranch] for _, b in self._cascade.items()
+                if b[DevelopmentBranch] is not None]
 
 
 def branch_factory(repo: git.Repository, branch_name: str) -> GWFBranch:

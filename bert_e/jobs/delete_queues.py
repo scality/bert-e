@@ -49,10 +49,10 @@ def delete_queues(job: DeleteQueuesJob):
     if not queue_branches:
         raise exceptions.JobSuccess()
 
-    # TODO : fix it ! this is not compatible with X.Y.something versions
     branch_factory(
         repo,
-        'development/{}'.format(queue_branches[0].version)
+        'development/{}.{}'.format(queue_branches[0].major,
+                                   queue_branches[0].minor)
     ).checkout()
 
     for branch in queue_branches:

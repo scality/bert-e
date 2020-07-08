@@ -122,14 +122,26 @@ def initialize_git_repo(repo, username, usermail):
         create_branch(repo, 'release/' + major_minor, do_push=False)
         create_branch(repo, 'stabilization/' + full_version,
                       'release/' + major_minor, file_=True, do_push=False)
-        if major == 4:  # TODO FIX: this makes test_job_delete_branch fail
-            create_branch(repo, 'hotfix/%s.%s.%s' % (major, minor, micro - 1),
+        if major != 10:
+            create_branch(repo, 'hotfix/%s.%s.%s' %
+                          (major, minor - 1, micro),
                           do_push=False)
+            create_branch(repo, 'hotfix/%s.%s.%s' %
+                          (major, minor - 1, micro - 1),
+                          do_push=False)
+            create_branch(repo, 'hotfix/%s.%s.%s' %
+                          (major, minor - 1, micro - 2),
+                          do_push=False)
+        else:
+            create_branch(repo, 'hotfix/10.0.0', do_push=False)
         create_branch(repo, 'development/' + major_minor,
                       'stabilization/' + full_version, file_=True,
                       do_push=False)
-        if major != 6:
+        if major != 6 and major != 10:
             repo.cmd('git tag %s.%s.%s', major, minor, micro - 1)
+
+        if major == 4:
+            repo.cmd('git tag %s.%s.%s', major, minor - 1, micro - 1)
 
     repo.cmd('git branch -d master')
     # the following command fail randomly on bitbucket, so retry
@@ -304,9 +316,24 @@ class QuickTest(unittest.TestCase):
             branch['name']
             for branch in branches.values() if branch['ignore']]
         expected_ignored.sort()
+        # remove expected_ignored branches that would not be added by cascade
+        # add_branch() property
+        i = 0
+        while i < len(expected_ignored):
+            if expected_ignored[i].startswith('hotfix/'):
+                if destination is None or \
+                   destination != expected_ignored[i]:
+                    expected_ignored.pop(i)
+                    continue
+            i = i + 1
+        expected_ignored.sort()
+
+        my_dst = None
+        if destination is not None:
+            my_dst = gwfb.branch_factory(FakeGitRepo(), destination)
 
         for branch in all_branches:
-            c.add_branch(branch)
+            c.add_branch(branch, my_dst)
 
         for tag in tags:
             c.update_micro(tag)
@@ -322,9 +349,13 @@ class QuickTest(unittest.TestCase):
 
         c.finalize(gwfb.branch_factory(FakeGitRepo(), destination))
 
-        # TODO: real fix for expected_dest that does not have the correct hfrev
-        if destination.startswith('hotfix/'):
-            expected_dest[0].hfrev = c.dst_branches[0].hfrev
+        # set hfrev in hotfix branches present in expected_dest list
+        for i in range(len(expected_dest)):
+            if expected_dest[i].name.startswith('hotfix/'):
+                for c_branch in c.dst_branches:
+                    if c_branch.name == expected_dest[i].name:
+                        expected_dest[i].hfrev = c_branch.hfrev
+                        break
 
         self.assertEqual(c.dst_branches, expected_dest)
         self.assertEqual(c.ignored_branches, expected_ignored)
@@ -430,10 +461,13 @@ class QuickTest(unittest.TestCase):
             2: {'name': 'development/4.3', 'ignore': True},
             3: {'name': 'stabilization/5.1.4', 'ignore': True},
             4: {'name': 'development/5.1', 'ignore': True},
-            5: {'name': 'hotfix/6.6.6', 'ignore': False},
-            6: {'name': 'development/6.6', 'ignore': True},
-            7: {'name': 'hotfix/10.0.3', 'ignore': True},
-            8: {'name': 'development/10.0', 'ignore': True}
+            5: {'name': 'hotfix/6.6.5', 'ignore': True},
+            6: {'name': 'hotfix/6.6.6', 'ignore': False},
+            7: {'name': 'hotfix/6.6.7', 'ignore': True},
+            8: {'name': 'development/6.6', 'ignore': True},
+            9: {'name': 'hotfix/10.0.3', 'ignore': True},
+            10: {'name': 'hotfix/10.0.4', 'ignore': True},
+            11: {'name': 'development/10.0', 'ignore': True}
         })
         tags = ['4.3.16', '4.3.17', '4.3.18_rc1', '5.1.3', '5.1.4_rc1',
                 '6.6.6', '10.0.3.1']
@@ -446,6 +480,43 @@ class QuickTest(unittest.TestCase):
         tags = ['4.3.16', '4.3.17', '4.3.18_rc1', '5.1.3', '5.1.4_rc1',
                 '6.6.6.1', '10.0.3.1']
         fixver = ['6.6.6.2']
+        self.finalize_cascade(branches, tags, destination, fixver)
+        tags = ['4.3.16', '4.3.17', '4.3.18_rc1', '5.1.3', '5.1.4_rc1',
+                '6.6.6.1', '6.6.6.2', '10.0.3.1']
+        fixver = ['6.6.6.3']
+        self.finalize_cascade(branches, tags, destination, fixver)
+
+    def test_branch_cascade_hotfix_and_stabilization(self):
+        destination = 'hotfix/4.3.18'
+        branches = OrderedDict({
+            1: {'name': 'stabilization/4.3.18', 'ignore': True},
+            2: {'name': 'development/4.3', 'ignore': True},
+            5: {'name': 'hotfix/4.3.18', 'ignore': False},
+        })
+        tags = ['4.3.16', '4.3.17', '4.3.18']
+        fixver = ['4.3.18.1']
+        with self.assertRaises(exns.DeprecatedStabilizationBranch):
+            self.finalize_cascade(branches, tags, destination, fixver)
+
+        destination = 'stabilization/4.3.18'
+        branches = OrderedDict({
+            1: {'name': 'stabilization/4.3.18', 'ignore': False},
+            2: {'name': 'development/4.3', 'ignore': False},
+            5: {'name': 'hotfix/4.3.18', 'ignore': True},
+        })
+        tags = ['4.3.16', '4.3.17', '4.3.18']
+        fixver = ['4.3.18']
+        with self.assertRaises(exns.DeprecatedStabilizationBranch):
+            self.finalize_cascade(branches, tags, destination, fixver)
+
+        destination = 'hotfix/4.3.18'
+        branches = OrderedDict({
+            1: {'name': 'stabilization/4.3.19', 'ignore': True},
+            2: {'name': 'development/4.3', 'ignore': True},
+            5: {'name': 'hotfix/4.3.18', 'ignore': False},
+        })
+        tags = ['4.3.18']
+        fixver = ['4.3.18.1']
         self.finalize_cascade(branches, tags, destination, fixver)
 
     def test_branch_incorrect_stab_name(self):
@@ -966,6 +1037,41 @@ class TestBertE(RepositoryTests):
 
         # check integration branches have been removed
         for version in ['5.1', '10.0']:
+            remote = 'w/%s/%s' % (version, 'bugfix/TEST-0001')
+            self.assertFalse(self.gitrepo.remote_branch_exists(remote, True),
+                             'branch %s shouldn\'t exist' % remote)
+
+        # check feature branch still exists (the robot should not delete it)
+        self.assertTrue(
+            self.gitrepo.remote_branch_exists('bugfix/TEST-0001', True)
+        )
+
+        # check what happens when trying to do it again
+        with self.assertRaises(exns.NothingToDo):
+            self.handle(pr.id, backtrace=True)
+        # test the return code of a silent exception is 0
+        self.assertEqual(self.handle(pr.id), 0)
+
+    def test_full_merge_manual_for_hotfix(self):
+        """Test the following conditions:
+
+        - Author approval required,
+        - can merge successfully by bypassing all checks,
+        - cannot merge a second time.
+
+        """
+        pr = self.create_pr('bugfix/TEST-0001', 'hotfix/4.2.17')
+        with self.assertRaises(exns.ApprovalRequired):
+            self.handle(pr.id, options=['bypass_jira_check'], backtrace=True)
+        # check backtrace mode on the same error, and check same error happens
+        with self.assertRaises(exns.ApprovalRequired):
+            self.handle(pr.id, options=['bypass_jira_check'], backtrace=True)
+        # check success mode
+        with self.assertRaises(exns.SuccessMessage):
+            self.handle(pr.id, options=self.bypass_all, backtrace=True)
+
+        # check integration branches have been removed
+        for version in ['4.3', '5.1', '10.0']:
             remote = 'w/%s/%s' % (version, 'bugfix/TEST-0001')
             self.assertFalse(self.gitrepo.remote_branch_exists(remote, True),
                              'branch %s shouldn\'t exist' % remote)
@@ -4079,9 +4185,9 @@ class TestQueueing(RepositoryTests):
                 branches = [
                     'q/{pr}/10.0/{name}'
                 ]
-            elif problem[pr]['dst'] == 'hotfix/4.3.17':
+            elif problem[pr]['dst'] == 'hotfix/4.2.17':
                 branches = [
-                    'q/{pr}/4.3.17.1/{name}'
+                    'q/{pr}/4.2.17.1/{name}'
                 ]
             else:
                 raise Exception('invalid dst branch name')
@@ -5108,6 +5214,171 @@ class TestQueueing(RepositoryTests):
 
         self.assertEqual(self.prs_in_queue(), set())
 
+    def test_pr_dev_and_hotfix_with_hotfix_merged_first(self):
+        self.gitrepo.cmd('git tag 10.0.0.0')
+        self.gitrepo.cmd('git push --tags')
+        self.gitrepo.cmd('git push origin :stabilization/10.0.0')
+
+        pr0 = self.create_pr('bugfix/TEST-00000', 'development/5.1')
+        with self.assertRaises(exns.Queued):
+            self.handle(pr0.id, options=self.bypass_all, backtrace=True)
+        pr1 = self.create_pr('bugfix/TEST-00001', 'development/10.0')
+        with self.assertRaises(exns.Queued):
+            self.handle(pr1.id, options=self.bypass_all, backtrace=True)
+        pr2 = self.create_pr('bugfix/TEST-00002', 'hotfix/10.0.0')
+        with self.assertRaises(exns.Queued):
+            self.handle(pr2.id, options=self.bypass_all, backtrace=True)
+
+        self.assertEqual(self.prs_in_queue(), {pr0.id, pr1.id, pr2.id})
+
+        self.set_build_status_on_branch_tip(
+            'q/%d/5.1/bugfix/TEST-00000' % pr0.id, 'FAILED')
+        self.set_build_status_on_branch_tip(
+            'q/%d/10.0/bugfix/TEST-00000' % pr0.id, 'FAILED')
+        self.set_build_status_on_branch_tip(
+            'q/%d/10.0/bugfix/TEST-00001' % pr1.id, 'FAILED')
+        sha1 = self.set_build_status_on_branch_tip(
+            'q/%d/10.0.0.1/bugfix/TEST-00002' % pr2.id, 'SUCCESSFUL')
+
+        with self.assertRaises(exns.Merged):
+            self.handle(sha1, options=self.bypass_all, backtrace=True)
+        self.assertEqual(self.prs_in_queue(), {pr0.id, pr1.id})
+
+        sha1 = self.set_build_status_on_branch_tip(
+            'q/%d/10.0/bugfix/TEST-00001' % pr1.id, 'SUCCESSFUL')
+
+        with self.assertRaises(exns.NothingToDo):
+            self.handle(sha1, options=self.bypass_all, backtrace=True)
+        self.assertEqual(self.prs_in_queue(), {pr0.id, pr1.id})
+
+        self.set_build_status_on_branch_tip(
+            'q/%d/5.1/bugfix/TEST-00000' % pr0.id, 'SUCCESSFUL')
+        self.set_build_status_on_branch_tip(
+            'q/%d/10.0/bugfix/TEST-00000' % pr0.id, 'SUCCESSFUL')
+
+        with self.assertRaises(exns.Merged):
+            self.handle(sha1, options=self.bypass_all, backtrace=True)
+        self.assertEqual(self.prs_in_queue(), set())
+
+    def test_pr_dev_and_hotfix_with_dev_merged_first(self):
+        self.gitrepo.cmd('git tag 10.0.0.0')
+        self.gitrepo.cmd('git push --tags')
+        self.gitrepo.cmd('git push origin :stabilization/10.0.0')
+
+        pr0 = self.create_pr('bugfix/TEST-00000', 'development/5.1')
+        with self.assertRaises(exns.Queued):
+            self.handle(pr0.id, options=self.bypass_all, backtrace=True)
+        pr1 = self.create_pr('bugfix/TEST-00001', 'development/10.0')
+        with self.assertRaises(exns.Queued):
+            self.handle(pr1.id, options=self.bypass_all, backtrace=True)
+        pr2 = self.create_pr('bugfix/TEST-00002', 'hotfix/10.0.0')
+        with self.assertRaises(exns.Queued):
+            self.handle(pr2.id, options=self.bypass_all, backtrace=True)
+
+        self.assertEqual(self.prs_in_queue(), {pr0.id, pr1.id, pr2.id})
+
+        self.set_build_status_on_branch_tip(
+            'q/%d/5.1/bugfix/TEST-00000' % pr0.id, 'SUCCESSFUL')
+        self.set_build_status_on_branch_tip(
+            'q/%d/10.0/bugfix/TEST-00000' % pr0.id, 'SUCCESSFUL')
+        self.set_build_status_on_branch_tip(
+            'q/%d/10.0/bugfix/TEST-00001' % pr1.id, 'SUCCESSFUL')
+        sha1 = self.set_build_status_on_branch_tip(
+            'q/%d/10.0.0.1/bugfix/TEST-00002' % pr2.id, 'FAILED')
+
+        with self.assertRaises(exns.Merged):
+            self.handle(sha1, options=self.bypass_all, backtrace=True)
+        self.assertEqual(self.prs_in_queue(), {pr2.id})
+
+        sha1 = self.set_build_status_on_branch_tip(
+            'q/%d/10.0.0.1/bugfix/TEST-00002' % pr2.id, 'SUCCESSFUL')
+
+        with self.assertRaises(exns.Merged):
+            self.handle(sha1, options=self.bypass_all, backtrace=True)
+        self.assertEqual(self.prs_in_queue(), set())
+
+    def test_pr_stab_and_hotfix_merged_in_the_same_time(self):
+        create_branch(self.gitrepo, 'hotfix/4.3.17', do_push=False)
+        self.gitrepo.cmd('git tag 4.3.17.2')
+        self.gitrepo.cmd("git push --all origin")
+        self.gitrepo.cmd('git push --tags')
+
+        pr0 = self.create_pr('bugfix/TEST-00000', 'stabilization/4.3.18')
+        with self.assertRaises(exns.Queued):
+            self.handle(pr0.id, options=self.bypass_all, backtrace=True)
+        pr1 = self.create_pr('bugfix/TEST-00001', 'hotfix/4.3.17')
+        with self.assertRaises(exns.Queued):
+            self.handle(pr1.id, options=self.bypass_all, backtrace=True)
+
+        self.assertEqual(self.prs_in_queue(), {pr0.id, pr1.id})
+
+        self.set_build_status_on_branch_tip(
+            'q/%d/4.3.18/bugfix/TEST-00000' % pr0.id, 'SUCCESSFUL')
+        self.set_build_status_on_branch_tip(
+            'q/%d/4.3/bugfix/TEST-00000' % pr0.id, 'SUCCESSFUL')
+        self.set_build_status_on_branch_tip(
+            'q/%d/5.1/bugfix/TEST-00000' % pr0.id, 'SUCCESSFUL')
+        self.set_build_status_on_branch_tip(
+            'q/%d/10.0/bugfix/TEST-00000' % pr0.id, 'SUCCESSFUL')
+        sha1 = self.set_build_status_on_branch_tip(
+            'q/%d/4.3.17.3/bugfix/TEST-00001' % pr1.id, 'SUCCESSFUL')
+
+        with self.assertRaises(exns.Merged):
+            self.handle(sha1, options=self.bypass_all, backtrace=True)
+        self.assertEqual(self.prs_in_queue(), set())
+
+    def test_pr_dev_and_hotfix_merged_in_the_same_time(self):
+        self.gitrepo.cmd('git tag 10.0.0.0')
+        self.gitrepo.cmd('git push --tags')
+        self.gitrepo.cmd('git push origin :stabilization/10.0.0')
+
+        pr0 = self.create_pr('bugfix/TEST-00000', 'development/5.1')
+        with self.assertRaises(exns.Queued):
+            self.handle(pr0.id, options=self.bypass_all, backtrace=True)
+        pr1 = self.create_pr('bugfix/TEST-00001', 'development/10.0')
+        with self.assertRaises(exns.Queued):
+            self.handle(pr1.id, options=self.bypass_all, backtrace=True)
+        pr2 = self.create_pr('bugfix/TEST-00002', 'hotfix/10.0.0')
+        with self.assertRaises(exns.Queued):
+            self.handle(pr2.id, options=self.bypass_all, backtrace=True)
+
+        self.assertEqual(self.prs_in_queue(), {pr0.id, pr1.id, pr2.id})
+
+        self.set_build_status_on_branch_tip(
+            'q/%d/5.1/bugfix/TEST-00000' % pr0.id, 'SUCCESSFUL')
+        self.set_build_status_on_branch_tip(
+            'q/%d/10.0/bugfix/TEST-00000' % pr0.id, 'SUCCESSFUL')
+        self.set_build_status_on_branch_tip(
+            'q/%d/10.0/bugfix/TEST-00001' % pr1.id, 'SUCCESSFUL')
+        sha1 = self.set_build_status_on_branch_tip(
+            'q/%d/10.0.0.1/bugfix/TEST-00002' % pr2.id, 'SUCCESSFUL')
+
+        with self.assertRaises(exns.Merged):
+            self.handle(sha1, options=self.bypass_all, backtrace=True)
+        self.assertEqual(self.prs_in_queue(), set())
+
+    def test_pr_hotfix_alone(self):
+        self.gitrepo.cmd('git tag 10.0.0.0')
+        self.gitrepo.cmd('git push --tags')
+        self.gitrepo.cmd('git push origin :stabilization/10.0.0')
+
+        pr0 = self.create_pr('bugfix/TEST-00000', 'hotfix/10.0.0')
+        with self.assertRaises(exns.Queued):
+            self.handle(pr0.id, options=self.bypass_all, backtrace=True)
+        self.assertEqual(self.prs_in_queue(), {pr0.id})
+
+        sha1 = self.set_build_status_on_branch_tip(
+            'q/%d/10.0.0.1/bugfix/TEST-00000' % pr0.id, 'FAILED')
+        with self.assertRaises(exns.NothingToDo):
+            self.handle(sha1, options=self.bypass_all, backtrace=True)
+        self.assertEqual(self.prs_in_queue(), {pr0.id})
+
+        sha1 = self.set_build_status_on_branch_tip(
+            'q/%d/10.0.0.1/bugfix/TEST-00000' % pr0.id, 'SUCCESSFUL')
+        with self.assertRaises(exns.Merged):
+            self.handle(sha1, options=self.bypass_all, backtrace=True)
+        self.assertEqual(self.prs_in_queue(), set())
+
     def test_multi_branch_queues(self):
         pr1 = self.create_pr('bugfix/TEST-00001', 'development/4.3')
         with self.assertRaises(exns.Queued):
@@ -5121,12 +5392,12 @@ class TestQueueing(RepositoryTests):
         with self.assertRaises(exns.Queued):
             self.handle(pr3.id, options=self.bypass_all, backtrace=True)
 
-        pr4317 = self.create_pr('bugfix/TEST-00004317', 'hotfix/4.3.17')
+        pr4217 = self.create_pr('bugfix/TEST-00004217', 'hotfix/4.2.17')
         with self.assertRaises(exns.Queued):
-            self.handle(pr4317.id, options=self.bypass_all, backtrace=True)
+            self.handle(pr4217.id, options=self.bypass_all, backtrace=True)
 
         self.assertEqual(self.prs_in_queue(),
-                         {pr1.id, pr2.id, pr3.id, pr4317.id})
+                         {pr1.id, pr2.id, pr3.id, pr4217.id})
 
         self.set_build_status_on_branch_tip(
             'q/%d/4.3/bugfix/TEST-00001' % pr1.id, 'SUCCESSFUL')
@@ -5145,13 +5416,20 @@ class TestQueueing(RepositoryTests):
         self.set_build_status_on_branch_tip(
             'q/%d/5.1/bugfix/TEST-00003' % pr3.id, 'SUCCESSFUL')
         self.set_build_status_on_branch_tip(
-            'q/%d/4.3.17.1/bugfix/TEST-00004317' % pr4317.id, 'SUCCESSFUL')
+            'q/%d/4.2.17.1/bugfix/TEST-00004217' % pr4217.id, 'FAILED')
         sha1 = self.set_build_status_on_branch_tip(
             'q/%d/10.0/bugfix/TEST-00003' % pr3.id, 'SUCCESSFUL')
+
+        with self.assertRaises(exns.NothingToDo):
+            self.handle(sha1, options=self.bypass_all, backtrace=True)
+        self.assertEqual(self.prs_in_queue(), {pr1.id, pr2.id, pr3.id,
+                                               pr4217.id})
+
+        self.set_build_status_on_branch_tip(
+            'q/%d/4.2.17.1/bugfix/TEST-00004217' % pr4217.id, 'SUCCESSFUL')
         with self.assertRaises(exns.Merged):
             self.handle(sha1, options=self.bypass_all, backtrace=True)
-        self.assertEqual(self.prs_in_queue(),
-                         {pr1.id, pr2.id, pr3.id})
+        self.assertEqual(self.prs_in_queue(), {pr1.id, pr2.id, pr3.id})
 
         self.set_build_status_on_branch_tip(
             'q/%d/10.0/bugfix/TEST-00001' % pr1.id, 'SUCCESSFUL')
@@ -5164,8 +5442,7 @@ class TestQueueing(RepositoryTests):
             self.handle(pr4.id, options=self.bypass_all, backtrace=True)
         with self.assertRaises(exns.NothingToDo):
             self.handle(sha1, options=self.bypass_all, backtrace=True)
-        self.assertEqual(self.prs_in_queue(),
-                         {pr2.id, pr3.id, pr4.id})
+        self.assertEqual(self.prs_in_queue(), {pr2.id, pr3.id, pr4.id})
 
         self.set_build_status_on_branch_tip(
             'q/%d/5.1.4/bugfix/TEST-00004' % pr4.id, 'SUCCESSFUL')
@@ -5175,18 +5452,32 @@ class TestQueueing(RepositoryTests):
             'q/%d/10.0/bugfix/TEST-00004' % pr4.id, 'FAILED')
         with self.assertRaises(exns.NothingToDo):
             self.handle(sha1, options=self.bypass_all, backtrace=True)
-        self.assertEqual(self.prs_in_queue(),
-                         {pr2.id, pr3.id, pr4.id})
+        self.assertEqual(self.prs_in_queue(), {pr2.id, pr3.id, pr4.id})
 
         pr5 = self.create_pr('bugfix/TEST-00005', 'development/10.0')
         with self.assertRaises(exns.Queued):
             self.handle(pr5.id, options=self.bypass_all, backtrace=True)
-        self.assertEqual(self.prs_in_queue(),
-                         {pr2.id, pr3.id, pr4.id, pr5.id})
+        self.assertEqual(self.prs_in_queue(), {pr2.id, pr3.id, pr4.id, pr5.id})
 
         sha1 = self.set_build_status_on_branch_tip(
             'q/%d/10.0/bugfix/TEST-00005' % pr5.id, 'SUCCESSFUL')
 
+        with self.assertRaises(exns.Merged):
+            self.handle(sha1, options=self.bypass_all, backtrace=True)
+        self.assertEqual(self.prs_in_queue(), set())
+
+        self.gitrepo.cmd('git tag 10.0.0.0')
+        self.gitrepo.cmd('git push --tags')
+        pr1000 = self.create_pr('bugfix/TEST-00001000', 'hotfix/10.0.0')
+
+        with self.assertRaises(exns.DeprecatedStabilizationBranch):
+            self.handle(pr1000.id, options=self.bypass_all, backtrace=True)
+        self.gitrepo.cmd('git push origin :stabilization/10.0.0')
+        with self.assertRaises(exns.Queued):
+            self.handle(pr1000.id, options=self.bypass_all, backtrace=True)
+        self.assertEqual(self.prs_in_queue(), {pr1000.id})
+        sha1 = self.set_build_status_on_branch_tip(
+            'q/%d/10.0.0.1/bugfix/TEST-00001000' % pr1000.id, 'SUCCESSFUL')
         with self.assertRaises(exns.Merged):
             self.handle(sha1, options=self.bypass_all, backtrace=True)
 
@@ -5966,6 +6257,32 @@ class TaskQueueTests(RepositoryTests):
         for tag in expected_tags:
             self.assertIn(tag, tags)
 
+    def test_job_delete_hotfix_branch_with_pr_queued(self):
+        """Test deletion of development and stabilization branches."""
+        self.init_berte(options=self.bypass_all)
+
+        # Create a couple PRs and queue them
+        pr = self.create_pr('feature/TEST-666', 'hotfix/4.2.17')
+        self.process_pr_job(pr, 'Queued')
+
+        self.process_job(
+            DeleteBranchJob(
+                settings={'branch': 'hotfix/4.2.17'},
+                bert_e=self.berte),
+            'JobFailure'
+        )
+
+    def test_job_delete_hotfix_branch(self):
+        """Test deletion of development and stabilization branches."""
+        self.init_berte(options=self.bypass_all)
+
+        self.process_job(
+            DeleteBranchJob(
+                settings={'branch': 'hotfix/4.2.17'},
+                bert_e=self.berte),
+            'JobSuccess'
+        )
+
     def test_job_create_branch_stab(self):
         self.init_berte(options=self.bypass_all)
         self.gitrepo.cmd('git push origin :stabilization/4.3.18')
@@ -6047,6 +6364,47 @@ class TaskQueueTests(RepositoryTests):
             self.assertTrue(self.gitrepo.remote_branch_exists(branch),
                             'branch %s not found' % branch)
 
+    def test_job_create_branch_hotfix(self):
+        self.init_berte(options=self.bypass_all)
+        self.gitrepo.cmd('git tag 4.1.27.0')
+        self.gitrepo.cmd('git push --tags')
+
+        self.process_job(
+            CreateBranchJob(
+                settings={'branch': 'hotfix/4.1.27'},
+                bert_e=self.berte),
+            'JobSuccess'
+        )
+
+        self.gitrepo.cmd('git fetch --all')
+        sha1_origin = self.gitrepo \
+                          .cmd('git rev-parse refs/tags/4.1.27.0') \
+                          .rstrip()
+        sha1_branch = self.gitrepo \
+                          .cmd('git rev-parse '
+                               'refs/remotes/origin/hotfix/4.1.27') \
+                          .rstrip()
+        self.assertEqual(sha1_branch, sha1_origin)
+
+        self.process_job(
+            CreateBranchJob(
+                settings={'branch': 'hotfix/4.1.28',
+                          'branch_from': 'development/4.3'},
+                bert_e=self.berte),
+            'JobSuccess'
+        )
+
+        self.gitrepo.cmd('git fetch --all')
+        sha1_origin = self.gitrepo \
+                          .cmd('git rev-parse '
+                               'refs/remotes/origin/development/4.3') \
+                          .rstrip()
+        sha1_branch = self.gitrepo \
+                          .cmd('git rev-parse '
+                               'refs/remotes/origin/hotfix/4.1.28') \
+                          .rstrip()
+        self.assertEqual(sha1_branch, sha1_origin)
+
     def test_job_evaluate_pull_request(self):
         self.init_berte(options=self.bypass_all)
 
@@ -6100,6 +6458,50 @@ class TaskQueueTests(RepositoryTests):
         sha1_dev_10_0 = self.gitrepo._remote_branches['development/10.0']
         self.assertEqual(sha1_q_10_0, sha1_dev_10_0)
 
+    def test_job_force_merge_queues_with_hotfix(self):
+        self.init_berte(options=self.bypass_all)
+
+        # When queues are disabled, Bert-E should respond with 'NotMyJob'
+        self.process_job(
+            ForceMergeQueuesJob(bert_e=self.berte,
+                                settings={'use_queue': False}),
+            'NotMyJob'
+        )
+
+        # When there is no queue, Bert-E should respond with 'NothingToDo'
+        self.process_job(ForceMergeQueuesJob(bert_e=self.berte), 'NothingToDo')
+
+        # Create a couple PRs and queue them
+        prs = [
+            self.create_pr('feature/TEST-{:02d}'.format(n), 'development/4.3')
+            for n in range(1, 4)
+        ]
+
+        # Add a hotfix PR
+        prs.append(self.create_pr('feature/TEST-666', 'hotfix/4.2.17'))
+
+        for pr in prs:
+            self.process_pr_job(pr, 'Queued')
+
+        # put a mix of build statuses in the queue
+        self.gitrepo._get_remote_branches()
+        sha1_q_4_3 = self.gitrepo._remote_branches['q/4.3']
+        self.set_build_status(sha1=sha1_q_4_3, state='FAILED')
+        sha1_q_5_1 = self.gitrepo._remote_branches['q/5.1']
+        self.set_build_status(sha1=sha1_q_5_1, state='INPROGRESS')
+        # (leave q/10.0 blank)
+
+        self.process_job(ForceMergeQueuesJob(bert_e=self.berte), 'Merged')
+
+        # Check that the PRs are merged
+        self.gitrepo._get_remote_branches(force=True)
+        sha1_q_10_0 = self.gitrepo._remote_branches['q/10.0']
+        sha1_dev_10_0 = self.gitrepo._remote_branches['development/10.0']
+        self.assertEqual(sha1_q_10_0, sha1_dev_10_0)
+        sha1_q_4_2_17_1 = self.gitrepo._remote_branches['q/4.2.17.1']
+        sha1_hotfix_4_2_17 = self.gitrepo._remote_branches['hotfix/4.2.17']
+        self.assertEqual(sha1_q_4_2_17_1, sha1_hotfix_4_2_17)
+
     def test_job_delete_queues(self):
         self.init_berte(options=self.bypass_all)
 
@@ -6134,6 +6536,62 @@ class TaskQueueTests(RepositoryTests):
             'q/3/4.3/feature/TEST-03',
             'q/3/5.1/feature/TEST-03',
             'q/3/10.0/feature/TEST-03',
+        ]
+        # Check that all PRs are queued
+
+        for branch in expected_branches:
+            self.assertTrue(self.gitrepo.remote_branch_exists(branch),
+                            'branch %s not found' % branch)
+
+        self.process_job(DeleteQueuesJob(bert_e=self.berte), 'JobSuccess')
+
+        # Check that the queues are destroyed
+        for branch in expected_branches:
+            self.assertFalse(self.gitrepo.remote_branch_exists(branch, True),
+                             'branch %s still exists' % branch)
+
+        # check nothing more pending
+        self.assertTrue(self.berte.task_queue.empty())
+
+    def test_job_delete_queues_with_hotfix(self):
+        self.init_berte(options=self.bypass_all)
+
+        # When queues are disabled, Bert-E should respond with 'NotMyJob'
+        self.process_job(
+            DeleteQueuesJob(bert_e=self.berte, settings={'use_queue': False}),
+            'NotMyJob'
+        )
+
+        # When there is no queue, Bert-E should respond with 'JobSuccess'
+        self.process_job(DeleteQueuesJob(bert_e=self.berte), 'JobSuccess')
+
+        # Create a couple PRs and queue them
+        prs = [
+            self.create_pr('feature/TEST-{:02d}'.format(n), 'development/4.3')
+            for n in range(1, 4)
+        ]
+
+        # Add a hotfix PR
+        prs.append(self.create_pr('feature/TEST-666', 'hotfix/4.2.17'))
+
+        for pr in prs:
+            self.process_pr_job(pr, 'Queued')
+
+        expected_branches = [
+            'q/4.2.17.1',
+            'q/4.3',
+            'q/5.1',
+            'q/10.0',
+            'q/1/4.3/feature/TEST-01',
+            'q/1/5.1/feature/TEST-01',
+            'q/1/10.0/feature/TEST-01',
+            'q/2/4.3/feature/TEST-02',
+            'q/2/5.1/feature/TEST-02',
+            'q/2/10.0/feature/TEST-02',
+            'q/3/4.3/feature/TEST-03',
+            'q/3/5.1/feature/TEST-03',
+            'q/3/10.0/feature/TEST-03',
+            'q/4/4.2.17.1/feature/TEST-666',
         ]
         # Check that all PRs are queued
 
@@ -6226,6 +6684,186 @@ class TaskQueueTests(RepositoryTests):
             'q/1/4.3/feature/TEST-01',
             'q/1/5.1/feature/TEST-01',
             'q/1/10.0/feature/TEST-01',
+        ]
+
+        # Check that all 'requeued' PRs are queued again
+        for branch in expected_branches:
+            self.assertTrue(self.gitrepo.remote_branch_exists(branch, True),
+                            'branch %s not found' % branch)
+
+        # Check that the excluded PR is *not* queued.
+        for branch in excluded_branches:
+            self.assertFalse(self.gitrepo.remote_branch_exists(branch),
+                             "branch %s shouldn't exist" % branch)
+
+    def test_job_rebuild_queues_with_hotfix(self):
+        self.init_berte(options=self.bypass_all)
+
+        # When queues are disabled, Bert-E should respond with 'NotMyJob'
+        self.process_job(
+            RebuildQueuesJob(bert_e=self.berte, settings={'use_queue': False}),
+            'NotMyJob'
+        )
+
+        # When there is no queue, Bert-E should respond with 'JobSuccess'
+        self.process_job(RebuildQueuesJob(bert_e=self.berte), 'JobSuccess')
+
+        # Create a couple PRs and queue them
+        prs = [
+            self.create_pr('feature/TEST-{:02d}'.format(n), 'development/4.3')
+            for n in range(1, 4)
+        ]
+
+        # Add a hotfix PR
+        prs.append(self.create_pr('feature/TEST-666', 'hotfix/4.2.17'))
+
+        for pr in prs:
+            self.process_pr_job(pr, 'Queued')
+
+        expected_branches = [
+            'q/4.2.17.1',
+            'q/4.3',
+            'q/5.1',
+            'q/10.0',
+            'q/1/4.3/feature/TEST-01',
+            'q/1/5.1/feature/TEST-01',
+            'q/1/10.0/feature/TEST-01',
+            'q/2/4.3/feature/TEST-02',
+            'q/2/5.1/feature/TEST-02',
+            'q/2/10.0/feature/TEST-02',
+            'q/3/4.3/feature/TEST-03',
+            'q/3/5.1/feature/TEST-03',
+            'q/3/10.0/feature/TEST-03',
+            'q/4/4.2.17.1/feature/TEST-666',
+        ]
+        # Check that all PRs are queued
+
+        for branch in expected_branches:
+            self.assertTrue(self.gitrepo.remote_branch_exists(branch),
+                            'branch %s not found' % branch)
+
+        # Put a 'wait' command on one of the PRs to exclude it from the queue
+        excluded, *requeued = prs
+        excluded.add_comment("@%s wait" % self.args.robot_username)
+
+        self.process_job(RebuildQueuesJob(bert_e=self.berte), 'JobSuccess')
+
+        # Check that the queues are destroyed
+        for branch in expected_branches:
+            self.assertFalse(self.gitrepo.remote_branch_exists(branch, True),
+                             'branch %s still exists' % branch)
+
+        # Check that the robot is going to be waken up on all of the previously
+        # queued prs.
+        self.assertEqual(len(self.berte.task_queue.queue), len(prs))
+
+        while not self.berte.task_queue.empty():
+            self.berte.process_task()
+
+        expected_branches = [
+            'q/4.2.17.1',
+            'q/4.3',
+            'q/5.1',
+            'q/10.0',
+            'q/2/4.3/feature/TEST-02',
+            'q/2/5.1/feature/TEST-02',
+            'q/2/10.0/feature/TEST-02',
+            'q/3/4.3/feature/TEST-03',
+            'q/3/5.1/feature/TEST-03',
+            'q/3/10.0/feature/TEST-03',
+            'q/4/4.2.17.1/feature/TEST-666',
+        ]
+
+        excluded_branches = [
+            'q/1/4.3/feature/TEST-01',
+            'q/1/5.1/feature/TEST-01',
+            'q/1/10.0/feature/TEST-01',
+        ]
+
+        # Check that all 'requeued' PRs are queued again
+        for branch in expected_branches:
+            self.assertTrue(self.gitrepo.remote_branch_exists(branch, True),
+                            'branch %s not found' % branch)
+
+        # Check that the excluded PR is *not* queued.
+        for branch in excluded_branches:
+            self.assertFalse(self.gitrepo.remote_branch_exists(branch),
+                             "branch %s shouldn't exist" % branch)
+
+    def test_job_rebuild_queues_without_hotfix(self):
+        self.init_berte(options=self.bypass_all)
+
+        # When queues are disabled, Bert-E should respond with 'NotMyJob'
+        self.process_job(
+            RebuildQueuesJob(bert_e=self.berte, settings={'use_queue': False}),
+            'NotMyJob'
+        )
+
+        # When there is no queue, Bert-E should respond with 'JobSuccess'
+        self.process_job(RebuildQueuesJob(bert_e=self.berte), 'JobSuccess')
+
+        # Create a couple PRs and queue them
+        prs = [
+            self.create_pr('feature/TEST-{:02d}'.format(n), 'development/4.3')
+            for n in range(1, 4)
+        ]
+
+        # Add a hotfix PR
+        prs.append(self.create_pr('feature/TEST-666', 'hotfix/4.2.17'))
+
+        for pr in prs:
+            self.process_pr_job(pr, 'Queued')
+
+        expected_branches = [
+            'q/4.2.17.1',
+            'q/4.3',
+            'q/5.1',
+            'q/10.0',
+            'q/1/4.3/feature/TEST-01',
+            'q/1/5.1/feature/TEST-01',
+            'q/1/10.0/feature/TEST-01',
+            'q/2/4.3/feature/TEST-02',
+            'q/2/5.1/feature/TEST-02',
+            'q/2/10.0/feature/TEST-02',
+            'q/3/4.3/feature/TEST-03',
+            'q/3/5.1/feature/TEST-03',
+            'q/3/10.0/feature/TEST-03',
+            'q/4/4.2.17.1/feature/TEST-666',
+        ]
+        # Check that all PRs are queued
+
+        for branch in expected_branches:
+            self.assertTrue(self.gitrepo.remote_branch_exists(branch),
+                            'branch %s not found' % branch)
+
+        # Put a 'wait' command on one of the PRs to exclude it from the queue
+        *requeued, excluded = prs
+        excluded.add_comment("@%s wait" % self.args.robot_username)
+
+        self.process_job(RebuildQueuesJob(bert_e=self.berte), 'JobSuccess')
+
+        # Check that the robot is going to be waken up on all of the previously
+        # queued prs.
+        self.assertEqual(len(self.berte.task_queue.queue), len(prs))
+
+        while not self.berte.task_queue.empty():
+            self.berte.process_task()
+
+        expected_branches = [
+            'q/4.3',
+            'q/5.1',
+            'q/10.0',
+            'q/2/4.3/feature/TEST-02',
+            'q/2/5.1/feature/TEST-02',
+            'q/2/10.0/feature/TEST-02',
+            'q/3/4.3/feature/TEST-03',
+            'q/3/5.1/feature/TEST-03',
+            'q/3/10.0/feature/TEST-03',
+        ]
+
+        excluded_branches = [
+            'q/4.2.17.1',
+            'q/4/4.2.17.1/feature/TEST-666',
         ]
 
         # Check that all 'requeued' PRs are queued again

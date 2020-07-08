@@ -155,6 +155,7 @@ def check_fix_versions(job, issue):
     vfilter = re.compile('^\d+\.\d+\.\d+(\.0|)$')
     checked_versions = set(v for v in issue_versions if vfilter.match(v))
 
+    # If the job is targetting a hotfix branch, feed hf_target with the version
     hf_target = None
     if len(expected_versions) == 1:
         target_version = list(expected_versions)[0]
