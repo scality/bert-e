@@ -399,7 +399,6 @@ class QueueCollection(object):
         Called by validate().
 
         """
-
         prs = self._extract_pr_ids(stack)
         last_version = versions[-1]
 
@@ -449,7 +448,6 @@ class QueueCollection(object):
                         # this pr is supposedly entirely removed from the stack
                         # if it comes back again, its an error
                         break
-                LOG.debug("LOOP1: remove pr %d" % pr)
                 prs.remove(pr)
             # skip hf version from final checks
             for version in versions:
@@ -460,7 +458,6 @@ class QueueCollection(object):
                         pr_id = stack[version][QueueIntegrationBranch][0].pr_id
                         stack[version][QueueIntegrationBranch].pop(0)
                         if pr_id in prs:
-                            LOG.debug("LOOP2: remove pr %d" % pr_id)
                             prs.remove(pr_id)
             if prs:
                 # after this algorithm prs should be empty
@@ -593,7 +590,6 @@ class QueueCollection(object):
                     prs.insert(0, qint.pr_id)
 
         prs.sort()
-        LOG.debug("_extract_pr_ids OUTPUT: " + str(prs))
         return prs
 
     def _remove_unmergeable(self, prs, queues):
@@ -625,13 +621,10 @@ class QueueCollection(object):
 
         mergeable_prs = self._extract_pr_ids(self._queues)
 
-        LOG.debug("number of mergeable_prs: %d", len(mergeable_prs))
-
         if not self.force_merge:
             for merge_path in self.merge_paths:
                 versions = [branch.version_t for branch in merge_path]
                 stack = deepcopy(self._queues)
-
                 # remove versions not on this merge_path from consideration
                 for version in list(stack.keys()):
                     # TODO: better check ? probably have to fix something
@@ -796,15 +789,12 @@ class BranchCascade(object):
 
         hf_branch = branches[HotfixBranch]
         if hf_branch:
-            LOG.debug("FOUND HF !")
             if hf_branch.micro == micro:
                 hf_branch.hfrev = max(hfrev + 1, hf_branch.hfrev)
                 hf_branch.version = '%d.%d.%d.%d' % (hf_branch.major,
                                                      hf_branch.minor,
                                                      hf_branch.micro,
                                                      hf_branch.hfrev)
-                LOG.debug('HF: %d.%d.%d.%d', hf_branch.major, hf_branch.minor,
-                          hf_branch.micro, hf_branch.hfrev)
 
         stb_branch = branches[StabilizationBranch]
         if stb_branch is not None and stb_branch.micro <= micro:
@@ -857,8 +847,6 @@ class BranchCascade(object):
             stb_branch = branch_set[StabilizationBranch]
             hf_branch = branch_set[HotfixBranch]
 
-            if hf_branch:
-                LOG.debug('HF branch for target version')
             if hf_branch and dst_branch.name.startswith('hotfix/'):
                 self.target_versions.append('%d.%d.%d.%d' % (
                     hf_branch.major, hf_branch.minor, hf_branch.micro,
@@ -955,7 +943,6 @@ class BranchCascade(object):
             else:
                 if branch_set[HotfixBranch]:
                     if dst_branch.name == hf_branch.name:
-                        LOG.debug("add HF branch for %d.%d", major, minor)
                         self.dst_branches.append(hf_branch)
 
         if not dev_branch and not dst_hf:
