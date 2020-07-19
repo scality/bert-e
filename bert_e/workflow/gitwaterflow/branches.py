@@ -632,8 +632,7 @@ class QueueCollection(object):
                 stack = deepcopy(self._queues)
                 # remove versions not on this merge_path from consideration
                 for version in list(stack.keys()):
-                    # TODO: better check ? probably have to fix something
-                    # around merge_paths instead
+                    # exclude hf version from this pop process
                     if version not in versions and len(version) < 4:
                         stack.pop(version)
 

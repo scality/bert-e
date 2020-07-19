@@ -5149,9 +5149,17 @@ class TestQueueing(RepositoryTests):
         self.set_build_status_on_branch_tip(
             'q/%d/5.1/bugfix/TEST-00003' % pr3.id, 'SUCCESSFUL')
         self.set_build_status_on_branch_tip(
-            'q/%d/4.3.17.1/bugfix/TEST-00004317' % pr4317.id, 'SUCCESSFUL')
+            'q/%d/4.3.17.1/bugfix/TEST-00004317' % pr4317.id, 'FAILED')
         sha1 = self.set_build_status_on_branch_tip(
             'q/%d/10.0/bugfix/TEST-00003' % pr3.id, 'SUCCESSFUL')
+
+        with self.assertRaises(exns.NothingToDo):
+            self.handle(sha1, options=self.bypass_all, backtrace=True)
+        self.assertEqual(self.prs_in_queue(), {pr1.id, pr2.id, pr3.id,
+                                               pr4317.id})
+
+        self.set_build_status_on_branch_tip(
+            'q/%d/4.3.17.1/bugfix/TEST-00004317' % pr4317.id, 'SUCCESSFUL')
         with self.assertRaises(exns.Merged):
             self.handle(sha1, options=self.bypass_all, backtrace=True)
         self.assertEqual(self.prs_in_queue(), {pr1.id, pr2.id, pr3.id})
