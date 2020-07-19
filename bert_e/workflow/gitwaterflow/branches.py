@@ -56,7 +56,7 @@ class GWFBranch(git.Branch):
     @property
     def version_t(self):
         if self.micro is not None:
-            if self.hfrev is not None and self.hfrev > 0:
+            if self.hfrev is not None:
                 return (self.major, self.minor, self.micro, self.hfrev)
             return (self.major, self.minor, self.micro)
 
@@ -174,7 +174,7 @@ class StabilizationBranch(DevelopmentBranch):
 
 class IntegrationBranch(GWFBranch):
     pattern = '^w/(?P<version>(?P<major>\d+)\.(?P<minor>\d+)' \
-              '(\.(?P<micro>\d+))?(\.(?P<hfrev>\d+))?)/' + \
+              '(\.(?P<micro>\d+)(\.(?P<hfrev>\d+))?)?)/' + \
               FeatureBranch.pattern[1:]
     dst_branch = ''
     feature_branch = ''
