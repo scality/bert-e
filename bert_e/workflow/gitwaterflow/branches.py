@@ -434,7 +434,7 @@ class QueueCollection(object):
                         # supposedly finished
                         break
                     if len(version) == 4:
-                        # do not process hf version here
+                        # skip hf from check loop
                         continue
                     if (stack[version][QueueIntegrationBranch] and
                             stack[version][QueueIntegrationBranch][0].pr_id ==
@@ -449,7 +449,8 @@ class QueueCollection(object):
                         # if it comes back again, its an error
                         break
                 prs.remove(pr)
-            # skip hf version from final checks
+
+            # skip hf from stack and prs before final checks
             for version in versions:
                 if len(version) == 4:
                     if version not in stack:
@@ -459,6 +460,7 @@ class QueueCollection(object):
                         stack[version][QueueIntegrationBranch].pop(0)
                         if pr_id in prs:
                             prs.remove(pr_id)
+
             if prs:
                 # after this algorithm prs should be empty
                 yield errors.QueueInconsistentPullRequestsOrder()
