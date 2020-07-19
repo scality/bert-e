@@ -583,9 +583,12 @@ class QueueCollection(object):
             if len(version) == 2 and greatest_dev is None:
                 greatest_dev = version
             if len(version) == 4:
+                # we will not catch the hf pr_id later from greatest_dev
+                # so insert them now
                 for qint in queues[version][QueueIntegrationBranch]:
                     if qint.pr_id not in prs:
                         prs.insert(0, qint.pr_id)
+
         if greatest_dev:
             for qint in queues[greatest_dev][QueueIntegrationBranch]:
                 if qint.pr_id not in prs:
