@@ -666,17 +666,15 @@ class QueueCollection(object):
         if not self._queues:
             return []
 
-        # Original optimized code:
-        # last_entry = self._queues[list(self._queues.keys())[-1]]
-        # return list(reversed([branch.pr_id for branch in
-        #                       last_entry[QueueIntegrationBranch]]))
-
         pr_ids = []
         for key in list(self._queues.keys()):
             entry = self._queues[key]
             pr_ids = pr_ids + [branch.pr_id for branch in
                                entry[QueueIntegrationBranch]]
+
+        # remove duplicate entries from pr_ids
         pr_ids = list(dict.fromkeys(pr_ids))
+
         pr_ids.sort()
         return pr_ids
 
@@ -781,7 +779,7 @@ class BranchCascade(object):
         major = int(match.groupdict()['major'])
         minor = int(match.groupdict()['minor'])
         micro = int(match.groupdict()['micro'])
-        hfrev = 0
+        hfrev = 0  # default hfrev
         if match.groupdict()['hfrev'] is not None:
             hfrev = int(match.groupdict()['hfrev'])
 
@@ -819,6 +817,7 @@ class BranchCascade(object):
             if dev_branch is None and \
                stb_branch is None and \
                hf_branch is not None:
+                # skip cascade validation for hf
                 continue
 
             if dev_branch is None:
@@ -892,7 +891,7 @@ class BranchCascade(object):
             stb_branch = branch_set[StabilizationBranch]
             hf_branch = branch_set[HotfixBranch]
 
-            # TODO: check is it safe to use hf_branch in this test ?
+            # we have to target at least a hf or a dev branch
             if dev_branch is None and hf_branch is None:
                 raise errors.DevBranchDoesNotExist(
                     'development/%d.%d' % (major, minor))
@@ -916,7 +915,6 @@ class BranchCascade(object):
                 ignore_stb_branches = True
 
             if not include_dev_branches or dst_hf:
-                # TODO: check that the rest is safe if dev is not present
                 if branch_set[DevelopmentBranch]:
                     branch_set[DevelopmentBranch] = None
                     self.ignored_branches.append(dev_branch.name)
@@ -933,9 +931,6 @@ class BranchCascade(object):
                     if branch_set[HotfixBranch]:
                         branch_set[HotfixBranch] = None
                         self.ignored_branches.append(hf_branch.name)
-                    if branch_set[DevelopmentBranch]:
-                        branch_set[DevelopmentBranch] = None
-                        self.ignored_branches.append(dev_branch.name)
                     del self._cascade[(major, minor)]
 
             # add to dst_branches in the correct order
