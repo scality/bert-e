@@ -123,13 +123,16 @@ def initialize_git_repo(repo, username, usermail):
         create_branch(repo, 'stabilization/' + full_version,
                       'release/' + major_minor, file_=True, do_push=False)
         if major != 10:
-            create_branch(repo, 'hotfix/%s.%s.%s' % (major, minor, micro - 1),
+            create_branch(repo, 'hotfix/%s.%s.%s' % (major, minor - 1, micro - 1),
                           do_push=False)
         create_branch(repo, 'development/' + major_minor,
                       'stabilization/' + full_version, file_=True,
                       do_push=False)
         if major != 6:
             repo.cmd('git tag %s.%s.%s', major, minor, micro - 1)
+
+        if major == 4:
+            repo.cmd('git tag %s.%s.%s', major, minor - 1, micro - 1)
 
     repo.cmd('git branch -d master')
     # the following command fail randomly on bitbucket, so retry
@@ -4083,9 +4086,9 @@ class TestQueueing(RepositoryTests):
                 branches = [
                     'q/{pr}/10.0/{name}'
                 ]
-            elif problem[pr]['dst'] == 'hotfix/4.3.17':
+            elif problem[pr]['dst'] == 'hotfix/4.2.17':
                 branches = [
-                    'q/{pr}/4.3.17.1/{name}'
+                    'q/{pr}/4.2.17.1/{name}'
                 ]
             else:
                 raise Exception('invalid dst branch name')
@@ -5125,12 +5128,12 @@ class TestQueueing(RepositoryTests):
         with self.assertRaises(exns.Queued):
             self.handle(pr3.id, options=self.bypass_all, backtrace=True)
 
-        pr4317 = self.create_pr('bugfix/TEST-00004317', 'hotfix/4.3.17')
+        pr4217 = self.create_pr('bugfix/TEST-00004217', 'hotfix/4.2.17')
         with self.assertRaises(exns.Queued):
-            self.handle(pr4317.id, options=self.bypass_all, backtrace=True)
+            self.handle(pr4217.id, options=self.bypass_all, backtrace=True)
 
         self.assertEqual(self.prs_in_queue(),
-                         {pr1.id, pr2.id, pr3.id, pr4317.id})
+                         {pr1.id, pr2.id, pr3.id, pr4217.id})
 
         self.set_build_status_on_branch_tip(
             'q/%d/4.3/bugfix/TEST-00001' % pr1.id, 'SUCCESSFUL')
@@ -5149,17 +5152,17 @@ class TestQueueing(RepositoryTests):
         self.set_build_status_on_branch_tip(
             'q/%d/5.1/bugfix/TEST-00003' % pr3.id, 'SUCCESSFUL')
         self.set_build_status_on_branch_tip(
-            'q/%d/4.3.17.1/bugfix/TEST-00004317' % pr4317.id, 'FAILED')
+            'q/%d/4.2.17.1/bugfix/TEST-00004217' % pr4217.id, 'FAILED')
         sha1 = self.set_build_status_on_branch_tip(
             'q/%d/10.0/bugfix/TEST-00003' % pr3.id, 'SUCCESSFUL')
 
         with self.assertRaises(exns.NothingToDo):
             self.handle(sha1, options=self.bypass_all, backtrace=True)
         self.assertEqual(self.prs_in_queue(), {pr1.id, pr2.id, pr3.id,
-                                               pr4317.id})
+                                               pr4217.id})
 
         self.set_build_status_on_branch_tip(
-            'q/%d/4.3.17.1/bugfix/TEST-00004317' % pr4317.id, 'SUCCESSFUL')
+            'q/%d/4.2.17.1/bugfix/TEST-00004217' % pr4217.id, 'SUCCESSFUL')
         with self.assertRaises(exns.Merged):
             self.handle(sha1, options=self.bypass_all, backtrace=True)
         self.assertEqual(self.prs_in_queue(), {pr1.id, pr2.id, pr3.id})

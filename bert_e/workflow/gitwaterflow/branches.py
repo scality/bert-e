@@ -790,6 +790,9 @@ class BranchCascade(object):
             return
 
         hf_branch = branches[HotfixBranch]
+        stb_branch = branches[StabilizationBranch]
+        dev_branch = branches[DevelopmentBranch]
+
         if hf_branch:
             if hf_branch.micro == micro:
                 hf_branch.hfrev = max(hfrev + 1, hf_branch.hfrev)
@@ -797,13 +800,16 @@ class BranchCascade(object):
                                                      hf_branch.minor,
                                                      hf_branch.micro,
                                                      hf_branch.hfrev)
+            if stb_branch is not None:
+                # We have a hotfix branch but we did not remove the
+                # stabilization branch.
+                raise errors.DeprecatedStabilizationBranch(stb_branch.name,
+                                                           tag)
 
-        stb_branch = branches[StabilizationBranch]
         if stb_branch is not None and stb_branch.micro <= micro:
             # We have a tag but we did not remove the stabilization branch.
             raise errors.DeprecatedStabilizationBranch(stb_branch.name, tag)
 
-        dev_branch = branches[DevelopmentBranch]
         if dev_branch:
             dev_branch.micro = max(micro, dev_branch.micro)
 
