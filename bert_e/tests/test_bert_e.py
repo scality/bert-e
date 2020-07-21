@@ -993,6 +993,41 @@ class TestBertE(RepositoryTests):
         # test the return code of a silent exception is 0
         self.assertEqual(self.handle(pr.id), 0)
 
+    def test_full_merge_manual_for_hotfix(self):
+        """Test the following conditions:
+
+        - Author approval required,
+        - can merge successfully by bypassing all checks,
+        - cannot merge a second time.
+
+        """
+        pr = self.create_pr('bugfix/TEST-0001', 'hotfix/4.2.17')
+        with self.assertRaises(exns.ApprovalRequired):
+            self.handle(pr.id, options=['bypass_jira_check'], backtrace=True)
+        # check backtrace mode on the same error, and check same error happens
+        with self.assertRaises(exns.ApprovalRequired):
+            self.handle(pr.id, options=['bypass_jira_check'], backtrace=True)
+        # check success mode
+        with self.assertRaises(exns.SuccessMessage):
+            self.handle(pr.id, options=self.bypass_all, backtrace=True)
+
+        # check integration branches have been removed
+        for version in ['4.3', '5.1', '10.0']:
+            remote = 'w/%s/%s' % (version, 'bugfix/TEST-0001')
+            self.assertFalse(self.gitrepo.remote_branch_exists(remote, True),
+                             'branch %s shouldn\'t exist' % remote)
+
+        # check feature branch still exists (the robot should not delete it)
+        self.assertTrue(
+            self.gitrepo.remote_branch_exists('bugfix/TEST-0001', True)
+        )
+
+        # check what happens when trying to do it again
+        with self.assertRaises(exns.NothingToDo):
+            self.handle(pr.id, backtrace=True)
+        # test the return code of a silent exception is 0
+        self.assertEqual(self.handle(pr.id), 0)
+
     def test_create_integration_pr_manually(self):
         """Test the create_pull_requests option."""
         settings = """
