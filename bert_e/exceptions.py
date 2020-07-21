@@ -260,7 +260,7 @@ class DeprecatedStabilizationBranch(InternalException):
     code = 205
 
     def __init__(self, branch, tag):
-        msg = 'Branch %r must be deleted as the tag %r has been created' % (
+        msg = 'Branch %r must be deleted as %r has been created' % (
             branch, tag)
         super(DeprecatedStabilizationBranch, self).__init__(msg)
 

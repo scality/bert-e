@@ -460,6 +460,30 @@ class QuickTest(unittest.TestCase):
         fixver = ['6.6.6.3']
         self.finalize_cascade(branches, tags, destination, fixver)
 
+    def test_branch_cascade_hotfix_and_stabilization(self):
+        destination = 'hotfix/4.3.18'
+        branches = OrderedDict({
+            1: {'name': 'stabilization/4.3.18', 'ignore': True},
+            2: {'name': 'development/4.3', 'ignore': True},
+            5: {'name': 'hotfix/4.3.18', 'ignore': False},
+        })
+        tags = ['4.3.16', '4.3.17', '4.3.18']
+        fixver = ['4.3.18.1']
+        with self.assertRaises(exns.DeprecatedStabilizationBranch):
+            self.finalize_cascade(branches, tags, destination, fixver)
+
+        destination = 'stabilization/4.3.18'
+        branches = OrderedDict({
+            1: {'name': 'stabilization/4.3.18', 'ignore': False},
+            2: {'name': 'development/4.3', 'ignore': False},
+            5: {'name': 'hotfix/4.3.18', 'ignore': True},
+        })
+        tags = ['4.3.16', '4.3.17', '4.3.18']
+        fixver = ['4.3.18']
+        with self.assertRaises(exns.DeprecatedStabilizationBranch):
+            self.finalize_cascade(branches, tags, destination, fixver)
+
+
     def test_branch_incorrect_stab_name(self):
         destination = 'development/10.0'
         branches = OrderedDict({

@@ -804,7 +804,7 @@ class BranchCascade(object):
                 # We have a hotfix branch but we did not remove the
                 # stabilization branch.
                 raise errors.DeprecatedStabilizationBranch(stb_branch.name,
-                                                           tag)
+                                                           hf_branch.name)
 
         if stb_branch is not None and stb_branch.micro <= micro:
             # We have a tag but we did not remove the stabilization branch.
