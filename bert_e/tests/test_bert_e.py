@@ -483,7 +483,6 @@ class QuickTest(unittest.TestCase):
         with self.assertRaises(exns.DeprecatedStabilizationBranch):
             self.finalize_cascade(branches, tags, destination, fixver)
 
-
     def test_branch_incorrect_stab_name(self):
         destination = 'development/10.0'
         branches = OrderedDict({
