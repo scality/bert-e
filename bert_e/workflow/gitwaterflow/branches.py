@@ -957,7 +957,8 @@ class BranchCascade(object):
         self.ignored_branches.sort()
 
     def get_development_branches(self):
-        return [b[DevelopmentBranch] for _, b in self._cascade.items()]
+        return [b[DevelopmentBranch] for _, b in self._cascade.items()
+                if b[DevelopmentBranch] is not None]
 
 
 def branch_factory(repo: git.Repository, branch_name: str) -> GWFBranch:
