@@ -455,6 +455,10 @@ class QuickTest(unittest.TestCase):
                 '6.6.6.1', '10.0.3.1']
         fixver = ['6.6.6.2']
         self.finalize_cascade(branches, tags, destination, fixver)
+        tags = ['4.3.16', '4.3.17', '4.3.18_rc1', '5.1.3', '5.1.4_rc1',
+                '6.6.6.1', '6.6.6.2', '10.0.3.1']
+        fixver = ['6.6.6.3']
+        self.finalize_cascade(branches, tags, destination, fixver)
 
     def test_branch_incorrect_stab_name(self):
         destination = 'development/10.0'
