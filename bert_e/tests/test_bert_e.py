@@ -6039,6 +6039,32 @@ class TaskQueueTests(RepositoryTests):
         for tag in expected_tags:
             self.assertIn(tag, tags)
 
+    def test_job_delete_hotfix_branch_with_pr_queued(self):
+        """Test deletion of development and stabilization branches."""
+        self.init_berte(options=self.bypass_all)
+
+        # Create a couple PRs and queue them
+        pr = self.create_pr('feature/TEST-666', 'hotfix/4.2.17')
+        self.process_pr_job(pr, 'Queued')
+
+        self.process_job(
+            DeleteBranchJob(
+                settings={'branch': 'hotfix/4.2.17'},
+                bert_e=self.berte),
+            'JobFailure'
+        )
+
+    def test_job_delete_hotfix_branch(self):
+        """Test deletion of development and stabilization branches."""
+        self.init_berte(options=self.bypass_all)
+
+        self.process_job(
+            DeleteBranchJob(
+                settings={'branch': 'hotfix/4.2.17'},
+                bert_e=self.berte),
+            'JobSuccess'
+        )
+
     def test_job_create_branch_stab(self):
         self.init_berte(options=self.bypass_all)
         self.gitrepo.cmd('git push origin :stabilization/4.3.18')

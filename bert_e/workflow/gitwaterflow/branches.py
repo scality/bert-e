@@ -679,6 +679,16 @@ class QueueCollection(object):
         return pr_ids
 
     def has_version_queued_prs(self, version):
+        # delete_branch() may call this property with a four numbers version
+        # finished by -1, so we can not rely on this last number to match.
+        if len(version) == 4 and version[3] == -1:
+            for queue_version in self._queues.keys():
+                if len(queue_version) == 4 and \
+                   len(version) == 4 and \
+                   queue_version[:3] == version[:3]:
+                    return True
+            return False
+        # classic test otherwise
         return (self._queues.get(version, {}).get(QueueIntegrationBranch)
                 is not None)
 
