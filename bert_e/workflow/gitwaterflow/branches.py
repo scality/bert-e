@@ -686,7 +686,10 @@ class QueueCollection(object):
                 if len(queue_version) == 4 and \
                    len(version) == 4 and \
                    queue_version[:3] == version[:3]:
-                    return True
+                    queued_pr = self._queues.get(queue_version)
+                    if queued_pr is not None and \
+                       queued_pr.get(QueueIntegrationBranch) is not None:
+                        return True
             return False
         # classic test otherwise
         return (self._queues.get(version, {}).get(QueueIntegrationBranch)

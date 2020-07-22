@@ -124,7 +124,7 @@ def initialize_git_repo(repo, username, usermail):
                       'release/' + major_minor, file_=True, do_push=False)
         if major != 10:
             create_branch(repo, 'hotfix/%s.%s.%s' %
-                          (major, minor - 1, micro ),
+                          (major, minor - 1, micro),
                           do_push=False)
             create_branch(repo, 'hotfix/%s.%s.%s' %
                           (major, minor - 1, micro - 1),
