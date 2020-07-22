@@ -126,6 +126,9 @@ def initialize_git_repo(repo, username, usermail):
             create_branch(repo, 'hotfix/%s.%s.%s' %
                           (major, minor - 1, micro - 1),
                           do_push=False)
+            create_branch(repo, 'hotfix/%s.%s.%s' %
+                          (major, minor - 1, micro - 2),
+                          do_push=False)
         create_branch(repo, 'development/' + major_minor,
                       'stabilization/' + full_version, file_=True,
                       do_push=False)

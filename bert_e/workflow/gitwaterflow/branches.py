@@ -772,7 +772,7 @@ class BranchCascade(object):
             self._cascade = OrderedDict(sorted(self._cascade.items()))
         cur_branch = self._cascade[(major, minor)][branch.__class__]
 
-        if cur_branch:
+        if branch.__class__ is not HotfixBranch and cur_branch:
             raise errors.UnsupportedMultipleStabBranches(cur_branch, branch)
 
         self._cascade[(major, minor)][branch.__class__] = branch
