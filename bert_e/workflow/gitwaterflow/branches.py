@@ -776,13 +776,16 @@ class BranchCascade(object):
         if branch.__class__ is not HotfixBranch and cur_branch:
             raise errors.UnsupportedMultipleStabBranches(cur_branch, branch)
 
-        if branch.__class__ is HotfixBranch and \
-           dst_branch and \
-           dst_branch.__class__ is HotfixBranch:
-            if branch.major == dst_branch.major and \
-               branch.minor == dst_branch.minor and \
-               branch.micro != dst_branch.micro:
-                # this is not the hotfix branch we want to add
+        if branch.__class__ is HotfixBranch:
+            if dst_branch and \
+               dst_branch.__class__ is HotfixBranch:
+                if branch.major == dst_branch.major and \
+                   branch.minor == dst_branch.minor and \
+                   branch.micro != dst_branch.micro:
+                    # this is not the hotfix branch we want to add
+                    return
+            if cur_branch and cur_branch.micro > branch.micro:
+                # skip this hotfixbranch to keep the higher one in the cascade
                 return
 
         # we may overwrite a hotfixbranch here, we do not need it
@@ -821,7 +824,8 @@ class BranchCascade(object):
                                                      hf_branch.minor,
                                                      hf_branch.micro,
                                                      hf_branch.hfrev)
-            if stb_branch is not None:
+            if stb_branch is not None and \
+               stb_branch.micro == hf_branch.micro:
                 # We have a hotfix branch but we did not remove the
                 # stabilization branch.
                 raise errors.DeprecatedStabilizationBranch(stb_branch.name,
