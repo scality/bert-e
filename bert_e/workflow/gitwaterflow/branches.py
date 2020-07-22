@@ -757,7 +757,7 @@ class BranchCascade(object):
         self._merge_paths = ret
         return ret
 
-    def add_branch(self, branch, dst_branch):
+    def add_branch(self, branch, dst_branch=None):
         if not branch.can_be_destination:
             LOG.debug("Discard non destination branch: %s", branch)
             return
