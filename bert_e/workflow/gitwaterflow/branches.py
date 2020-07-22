@@ -716,7 +716,7 @@ class BranchCascade(object):
                 branch = branch_factory(repo, flat_branch)
             except errors.UnrecognizedBranchPattern:
                 continue
-            self.add_branch(branch)
+            self.add_branch(branch, dst_branch)
 
         for tag in repo.cmd('git tag').split('\n')[:-1]:
             self.update_micro(tag)
@@ -757,7 +757,7 @@ class BranchCascade(object):
         self._merge_paths = ret
         return ret
 
-    def add_branch(self, branch):
+    def add_branch(self, branch, dst_branch):
         if not branch.can_be_destination:
             LOG.debug("Discard non destination branch: %s", branch)
             return
@@ -770,11 +770,22 @@ class BranchCascade(object):
             }
             # Sort the cascade again
             self._cascade = OrderedDict(sorted(self._cascade.items()))
+
         cur_branch = self._cascade[(major, minor)][branch.__class__]
 
         if branch.__class__ is not HotfixBranch and cur_branch:
             raise errors.UnsupportedMultipleStabBranches(cur_branch, branch)
 
+        if branch.__class__ is HotfixBranch and \
+           dst_branch and \
+           dst_branch.__class__ is HotfixBranch:
+            if branch.major == dst_branch.major and \
+               branch.minor == dst_branch.minor and \
+               branch.micro != dst_branch.micro:
+                # this is not the hotfix branch we want to add
+                return
+
+        # we may overwrite a hotfixbranch here, we do not need it
         self._cascade[(major, minor)][branch.__class__] = branch
 
     def update_micro(self, tag):
