@@ -6173,6 +6173,50 @@ class TaskQueueTests(RepositoryTests):
         sha1_dev_10_0 = self.gitrepo._remote_branches['development/10.0']
         self.assertEqual(sha1_q_10_0, sha1_dev_10_0)
 
+    def test_job_force_merge_queues_with_hotfix(self):
+        self.init_berte(options=self.bypass_all)
+
+        # When queues are disabled, Bert-E should respond with 'NotMyJob'
+        self.process_job(
+            ForceMergeQueuesJob(bert_e=self.berte,
+                                settings={'use_queue': False}),
+            'NotMyJob'
+        )
+
+        # When there is no queue, Bert-E should respond with 'NothingToDo'
+        self.process_job(ForceMergeQueuesJob(bert_e=self.berte), 'NothingToDo')
+
+        # Create a couple PRs and queue them
+        prs = [
+            self.create_pr('feature/TEST-{:02d}'.format(n), 'development/4.3')
+            for n in range(1, 4)
+        ]
+
+        # Add a hotfix PR
+        prs.append(self.create_pr('feature/TEST-666', 'hotfix/4.2.17'))
+
+        for pr in prs:
+            self.process_pr_job(pr, 'Queued')
+
+        # put a mix of build statuses in the queue
+        self.gitrepo._get_remote_branches()
+        sha1_q_4_3 = self.gitrepo._remote_branches['q/4.3']
+        self.set_build_status(sha1=sha1_q_4_3, state='FAILED')
+        sha1_q_5_1 = self.gitrepo._remote_branches['q/5.1']
+        self.set_build_status(sha1=sha1_q_5_1, state='INPROGRESS')
+        # (leave q/10.0 blank)
+
+        self.process_job(ForceMergeQueuesJob(bert_e=self.berte), 'Merged')
+
+        # Check that the PRs are merged
+        self.gitrepo._get_remote_branches(force=True)
+        sha1_q_10_0 = self.gitrepo._remote_branches['q/10.0']
+        sha1_dev_10_0 = self.gitrepo._remote_branches['development/10.0']
+        self.assertEqual(sha1_q_10_0, sha1_dev_10_0)
+        sha1_q_4_2_17_1 = self.gitrepo._remote_branches['q/4.2.17.1']
+        sha1_hotfix_4_2_17 = self.gitrepo._remote_branches['hotfix/4.2.17']
+        self.assertEqual(sha1_q_4_2_17_1, sha1_hotfix_4_2_17)
+
     def test_job_delete_queues(self):
         self.init_berte(options=self.bypass_all)
 
