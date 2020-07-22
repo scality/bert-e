@@ -20,6 +20,7 @@ from bert_e.workflow.git_utils import clone_git_repo, push
 from bert_e.workflow.gitwaterflow.branches import (BranchCascade,
                                                    DevelopmentBranch,
                                                    StabilizationBranch,
+                                                   HotfixBranch,
                                                    build_queue_collection,
                                                    branch_factory)
 
@@ -56,7 +57,8 @@ def create_branch(job: CreateBranchJob):
                                     'GWF branch.' % job.settings.branch)
 
     if not (isinstance(new_branch, DevelopmentBranch) or
-            isinstance(new_branch, StabilizationBranch)):
+            isinstance(new_branch, StabilizationBranch) or
+            isinstance(new_branch, HotfixBranch)):
         raise exceptions.JobFailure('Requested new branch %r is not a GWF '
                                     'destination branch.' % new_branch)
 
@@ -90,7 +92,9 @@ def create_branch(job: CreateBranchJob):
                                             'branch %r without a supporting '
                                             'development branch.' %
                                             new_branch)
-
+        elif isinstance(new_branch, HotfixBranch):
+            # start from tag X.Y.Z.0
+            job.settings.branch_from = new_branch.version + '.0'
         else:
             job.settings.branch_from = dev_branches[0]
             for dev_branch in dev_branches:
@@ -110,6 +114,7 @@ def create_branch(job: CreateBranchJob):
     # there are no restrictions for stabilization branches.
     if (job.settings.use_queue and
             not isinstance(new_branch, StabilizationBranch) and
+            not isinstance(new_branch, HotfixBranch) and
             new_branch < dev_branches[-1]):
         queue_collection = build_queue_collection(job)
         if queue_collection.queued_prs:
@@ -135,7 +140,8 @@ def create_branch(job: CreateBranchJob):
                                     'keep pushing.')
 
     if (not job.settings.use_queue or
-            isinstance(new_branch, StabilizationBranch)):
+            isinstance(new_branch, StabilizationBranch) or
+            isinstance(new_branch, HotfixBranch)):
         raise exceptions.JobSuccess()
 
     next_job = RebuildQueuesJob(bert_e=job.bert_e)

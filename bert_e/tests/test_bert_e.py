@@ -6146,6 +6146,44 @@ class TaskQueueTests(RepositoryTests):
             self.assertTrue(self.gitrepo.remote_branch_exists(branch),
                             'branch %s not found' % branch)
 
+    def test_job_create_branch_hotfix(self):
+        self.init_berte(options=self.bypass_all)
+        self.gitrepo.cmd('git tag 4.1.27.0')
+        self.gitrepo.cmd('git push --tags')
+
+        self.process_job(
+            CreateBranchJob(
+                settings={'branch': 'hotfix/4.1.27'},
+                bert_e=self.berte),
+            'JobSuccess'
+        )
+
+        self.gitrepo.cmd('git fetch --all')
+        sha1_origin = self.gitrepo \
+                          .cmd('git rev-parse refs/tags/4.1.27.0') \
+                          .rstrip()
+        sha1_branch = self.gitrepo \
+                          .cmd('git rev-parse refs/remotes/origin/hotfix/4.1.27') \
+                          .rstrip()
+        self.assertEqual(sha1_branch, sha1_origin)
+
+        self.process_job(
+            CreateBranchJob(
+                settings={'branch': 'hotfix/4.1.28', 'branch_from': 'development/4.3'},
+                bert_e=self.berte),
+            'JobSuccess'
+        )
+
+        self.gitrepo.cmd('git fetch --all')
+        sha1_origin = self.gitrepo \
+                          .cmd('git rev-parse refs/remotes/origin/development/4.3') \
+                          .rstrip()
+        sha1_branch = self.gitrepo \
+                          .cmd('git rev-parse refs/remotes/origin/hotfix/4.1.28') \
+                          .rstrip()
+        self.assertEqual(sha1_branch, sha1_origin)
+
+
     def test_job_evaluate_pull_request(self):
         self.init_berte(options=self.bypass_all)
 
