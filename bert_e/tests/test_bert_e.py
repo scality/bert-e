@@ -5318,7 +5318,6 @@ class TestQueueing(RepositoryTests):
 
         self.assertEqual(self.prs_in_queue(), set())
 
-
     def test_multi_branch_queues_2(self):
         pr1 = self.create_pr('bugfix/TEST-00001', 'development/4.3')
         with self.assertRaises(exns.Queued):
