@@ -5214,7 +5214,7 @@ class TestQueueing(RepositoryTests):
 
         self.assertEqual(self.prs_in_queue(), set())
 
-    def test_pr_dev_and_hotfix(self):
+    def test_pr_dev_and_hotfix_with_hotfix_merged_first(self):
         self.gitrepo.cmd('git tag 10.0.0.0')
         self.gitrepo.cmd('git push --tags')
         self.gitrepo.cmd('git push origin :stabilization/10.0.0')
@@ -5235,10 +5235,8 @@ class TestQueueing(RepositoryTests):
             'q/%d/5.1/bugfix/TEST-00000' % pr0.id, 'FAILED')
         self.set_build_status_on_branch_tip(
             'q/%d/10.0/bugfix/TEST-00000' % pr0.id, 'FAILED')
-
         self.set_build_status_on_branch_tip(
             'q/%d/10.0/bugfix/TEST-00001' % pr1.id, 'FAILED')
-
         sha1 = self.set_build_status_on_branch_tip(
             'q/%d/10.0.0.1/bugfix/TEST-00002' % pr2.id, 'SUCCESSFUL')
 
@@ -5253,6 +5251,103 @@ class TestQueueing(RepositoryTests):
             self.handle(sha1, options=self.bypass_all, backtrace=True)
         self.assertEqual(self.prs_in_queue(), {pr0.id, pr1.id})
 
+        self.set_build_status_on_branch_tip(
+            'q/%d/5.1/bugfix/TEST-00000' % pr0.id, 'SUCCESSFUL')
+        self.set_build_status_on_branch_tip(
+            'q/%d/10.0/bugfix/TEST-00000' % pr0.id, 'SUCCESSFUL')
+
+        with self.assertRaises(exns.Merged):
+            self.handle(sha1, options=self.bypass_all, backtrace=True)
+        self.assertEqual(self.prs_in_queue(), set())
+
+    def test_pr_dev_and_hotfix_with_dev_merged_first(self):
+        self.gitrepo.cmd('git tag 10.0.0.0')
+        self.gitrepo.cmd('git push --tags')
+        self.gitrepo.cmd('git push origin :stabilization/10.0.0')
+
+        pr0 = self.create_pr('bugfix/TEST-00000', 'development/5.1')
+        with self.assertRaises(exns.Queued):
+            self.handle(pr0.id, options=self.bypass_all, backtrace=True)
+        pr1 = self.create_pr('bugfix/TEST-00001', 'development/10.0')
+        with self.assertRaises(exns.Queued):
+            self.handle(pr1.id, options=self.bypass_all, backtrace=True)
+        pr2 = self.create_pr('bugfix/TEST-00002', 'hotfix/10.0.0')
+        with self.assertRaises(exns.Queued):
+            self.handle(pr2.id, options=self.bypass_all, backtrace=True)
+
+        self.assertEqual(self.prs_in_queue(), {pr0.id, pr1.id, pr2.id})
+
+        self.set_build_status_on_branch_tip(
+            'q/%d/5.1/bugfix/TEST-00000' % pr0.id, 'SUCCESSFUL')
+        self.set_build_status_on_branch_tip(
+            'q/%d/10.0/bugfix/TEST-00000' % pr0.id, 'SUCCESSFUL')
+        self.set_build_status_on_branch_tip(
+            'q/%d/10.0/bugfix/TEST-00001' % pr1.id, 'SUCCESSFUL')
+        sha1 = self.set_build_status_on_branch_tip(
+            'q/%d/10.0.0.1/bugfix/TEST-00002' % pr2.id, 'FAILED')
+
+        with self.assertRaises(exns.Merged):
+            self.handle(sha1, options=self.bypass_all, backtrace=True)
+        self.assertEqual(self.prs_in_queue(), {pr2.id})
+
+        sha1 = self.set_build_status_on_branch_tip(
+            'q/%d/10.0.0.1/bugfix/TEST-00002' % pr2.id, 'SUCCESSFUL')
+
+        with self.assertRaises(exns.Merged):
+            self.handle(sha1, options=self.bypass_all, backtrace=True)
+        self.assertEqual(self.prs_in_queue(), set())
+
+    def test_pr_dev_and_hotfix_merged_in_the_same_time(self):
+        self.gitrepo.cmd('git tag 10.0.0.0')
+        self.gitrepo.cmd('git push --tags')
+        self.gitrepo.cmd('git push origin :stabilization/10.0.0')
+
+        pr0 = self.create_pr('bugfix/TEST-00000', 'development/5.1')
+        with self.assertRaises(exns.Queued):
+            self.handle(pr0.id, options=self.bypass_all, backtrace=True)
+        pr1 = self.create_pr('bugfix/TEST-00001', 'development/10.0')
+        with self.assertRaises(exns.Queued):
+            self.handle(pr1.id, options=self.bypass_all, backtrace=True)
+        pr2 = self.create_pr('bugfix/TEST-00002', 'hotfix/10.0.0')
+        with self.assertRaises(exns.Queued):
+            self.handle(pr2.id, options=self.bypass_all, backtrace=True)
+
+        self.assertEqual(self.prs_in_queue(), {pr0.id, pr1.id, pr2.id})
+
+        self.set_build_status_on_branch_tip(
+            'q/%d/5.1/bugfix/TEST-00000' % pr0.id, 'SUCCESSFUL')
+        self.set_build_status_on_branch_tip(
+            'q/%d/10.0/bugfix/TEST-00000' % pr0.id, 'SUCCESSFUL')
+        self.set_build_status_on_branch_tip(
+            'q/%d/10.0/bugfix/TEST-00001' % pr1.id, 'SUCCESSFUL')
+        sha1 = self.set_build_status_on_branch_tip(
+            'q/%d/10.0.0.1/bugfix/TEST-00002' % pr2.id, 'SUCCESSFUL')
+
+        with self.assertRaises(exns.Merged):
+            self.handle(sha1, options=self.bypass_all, backtrace=True)
+        self.assertEqual(self.prs_in_queue(), set())
+
+    def test_pr_hotfix_alone(self):
+        self.gitrepo.cmd('git tag 10.0.0.0')
+        self.gitrepo.cmd('git push --tags')
+        self.gitrepo.cmd('git push origin :stabilization/10.0.0')
+
+        pr0 = self.create_pr('bugfix/TEST-00000', 'hotfix/10.0.0')
+        with self.assertRaises(exns.Queued):
+            self.handle(pr0.id, options=self.bypass_all, backtrace=True)
+        self.assertEqual(self.prs_in_queue(), {pr0.id})
+
+        sha1 = self.set_build_status_on_branch_tip(
+            'q/%d/10.0.0.1/bugfix/TEST-00000' % pr0.id, 'FAILED')
+        with self.assertRaises(exns.NothingToDo):
+            self.handle(sha1, options=self.bypass_all, backtrace=True)
+        self.assertEqual(self.prs_in_queue(), {pr0.id})
+
+        sha1 = self.set_build_status_on_branch_tip(
+            'q/%d/10.0.0.1/bugfix/TEST-00000' % pr0.id, 'SUCCESSFUL')
+        with self.assertRaises(exns.Merged):
+            self.handle(sha1, options=self.bypass_all, backtrace=True)
+        self.assertEqual(self.prs_in_queue(), set())
 
     def test_multi_branch_queues(self):
         pr1 = self.create_pr('bugfix/TEST-00001', 'development/4.3')
