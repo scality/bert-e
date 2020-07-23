@@ -788,7 +788,7 @@ class BranchCascade(object):
 
         cur_branch = self._cascade[(major, minor)][branch.__class__]
 
-        if branch.__class__ is not HotfixBranch and cur_branch:
+        if cur_branch:
             raise errors.UnsupportedMultipleStabBranches(cur_branch, branch)
 
         self._cascade[(major, minor)][branch.__class__] = branch
