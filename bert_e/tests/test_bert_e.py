@@ -314,9 +314,38 @@ class QuickTest(unittest.TestCase):
             branch['name']
             for branch in branches.values() if branch['ignore']]
         expected_ignored.sort()
+        # remove some expected_ignored branches that would not be added by
+        # cascade add_branch() property
+        i = 0
+        prev_prefix = None
+        while i < len(expected_ignored):
+            while expected_ignored[i].startswith('hotfix/'):
+                cur_prefix = ".".join(expected_ignored[i].split('.')[0:-1])
+                if destination and \
+                   ".".join(destination.split('.')[0:-1]) == cur_prefix:
+                    # only keep destination
+                    if destination != expected_ignored[i]:
+                        expected_ignored.pop(i)
+                    else:
+                        break
+                else:
+                    # only keep higher hotfix for a given major, minor
+                    if prev_prefix == cur_prefix:
+                        expected_ignored.pop(i - 1)
+                        prev_prefix = None
+                        i = i - 1
+                    else:
+                        prev_prefix = cur_prefix
+                        break
+            i = i + 1
+        expected_ignored.sort()
+
+        my_dst = None
+        if destination is not None:
+            my_dst = gwfb.branch_factory(FakeGitRepo(), destination)
 
         for branch in all_branches:
-            c.add_branch(branch)
+            c.add_branch(branch, my_dst)
 
         for tag in tags:
             c.update_micro(tag)
@@ -444,10 +473,13 @@ class QuickTest(unittest.TestCase):
             2: {'name': 'development/4.3', 'ignore': True},
             3: {'name': 'stabilization/5.1.4', 'ignore': True},
             4: {'name': 'development/5.1', 'ignore': True},
-            5: {'name': 'hotfix/6.6.6', 'ignore': False},
-            6: {'name': 'development/6.6', 'ignore': True},
-            7: {'name': 'hotfix/10.0.3', 'ignore': True},
-            8: {'name': 'development/10.0', 'ignore': True}
+            5: {'name': 'hotfix/6.6.5', 'ignore': True},
+            6: {'name': 'hotfix/6.6.6', 'ignore': False},
+            7: {'name': 'hotfix/6.6.7', 'ignore': True},
+            8: {'name': 'development/6.6', 'ignore': True},
+            9: {'name': 'hotfix/10.0.3', 'ignore': True},
+            10: {'name': 'hotfix/10.0.4', 'ignore': True},
+            11: {'name': 'development/10.0', 'ignore': True}
         })
         tags = ['4.3.16', '4.3.17', '4.3.18_rc1', '5.1.3', '5.1.4_rc1',
                 '6.6.6', '10.0.3.1']
