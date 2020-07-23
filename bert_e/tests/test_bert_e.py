@@ -137,7 +137,7 @@ def initialize_git_repo(repo, username, usermail):
         create_branch(repo, 'development/' + major_minor,
                       'stabilization/' + full_version, file_=True,
                       do_push=False)
-        if major != 6:
+        if major != 6 and major != 10:
             repo.cmd('git tag %s.%s.%s', major, minor, micro - 1)
 
         if major == 4:
@@ -5213,6 +5213,46 @@ class TestQueueing(RepositoryTests):
                         backtrace=True)
 
         self.assertEqual(self.prs_in_queue(), set())
+
+    def test_pr_dev_and_hotfix(self):
+        self.gitrepo.cmd('git tag 10.0.0.0')
+        self.gitrepo.cmd('git push --tags')
+        self.gitrepo.cmd('git push origin :stabilization/10.0.0')
+
+        pr0 = self.create_pr('bugfix/TEST-00000', 'development/5.1')
+        with self.assertRaises(exns.Queued):
+            self.handle(pr0.id, options=self.bypass_all, backtrace=True)
+        pr1 = self.create_pr('bugfix/TEST-00001', 'development/10.0')
+        with self.assertRaises(exns.Queued):
+            self.handle(pr1.id, options=self.bypass_all, backtrace=True)
+        pr2 = self.create_pr('bugfix/TEST-00002', 'hotfix/10.0.0')
+        with self.assertRaises(exns.Queued):
+            self.handle(pr2.id, options=self.bypass_all, backtrace=True)
+
+        self.assertEqual(self.prs_in_queue(), {pr0.id, pr1.id, pr2.id})
+
+        self.set_build_status_on_branch_tip(
+            'q/%d/5.1/bugfix/TEST-00000' % pr0.id, 'FAILED')
+        self.set_build_status_on_branch_tip(
+            'q/%d/10.0/bugfix/TEST-00000' % pr0.id, 'FAILED')
+
+        self.set_build_status_on_branch_tip(
+            'q/%d/10.0/bugfix/TEST-00001' % pr1.id, 'FAILED')
+
+        sha1 = self.set_build_status_on_branch_tip(
+            'q/%d/10.0.0.1/bugfix/TEST-00002' % pr2.id, 'SUCCESSFUL')
+
+        with self.assertRaises(exns.Merged):
+            self.handle(sha1, options=self.bypass_all, backtrace=True)
+        self.assertEqual(self.prs_in_queue(), {pr0.id, pr1.id})
+
+        sha1 = self.set_build_status_on_branch_tip(
+            'q/%d/10.0/bugfix/TEST-00001' % pr1.id, 'SUCCESSFUL')
+
+        with self.assertRaises(exns.NothingToDo):
+            self.handle(sha1, options=self.bypass_all, backtrace=True)
+        self.assertEqual(self.prs_in_queue(), {pr0.id, pr1.id})
+
 
     def test_multi_branch_queues(self):
         pr1 = self.create_pr('bugfix/TEST-00001', 'development/4.3')
