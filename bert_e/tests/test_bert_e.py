@@ -132,6 +132,8 @@ def initialize_git_repo(repo, username, usermail):
             create_branch(repo, 'hotfix/%s.%s.%s' %
                           (major, minor - 1, micro - 2),
                           do_push=False)
+        else:
+            create_branch(repo, 'hotfix/10.0.0', do_push=False)
         create_branch(repo, 'development/' + major_minor,
                       'stabilization/' + full_version, file_=True,
                       do_push=False)
@@ -314,8 +316,8 @@ class QuickTest(unittest.TestCase):
             branch['name']
             for branch in branches.values() if branch['ignore']]
         expected_ignored.sort()
-        # remove some expected_ignored branches that would not be added by
-        # cascade add_branch() property
+        # remove expected_ignored branches that would not be added by cascade
+        # add_branch() property
         i = 0
         while i < len(expected_ignored):
             if expected_ignored[i].startswith('hotfix/'):
@@ -5298,6 +5300,24 @@ class TestQueueing(RepositoryTests):
         with self.assertRaises(exns.Merged):
             self.handle(sha1, options=self.bypass_all, backtrace=True)
         self.assertEqual(self.prs_in_queue(), set())
+
+        self.gitrepo.cmd('git tag 10.0.0.0')
+        self.gitrepo.cmd('git push --tags')
+        pr1000 = self.create_pr('bugfix/TEST-00001000', 'hotfix/10.0.0')
+
+        with self.assertRaises(exns.DeprecatedStabilizationBranch):
+            self.handle(pr1000.id, options=self.bypass_all, backtrace=True)
+        self.gitrepo.cmd('git push origin :stabilization/10.0.0')
+        with self.assertRaises(exns.Queued):
+            self.handle(pr1000.id, options=self.bypass_all, backtrace=True)
+        self.assertEqual(self.prs_in_queue(), {pr1000.id})
+        sha1 = self.set_build_status_on_branch_tip(
+            'q/%d/10.0.0.1/bugfix/TEST-00001000' % pr1000.id, 'SUCCESSFUL')
+        with self.assertRaises(exns.Merged):
+            self.handle(sha1, options=self.bypass_all, backtrace=True)
+
+        self.assertEqual(self.prs_in_queue(), set())
+
 
     def test_multi_branch_queues_2(self):
         pr1 = self.create_pr('bugfix/TEST-00001', 'development/4.3')
