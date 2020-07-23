@@ -764,6 +764,18 @@ class BranchCascade(object):
         if not branch.can_be_destination:
             LOG.debug("Discard non destination branch: %s", branch)
             return
+
+        if branch.__class__ is HotfixBranch:
+            if dst_branch and \
+               dst_branch.__class__ is HotfixBranch:
+                if branch.major != dst_branch.major or \
+                   branch.minor != dst_branch.minor or \
+                   branch.micro != dst_branch.micro:
+                    # this is not the hotfix branch we want to add
+                    return
+            else:
+                return
+
         (major, minor) = branch.major, branch.minor
         if (major, minor) not in self._cascade.keys():
             self._cascade[(major, minor)] = {
@@ -779,19 +791,6 @@ class BranchCascade(object):
         if branch.__class__ is not HotfixBranch and cur_branch:
             raise errors.UnsupportedMultipleStabBranches(cur_branch, branch)
 
-        if branch.__class__ is HotfixBranch:
-            if dst_branch and \
-               dst_branch.__class__ is HotfixBranch:
-                if branch.major == dst_branch.major and \
-                   branch.minor == dst_branch.minor and \
-                   branch.micro != dst_branch.micro:
-                    # this is not the hotfix branch we want to add
-                    return
-            if cur_branch and cur_branch.micro > branch.micro:
-                # skip this hotfixbranch to keep the higher one in the cascade
-                return
-
-        # we may overwrite a hotfixbranch here, we do not need it
         self._cascade[(major, minor)][branch.__class__] = branch
 
     def update_micro(self, tag):

@@ -317,25 +317,12 @@ class QuickTest(unittest.TestCase):
         # remove some expected_ignored branches that would not be added by
         # cascade add_branch() property
         i = 0
-        prev_prefix = None
         while i < len(expected_ignored):
-            while expected_ignored[i].startswith('hotfix/'):
-                cur_prefix = ".".join(expected_ignored[i].split('.')[0:-1])
-                if destination and \
-                   ".".join(destination.split('.')[0:-1]) == cur_prefix:
-                    # only keep destination
-                    if destination != expected_ignored[i]:
-                        expected_ignored.pop(i)
-                    else:
-                        break
-                else:
-                    # only keep higher hotfix for a given major, minor
-                    if prev_prefix == cur_prefix:
-                        expected_ignored.pop(i - 1)
-                        prev_prefix = cur_prefix
-                    else:
-                        prev_prefix = cur_prefix
-                        break
+            if expected_ignored[i].startswith('hotfix/'):
+                if destination is None or \
+                   destination != expected_ignored[i]:
+                    expected_ignored.pop(i)
+                    continue
             i = i + 1
         expected_ignored.sort()
 
