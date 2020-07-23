@@ -332,8 +332,7 @@ class QuickTest(unittest.TestCase):
                     # only keep higher hotfix for a given major, minor
                     if prev_prefix == cur_prefix:
                         expected_ignored.pop(i - 1)
-                        prev_prefix = None
-                        i = i - 1
+                        prev_prefix = cur_prefix
                     else:
                         prev_prefix = cur_prefix
                         break
