@@ -1,9 +1,12 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
-## [3.3.8] -
+## [3.4.0] - 2020-07-24
 # Added
 - Do not ignore fixVersion in X.Y.Z.0 format during jira check
+- Support Hotfix branches with no gitwaterflow
+# Fixed
+- delete_queues broken for branches with version with more than 2 numbers
 
 ## [3.3.7] - 2020-04-06
 # Added
