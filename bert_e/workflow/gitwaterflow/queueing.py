@@ -167,11 +167,15 @@ def close_queued_pull_request(job, pr_id, cascade):
     dst = job.git.dst_branch = branch_factory(repo, pull_request.dst_branch)
     job.git.cascade.finalize(dst)
 
+    target_branches = job.git.cascade.dst_branches
+    if not target_branches and pull_request.dst_branch.startswith('hotfix/'):
+        target_branches = [dst]
+
     if dst.includes_commit(src.get_latest_commit()):
         # Everything went fine, send a success message
         send_comment(
             job.settings, pull_request, exceptions.SuccessMessage(
-                branches=job.git.cascade.dst_branches,
+                branches=target_branches,
                 ignored=job.git.cascade.ignored_branches,
                 issue=src.jira_issue_key,
                 author=pull_request.author_display_name,

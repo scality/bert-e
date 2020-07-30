@@ -1,6 +1,10 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [3.4.1] - 2020-07-30
+# Fixed
+- success message did not display hotfix target branch
+
 ## [3.4.0] - 2020-07-24
 # Added
 - Do not ignore fixVersion in X.Y.Z.0 format during jira check
