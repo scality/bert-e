@@ -575,6 +575,7 @@ class QueueCollection(object):
                 of addition to the queue, from oldest to newest)
 
         """
+        prs_hf = []
         prs = []
         # identify version corresponding to last dev queue
         # (i.e. ignore stab queues)
@@ -583,19 +584,18 @@ class QueueCollection(object):
             if len(version) == 2 and greatest_dev is None:
                 greatest_dev = version
             if len(version) == 4:
-                # we will not catch the hf pr_id later from greatest_dev
+                # we may not catch the hf pr_id later from greatest_dev
                 # so insert them now
                 for qint in queues[version][QueueIntegrationBranch]:
-                    if qint.pr_id not in prs:
-                        prs.insert(0, qint.pr_id)
+                    if qint.pr_id not in prs_hf:
+                        prs_hf.insert(0, qint.pr_id)
 
         if greatest_dev:
             for qint in queues[greatest_dev][QueueIntegrationBranch]:
-                if qint.pr_id not in prs:
+                if qint.pr_id not in prs_hf + prs:
                     prs.insert(0, qint.pr_id)
 
-        prs.sort()
-        return prs
+        return prs_hf + prs
 
     def _remove_unmergeable(self, prs, queues):
         """Given a set of queues, remove all queues that are not in
@@ -666,17 +666,36 @@ class QueueCollection(object):
         if not self._queues:
             return []
 
+        # Find last_entry for which there is not a hf entry
+        last_entry = None
         pr_ids = []
-        for key in list(self._queues.keys()):
-            entry = self._queues[key]
-            pr_ids = pr_ids + [branch.pr_id for branch in
-                               entry[QueueIntegrationBranch]]
+        for key in list(reversed(self._queues.keys())):
+            if len(key) < 4:
+                last_entry = self._queues[key]
+                break
 
-        # remove duplicate entries from pr_ids
-        pr_ids = list(dict.fromkeys(pr_ids))
+        if last_entry is not None:
+            pr_ids = list(reversed([branch.pr_id for branch in
+                                    last_entry[QueueIntegrationBranch]]))
 
-        pr_ids.sort()
-        return pr_ids
+        # Add hotfix PRs that are not seen from the queues top key
+        pr_hf_ids = []
+        for key in list(reversed(self._queues.keys())):
+            if len(key) == 4:
+                entry = self._queues[key]
+                new_pr_ids = list([branch.pr_id for branch in
+                                   entry[QueueIntegrationBranch]])
+                for pr_hf_id in new_pr_ids:
+                    if pr_hf_id not in pr_hf_ids:
+                        pr_hf_ids = [pr_hf_id] + pr_hf_ids
+
+        # Remove hotfix PRs from the first set
+        pr_non_hf_ids = []
+        for pr_id in pr_ids:
+            if pr_id not in pr_hf_ids:
+                pr_non_hf_ids = pr_non_hf_ids + [pr_id]
+
+        return pr_hf_ids + pr_non_hf_ids
 
     def has_version_queued_prs(self, version):
         # delete_branch() may call this property with a four numbers version
