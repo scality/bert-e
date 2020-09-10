@@ -48,7 +48,7 @@ def display():
         for pr_id, queued_commits in queue_data.items():
             if int(pr_id) in [i['id'] for i in merged_prs]:
                 continue
-            line = {'pr_id': pr_id}
+            line = {'pr_id': pr_id, 'hotfix': False}
             for version, sha1 in queued_commits:
                 status = BUILD_STATUS_CACHE[build_key].get(sha1, None)
                 state = status.state if status else 'NOTSTARTED'
@@ -56,7 +56,35 @@ def display():
                     'sha1': sha1,
                     'status': state,
                 }
+            if len(queued_commits) == 1 and version.count(".") == 3:
+                line['hotfix'] = True
             queue_lines.append(line)
+
+        # Put markers for queue display in UI
+        hf_set_first = False
+        wf_set_first = False
+        max_id = len(queue_lines) - 1
+        for i in range(max_id + 1):
+            if queue_lines[i]['hotfix']:
+                if not hf_set_first:
+                    hf_set_first = True
+                    if i + 1 <= max_id and queue_lines[i + 1]['hotfix']:
+                        queue_lines[i]['message'] = '(first in hf queue)'
+                    else:
+                        queue_lines[i]['message'] = '(alone in hf queue)'
+                else:
+                    if i + 1 > max_id or not queue_lines[i + 1]['hotfix']:
+                        queue_lines[i]['message'] = '(last in hf queue)'
+            else:
+                if not wf_set_first:
+                    wf_set_first = True
+                    if i + 1 <= max_id:
+                        queue_lines[i]['message'] = '(first in wf queue)'
+                    else:
+                        queue_lines[i]['message'] = '(alone in wf queue)'
+                else:
+                    if i + 1 > max_id:
+                        queue_lines[i]['message'] = '(last in wf queue)'
 
     if output_mode == 'txt':
         output_mimetype = 'text/plain'

@@ -7,8 +7,6 @@
 <div id="queue-status">
   <h2>Merge queue status</h2>
     {%- for line in queue_lines %}
-    {% set pr_first = loop.first and not loop.last %}
-    {% set pr_last = loop.last and not loop.first %}
     {%- if loop.first %}
     <table id="bert-e-queue-table">
       <thead>
@@ -33,11 +31,8 @@
             <a href="{{ line['pr_id']|pr_url }}" target="_blank">
               <span class="text-dark">PR #{{ line['pr_id'] }}</span>
             </a>
-            {%- if pr_first %}
-            <br><span class="bert-e-queue-indication text-secondary">(first in queue)</span>
-            {% endif %}
-            {%- if pr_last %}
-            <br><span class="bert-e-queue-indication text-secondary">(last in queue)</span>
+            {%- if 'message' in line %}
+            <br><span class="bert-e-queue-indication text-secondary">{{ line['message'] }}</span>
             {% endif %}
           </th>
           {%- endif %}
