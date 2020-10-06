@@ -16,7 +16,6 @@ import logging
 from collections import defaultdict, namedtuple
 
 from requests import HTTPError
-from requests.auth import HTTPBasicAuth
 from urllib.parse import quote_plus as quote
 
 from bert_e.exceptions import TaskAPIError
@@ -43,14 +42,14 @@ class Client(base.AbstractClient):
             'Accept': 'application/vnd.github.v3+json',
             'User-Agent': 'Bert-E',
             'Content-Type': 'application/json',
-            'From': email
+            'From': email,
+            'Authorization': 'token ' + password
         }
 
         rlog = logging.getLogger('requests.packages.urllib3.connectionpool')
         rlog.setLevel(logging.CRITICAL)
         self.session = base.BertESession()
         self.session.headers.update(headers)
-        self.session.auth = HTTPBasicAuth(login, password)
 
         self.login = login
         self.password = password
