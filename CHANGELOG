@@ -1,11 +1,12 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
-## [3.4.1] - 2020-09-14
+## [3.4.1] - 2020-10-08
 # Fixed
 - success message did not display hotfix target branch
 - incorrect fix version message for hotfix PR
 - queue UI display order
+- removed password basic auth for github
 
 ## [3.4.0] - 2020-07-24
 # Added
