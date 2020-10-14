@@ -139,6 +139,11 @@ def _handle_pull_request(job: PullRequestJob):
     if dst.includes_commit(src):
         raise messages.NothingToDo()
 
+    # Check source branch still exists
+    # (It may have been deleted by developers)
+    if not src.exists():
+        raise messages.NothingToDo(job.pull_request.src_branch)
+
     # Reject PRs that are too old
     check_commit_diff(job)
 
@@ -147,11 +152,6 @@ def _handle_pull_request(job: PullRequestJob):
 
     check_branch_compatibility(job)
     jira_checks(job)
-
-    # Check source branch still exists
-    # (It may have been deleted by developers)
-    if not src.exists():
-        raise messages.NothingToDo(job.pull_request.src_branch)
 
     wbranches = list(create_integration_branches(job))
     use_queue = job.settings.use_queue
