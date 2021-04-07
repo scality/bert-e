@@ -31,6 +31,12 @@ RUN apt-get --assume-yes update \
     tox \
     wget
 
+RUN sudo apt-get install -y software-properties-common \
+    && sudo apt-get update \
+    && sudo add-apt-repository -y ppa:git-core/ppa \
+    && sudo apt-get update \
+    && sudo apt-get install -y git
+
 COPY requirements.txt /tmp/
 
 RUN pip3 install pip==$PYTHON_PIP_VERSION
@@ -39,36 +45,5 @@ RUN pip3 install -r /tmp/requirements.txt
 # Install helm
 RUN curl https://raw.githubusercontent.com/kubernetes/helm/master/scripts/get > /tmp/get_helm.sh && bash /tmp/get_helm.sh
 
-RUN git config --global credential.helper store
-
-#
-# Add user eve
-#
-
-RUN adduser -u 1042 --home /home/eve --disabled-password --gecos "" eve \
- && adduser eve sudo \
- && echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
-
-#
-# Eve configuration
-#
-
-USER eve
-
-RUN mkdir -p /home/eve/workspace \
-    && mkdir -p /home/eve/.ssh/ \
-    && /bin/echo -e "Host bitbucket.org\n\tStrictHostKeyChecking no\n" >> /home/eve/.ssh/config
-
 ENV LANG=C.UTF-8 \
     BUILD_DISTRO=trusty
-
-#
-# Run buildbot-worker on startup
-#
-
-ARG BUILDBOT_VERSION
-RUN sudo pip2 install buildbot-worker==$BUILDBOT_VERSION
-
-WORKDIR /home/eve/workspace
-CMD buildbot-worker create-worker . "$BUILDMASTER:$BUILDMASTER_PORT" "$WORKERNAME" "$WORKERPASS" \
-    && buildbot-worker start --nodaemon
