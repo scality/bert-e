@@ -1,6 +1,7 @@
 FROM ubuntu:bionic
 
 ENV HOME_BUILDBOT /var/lib/buildbot
+ENV PYTHON_PIP_VERSION 21.0.1
 
 #
 # Install packages needed by the buildchain
@@ -30,6 +31,7 @@ RUN apt-get --assume-yes update \
 
 COPY requirements.txt /tmp/
 
+RUN pip3 install pip==$PYTHON_PIP_VERSION
 RUN pip3 install -r /tmp/requirements.txt
 
 # Install helm
