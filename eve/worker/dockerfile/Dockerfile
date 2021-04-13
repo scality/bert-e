@@ -30,6 +30,7 @@ RUN apt-get --assume-yes update \
 
 COPY requirements.txt /tmp/
 
+RUN pip3 install --upgrade pip
 RUN pip3 install -r /tmp/requirements.txt
 
 # Install helm
