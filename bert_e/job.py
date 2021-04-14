@@ -139,6 +139,17 @@ class PullRequestJob(RepoJob):
         self.git.dst_branch = None
 
     @property
+    def active_options(self):
+        return (super(PullRequestJob, self).active_options +
+                [key for key, value in self.author_bypass.items() if value])
+
+    @property
+    def author_bypass(self):
+        return self.settings.pr_author_options.get(
+            self.pull_request.author, {}
+        )
+
+    @property
     def url(self):
         return self.bert_e.settings.pull_request_base_url.format(
             pr_id=self.pull_request.id)

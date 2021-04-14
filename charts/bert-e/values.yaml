@@ -266,6 +266,17 @@ bertE:
     ##
     issueTypeToBranchPrefixes: {}
 
+  ## prAuthorOptions is a dictionnary of users with specific bypass
+  ##
+  ##   When empty: the options in not checked.
+  ##
+  ##   default value: {}
+  ##
+  prAuthorOptions: {}
+#    username:
+#      - bypass_author
+#      - bypass_jira_check
+
   addon:
     ## Bitbucket addon details (link to Bert-E in side bar)
     bitbucket:

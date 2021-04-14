@@ -1,6 +1,10 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [3.5.0] - 2021-04-27
+# Added
+- Add "pr_author_options" option to config, which add bypass to a specifique user
+
 ## [3.4.2] - 2020-10-14
 # Fixed
 - CommandError "Command git log --no-merges --pretty=..." for delete src branch

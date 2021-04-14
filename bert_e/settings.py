@@ -79,6 +79,45 @@ class UserSettingSchema(Schema):
         return UserDict(data)
 
 
+class PrAuthorsOptions(fields.Dict):
+    BYPASS_LIST = [
+        'bypass_author_approval',
+        'bypass_jira_check',
+        'bypass_build_status',
+        'bypass_commit_size',
+        'bypass_incompatible_branch',
+        'bypass_peer_approval',
+        'bypass_leader_approval',
+    ]
+
+    def serialize(self, value, attr=None, obj=None):
+        data = super(PrAuthorsOptions, self).serialize(value, attr, obj)
+        res = dict()
+        for user, values in data.items():
+            res[user] = [key for key, value in data.items() if value]
+
+        return res
+
+    def deserialize(self, value, attr=None, data=None):
+        data = super(PrAuthorsOptions, self).deserialize(value, attr, data)
+
+        found_elem = []
+        res = dict()
+        for user, bypass_list in data.items():
+            for elem in bypass_list:
+                if elem in self.BYPASS_LIST:
+                    found_elem.append(elem)
+                else:
+                    raise IncorrectSettingsFile(
+                        f'This bypass does not exist: {elem}'
+                    )
+
+            res[user] = dict([
+                (key, key in bypass_list) for key in self.BYPASS_LIST
+            ])
+        return res
+
+
 class SettingsSchema(Schema):
     # Settings defined in config files
     always_create_integration_pull_requests = fields.Bool(missing=True)
@@ -100,6 +139,7 @@ class SettingsSchema(Schema):
     need_author_approval = fields.Bool(missing=True)
     required_leader_approvals = fields.Int(missing=0)
     required_peer_approvals = fields.Int(missing=2)
+    pr_author_options = PrAuthorsOptions(missing={})
 
     jira_account_url = fields.Str(missing='')
     jira_email = fields.Str(missing='')

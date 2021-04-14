@@ -29,6 +29,10 @@ from .branches import (
     branch_factory, build_branch_cascade, is_cascade_consumer,
     is_cascade_producer, BranchCascade, QueueBranch, IntegrationBranch
 )
+from .utils import (
+    bypass_incompatible_branch, bypass_peer_approval,
+    bypass_author_approval, bypass_leader_approval, bypass_build_status
+)
 from .commands import setup  # noqa
 from .integration import (create_integration_branches,
                           create_integration_pull_requests,
@@ -116,6 +120,7 @@ def handle_parent_pull_request(job, child_pr, is_child=True):
 
 def _handle_pull_request(job: PullRequestJob):
     job.git.cascade = job.git.cascade or BranchCascade()
+
     early_checks(job)
     send_greetings(job)
     src = job.git.src_branch = branch_factory(job.git.repo,
@@ -373,7 +378,7 @@ def check_branch_compatibility(job):
                                         is incorrect.
 
     """
-    if job.settings.bypass_incompatible_branch:
+    if bypass_incompatible_branch(job):
         return
 
     src_branch = job.git.src_branch
@@ -532,17 +537,19 @@ def check_approvals(job):
     """
     required_peer_approvals = job.settings.required_peer_approvals
     current_peer_approvals = 0
-    if job.settings.bypass_peer_approval:
+    if bypass_peer_approval(job):
         current_peer_approvals = required_peer_approvals
 
     required_leader_approvals = job.settings.required_leader_approvals
     current_leader_approvals = 0
-    if job.settings.bypass_leader_approval:
+    if bypass_leader_approval(job):
         current_leader_approvals = required_leader_approvals
 
-    approved_by_author = (not job.settings.need_author_approval or
-                          job.settings.bypass_author_approval or
-                          job.settings.approve)
+    approved_by_author = (
+        not job.settings.need_author_approval or
+        bypass_author_approval(job) or
+        job.settings.approve
+    )
     requires_unanimity = job.settings.unanimity
     is_unanimous = True
 
@@ -598,6 +605,7 @@ def check_approvals(job):
             required_peer_approvals=required_peer_approvals,
             requires_unanimity=requires_unanimity,
             requires_author_approval=job.settings.need_author_approval,
+            pr_author_options=job.settings.pr_author_options,
             active_options=job.active_options,
             change_requesters=list(change_requests)
         )
@@ -613,7 +621,7 @@ def check_build_status(job, wbranches):
 
     """
 
-    if job.settings.bypass_build_status:
+    if bypass_build_status(job):
         return
 
     key = job.settings.build_key

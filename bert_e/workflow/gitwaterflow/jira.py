@@ -25,6 +25,7 @@ from jira.exceptions import JIRAError
 
 from bert_e import exceptions
 from bert_e.lib import jira as jira_api
+from .utils import bypass_jira_check
 
 
 LOG = logging.getLogger(__name__)
@@ -32,7 +33,7 @@ LOG = logging.getLogger(__name__)
 
 def jira_checks(job):
     """Performs consistency checks against associated Jira issue."""
-    if job.settings.bypass_jira_check:
+    if bypass_jira_check(job):
         return
 
     if job.git.src_branch.prefix in job.settings.bypass_prefixes:
