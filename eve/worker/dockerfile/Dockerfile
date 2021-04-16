@@ -2,6 +2,8 @@ FROM ubuntu:bionic
 
 ENV HOME_BUILDBOT /var/lib/buildbot
 ENV PYTHON_PIP_VERSION 21.0.1
+# Set the desired version of Helm
+ENV DESIRED_VERSION v3.5.4
 
 #
 # Install packages needed by the buildchain
