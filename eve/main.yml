@@ -20,6 +20,8 @@ stages:
         haltOnFailure: true
         stage_names:
         - tests
+        - tests-no-queue
+        - tests-queue
   lint:
     worker:
       type: kube_pod
@@ -59,15 +61,21 @@ stages:
     - ShellCommand:
         name: Bert-E server tests
         command: tox -e tests-server
-    - ShellCommand:
-        name: Bert-E tests (no queue support)
-        command: tox -e tests-noqueue
-    - ShellCommand:
-        name: Bert-E tests (with queue support)
-        command: tox -e tests
     - ShellCommand: &coverage_report
         name: Coverage report
         command: tox -e coverage-report
+  tests-no-queue:
+    worker: *test_worker
+    steps:
+    - ShellCommand:
+        name: Bert-E tests (no queue support)
+        command: tox -e tests-noqueue
+  tests-queue:
+    worker: *test_worker
+    steps:
+    - ShellCommand:
+        name: Bert-E tests (with queue support)
+        command: tox -e tests
 
   tests-bitbucket:
     worker: *test_worker
