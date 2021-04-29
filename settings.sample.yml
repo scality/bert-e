@@ -144,6 +144,16 @@ bypass_prefixes:
 disable_version_checks: true
 
 
+pr_author_options:
+  username:
+    - bypass_author_approval
+    - bypass_jira_check
+    - bypass_build_status
+    - bypass_incompatible_branch
+    - bypass_peer_approval
+    - bypass_leader_approval
+
+
 # admins [OPTIONAL]:
 #   The list of githost accounts allowed to post privileged messages
 #   to the bot

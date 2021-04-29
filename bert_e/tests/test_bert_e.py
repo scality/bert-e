@@ -2472,6 +2472,449 @@ admins:
                 options=self.bypass_all_but(['bypass_incompatible_branch']),
                 backtrace=True)
 
+    def test_bypass_author_settings_errors(self):
+        settings = """
+repository_owner: {owner}
+repository_slug: {slug}
+repository_host: {host}
+robot: {robot}
+robot_email: nobody@nowhere.com
+pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
+commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
+build_key: pre-merge
+need_author_approval: True
+required_peer_approvals: 1
+pr_author_options:
+  {contributor}:
+    - bypass_author_approvall
+    - bypass_build_status
+    - bypass_peer_approval
+"""  # noqa
+        pr = self.create_pr('feature/TEST-00014', 'development/4.3')
+        with self.assertRaises(exns.IncorrectSettingsFile):
+            self.handle(
+                pr.id,
+                settings=settings,
+                backtrace=True)
+
+    def test_bypass_author_options(self):
+        settings = """
+repository_owner: {owner}
+repository_slug: {slug}
+repository_host: {host}
+robot: {robot}
+robot_email: nobody@nowhere.com
+pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
+commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
+build_key: pre-merge
+need_author_approval: True
+required_peer_approvals: 1
+pr_author_options:
+  {contributor}:
+    - bypass_author_approval
+    - bypass_build_status
+    - bypass_peer_approval
+"""  # noqa
+        pr = self.create_pr('feature/TEST-00014', 'development/4.3')
+        with self.assertRaises(exns.SuccessMessage):
+            self.handle(
+                pr.id,
+                settings=settings,
+                backtrace=True)
+
+    def test_bypass_author_options_not_peer_approval(self):
+        settings = """
+repository_owner: {owner}
+repository_slug: {slug}
+repository_host: {host}
+robot: {robot}
+robot_email: nobody@nowhere.com
+pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
+commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
+build_key: pre-merge
+need_author_approval: True
+required_peer_approvals: 1
+pr_author_options:
+  {contributor}:
+    - bypass_author_approval
+    - bypass_build_status
+    """  # noqa
+        # test bypass branch prefix through comment
+        pr = self.create_pr('feature/TEST-00014', 'development/4.3')
+        pr_peer = self.robot_bb.get_pull_request(
+            pull_request_id=pr.id)
+        pr_peer.approve()
+        with self.assertRaises(exns.SuccessMessage):
+            self.handle(
+                pr.id,
+                settings=settings,
+                backtrace=True)
+
+    def test_bypass_author_options_not_peer_approval_failed(self):
+        settings = """
+repository_owner: {owner}
+repository_slug: {slug}
+repository_host: {host}
+robot: {robot}
+robot_email: nobody@nowhere.com
+pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
+commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
+build_key: pre-merge
+need_author_approval: True
+required_peer_approvals: 1
+pr_author_options:
+  {contributor}:
+    - bypass_author_approval
+    - bypass_build_status
+    """  # noqa
+        # test bypass branch prefix through comment
+        pr = self.create_pr('feature/TEST-00014', 'development/4.3')
+        with self.assertRaises(exns.ApprovalRequired):
+            self.handle(
+                pr.id,
+                settings=settings,
+                backtrace=True)
+
+    def test_bypass_author_options_not_author_approval(self):
+        settings = """
+repository_owner: {owner}
+repository_slug: {slug}
+repository_host: {host}
+robot: {robot}
+robot_email: nobody@nowhere.com
+pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
+commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
+build_key: pre-merge
+need_author_approval: True
+required_peer_approvals: 1
+pr_author_options:
+  {contributor}:
+    - bypass_build_status
+    - bypass_peer_approval
+    """  # noqa
+        pr = self.create_pr('feature/TEST-00014', 'development/4.3')
+        pr.approve()
+        with self.assertRaises(exns.SuccessMessage):
+            self.handle(
+                pr.id,
+                settings=settings,
+                backtrace=True)
+
+    def test_bypass_author_options_not_author_approval_fail(self):
+        settings = """
+repository_owner: {owner}
+repository_slug: {slug}
+repository_host: {host}
+robot: {robot}
+robot_email: nobody@nowhere.com
+pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
+commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
+build_key: pre-merge
+need_author_approval: True
+required_peer_approvals: 1
+pr_author_options:
+  {contributor}:
+    - bypass_build_status
+    - bypass_peer_approval
+    """  # noqa
+        pr = self.create_pr('feature/TEST-00014', 'development/4.3')
+        with self.assertRaises(exns.ApprovalRequired):
+            self.handle(
+                pr.id,
+                settings=settings,
+                backtrace=True)
+
+    def test_bypass_author_options_build_status_failed(self):
+        settings = """
+repository_owner: {owner}
+repository_slug: {slug}
+repository_host: {host}
+robot: {robot}
+robot_email: nobody@nowhere.com
+pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
+commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
+build_key: pre-merge
+need_author_approval: True
+required_peer_approvals: 1
+pr_author_options:
+  {contributor}:
+    - bypass_author_approval
+    - bypass_peer_approval
+"""  # noqa
+        # test bypass branch prefix through comment
+        pr = self.create_pr('feature/TEST-00014', 'development/4.3')
+        with self.assertRaises(exns.BuildNotStarted):
+            self.handle(
+                pr.id,
+                settings=settings,
+                backtrace=True
+            )
+
+    def test_bypass_author_options_build_status(self):
+        settings = """
+repository_owner: {owner}
+repository_slug: {slug}
+repository_host: {host}
+robot: {robot}
+robot_email: nobody@nowhere.com
+pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
+commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
+build_key: pre-merge
+need_author_approval: True
+required_peer_approvals: 1
+pr_author_options:
+  {contributor}:
+    - bypass_author_approval
+    - bypass_peer_approval
+"""  # noqa
+        # test bypass branch prefix through comment
+        pr = self.create_pr('bugfix/TEST-00081', 'development/4.3')
+
+        # test build not started
+        with self.assertRaises(exns.BuildNotStarted):
+            self.handle(pr.id,
+                        options=self.bypass_all_but(['bypass_build_status']),
+                        backtrace=True)
+
+        # test build status failed
+        self.set_build_status_on_pr_id(pr.id, 'SUCCESSFUL')
+        self.set_build_status_on_pr_id(pr.id + 1, 'INPROGRESS')
+        self.set_build_status_on_pr_id(pr.id + 2, 'FAILED')
+        try:
+            self.handle(pr.id,
+                        settings=settings,
+                        backtrace=True)
+        except exns.BuildFailed as excp:
+            self.assertIn(
+                "did not succeed in branch w/10.0/bugfix/TEST-00081",
+                excp.msg,
+            )
+        else:
+            raise Exception('did not raise BuildFailed')
+
+        # test build status inprogress
+        self.set_build_status_on_pr_id(pr.id, 'SUCCESSFUL')
+        self.set_build_status_on_pr_id(pr.id + 1, 'INPROGRESS')
+        self.set_build_status_on_pr_id(pr.id + 2, 'SUCCESSFUL')
+        with self.assertRaises(exns.BuildInProgress):
+            self.handle(pr.id,
+                        settings=settings,
+                        backtrace=True)
+
+        # test bypass leader approval through comment
+        self.set_build_status_on_pr_id(pr.id, 'SUCCESSFUL')
+        self.set_build_status_on_pr_id(pr.id + 1, 'SUCCESSFUL')
+        self.set_build_status_on_pr_id(pr.id + 2, 'SUCCESSFUL')
+        with self.assertRaises(exns.SuccessMessage):
+            self.handle(pr.id,
+                        settings=settings,
+                        backtrace=True)
+
+    def test_bypass_author_options_leader_approval(self):
+        settings = """
+repository_owner: {owner}
+repository_slug: {slug}
+repository_host: {host}
+robot: {robot}
+robot_email: nobody@nowhere.com
+pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
+commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
+build_key: pre-merge
+need_author_approval: True
+required_leader_approvals: 1
+required_peer_approvals: 2
+project_leaders:
+  - {admin}
+pr_author_options:
+  {contributor}:
+    - bypass_author_approval
+    - bypass_peer_approval
+    - bypass_build_status
+""" # noqa
+        pr = self.create_pr('feature/TEST-00014', 'development/4.3')
+        with self.assertRaises(exns.ApprovalRequired):
+            self.handle(
+                pr.id,
+                settings=settings,
+                backtrace=True
+            )
+        pr_admin = self.admin_bb.get_pull_request(
+            pull_request_id=pr.id)
+        pr_admin.approve()
+        with self.assertRaises(exns.SuccessMessage):
+            self.handle(
+                pr.id,
+                settings=settings,
+                backtrace=True
+            )
+
+    def test_bypass_author_comment_check(self):
+        settings = """
+repository_owner: {owner}
+repository_slug: {slug}
+repository_host: {host}
+robot: {robot}
+robot_email: nobody@nowhere.com
+pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
+commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
+build_key: pre-merge
+need_author_approval: True
+required_leader_approvals: 1
+required_peer_approvals: 2
+project_leaders:
+  - {admin}
+pr_author_options:
+  {contributor}:
+    - bypass_jira_check
+""" # noqa
+        pr = self.create_pr('feature/TEST-0042', 'development/10.0')
+        self.handle(pr.id, settings=settings)
+        self.assertIs(len(list(pr.get_comments())), 2)
+        self.assertIn('bypass_jira_check', self.get_last_pr_comment(pr))
+        settings = """
+repository_owner: {owner}
+repository_slug: {slug}
+repository_host: {host}
+robot: {robot}
+robot_email: nobody@nowhere.com
+pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
+commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
+build_key: pre-merge
+need_author_approval: True
+required_leader_approvals: 1
+required_peer_approvals: 2
+project_leaders:
+  - {admin}
+pr_author_options:
+  {contributor}:
+    - bypass_author_approval
+""" # noqa
+        pr = self.create_pr('feature/TEST-0043', 'development/10.0')
+        self.handle(pr.id, settings=settings)
+        self.assertIs(len(list(pr.get_comments())), 2)
+        self.assertIn('bypass_author_approval', self.get_last_pr_comment(pr))
+
+        settings = """
+repository_owner: {owner}
+repository_slug: {slug}
+repository_host: {host}
+robot: {robot}
+robot_email: nobody@nowhere.com
+pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
+commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
+build_key: pre-merge
+need_author_approval: True
+required_leader_approvals: 1
+required_peer_approvals: 2
+project_leaders:
+  - {admin}
+pr_author_options:
+  {contributor}:
+    - bypass_peer_approval
+""" # noqa
+        pr = self.create_pr('feature/TEST-0044', 'development/10.0')
+        self.handle(pr.id, settings=settings)
+        self.assertIs(len(list(pr.get_comments())), 2)
+        self.assertIn('bypass_peer_approval', self.get_last_pr_comment(pr))
+
+        settings = """
+repository_owner: {owner}
+repository_slug: {slug}
+repository_host: {host}
+robot: {robot}
+robot_email: nobody@nowhere.com
+pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
+commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
+build_key: pre-merge
+need_author_approval: True
+required_leader_approvals: 1
+required_peer_approvals: 2
+project_leaders:
+  - {admin}
+pr_author_options:
+  {contributor}:
+    - bypass_build_status
+""" # noqa
+        pr = self.create_pr('feature/TEST-0045', 'development/10.0')
+        self.handle(pr.id, settings=settings)
+        self.assertIs(len(list(pr.get_comments())), 2)
+        self.assertIn('bypass_build_status', self.get_last_pr_comment(pr))
+
+    def test_bypass_author_jira(self):
+        """
+        Even with the wrong branch name with Jira it should pass
+        Look at `test_inclusion_of_jira_issue` for the raise error
+        """
+        settings = """
+repository_owner: {owner}
+repository_slug: {slug}
+repository_host: {host}
+robot: {robot}
+robot_email: nobody@nowhere.com
+pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
+commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
+build_key: pre-merge
+need_author_approval: True
+required_leader_approvals: 1
+required_peer_approvals: 2
+project_leaders:
+  - {admin}
+pr_author_options:
+  {contributor}:
+    - bypass_jira_check
+    - bypass_author_approval
+    - bypass_build_status
+    - bypass_peer_approval
+    - bypass_leader_approval
+"""  # noqa
+        pr = self.create_pr('bugfix/00066', 'development/4.3')
+        with self.assertRaises(exns.SuccessMessage):
+            self.handle(
+                pr.id,
+                settings=settings,
+                backtrace=True
+            )
+
+        pr = self.create_pr('bugfix/00067', 'development/10.0')
+        with self.assertRaises(exns.SuccessMessage):
+            self.handle(
+                pr.id,
+                settings=settings,
+                backtrace=True
+            )
+
+        pr = self.create_pr('improvement/i', 'development/10.0')
+        with self.assertRaises(exns.SuccessMessage):
+            self.handle(
+                pr.id,
+                settings=settings,
+                backtrace=True
+            )
+
+        pr = self.create_pr('bugfix/free_text', 'development/10.0')
+        with self.assertRaises(exns.SuccessMessage):
+            self.handle(
+                pr.id,
+                settings=settings,
+                backtrace=True
+            )
+
+        pr = self.create_pr('bugfix/free_text2', 'development/10.0')
+        with self.assertRaises(exns.SuccessMessage):
+            self.handle(
+                pr.id,
+                settings=settings,
+                backtrace=True
+            )
+
+        pr = self.create_pr('bugfix/RONG-0001', 'development/10.0')
+        with self.assertRaises(exns.SuccessMessage):
+            self.handle(
+                pr.id,
+                settings=settings,
+                backtrace=True
+            )
+
     def test_rebased_feature_branch(self):
         pr = self.create_pr('bugfix/TEST-00074', 'development/4.3')
         with self.assertRaises(exns.BuildNotStarted):

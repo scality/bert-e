@@ -9,6 +9,7 @@ Flask-WTF==0.14.2
 ItsDangerous==0.24
 Jinja2==2.10
 jira==2.0.0
+Markdown==2.6.11
 marshmallow==2.15.4
 py-gfm==0.1.4
 pytest==3.7.1

@@ -9,6 +9,7 @@ ENV DESIRED_VERSION v3.5.4
 # Install packages needed by the buildchain
 #
 
+RUN apt-get upgrade
 RUN apt-get --assume-yes update \
  && DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends --assume-yes \
     build-essential \
