@@ -520,9 +520,15 @@ class AggregatedCheckSuites(base.AbstractGitHostObject):
 
     @property
     def status(self):
-        if self._check_suites.__len__() > 0 and not all(elem['status'] == 'complete' for elem in self._check_suites):
+        all_complete = all(
+            elem['status'] == 'complete' for elem in self._check_suites
+        )
+        all_success = all(
+            elem['conclusion'] == 'success' for elem in self._check_suites
+        )
+        if self._check_suites.__len__() > 0 and not all_complete:
             return 'INPROGRESS'
-        if self._check_suites.__len__() > 0 and all(elem['status'] == 'complete' for elem in self._check_suites):
+        if self._check_suites.__len__() > 0 and all_complete and all_success:
             return 'SUCCESSFUL'
         else:
             return 'FAILED'
