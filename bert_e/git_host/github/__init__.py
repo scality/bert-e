@@ -507,7 +507,8 @@ class Status(base.AbstractGitHostObject, base.AbstractBuildStatus):
         return self.state
 
 
-class AggregatedCheckSuites(base.AbstractGitHostObject, base.AbstractBuildStatus):
+class AggregatedCheckSuites(base.AbstractGitHostObject,
+                            base.AbstractBuildStatus):
     """
     The Endpoint to have access infos about github actions CI
     """
