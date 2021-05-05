@@ -25,7 +25,7 @@ blueprint = Blueprint('status page', __name__)
 @blueprint.route('/', methods=['GET'])
 def display():
     """Build and render the status page."""
-    build_key = current_app.bert_e.settings.build_key
+    build_keys = current_app.bert_e.settings.build_key
     output_mode = request.args.get('output')
     if output_mode is None:
         output_mode = 'html'
@@ -50,8 +50,8 @@ def display():
                 continue
             line = {'pr_id': pr_id, 'hotfix': False}
             for version, sha1 in queued_commits:
-                status = BUILD_STATUS_CACHE[build_key].get(sha1, None)
-                state = status.state if status else 'NOTSTARTED'
+                build_status = [BUILD_STATUS_CACHE[build_key].get(sha1, None) for build_key in build_keys]
+                state = ', '.join([status.state if status else 'NOTSTARTED' for status in build_status])
                 line[version] = {
                     'sha1': sha1,
                     'status': state,

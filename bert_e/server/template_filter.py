@@ -28,7 +28,7 @@ def configure(app):
         else:
             return config.pull_request_base_url.format(pr_id=id_or_revision)
 
-    def build_url_filter(sha1):
+    def build_url_filter(sha1): # What to do here ?
         """Transform a commit sha1 into a link to the CI build."""
         build_key = app.bert_e.settings.build_key
         status = BUILD_STATUS_CACHE[build_key].get(sha1, None)

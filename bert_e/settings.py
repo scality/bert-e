@@ -134,7 +134,7 @@ class SettingsSchema(Schema):
     pull_request_base_url = fields.Str(required=True)
     commit_base_url = fields.Str(required=True)
 
-    build_key = fields.Str(missing="pre-merge")
+    build_key = fields.List(fields.Str(), missing=["pre-merge"])
 
     need_author_approval = fields.Bool(missing=True)
     required_leader_approvals = fields.Int(missing=0)
