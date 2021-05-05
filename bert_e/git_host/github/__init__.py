@@ -507,7 +507,7 @@ class Status(base.AbstractGitHostObject, base.AbstractBuildStatus):
         return self.state
 
 
-class AggregatedCheckSuites(base.AbstractGitHostObject):
+class AggregatedCheckSuites(base.AbstractGitHostObject, base.AbstractBuildStatus):
     """
     The Endpoint to have access infos about github actions CI
     """
@@ -519,7 +519,7 @@ class AggregatedCheckSuites(base.AbstractGitHostObject):
         self._check_suites = [elem for elem in self.data['check_suites']]
 
     @property
-    def status(self):
+    def state(self):
         all_complete = all(
             elem['status'] == 'complete' for elem in self._check_suites
         )
@@ -532,6 +532,18 @@ class AggregatedCheckSuites(base.AbstractGitHostObject):
             return 'SUCCESSFUL'
         else:
             return 'FAILED'
+
+    @property
+    def url(self):
+        return ''
+
+    @property
+    def description(self) -> str:
+        return 'github actions CI'
+
+    @property
+    def key(self) -> str:
+        return 'github_actions'
 
     @property
     def commit(self):
