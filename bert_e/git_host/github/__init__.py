@@ -354,6 +354,12 @@ class Repository(base.AbstractGitHostObject, base.AbstractRepository):
             combined = AggregatedStatus.get(self.client,
                                             owner=self.owner,
                                             repo=self.slug, ref=ref)
+
+            actions = AggregatedCheckSuites.get(self.client,
+                                                owner=self.owner,
+                                                repo=self.slug, ref=ref)
+            combined.status[actions.key] = actions
+
         except HTTPError as err:
             if err.response.status_code == 404:
                 return None
@@ -499,6 +505,82 @@ class Status(base.AbstractGitHostObject, base.AbstractBuildStatus):
 
     def __str__(self) -> str:
         return self.state
+
+
+class AggregatedCheckRuns(base.AbstractGitHostObject):
+    """
+    The Endpoint to have access infos about github actions runs
+    """
+    GET_URL = '/repos/{owner}/{repo}/commits/{ref}/check-runs'
+    SCHEMA = schema.AggregateCheckRuns
+
+    @property
+    def html_url(self):
+        if self.data['total_count']:
+            return self.data['check_runs'][0]['html_url']
+        return ''
+
+
+class AggregatedCheckSuites(base.AbstractGitHostObject,
+                            base.AbstractBuildStatus):
+    """
+    The Endpoint to have access infos about github actions suites
+    """
+    GET_URL = '/repos/{owner}/{repo}/commits/{ref}/check-suites'
+    SCHEMA = schema.AggregateCheckSuites
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._check_suites = [elem for elem in self.data['check_suites']]
+
+    @classmethod
+    def get(cls, client, url=None, params={}, headers={}, **kwargs):
+        res = super(AggregatedCheckSuites, cls)\
+            .get(client, url, params, headers, **kwargs)
+
+        html_url = AggregatedCheckRuns\
+            .get(client, url, params, headers, **kwargs).html_url
+        res.data['html_url'] = html_url
+        return res
+
+    @property
+    def url(self):
+        return self.data['html_url']
+
+    @property
+    def state(self):
+        queued = any(
+            elem['status'] == 'queued' for elem in self._check_suites
+        )
+        all_complete = all(
+            elem['status'] == 'completed' for elem in self._check_suites
+        )
+        all_success = all(
+            elem['conclusion'] == 'success' for elem in self._check_suites
+        )
+        if self._check_suites.__len__() > 0 and queued:
+            return 'NOTSTARTED'
+        elif self._check_suites.__len__() > 0 and not all_complete:
+            return 'INPROGRESS'
+        elif self._check_suites.__len__() > 0 and all_complete and all_success:
+            return 'SUCCESSFUL'
+        else:
+            return 'FAILED'
+
+    @property
+    def description(self) -> str:
+        return 'github actions CI'
+
+    @property
+    def key(self) -> str:
+        return 'github_actions'
+
+    @property
+    def commit(self):
+        if self._check_suites.__len__() > 0:
+            return self._check_suites[0]["head_sha"]
+        else:
+            return None
 
 
 class PullRequest(base.AbstractGitHostObject, base.AbstractPullRequest):
