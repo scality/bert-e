@@ -78,6 +78,20 @@ class Branch(Schema):
     repo = fields.Nested(Repo)
 
 
+class CheckSuites(Schema):
+    id = fields.Str()
+    head_branch = fields.Str()
+    head_sha = fields.Str()
+    status = fields.Str()
+    conclusion = fields.Str()
+    url = fields.Str()
+
+
+class AggregateCheckSuites(Schema):
+    total_count = fields.Integer()
+    check_suites = fields.Nested(CheckSuites, many=True, required=True)
+
+
 class PullRequest(Schema):
     number = fields.Int(required=True)
     url = fields.Url()

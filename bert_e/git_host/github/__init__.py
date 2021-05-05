@@ -354,6 +354,12 @@ class Repository(base.AbstractGitHostObject, base.AbstractRepository):
             combined = AggregatedStatus.get(self.client,
                                             owner=self.owner,
                                             repo=self.slug, ref=ref)
+
+            actions = AggregatedCheckSuites.get(self.client,
+                                                owner=self.owner,
+                                                repo=self.slug, ref=ref)
+            combined['github_actions'] = actions
+
         except HTTPError as err:
             if err.response.status_code == 404:
                 return None
@@ -499,6 +505,34 @@ class Status(base.AbstractGitHostObject, base.AbstractBuildStatus):
 
     def __str__(self) -> str:
         return self.state
+
+
+class AggregatedCheckSuites(base.AbstractGitHostObject):
+    """
+    The Endpoint to have access infos about github actions CI
+    """
+    GET_URL = '/repos/{owner}/{repo}/commits/{ref}/check-suites'
+    SCHEMA = schema.AggregateCheckSuites
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._check_suites = [elem for elem in self.data['check_suites']]
+
+    @property
+    def status(self):
+        if self._check_suites.__len__() > 0 and not all(elem['status'] == 'complete' for elem in self._check_suites):
+            return 'INPROGRESS'
+        if self._check_suites.__len__() > 0 and all(elem['status'] == 'complete' for elem in self._check_suites):
+            return 'SUCCESSFUL'
+        else:
+            return 'FAILED'
+
+    @property
+    def commit(self):
+        if self._check_suites.__len__() > 0:
+            return self._check_suites[0]["head_sha"]
+        else:
+            return None
 
 
 class PullRequest(base.AbstractGitHostObject, base.AbstractPullRequest):
