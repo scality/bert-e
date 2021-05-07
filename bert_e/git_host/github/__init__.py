@@ -354,6 +354,12 @@ class Repository(base.AbstractGitHostObject, base.AbstractRepository):
             combined = AggregatedStatus.get(self.client,
                                             owner=self.owner,
                                             repo=self.slug, ref=ref)
+
+            actions = AggregatedCheckSuites.get(self.client,
+                                                owner=self.owner,
+                                                repo=self.slug, ref=ref)
+            combined.status[actions.key] = actions
+
         except HTTPError as err:
             if err.response.status_code == 404:
                 return None
@@ -499,6 +505,62 @@ class Status(base.AbstractGitHostObject, base.AbstractBuildStatus):
 
     def __str__(self) -> str:
         return self.state
+
+
+class AggregatedCheckSuites(base.AbstractGitHostObject,
+                            base.AbstractBuildStatus):
+    """
+    The Endpoint to have access infos about github actions CI
+    """
+    GET_URL = '/repos/{owner}/{repo}/commits/{ref}/check-suites'
+    SCHEMA = schema.AggregateCheckSuites
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._check_suites = [elem for elem in self.data['check_suites']]
+
+    @property
+    def state(self):
+        from pprint import PrettyPrinter
+        pprint = PrettyPrinter()
+
+        pprint.pprint(self._check_suites)
+        queued = any(
+            elem['status'] == 'queued' for elem in self._check_suites
+        )
+        all_complete = all(
+            elem['status'] == 'complete' for elem in self._check_suites
+        )
+        all_success = all(
+            elem['conclusion'] == 'success' for elem in self._check_suites
+        )
+        if self._check_suites.__len__() > 0 and queued:
+            return 'NOTSTARTED'
+        elif self._check_suites.__len__() > 0 and not all_complete:
+            return 'INPROGRESS'
+        elif self._check_suites.__len__() > 0 and all_complete and all_success:
+            return 'SUCCESSFUL'
+        else:
+            return 'FAILED'
+
+    @property
+    def url(self):
+        return ''
+
+    @property
+    def description(self) -> str:
+        return 'github actions CI'
+
+    @property
+    def key(self) -> str:
+        return 'github_actions'
+
+    @property
+    def commit(self):
+        if self._check_suites.__len__() > 0:
+            return self._check_suites[0]["head_sha"]
+        else:
+            return None
 
 
 class PullRequest(base.AbstractGitHostObject, base.AbstractPullRequest):

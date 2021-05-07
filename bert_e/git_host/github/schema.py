@@ -18,7 +18,9 @@
 used by Bert-E) are declared.
 
 """
-from marshmallow import Schema, fields
+import pprint
+
+from marshmallow import Schema, fields, pre_load
 
 
 class User(Schema):
@@ -76,6 +78,19 @@ class Branch(Schema):
     sha = fields.Str()
     user = fields.Nested(User)
     repo = fields.Nested(Repo)
+
+
+class CheckSuites(Schema):
+    id = fields.Integer()
+    head_sha = fields.Str()
+    status = fields.Str()
+    conclusion = fields.Str(allow_none=True)
+    url = fields.Str()
+
+
+class AggregateCheckSuites(Schema):
+    total_count = fields.Integer()
+    check_suites = fields.Nested(CheckSuites, many=True)
 
 
 class PullRequest(Schema):
