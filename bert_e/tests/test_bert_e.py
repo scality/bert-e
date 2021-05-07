@@ -14,6 +14,7 @@
 
 import argparse
 import logging
+import os.path
 import re
 import sys
 import time
@@ -157,13 +158,24 @@ def create_branch(repo, name, from_branch=None, file_=False, do_push=True):
         add_file_to_branch(repo, name, file_, do_push)
 
 
-def add_file_to_branch(repo, branch_name, file_name, do_push=True):
-    repo.cmd('git checkout ' + branch_name)
+def add_file_to_branch(repo, branch_name, file_name, do_push=True, folder='.'):
     if file_name is True:
         file_name = 'file_created_on_' + branch_name.replace('/', '_')
-    repo.cmd('echo %s >  %s' % (branch_name, file_name))
-    repo.cmd('git add ' + file_name)
-    repo.cmd('git commit -m "adds %s file on %s"' % (file_name, branch_name))
+
+    content = branch_name
+    file_path = os.path.dirname(os.path.abspath(__file__))
+    if os.path.isfile(f'{file_path}/assets/{file_name}'):
+        with open(f'{file_path}/assets/{file_name}', 'r+') as f:
+            content = f.read()
+
+    repo.cmd(f'git checkout {branch_name}')
+    repo.cmd(f'mkdir -p {folder}')
+    repo.cmd(f"""
+cat <<EOT >  {folder}/{file_name}
+{content}
+EOT""")
+    repo.cmd(f'git add {folder}/{file_name}')
+    repo.cmd(f'git commit -m "adds %s file on %s"' % (file_name, branch_name))
     if do_push:
         repo.cmd('git pull || exit 0')
         repo.cmd('git push --set-upstream origin ' + branch_name)
@@ -3184,6 +3196,39 @@ pr_author_options:
                       from_branch='development/4.3', file_="a_new_file")
         with self.assertRaises(exns.BranchHistoryMismatch):
             self.handle(pr.id,
+                        options=self.bypass_all_but(['bypass_build_status']),
+                        backtrace=True)
+
+    def test_github_actions_result(self):
+        settings = """
+repository_owner: {owner}
+repository_slug: {slug}
+repository_host: {host}
+robot: {robot}
+robot_email: nobody@nowhere.com
+pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
+commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
+build_key: github_actions
+always_create_integration_pull_requests: False
+"""  # noqa
+        pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
+        add_file_to_branch(self.gitrepo,
+                           'bugfix/TEST-00001',
+                           'workflow.yml',
+                           do_push=True,
+                           folder='.github/workflows')
+
+        time.sleep(3) # Wait action is created
+        with self.assertRaises(exns.BuildNotStarted):
+            self.handle(pr.id,
+                        settings=settings,
+                        options=self.bypass_all_but(['bypass_build_status']),
+                        backtrace=True)
+
+        time.sleep(100) # Be shure the actions is finished
+        with self.assertRaises(exns.SuccessMessage):
+            self.handle(pr.id,
+                        settings=settings,
                         options=self.bypass_all_but(['bypass_build_status']),
                         backtrace=True)
 
