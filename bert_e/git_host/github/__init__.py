@@ -521,6 +521,10 @@ class AggregatedCheckSuites(base.AbstractGitHostObject,
 
     @property
     def state(self):
+        from pprint import PrettyPrinter
+        pprint = PrettyPrinter()
+
+        pprint.pprint(self._check_suites)
         queued = any(
             elem['status'] == 'queued' for elem in self._check_suites
         )

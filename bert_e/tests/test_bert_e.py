@@ -3210,7 +3210,7 @@ pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{
 commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
 build_key: github_actions
 always_create_integration_pull_requests: False
-"""  # noqa
+"""  # noqa -> lancer 5 fois la boucle tant ca succed pas
         pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
         add_file_to_branch(self.gitrepo,
                            'bugfix/TEST-00001',
@@ -3218,7 +3218,7 @@ always_create_integration_pull_requests: False
                            do_push=True,
                            folder='.github/workflows')
 
-        time.sleep(3) # Wait action is created
+        time.sleep(30) # Wait action is created
         with self.assertRaises(exns.BuildNotStarted):
             self.handle(pr.id,
                         settings=settings,
