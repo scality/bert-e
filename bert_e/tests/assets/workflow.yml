@@ -1,0 +1,20 @@
+name: basic tests
+
+on: push
+
+jobs:
+  first:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - run: exit 0
+
+  second:
+    needs:
+      - first
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - run: exit 0

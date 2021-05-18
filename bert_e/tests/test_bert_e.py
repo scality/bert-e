@@ -14,6 +14,7 @@
 
 import argparse
 import logging
+import os.path
 import re
 import sys
 import time
@@ -157,13 +158,20 @@ def create_branch(repo, name, from_branch=None, file_=False, do_push=True):
         add_file_to_branch(repo, name, file_, do_push)
 
 
-def add_file_to_branch(repo, branch_name, file_name, do_push=True):
-    repo.cmd('git checkout ' + branch_name)
+def add_file_to_branch(repo, branch_name, file_name, do_push=True, folder='.'):
     if file_name is True:
         file_name = 'file_created_on_' + branch_name.replace('/', '_')
-    repo.cmd('echo %s >  %s' % (branch_name, file_name))
-    repo.cmd('git add ' + file_name)
-    repo.cmd('git commit -m "adds %s file on %s"' % (file_name, branch_name))
+
+    file_path = os.path.dirname(os.path.abspath(__file__))
+
+    repo.cmd(f'git checkout {branch_name}')
+    repo.cmd(f'mkdir -p {folder}')
+    if os.path.isfile(f'{file_path}/assets/{file_name}'):
+        repo.cmd(f'cp {file_path}/assets/{file_name} {folder}/{file_name}')
+    else:
+        repo.cmd(f'echo {branch_name} >  {file_name}')
+    repo.cmd(f'git add {folder}/{file_name}')
+    repo.cmd(f'git commit -m "adds %s file on %s"' % (file_name, branch_name))
     if do_push:
         repo.cmd('git pull || exit 0')
         repo.cmd('git push --set-upstream origin ' + branch_name)
@@ -3186,6 +3194,126 @@ pr_author_options:
             self.handle(pr.id,
                         options=self.bypass_all_but(['bypass_build_status']),
                         backtrace=True)
+
+    def test_github_actions_result_error(self):
+        if self.args.git_host != 'github':
+            self.skipTest("GitHub Actions is only supported with GitHub")
+
+        settings = """
+repository_owner: {owner}
+repository_slug: {slug}
+repository_host: {host}
+robot: {robot}
+robot_email: nobody@nowhere.com
+pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
+commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
+build_key: github_actions
+always_create_integration_pull_requests: False
+""" # noqa
+        pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
+        add_file_to_branch(self.gitrepo,
+                           'bugfix/TEST-00001',
+                           'workflow-error.yml',
+                           do_push=True,
+                           folder='.github/workflows')
+        add_file_to_branch(self.gitrepo,
+                           'bugfix/TEST-00001',
+                           'workflow.yml',
+                           do_push=True,
+                           folder='.github/workflows')
+
+        for index in range(0, 60):
+            try:
+                with self.assertRaises(exns.BuildFailed):
+                    self.handle(
+                        pr.id, settings=settings,
+                        options=self.bypass_all_but(['bypass_build_status']),
+                        backtrace=True)
+            except Exception:
+                if index == 59:
+                    raise exns.BuildFailed()
+                time.sleep(2)
+            else:
+                break
+
+    def test_github_actions_result_fail(self):
+        """
+        To check the return of github action we are adding one workflow
+        that will succeed and an other with a failure.
+        We should have an build status error at the end.
+        """
+        if self.args.git_host != 'github':
+            self.skipTest("GitHub Actions is only supported with GitHub")
+
+        settings = """
+repository_owner: {owner}
+repository_slug: {slug}
+repository_host: {host}
+robot: {robot}
+robot_email: nobody@nowhere.com
+pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
+commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
+build_key: github_actions
+always_create_integration_pull_requests: False
+"""  # noqa
+        pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
+        add_file_to_branch(self.gitrepo,
+                           'bugfix/TEST-00001',
+                           'workflow-fail.yml',
+                           do_push=True,
+                           folder='.github/workflows')
+
+        for index in range(0, 60):
+            try:
+                with self.assertRaises(exns.BuildFailed):
+                    self.handle(
+                        pr.id, settings=settings,
+                        options=self.bypass_all_but(['bypass_build_status']),
+                        backtrace=True)
+
+            except Exception:
+                if index == 59:
+                    raise exns.BuildFailed()
+                time.sleep(4)
+            else:
+                break
+
+    def test_github_actions_result(self):
+        if self.args.git_host != 'github':
+            self.skipTest("GitHub Actions is only supported with GitHub")
+
+        settings = """
+repository_owner: {owner}
+repository_slug: {slug}
+repository_host: {host}
+robot: {robot}
+robot_email: nobody@nowhere.com
+pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
+commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
+build_key: github_actions
+always_create_integration_pull_requests: False
+""" # noqa
+        pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
+        add_file_to_branch(self.gitrepo,
+                           'bugfix/TEST-00001',
+                           'workflow.yml',
+                           do_push=True,
+                           folder='.github/workflows')
+
+        for index in range(0, 60):
+            try:
+                with self.assertRaises(exns.SuccessMessage):
+                    self.handle(
+                        pr.id, settings=settings,
+                        options=self.bypass_all_but(['bypass_build_status']),
+                        backtrace=True)
+
+            except Exception:
+                if index == 59:
+                    raise exns.BuildFailed()
+                time.sleep(2)
+            else:
+                break
 
     def test_source_branch_commit_added_and_target_updated(self):
         pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')

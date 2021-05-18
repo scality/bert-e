@@ -60,6 +60,7 @@ commit_base_url: https://bitbucket.org/foo/bar/commits/{commit_id}
 
 # build_key [OPTIONAL]:
 #   The label of the key to look for in githost commit statuses.
+#   The key "github_actions" can be set to check github actions status instead of external app checks
 #
 #   default value: pre-merge
 #

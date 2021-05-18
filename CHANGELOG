@@ -1,6 +1,12 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [3.6.0] - 2021-04-27
+# Added
+- Support GitHub Action CI thanks to a new build key config `github_actions`
+
+
+
 ## [3.5.0] - 2021-04-27
 # Added
 - Add "pr_author_options" option to config, which add bypass to a specifique user
