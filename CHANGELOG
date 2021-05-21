@@ -1,11 +1,13 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [3.6.1] - 2021-05-26
+# Fixed
+- API call error was returning to much information, now it return only action results.
+
 ## [3.6.0] - 2021-04-27
 # Added
 - Support GitHub Action CI thanks to a new build key config `github_actions`
-
-
 
 ## [3.5.0] - 2021-04-27
 # Added
