@@ -355,9 +355,9 @@ class Repository(base.AbstractGitHostObject, base.AbstractRepository):
                                             owner=self.owner,
                                             repo=self.slug, ref=ref)
 
-            actions = AggregatedCheckSuites.get(self.client,
-                                                owner=self.owner,
-                                                repo=self.slug, ref=ref)
+            actions = AggregatedCheckRuns.get(self.client,
+                                              owner=self.owner,
+                                              repo=self.slug, ref=ref)
             combined.status[actions.key] = actions
 
         except HTTPError as err:
@@ -507,62 +507,41 @@ class Status(base.AbstractGitHostObject, base.AbstractBuildStatus):
         return self.state
 
 
-class AggregatedCheckRuns(base.AbstractGitHostObject):
+class AggregatedCheckRuns(base.AbstractGitHostObject,
+                          base.AbstractBuildStatus):
+
     """
     The Endpoint to have access infos about github actions runs
     """
     GET_URL = '/repos/{owner}/{repo}/commits/{ref}/check-runs'
     SCHEMA = schema.AggregateCheckRuns
 
-    @property
-    def html_url(self):
-        if self.data['total_count']:
-            return self.data['check_runs'][0]['html_url']
-        return ''
-
-
-class AggregatedCheckSuites(base.AbstractGitHostObject,
-                            base.AbstractBuildStatus):
-    """
-    The Endpoint to have access infos about github actions suites
-    """
-    GET_URL = '/repos/{owner}/{repo}/commits/{ref}/check-suites'
-    SCHEMA = schema.AggregateCheckSuites
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._check_suites = [elem for elem in self.data['check_suites']]
-
-    @classmethod
-    def get(cls, client, url=None, params={}, headers={}, **kwargs):
-        res = super(AggregatedCheckSuites, cls)\
-            .get(client, url, params, headers, **kwargs)
-
-        html_url = AggregatedCheckRuns\
-            .get(client, url, params, headers, **kwargs).html_url
-        res.data['html_url'] = html_url
-        return res
+        self._check_runs = [elem for elem in self.data['check_runs']]
 
     @property
     def url(self):
-        return self.data['html_url']
+        if len(self.data['check_runs']):
+            return self.data['check_runs'][0]['html_url']
+        return ''
 
     @property
     def state(self):
         queued = any(
-            elem['status'] == 'queued' for elem in self._check_suites
+            elem['status'] == 'queued' for elem in self._check_runs
         )
         all_complete = all(
-            elem['status'] == 'completed' for elem in self._check_suites
+            elem['status'] == 'completed' for elem in self._check_runs
         )
         all_success = all(
-            elem['conclusion'] == 'success' for elem in self._check_suites
+            elem['conclusion'] == 'success' for elem in self._check_runs
         )
-        if self._check_suites.__len__() > 0 and queued:
+        if self._check_runs.__len__() > 0 and queued:
             return 'NOTSTARTED'
-        elif self._check_suites.__len__() > 0 and not all_complete:
+        elif self._check_runs.__len__() > 0 and not all_complete:
             return 'INPROGRESS'
-        elif self._check_suites.__len__() > 0 and all_complete and all_success:
+        elif self._check_runs.__len__() > 0 and all_complete and all_success:
             return 'SUCCESSFUL'
         else:
             return 'FAILED'
@@ -577,8 +556,8 @@ class AggregatedCheckSuites(base.AbstractGitHostObject,
 
     @property
     def commit(self):
-        if self._check_suites.__len__() > 0:
-            return self._check_suites[0]["head_sha"]
+        if self._check_runs.__len__() > 0:
+            return self._check_runs[0]["head_sha"]
         else:
             return None
 
