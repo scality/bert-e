@@ -112,7 +112,7 @@ __Bert-E__.
 | options name              | description              | requires admin rights? | requires pull request author? |
 |:------------------------- |:------------------------ |:----------------------:|:-----------------------------:|
 | after_pull_request        | Wait for the given pull request id to be merged before continuing with the current one. May be used like this: @bert-e after_pull_request=< pr_id_1 > ... | no | no
-| bypass_author_approval    | Bypass the pull request author's approval (**This option has no effect on GitHub** where author approvals are not supported)   | yes | no
+| bypass_author_approval    | Bypass the pull request author's approval   | yes | no
 | bypass_build_status       | Bypass the build and test status| yes | no
 | bypass_incompatible_branch | Bypass the check on the source branch prefix | yes | no
 | bypass_jira_check         | Bypass the Jira issue check | yes | no
