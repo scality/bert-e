@@ -5509,6 +5509,28 @@ class TestQueueing(RepositoryTests):
         with self.assertRaises(exns.Merged):
             self.handle(pr.src_commit, options=self.bypass_all, backtrace=True)
 
+    def test_last_stab_branch(self):
+        """Support a stabilization branch attached to the latest branch."""
+
+        # First let's merge a PR in the stabilization branch
+        # to create queue branch data related to the stabilization branch
+        pr = self.create_pr('bugfix/TEST-001', 'stabilization/10.0.0')
+        with self.assertRaises(exns.Queued):
+            self.handle(pr.id, options=self.bypass_all, backtrace=True)
+        self.set_build_status_on_pr_id(pr.id, 'SUCCESSFUL')
+        self.set_build_status_on_pr_id(pr.id + 1, 'SUCCESSFUL')
+        with self.assertRaises(exns.Merged):
+            self.handle(pr.id, options=self.bypass_all, backtrace=True)\
+        # Now let's try to merge a PR targetting development/5.1
+        pr_dev = self.create_pr('bugfix/TEST-002', 'development/5.1')
+        with self.assertRaises(exns.Queued):
+            self.handle(pr_dev.id, options=self.bypass_all, backtrace=True)
+        self.set_build_status_on_pr_id(pr_dev.id, 'SUCCESSFUL')
+        self.set_build_status_on_pr_id(pr_dev.id + 1, 'SUCCESSFUL')
+        # When merging the PR it will fail with KeyError
+        with self.assertRaises(exns.Merged):
+            self.handle(pr_dev.id, options=self.bypass_all, backtrace=True)
+
     def set_build_status_on_branch_tip(self, branch_name, status):
         self.gitrepo.cmd('git fetch')
         branch = gwfb.branch_factory(self.gitrepo, branch_name)
