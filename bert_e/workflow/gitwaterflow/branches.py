@@ -31,10 +31,10 @@ LOG = logging.getLogger(__name__)
 
 def compare_queues(version1, version2):
     # if we have a stab and its related dev, put the stab first.
-    v1=version1[0]
-    v2=version2[0]
-    if  v1[0] == v2[0] and v1[1] == v2[1]:
-        if len(v1) == 3 and len(v2)  == 2:
+    v1 = version1[0]
+    v2 = version2[0]
+    if v1[0] == v2[0] and v1[1] == v2[1]:
+        if len(v1) == 3 and len(v2) == 2:
             return -1
         elif len(v2) == 3 and len(v1) == 2:
             return 1
@@ -357,7 +357,8 @@ class QueueCollection(object):
                 QueueIntegrationBranch: []
             }
             # Sort the top dict again
-            self._queues = OrderedDict(sorted(self._queues.items(), key=cmp_to_key(compare_queues)))
+            self._queues = OrderedDict(sorted(self._queues.items(),
+                                              key=cmp_to_key(compare_queues)))
 
         if isinstance(branch, QueueBranch):
             self._queues[version][QueueBranch] = branch

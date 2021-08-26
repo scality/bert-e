@@ -5520,7 +5520,7 @@ class TestQueueing(RepositoryTests):
         self.set_build_status_on_pr_id(pr.id, 'SUCCESSFUL')
         self.set_build_status_on_pr_id(pr.id + 1, 'SUCCESSFUL')
         with self.assertRaises(exns.Merged):
-            self.handle(pr.id, options=self.bypass_all, backtrace=True)\
+            self.handle(pr.id, options=self.bypass_all, backtrace=True)
         # Now let's try to merge a PR targetting development/5.1
         pr_dev = self.create_pr('bugfix/TEST-002', 'development/5.1')
         with self.assertRaises(exns.Queued):
