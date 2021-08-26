@@ -1,6 +1,10 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [3.6.3] - 2021-08-26
+# Fixed
+- Changed order between stabilization and development branches to fix KeyError issues.
+
 ## [3.6.2] - 2021-06-24
 # Changed
 - Conflict resolution steps split to allow direct copy and paste
