@@ -5221,18 +5221,18 @@ class TestQueueing(RepositoryTests):
                     self.qint_branch('q/7/4.3/bugfix/last')
                 ]
             }),
+            ((5, 1, 4), {
+                gwfb.QueueBranch: self.queue_branch('q/5.1.4'),
+                gwfb.QueueIntegrationBranch: [
+                    self.qint_branch('q/4/5.1.4/bugfix/foo')
+                ]
+            }),
             ((5, 1), {
                 gwfb.QueueBranch: self.queue_branch('q/5.1'),
                 gwfb.QueueIntegrationBranch: [
                     self.qint_branch('q/7/5.1/bugfix/last'),
                     self.qint_branch('q/4/5.1/bugfix/foo'),
                     self.qint_branch('q/1/5.1/bugfix/bar')
-                ]
-            }),
-            ((5, 1, 4), {
-                gwfb.QueueBranch: self.queue_branch('q/5.1.4'),
-                gwfb.QueueIntegrationBranch: [
-                    self.qint_branch('q/4/5.1.4/bugfix/foo')
                 ]
             }),
             ((10, 0), {
@@ -5275,17 +5275,17 @@ class TestQueueing(RepositoryTests):
                     self.qint_branch('q/4/4.3/bugfix/targeting_old'),
                 ]
             }),
+            ((5, 1, 4), {
+                gwfb.QueueBranch: self.queue_branch('q/5.1.4'),
+                gwfb.QueueIntegrationBranch: [
+                    self.qint_branch('q/1/5.1.4/bugfix/targeting_stab'),
+                ]
+            }),
             ((5, 1), {
                 gwfb.QueueBranch: self.queue_branch('q/5.1'),
                 gwfb.QueueIntegrationBranch: [
                     self.qint_branch('q/4/5.1/bugfix/targeting_old'),
                     self.qint_branch('q/1/5.1/bugfix/targeting_stab'),
-                ]
-            }),
-            ((5, 1, 4), {
-                gwfb.QueueBranch: self.queue_branch('q/5.1.4'),
-                gwfb.QueueIntegrationBranch: [
-                    self.qint_branch('q/1/5.1.4/bugfix/targeting_stab'),
                 ]
             }),
             ((10, 0), {
@@ -5303,12 +5303,12 @@ class TestQueueing(RepositoryTests):
                 gwfb.QueueBranch: self.queue_branch('q/4.3'),
                 gwfb.QueueIntegrationBranch: []
             }),
-            ((5, 1), {
-                gwfb.QueueBranch: self.queue_branch('q/5.1'),
-                gwfb.QueueIntegrationBranch: []
-            }),
             ((5, 1, 4), {
                 gwfb.QueueBranch: self.queue_branch('q/5.1.4'),
+                gwfb.QueueIntegrationBranch: []
+            }),
+            ((5, 1), {
+                gwfb.QueueBranch: self.queue_branch('q/5.1'),
                 gwfb.QueueIntegrationBranch: []
             }),
             ((10, 0), {
