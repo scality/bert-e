@@ -78,7 +78,19 @@ class Branch(Schema):
     repo = fields.Nested(Repo)
 
 
-class CheckRuns(Schema):
+class CheckSuite(Schema):
+    id = fields.Integer()
+    head_sha = fields.Str()
+    status = fields.Str()
+    conclusion = fields.Str(allow_none=True)
+
+
+class AggregateCheckSuites(Schema):
+    total_count = fields.Integer()
+    check_suites = fields.Nested(CheckSuite, many=True)
+
+
+class CheckRun(Schema):
     id = fields.Integer()
     head_sha = fields.Str()
     status = fields.Str()
@@ -88,7 +100,7 @@ class CheckRuns(Schema):
 
 class AggregateCheckRuns(Schema):
     total_count = fields.Integer()
-    check_runs = fields.Nested(CheckRuns, many=True)
+    check_runs = fields.Nested(CheckRun, many=True)
 
 
 class PullRequest(Schema):
@@ -186,3 +198,8 @@ class StatusEvent(Schema):
     context = fields.Str()
     description = fields.Str(allow_none=True)
     target_url = fields.Str(allow_none=True)
+
+
+class CheckRunEvent(Schema):
+    action = fields.Str()
+    check_suite = fields.Nested(CheckRun)

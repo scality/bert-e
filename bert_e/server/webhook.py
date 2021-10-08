@@ -108,6 +108,11 @@ def handle_github_status_event(bert_e, json_data):
     return CommitJob(bert_e=bert_e, commit=event.commit)
 
 
+def handle_github_check_run_event(bert_e, json_data):
+    event = github.CheckRunEvent(bert_e=bert_e.client, **json_data)
+    return CommitJob(bert_e=bert_e, commit=event.commit)
+
+
 @blueprint.route('/bitbucket', methods=['POST'])
 @requires_basic_auth
 def parse_bitbucket_webhook():
@@ -175,6 +180,8 @@ def parse_github_webhook():
         job = handle_github_pr_review_event(current_app.bert_e, json_data)
     elif event == 'status':
         job = handle_github_status_event(current_app.bert_e, json_data)
+    elif event == 'check_run':
+        job = handle_github_check_run_event(current_app.bert_e, json_data)
 
     if job is None:
         LOG.debug('Ignoring event.')

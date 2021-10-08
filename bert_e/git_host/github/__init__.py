@@ -528,16 +528,13 @@ class AggregatedCheckRuns(base.AbstractGitHostObject,
 
     @property
     def state(self):
-        queued = any(
-            elem['status'] == 'queued' for elem in self._check_runs
-        )
         all_complete = all(
             elem['status'] == 'completed' for elem in self._check_runs
         )
         all_success = all(
             elem['conclusion'] == 'success' for elem in self._check_runs
         )
-        if self._check_runs.__len__() > 0 and queued:
+        if self._check_runs.__len__() == 0:
             return 'NOTSTARTED'
         elif self._check_runs.__len__() > 0 and not all_complete:
             return 'INPROGRESS'
@@ -861,6 +858,18 @@ class StatusEvent(base.AbstractGitHostObject):
             description=self.data.get('description'),
             context=self.data['context']
         )
+
+
+class CheckRunEvent(base.AbstractGitHostObject):
+    SCHEMA = schema.CheckRunEvent
+
+    @property
+    def commit(self) -> str:
+        return self.data['check_run']['head_sha']
+
+    @property
+    def action(self) -> str:
+        return self.data['action']
 
 
 class User(base.AbstractGitHostObject):
