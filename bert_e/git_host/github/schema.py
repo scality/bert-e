@@ -202,4 +202,4 @@ class StatusEvent(Schema):
 
 class CheckRunEvent(Schema):
     action = fields.Str()
-    check_suite = fields.Nested(CheckRun)
+    check_run = fields.Nested(CheckRun)
