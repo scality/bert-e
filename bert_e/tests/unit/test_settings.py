@@ -18,4 +18,4 @@ def test_log_filter(settings):
     log_filter = BertEContextFilter(settings)
     logger.addFilter(log_filter)
     logger.info('hello')
-    assert len(logger.filters) is 1
+    assert len(logger.filters) == 1

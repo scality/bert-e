@@ -104,7 +104,7 @@ def handle_commit(job: CommitJob):
 def handle_parent_pull_request(job, child_pr, is_child=True):
     """Handle the parent of an integration pull request."""
     if is_child:
-        ids = re.findall('\d+', child_pr.description)
+        ids = re.findall(r'\d+', child_pr.description)
         if not ids:
             raise messages.ParentPullRequestNotFound(child_pr.id)
         parent_id, *_ = ids

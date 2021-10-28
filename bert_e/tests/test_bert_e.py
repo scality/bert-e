@@ -171,7 +171,7 @@ def add_file_to_branch(repo, branch_name, file_name, do_push=True, folder='.'):
     else:
         repo.cmd(f'echo {branch_name} >  {file_name}')
     repo.cmd(f'git add {folder}/{file_name}')
-    repo.cmd(f'git commit -m "adds %s file on %s"' % (file_name, branch_name))
+    repo.cmd('git commit -m "adds %s file on %s"' % (file_name, branch_name))
     if do_push:
         repo.cmd('git pull || exit 0')
         repo.cmd('git push --set-upstream origin ' + branch_name)
@@ -885,7 +885,7 @@ class RepositoryTests(unittest.TestCase):
             bert_e_main()
         except exns.Queued as excp:
             queued_excp = excp
-        except exns.SilentException as excp:
+        except exns.SilentException:
             if backtrace:
                 raise
             else:
@@ -903,7 +903,7 @@ class RepositoryTests(unittest.TestCase):
             pr = self.robot_bb.get_pull_request(pull_request_id=token)
             if pr.author == self.args.robot_username:
                 # Get main PR
-                id = int(re.findall('\d+', pr.description)[0])
+                id = int(re.findall(r'\d+', pr.description)[0])
                 pr = self.robot_bb.get_pull_request(pull_request_id=id)
             sha1 = pr.src_commit
 
@@ -3790,7 +3790,7 @@ always_create_integration_pull_requests: False
         unescaped = 'bugfix/dangerous-branch-name-${TEST}'
 
         # Bypass git-api to create the branch (explicit escape of the bad char)
-        branch_name = unescaped.replace('$', '\$')
+        branch_name = unescaped.replace(r'$', r'\$')
         cmd('git checkout development/5.1', cwd=self.gitrepo.cmd_directory)
         cmd('git checkout -b %s' % branch_name, cwd=self.gitrepo.cmd_directory)
 

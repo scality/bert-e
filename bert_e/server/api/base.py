@@ -62,7 +62,7 @@ class BaseView(View):
         return self.view(*args, **kwargs)
 
     def view(self, *args, **kwargs):
-        raise NotImplemented()  # TODO replace with abstract
+        raise NotImplementedError()  # TODO replace with abstract
 
 
 class APIEndpoint(BaseView):
