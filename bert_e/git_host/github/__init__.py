@@ -532,7 +532,8 @@ class AggregatedCheckRuns(base.AbstractGitHostObject,
             elem['status'] == 'completed' for elem in self._check_runs
         )
         all_success = all(
-            elem['conclusion'] == 'success' for elem in self._check_runs
+            elem['conclusion'] == 'success' or elem['conclusion'] == 'skipped'
+            for elem in self._check_runs
         )
         if self._check_runs.__len__() == 0:
             return 'NOTSTARTED'

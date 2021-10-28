@@ -1,6 +1,14 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [3.6.5] - 2021-10-29
+# Fixed
+- Build status is green with Github Action even if a step is skipped
+
+## [3.6.4] - 2021-10-08
+# Added
+- Github Actions check_run events trigger a CommitJob and update the PR status
+
 ## [3.6.3] - 2021-08-26
 # Fixed
 - Changed order between stabilization and development branches to fix KeyError issues.
