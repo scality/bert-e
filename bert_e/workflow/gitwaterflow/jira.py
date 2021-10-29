@@ -153,14 +153,14 @@ def check_fix_versions(job, issue):
 
     # Ignore suffixed versions such as "5.1.9_hf7" in that check
     # Do not ignore X.Y.Z.0 version
-    vfilter = re.compile('^\d+\.\d+\.\d+(\.0|)$')
+    vfilter = re.compile(r'^\d+\.\d+\.\d+(\.0|)$')
     checked_versions = set(v for v in issue_versions if vfilter.match(v))
 
     # If the job is targetting a hotfix branch, feed hf_target with the version
     hf_target = None
     if len(expected_versions) == 1:
         target_version = list(expected_versions)[0]
-        hf_filter = re.compile('^\d+\.\d+\.\d+\.\d+$')
+        hf_filter = re.compile(r'^\d+\.\d+\.\d+\.\d+$')
         if hf_filter.match(target_version):
             hf_target = target_version
 

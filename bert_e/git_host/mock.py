@@ -278,7 +278,7 @@ class PullRequestController(Controller, base.AbstractPullRequest):
                 pull_request_id=self.controlled.id)]
 
     def merge(self):
-        raise NotImplemented('Merge')
+        raise NotImplementedError('Merge')
 
     def comment_review(self):
         self.update_participant(changes_requested=False, approved=False,

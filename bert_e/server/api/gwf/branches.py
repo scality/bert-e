@@ -24,8 +24,8 @@ from bert_e.jobs.delete_branch import DeleteBranchJob
 from ..base import APIEndpoint, APIForm
 
 
-BRANCH_REGEXP = '^development/(\d+)\.(\d+)$|^stabilization/(\d+)\.(\d+)\.(\d+)$|^hotfix/(\d+)\.(\d+)\.(\d+)$'  # noqa
-BRANCH_FROM_REGEXP = '^[a-fA-F0-9]*$|^development/(\d+)\.(\d+)$'
+BRANCH_REGEXP = r'^development/(\d+)\.(\d+)$|^stabilization/(\d+)\.(\d+)\.(\d+)$|^hotfix/(\d+)\.(\d+)\.(\d+)$'  # noqa
+BRANCH_FROM_REGEXP = r'^[a-fA-F0-9]*$|^development/(\d+)\.(\d+)$'
 
 
 class CreateBranchForm(FlaskForm):

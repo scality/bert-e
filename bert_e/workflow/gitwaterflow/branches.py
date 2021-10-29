@@ -49,7 +49,7 @@ def compare_queues(version1, version2):
 
 
 class GWFBranch(git.Branch):
-    pattern = '(?P<prefix>[a-z]+)/(?P<label>.+)'
+    pattern = r'(?P<prefix>[a-z]+)/(?P<label>.+)'
     major = 0
     minor = 0
     micro = -1  # is incremented always, first version is 0
@@ -84,16 +84,16 @@ class GWFBranch(git.Branch):
 
 
 class LegacyHotfixBranch(GWFBranch):
-    pattern = '^hotfix/(?P<label>.+)$'
+    pattern = r'^hotfix/(?P<label>.+)$'
 
 
 class UserBranch(GWFBranch):
-    pattern = '^user/(?P<label>.+)$'
+    pattern = r'^user/(?P<label>.+)$'
 
 
 class ReleaseBranch(GWFBranch):
-    pattern = '^release/' \
-              '(?P<version>(?P<major>\d+)\.(?P<minor>\d+))$'
+    pattern = r'^release/' \
+              r'(?P<version>(?P<major>\d+)\.(?P<minor>\d+))$'
 
 
 class FeatureBranch(GWFBranch):
@@ -108,8 +108,8 @@ class FeatureBranch(GWFBranch):
 
 @total_ordering
 class HotfixBranch(GWFBranch):
-    pattern = '^hotfix/(?P<version>(?P<major>\d+)\.(?P<minor>\d+)' \
-              '\.(?P<micro>\d+))$'
+    pattern = r'^hotfix/(?P<version>(?P<major>\d+)\.(?P<minor>\d+)' \
+              r'\.(?P<micro>\d+))$'
     cascade_producer = False
     cascade_consumer = True
     can_be_destination = True
@@ -143,7 +143,7 @@ class HotfixBranch(GWFBranch):
 
 @total_ordering
 class DevelopmentBranch(GWFBranch):
-    pattern = '^development/(?P<version>(?P<major>\d+)\.(?P<minor>\d+))$'
+    pattern = r'^development/(?P<version>(?P<major>\d+)\.(?P<minor>\d+))$'
     cascade_producer = True
     cascade_consumer = True
     can_be_destination = True
@@ -168,8 +168,8 @@ class DevelopmentBranch(GWFBranch):
 
 @total_ordering
 class StabilizationBranch(DevelopmentBranch):
-    pattern = '^stabilization/' \
-              '(?P<version>(?P<major>\d+)\.(?P<minor>\d+)\.(?P<micro>\d+))$'
+    pattern = r'^stabilization/' \
+              r'(?P<version>(?P<major>\d+)\.(?P<minor>\d+)\.(?P<micro>\d+))$'
     allow_prefixes = FeatureBranch.all_prefixes
 
     def __eq__(self, other):
@@ -193,8 +193,8 @@ class StabilizationBranch(DevelopmentBranch):
 
 
 class IntegrationBranch(GWFBranch):
-    pattern = '^w/(?P<version>(?P<major>\d+)\.(?P<minor>\d+)' \
-              '(\.(?P<micro>\d+)(\.(?P<hfrev>\d+))?)?)/' + \
+    pattern = r'^w/(?P<version>(?P<major>\d+)\.(?P<minor>\d+)' \
+              r'(\.(?P<micro>\d+)(\.(?P<hfrev>\d+))?)?)/' + \
               FeatureBranch.pattern[1:]
     dst_branch = ''
     feature_branch = ''
@@ -259,8 +259,8 @@ class GhostIntegrationBranch(IntegrationBranch):
 
 
 class QueueBranch(GWFBranch):
-    pattern = '^q/(?P<version>(?P<major>\d+)\.(?P<minor>\d+)' \
-              '(\.(?P<micro>\d+)(\.(?P<hfrev>\d+))?)?)$'
+    pattern = r'^q/(?P<version>(?P<major>\d+)\.(?P<minor>\d+)' \
+              r'(\.(?P<micro>\d+)(\.(?P<hfrev>\d+))?)?)$'
     dst_branch = ''
 
     def __init__(self, repo, name):
@@ -281,7 +281,7 @@ class QueueBranch(GWFBranch):
 
 @total_ordering
 class QueueIntegrationBranch(GWFBranch):
-    pattern = '^q/(?P<pr_id>\d+)/' + IntegrationBranch.pattern[3:]
+    pattern = r'^q/(?P<pr_id>\d+)/' + IntegrationBranch.pattern[3:]
 
     def __eq__(self, other):
         return self.__class__ == other.__class__ and \
@@ -309,7 +309,7 @@ class QueueCollection(object):
         """Collect q branches from repository, add them to the collection."""
         cmd = 'git branch -r --list origin/q/*'
         for branch in repo.cmd(cmd).split('\n')[:-1]:
-            match_ = re.match('\s*origin/(?P<name>.*)', branch)
+            match_ = re.match(r'\s*origin/(?P<name>.*)', branch)
             if not match_:
                 continue
             try:
@@ -749,7 +749,7 @@ class BranchCascade(object):
         for prefix in ['development', 'stabilization', 'hotfix']:
             cmd = 'git branch -a --list *%s/*' % prefix
             for branch in repo.cmd(cmd).split('\n')[:-1]:
-                match_ = re.match('\*?\s*(remotes/origin/)?(?P<name>.*)',
+                match_ = re.match(r'\*?\s*(remotes/origin/)?(?P<name>.*)',
                                   branch)
                 if match_:
                     flat_branches.add(match_.group('name'))
@@ -835,8 +835,8 @@ class BranchCascade(object):
 
     def update_micro(self, tag):
         """Update development branch latest micro based on tag."""
-        pattern = "^(?P<major>\d+)\.(?P<minor>\d+)\.(?P<micro>\d+)" \
-                  "(\.(?P<hfrev>\d+)|)$"
+        pattern = r"^(?P<major>\d+)\.(?P<minor>\d+)\.(?P<micro>\d+)" \
+                  r"(\.(?P<hfrev>\d+)|)$"
         match = re.match(pattern, tag)
         if not match:
             LOG.debug("Ignore tag: %s", tag)

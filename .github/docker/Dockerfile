@@ -1,4 +1,4 @@
-FROM ubuntu:bionic
+FROM ubuntu:focal
 
 ENV HOME_BUILDBOT /var/lib/buildbot
 ENV PYTHON_PIP_VERSION 21.0.1
@@ -18,25 +18,14 @@ RUN apt-get --assume-yes update \
     git \
     libssl-dev \
     openssh-client \
-    python \
     python3 \
     python3-dev \
     python3-pip \
     python3-pkg-resources \
     python3-setuptools \
-    python-dev \
-    python-pip \
-    python-pkg-resources \
-    python-setuptools \
     sudo \
     tox \
     wget
-
-RUN sudo apt-get install -y software-properties-common \
-    && sudo apt-get update \
-    && sudo add-apt-repository -y ppa:git-core/ppa \
-    && sudo apt-get update \
-    && sudo apt-get install -y git
 
 COPY requirements.txt /tmp/
 

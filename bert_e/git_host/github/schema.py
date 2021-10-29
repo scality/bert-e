@@ -13,7 +13,7 @@
 # limitations under the License.
 """This module holds the schema declarations for the Github API's objects.
 
-/!\ The schema declared in this module is not meant to be exhaustive. Only the
+/!\\ The schema declared in this module is not meant to be exhaustive. Only the
 "interesting" subsets of these objects (the attributes that are likely to be
 used by Bert-E) are declared.
 
