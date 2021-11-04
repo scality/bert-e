@@ -122,6 +122,7 @@ prefixes:
   Story: feature
   Bug: bugfix
   Improvement: improvement
+  Epic: epic
 
 
 # bypass_prefixes [OPTIONAL]

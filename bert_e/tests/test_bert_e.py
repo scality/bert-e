@@ -277,10 +277,17 @@ class QuickTest(unittest.TestCase):
         with self.assertRaises(exns.BranchNameInvalid):
             self.feature_branch('feature/')
 
+        with self.assertRaises(exns.BranchNameInvalid):
+            self.feature_branch('epic')
+
+        with self.assertRaises(exns.BranchNameInvalid):
+            self.feature_branch('epic/')
+
         # valid names
         self.feature_branch('feature/TEST-0005')
         self.feature_branch('improvement/TEST-1234')
         self.feature_branch('bugfix/TEST-1234')
+        self.feature_branch('epic/TEST-1234')
 
         src = self.feature_branch('project/TEST-0005')
         self.assertEqual(src.jira_issue_key, 'TEST-0005')
