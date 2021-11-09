@@ -99,11 +99,18 @@ class ReleaseBranch(GWFBranch):
 class FeatureBranch(GWFBranch):
     all_prefixes = ('improvement', 'bugfix', 'feature', 'project',
                     'documentation', 'design', 'dependabot', 'epic')
-    jira_issue_pattern = '(?P<jira_project>[A-Z0-9_]+)-[0-9]+'
+    jira_issue_pattern = '(?P<jira_project>[a-zA-Z0-9_]+)-[0-9]+'
     prefixes = '(?P<prefix>(%s))' % '|'.join(all_prefixes)
     pattern = "^(?P<feature_branch>%s/(?P<label>(?P<jira_issue_key>%s)?" \
               "(?(jira_issue_key).*|.+)))$" % (prefixes, jira_issue_pattern)
     cascade_producer = True
+
+    def __init__(self, repo, name):
+        super().__init__(repo, name)
+        if self.jira_issue_key:
+            self.jira_issue_key = self.jira_issue_key.upper()
+        if self.jira_project:
+            self.jira_project = self.jira_project.upper()
 
 
 @total_ordering

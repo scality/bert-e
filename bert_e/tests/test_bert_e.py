@@ -293,6 +293,11 @@ class QuickTest(unittest.TestCase):
         self.assertEqual(src.jira_issue_key, 'TEST-0005')
         self.assertEqual(src.jira_project, 'TEST')
 
+        # fix accidental lowercasing of JIRA project keys
+        src = self.feature_branch('project/test-0006')
+        self.assertEqual(src.jira_issue_key, 'TEST-0006')
+        self.assertEqual(src.jira_project, 'TEST')
+
         src = self.feature_branch('feature/PROJECT-05-some-text_here')
         self.assertEqual(src.jira_issue_key, 'PROJECT-05')
         self.assertEqual(src.jira_project, 'PROJECT')

@@ -1,6 +1,14 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [3.6.7] - 2021-11-09
+# Changed
+- Allow jira issue keys to be lowercase
+
+## [3.6.6] - 2021-11-08
+# Changed
+- Track new pattern for epic branches
+
 ## [3.6.5] - 2021-10-29
 # Fixed
 - Build status is green with Github Action even if a step is skipped
