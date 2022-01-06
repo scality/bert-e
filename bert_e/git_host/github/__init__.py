@@ -13,6 +13,7 @@
 # limitations under the License.
 import json
 import logging
+from datetime import datetime
 from collections import defaultdict, namedtuple
 
 from requests import HTTPError
@@ -509,7 +510,6 @@ class Status(base.AbstractGitHostObject, base.AbstractBuildStatus):
 
 class AggregatedCheckRuns(base.AbstractGitHostObject,
                           base.AbstractBuildStatus):
-
     """
     The Endpoint to have access infos about github actions runs
     """
@@ -522,7 +522,19 @@ class AggregatedCheckRuns(base.AbstractGitHostObject,
 
     @property
     def url(self):
-        if len(self.data['check_runs']):
+        def sort_f(check_run):
+            date = check_run.get('started_at')
+            if date:
+                return datetime.strptime(date, '%Y-%m-%dT%H:%M:%SZ')
+            return datetime(year=1962, month=1, day=1)
+
+        self.data['check_runs'].sort(key=sort_f, reverse=True)
+
+        failed_c = [elem for elem in self.data['check_runs']
+                    if elem['conclusion'] != 'success']
+        if len(failed_c):
+            return failed_c[0]['html_url']
+        elif len(failed_c) and len(self.data['check_runs']):
             return self.data['check_runs'][0]['html_url']
         return ''
 

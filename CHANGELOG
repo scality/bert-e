@@ -1,6 +1,10 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [3.6.8] - 2021-11-09
+# Fixed
+- Allways get the latest check-runs link status
+
 ## [3.6.7] - 2021-11-09
 # Changed
 - Allow jira issue keys to be lowercase
