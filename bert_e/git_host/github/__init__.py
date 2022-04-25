@@ -355,10 +355,9 @@ class Repository(base.AbstractGitHostObject, base.AbstractRepository):
             combined = AggregatedStatus.get(self.client,
                                             owner=self.owner,
                                             repo=self.slug, ref=ref)
-
-            actions = AggregatedCheckRuns.get(self.client,
-                                              owner=self.owner,
-                                              repo=self.slug, ref=ref)
+            actions = AggregatedCheckSuites.get(client=self.client,
+                                                owner=self.owner,
+                                                repo=self.slug, ref=ref)
             combined.status[actions.key] = actions
 
         except HTTPError as err:
@@ -377,7 +376,8 @@ class Repository(base.AbstractGitHostObject, base.AbstractRepository):
             return status.state
         try:
             return self.get_commit_status(revision).status.get(key, None).state
-        except AttributeError:
+        except AttributeError as e:
+            LOG.error(e)
             return 'NOTSTARTED'
 
     def get_build_url(self, revision: str, key: str) -> str:
@@ -508,17 +508,39 @@ class Status(base.AbstractGitHostObject, base.AbstractBuildStatus):
         return self.state
 
 
-class AggregatedCheckRuns(base.AbstractGitHostObject,
-                          base.AbstractBuildStatus):
+class WorkflowRun(base.AbstractGitHostObject):
+    """
+    Endpoint to have access about workflows runs
+    """
+    GET_URL = "/repos/{owner}/{repo}/actions/runs/{id}"
+    CREATE_URL = "/repos/{owner}/{repo}/actions/runs"
+    SCHEMA = schema.WorkflowRun
+
+
+class AggregatedWorkflowRuns(base.AbstractGitHostObject):
+    GET_URL = "/repos/{owner}/{repo}/actions/runs"
+    SCHEMA = schema.AggregateWorkflowRuns
+
+    @property
+    def total_count(self):
+        return self.data['total_count']
+
+    @property
+    def workflow_runs(self):
+        return self.data['workflow_runs']
+
+
+class AggregatedCheckSuites(base.AbstractGitHostObject,
+                            base.AbstractBuildStatus):
     """
     The Endpoint to have access infos about github actions runs
     """
-    GET_URL = '/repos/{owner}/{repo}/commits/{ref}/check-runs'
-    SCHEMA = schema.AggregateCheckRuns
+    GET_URL = '/repos/{owner}/{repo}/commits/{ref}/check-suites'
+    SCHEMA = schema.AggregateCheckSuites
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._check_runs = [elem for elem in self.data['check_runs']]
+        self._check_suites = [elem for elem in self.data['check_suites']]
 
     @property
     def url(self):
@@ -528,30 +550,79 @@ class AggregatedCheckRuns(base.AbstractGitHostObject,
                 return datetime.strptime(date, '%Y-%m-%dT%H:%M:%SZ')
             return datetime(year=1962, month=1, day=1)
 
-        self.data['check_runs'].sort(key=sort_f, reverse=True)
+        self.data['check_suites'].sort(key=sort_f, reverse=True)
 
-        failed_c = [elem for elem in self.data['check_runs']
+        failed_c = [elem for elem in self.data['check_suites']
                     if elem['conclusion'] != 'success']
         if len(failed_c):
             return failed_c[0]['html_url']
-        elif len(failed_c) and len(self.data['check_runs']):
-            return self.data['check_runs'][0]['html_url']
+        elif len(failed_c) and len(self.data['check_suites']):
+            return self.data['check_suites'][0]['html_url']
         return ''
+
+    def is_pending(self):
+        return len([
+            elem for elem in self._check_suites if elem['status'] == 'pending'
+        ]) > 0
+
+    def _get_check_suite_ids(self, workflow_runs):
+        return list(
+            map(lambda elem: elem['check_suite_id'], workflow_runs)
+        )
+
+    def _get_aggregate_workflow_dispatched(self):
+        ref = self._check_suites[0]['head_sha']
+        repo = self._check_suites[0]['repository']['name']
+        owner = self._check_suites[0]['repository']['owner']['login']
+
+        return AggregatedWorkflowRuns.get(
+            client=self.client,
+            owner=owner, repo=repo, ref=ref,
+            params={
+                'event': 'workflow_dispatch',
+                'branch': self._check_suites[0]['head_branch']
+            })
+
+    def remove_unwanted_workflows(self):
+        """
+        Remove two things:
+        - check-suites not triggerd by github-actions
+        - check-suites workflow triggerd by a `workflow_dispatch` event
+        """
+        if self._check_suites.__len__() == 0:
+            return
+
+        response = self._get_aggregate_workflow_dispatched()
+        dispatched = self._get_check_suite_ids(response.workflow_runs)
+        while len(dispatched) < response.total_count:
+            response = self._get_aggregate_workflow_dispatched()
+            dispatched += self._get_check_suite_ids(response.workflow_runs)
+
+        self._check_suites = list(filter(
+            lambda elem: elem['id'] not in dispatched,
+            self._check_suites
+        ))
+
+        self._check_suites = list(filter(
+            lambda elem: elem['app']['slug'] == 'github-actions',
+            self._check_suites
+        ))
 
     @property
     def state(self):
+        self.remove_unwanted_workflows()
         all_complete = all(
-            elem['status'] == 'completed' for elem in self._check_runs
+            elem['status'] == 'completed' for elem in self._check_suites
         )
         all_success = all(
-            elem['conclusion'] == 'success' or elem['conclusion'] == 'skipped'
-            for elem in self._check_runs
+            elem['conclusion'] == 'success'
+            for elem in self._check_suites
         )
-        if self._check_runs.__len__() == 0:
+        if self._check_suites.__len__() == 0 or self.is_pending():
             return 'NOTSTARTED'
-        elif self._check_runs.__len__() > 0 and not all_complete:
+        elif self._check_suites.__len__() > 0 and not all_complete:
             return 'INPROGRESS'
-        elif self._check_runs.__len__() > 0 and all_complete and all_success:
+        elif self._check_suites.__len__() > 0 and all_complete and all_success:
             return 'SUCCESSFUL'
         else:
             return 'FAILED'
@@ -566,8 +637,8 @@ class AggregatedCheckRuns(base.AbstractGitHostObject,
 
     @property
     def commit(self):
-        if self._check_runs.__len__() > 0:
-            return self._check_runs[0]["head_sha"]
+        if self._check_suites.__len__() > 0:
+            return self._check_suites[0]["head_sha"]
         else:
             return None
 

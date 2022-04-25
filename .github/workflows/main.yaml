@@ -64,6 +64,7 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
+      - run: git config --global --add safe.directory /__w/bert-e/bert-e
       - run: tox -e utests
       - run: tox -e tests-api-mock
       - run: tox -e coverage-report
@@ -79,6 +80,7 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
+      - run: git config --global --add safe.directory /__w/bert-e/bert-e
       - run: tox -e tests-noqueue
 
   all-tests:
@@ -91,6 +93,7 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
+      - run: git config --global --add safe.directory /__w/bert-e/bert-e
       - run: tox -e tests
 
   lint:
@@ -103,5 +106,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
+      - run: git config --global --add safe.directory /__w/bert-e/bert-e
       - run: tox -e flake8
       - run: helm lint charts/bert-e

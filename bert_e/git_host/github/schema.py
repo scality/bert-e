@@ -78,11 +78,22 @@ class Branch(Schema):
     repo = fields.Nested(Repo)
 
 
+class App(Schema):
+    id = fields.Int()
+    slug = fields.Str()
+    owner = fields.Nested(User)
+    name = fields.Str()
+    description = fields.Str()
+
+
 class CheckSuite(Schema):
     id = fields.Integer()
     head_sha = fields.Str()
+    head_branch = fields.Str()
     status = fields.Str()
     conclusion = fields.Str(allow_none=True)
+    repository = fields.Nested(Repo)
+    app = fields.Nested(App)
 
 
 class AggregateCheckSuites(Schema):
@@ -96,6 +107,18 @@ class CheckRun(Schema):
     status = fields.Str()
     conclusion = fields.Str(allow_none=True)
     html_url = fields.Url()
+
+
+class WorkflowRun(Schema):
+    id = fields.Integer()
+    head_sha = fields.Str()
+    head_branch = fields.Str()
+    status = fields.Str()
+
+
+class AggregateWorkflowRuns(Schema):
+    total_count = fields.Integer()
+    workflow_runs = fields.Nested(WorkflowRun, many=True)
 
 
 class AggregateCheckRuns(Schema):
