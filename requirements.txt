@@ -16,7 +16,7 @@ py-gfm==0.1.4
 pytest==3.7.1
 PyYAML==3.13
 raven==6.9.0
-requests==2.19.1
+requests==2.20.0
 requests-mock==1.5.2
 werkzeug==0.16.1
 WTForms==2.2.1
