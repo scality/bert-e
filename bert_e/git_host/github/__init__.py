@@ -570,7 +570,7 @@ class AggregatedCheckSuites(base.AbstractGitHostObject,
             map(lambda elem: elem['check_suite_id'], workflow_runs)
         )
 
-    def _get_aggregate_workflow_dispatched(self):
+    def _get_aggregate_workflow_dispatched(self, page):
         ref = self._check_suites[0]['head_sha']
         repo = self._check_suites[0]['repository']['name']
         owner = self._check_suites[0]['repository']['owner']['login']
@@ -580,7 +580,8 @@ class AggregatedCheckSuites(base.AbstractGitHostObject,
             owner=owner, repo=repo, ref=ref,
             params={
                 'event': 'workflow_dispatch',
-                'branch': self._check_suites[0]['head_branch']
+                'branch': self._check_suites[0]['head_branch'],
+                'page': page
             })
 
     def remove_unwanted_workflows(self):
@@ -592,10 +593,13 @@ class AggregatedCheckSuites(base.AbstractGitHostObject,
         if self._check_suites.__len__() == 0:
             return
 
-        response = self._get_aggregate_workflow_dispatched()
+        page = 1
+        response = self._get_aggregate_workflow_dispatched(page)
         dispatched = self._get_check_suite_ids(response.workflow_runs)
+
         while len(dispatched) < response.total_count:
-            response = self._get_aggregate_workflow_dispatched()
+            page += 1
+            response = self._get_aggregate_workflow_dispatched(page)
             dispatched += self._get_check_suite_ids(response.workflow_runs)
 
         self._check_suites = list(filter(

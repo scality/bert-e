@@ -114,6 +114,7 @@ class WorkflowRun(Schema):
     head_sha = fields.Str()
     head_branch = fields.Str()
     status = fields.Str()
+    check_suite_id = fields.Integer()
 
 
 class AggregateWorkflowRuns(Schema):

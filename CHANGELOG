@@ -3,6 +3,10 @@ All notable changes to this project will be documented in this file.
 
 ## [3.6.9] - 2022-04-25
 # Fixed
+- Fix Key error when workflow dispatch is triggered on the commit_status checked
+
+## [3.6.9] - 2022-04-25
+# Fixed
 - Handle GitHub Actions status when workflow is pending.
 - Don't check workflow triggerd by "workflow_dispatch" event
 
