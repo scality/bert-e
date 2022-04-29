@@ -90,6 +90,8 @@ class CheckSuite(Schema):
     id = fields.Integer()
     head_sha = fields.Str()
     head_branch = fields.Str()
+    html_url = fields.Url()
+    created_at = fields.DateTime()
     status = fields.Str()
     conclusion = fields.Str(allow_none=True)
     repository = fields.Nested(Repo)

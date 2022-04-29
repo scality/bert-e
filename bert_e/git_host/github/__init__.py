@@ -544,8 +544,8 @@ class AggregatedCheckSuites(base.AbstractGitHostObject,
 
     @property
     def url(self):
-        def sort_f(check_run):
-            date = check_run.get('started_at')
+        def sort_f(check_suite):
+            date = check_suite.get('created_at')
             if date:
                 return datetime.strptime(date, '%Y-%m-%dT%H:%M:%SZ')
             return datetime(year=1962, month=1, day=1)

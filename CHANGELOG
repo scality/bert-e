@@ -1,7 +1,12 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
-## [3.6.9] - 2022-04-25
+
+## [3.6.11] - 2022-04-28
+# Fixed
+- Fix Key error when retrieve html_url for checksuites
+
+## [3.6.10] - 2022-04-25
 # Fixed
 - Fix Key error when workflow dispatch is triggered on the commit_status checked
 
