@@ -117,6 +117,8 @@ class WorkflowRun(Schema):
     head_branch = fields.Str()
     status = fields.Str()
     check_suite_id = fields.Integer()
+    html_url = fields.Str()
+    event = fields.Str()
 
 
 class AggregateWorkflowRuns(Schema):
