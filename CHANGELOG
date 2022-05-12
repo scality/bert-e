@@ -1,6 +1,12 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [3.6.13] - 2022-05-12
+# Added
+- Support check-suites event on GitHub Actions
+# Fixed
+- Changing url returned on status page for queue build on GitHub Actions
+
 ## [3.6.12] - 2022-05-04
 # Fixed
 - Fix Key error when retrieve html_url for checksuites

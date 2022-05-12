@@ -13,7 +13,6 @@
 # limitations under the License.
 import json
 import logging
-from datetime import datetime
 from collections import defaultdict, namedtuple
 
 from requests import HTTPError
@@ -529,6 +528,10 @@ class AggregatedWorkflowRuns(base.AbstractGitHostObject):
     def workflow_runs(self):
         return self.data['workflow_runs']
 
+    @property
+    def check_suite_ids(self):
+        return [wf['check_suite_id'] for wf in self.workflow_runs]
+
 
 class AggregatedCheckSuites(base.AbstractGitHostObject,
                             base.AbstractBuildStatus):
@@ -544,47 +547,32 @@ class AggregatedCheckSuites(base.AbstractGitHostObject,
 
     @property
     def url(self):
-        self.remove_unwanted_workflows()
-
-        def sort_f(check_suite):
-            date = check_suite.get('created_at')
-            return date if date else datetime(year=1962, month=1, day=1)
-
-        self._check_suites.sort(key=sort_f, reverse=True)
-
-        failed_c = [elem for elem in self._check_suites
-                    if elem['conclusion'] != 'success']
-        if len(failed_c):
-            return failed_c[0]['html_url']
-        elif len(failed_c) and len(self._check_suites):
-            return self._check_suites[0]['html_url']
-        return ''
+        return f"https://github.com/{self.full_repo}/commit/{self.commit}"
 
     def is_pending(self):
         return len([
             elem for elem in self._check_suites if elem['status'] == 'pending'
         ]) > 0
 
-    def _get_check_suite_ids(self, workflow_runs):
-        return dict(map(lambda elem: (
-            elem['check_suite_id'],
-            {'html_url': elem['html_url'], 'event': elem['event']}
-        ), workflow_runs)
-        )
-
     def _get_aggregate_workflow_dispatched(self, page):
-        ref = self._check_suites[0]['head_sha']
-        repo = self._check_suites[0]['repository']['name']
-        owner = self._check_suites[0]['repository']['owner']['login']
+        """Return a list of check-suite IDs for workflow_dispatch runs"""
 
-        return AggregatedWorkflowRuns.get(
+        response = AggregatedWorkflowRuns.get(
             client=self.client,
-            owner=owner, repo=repo, ref=ref,
+            owner=self.owner, repo=self.repo, ref=self.commit,
             params={
-                'branch': self._check_suites[0]['head_branch'],
+                'branch': self.branch,
                 'page': page,
+                'event': 'workflow_dispatch',
                 'per_page': 100
             })
+
+        workflow_dispatches = response.check_suite_ids
+        while len(workflow_dispatches) < response.total_count:
+            page += 1
+            workflow_dispatches.update(
+                self._get_aggregate_workflow_dispatched(page))
+        return workflow_dispatches
 
     def remove_unwanted_workflows(self):
         """
@@ -596,20 +584,7 @@ class AggregatedCheckSuites(base.AbstractGitHostObject,
             return
 
         page = 1
-        response = self._get_aggregate_workflow_dispatched(page)
-        dispatched = self._get_check_suite_ids(response.workflow_runs)
-
-        while len(dispatched.keys()) < response.total_count:
-            page += 1
-            response = self._get_aggregate_workflow_dispatched(page)
-            dispatched.update(
-                self._get_check_suite_ids(response.workflow_runs)
-            )
-
-        workflow_dispatches = [
-            key for key, value in dispatched.items()
-            if value['event'] == 'workflow_dispatch'
-        ]
+        workflow_dispatches = self._get_aggregate_workflow_dispatched(page)
 
         self._check_suites = list(filter(
             lambda elem: elem['id'] not in workflow_dispatches,
@@ -620,12 +595,6 @@ class AggregatedCheckSuites(base.AbstractGitHostObject,
             lambda elem: elem['app']['slug'] == 'github-actions',
             self._check_suites
         ))
-
-        self._check_suites = list(map(lambda elem: {
-            **elem,
-            'html_url':
-                dispatched.get(elem['id'], {'html_url': ''})['html_url']
-        }, self._check_suites))
 
     @property
     def state(self):
@@ -655,11 +624,34 @@ class AggregatedCheckSuites(base.AbstractGitHostObject,
         return 'github_actions'
 
     @property
-    def commit(self):
+    def commit(self) -> str or None:
         if self._check_suites.__len__() > 0:
             return self._check_suites[0]["head_sha"]
-        else:
-            return None
+        return None
+
+    @property
+    def branch(self) -> str or None:
+        if self._check_suites.__len__() > 0:
+            return self._check_suites[0]["head_branch"]
+        return None
+
+    @property
+    def full_repo(self) -> str or None:
+        if self._check_suites.__len__() > 0:
+            return self._check_suites[0]['repository']['full_name']
+        return None
+
+    @property
+    def repo(self) -> str or None:
+        if self._check_suites.__len__() > 0:
+            return self._check_suites[0]['repository']['name']
+        return None
+
+    @property
+    def owner(self) -> str or None:
+        if self._check_suites.__len__() > 0:
+            return self._check_suites[0]['repository']['owner']['login']
+        return None
 
 
 class PullRequest(base.AbstractGitHostObject, base.AbstractPullRequest):
@@ -961,6 +953,18 @@ class StatusEvent(base.AbstractGitHostObject):
             description=self.data.get('description'),
             context=self.data['context']
         )
+
+
+class CheckSuiteEvent(base.AbstractGitHostObject):
+    SCHEMA = schema.CheckRunEvent
+
+    @property
+    def commit(self) -> str:
+        return self.data['check_suite']['head_sha']
+
+    @property
+    def action(self) -> str:
+        return self.data['action']
 
 
 class CheckRunEvent(base.AbstractGitHostObject):
