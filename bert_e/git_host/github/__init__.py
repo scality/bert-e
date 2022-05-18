@@ -568,7 +568,7 @@ class AggregatedCheckSuites(base.AbstractGitHostObject,
             })
 
         workflow_dispatches = response.check_suite_ids
-        while len(workflow_dispatches) < response.total_count:
+        while len(response.workflow_runs) < response.total_count:
             page += 1
             workflow_dispatches.update(
                 self._get_aggregate_workflow_dispatched(page))

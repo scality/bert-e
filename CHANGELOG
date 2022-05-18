@@ -1,6 +1,11 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+
+## [3.6.14] - 2022-05-18
+# Fixed
+- Infinite loop when searching for workflow dispatch runs.
+
 ## [3.6.13] - 2022-05-12
 # Added
 - Support check-suites event on GitHub Actions
