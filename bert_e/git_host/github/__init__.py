@@ -554,6 +554,11 @@ class AggregatedCheckSuites(base.AbstractGitHostObject,
             elem for elem in self._check_suites if elem['status'] == 'pending'
         ]) > 0
 
+    def is_queued(self):
+        return len([
+            elem for elem in self._check_suites if elem['status'] == 'queued'
+        ]) > 0
+
     def _get_aggregate_workflow_dispatched(self, page, prev_dispatches=list()):
         """Return a list of check-suite IDs for workflow_dispatch runs"""
 
@@ -603,17 +608,17 @@ class AggregatedCheckSuites(base.AbstractGitHostObject,
     def state(self):
         self.remove_unwanted_workflows()
         all_complete = all(
-            elem['status'] == 'completed' for elem in self._check_suites
+            elem['conclusion'] is not None for elem in self._check_suites
         )
         all_success = all(
             elem['conclusion'] == 'success'
             for elem in self._check_suites
         )
-        if self._check_suites.__len__() == 0 or self.is_pending():
+        if self._check_suites.__len__() == 0:
             return 'NOTSTARTED'
-        elif self._check_suites.__len__() > 0 and not all_complete:
+        elif self.is_pending() or self.is_queued() or not all_complete:
             return 'INPROGRESS'
-        elif self._check_suites.__len__() > 0 and all_complete and all_success:
+        elif all_complete and all_success:
             return 'SUCCESSFUL'
         else:
             return 'FAILED'
