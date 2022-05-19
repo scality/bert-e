@@ -606,14 +606,22 @@ class AggregatedCheckSuites(base.AbstractGitHostObject,
 
     @property
     def state(self):
+        LOG.info('checking state')
         self.remove_unwanted_workflows()
         all_complete = all(
             elem['conclusion'] is not None for elem in self._check_suites
         )
+
         all_success = all(
             elem['conclusion'] == 'success'
             for elem in self._check_suites
         )
+        LOG.info(f'State on {self.branch}: \
+            complete: {all_complete} \
+            success: {all_success} \
+            check_suites: {self._check_suites} \
+            pending: {self.is_pending()} \
+            queued: {self.is_queued()}')
         if self._check_suites.__len__() == 0:
             return 'NOTSTARTED'
         elif self.is_pending() or self.is_queued() or not all_complete:
