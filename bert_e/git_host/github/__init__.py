@@ -554,7 +554,7 @@ class AggregatedCheckSuites(base.AbstractGitHostObject,
             elem for elem in self._check_suites if elem['status'] == 'pending'
         ]) > 0
 
-    def _get_aggregate_workflow_dispatched(self, page):
+    def _get_aggregate_workflow_dispatched(self, page, prev_dispatches=list()):
         """Return a list of check-suite IDs for workflow_dispatch runs"""
 
         response = AggregatedWorkflowRuns.get(
@@ -567,12 +567,15 @@ class AggregatedCheckSuites(base.AbstractGitHostObject,
                 'per_page': 100
             })
 
-        workflow_dispatches = response.check_suite_ids
-        while len(response.workflow_runs) < response.total_count:
+        prev_dispatches.extend(response.check_suite_ids)
+        if len(prev_dispatches) < response.total_count:
             page += 1
-            workflow_dispatches.update(
-                self._get_aggregate_workflow_dispatched(page))
-        return workflow_dispatches
+            return self._get_aggregate_workflow_dispatched(
+                page,
+                prev_dispatches
+            )
+
+        return prev_dispatches
 
     def remove_unwanted_workflows(self):
         """
