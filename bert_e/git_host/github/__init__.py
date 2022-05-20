@@ -550,14 +550,18 @@ class AggregatedCheckSuites(base.AbstractGitHostObject,
     def url(self):
         return f"https://github.com/{self.full_repo}/commit/{self.commit}"
 
-    def is_pending(self):
+    def is_pending(self, check_suites=None):
+        if check_suites is None:
+            check_suites = self._check_suites
         return len([
-            elem for elem in self._check_suites if elem['status'] == 'pending'
+            elem for elem in check_suites if elem['status'] == 'pending'
         ]) > 0
 
-    def is_queued(self):
+    def is_queued(self, check_suites=None):
+        if check_suites is None:
+            check_suites = self._check_suites
         return len([
-            elem for elem in self._check_suites if elem['status'] == 'queued'
+            elem for elem in check_suites if elem['status'] == 'queued'
         ]) > 0
 
     def _get_aggregate_workflow_dispatched(self, page, prev_dispatches=list()):
@@ -608,15 +612,24 @@ class AggregatedCheckSuites(base.AbstractGitHostObject,
 
     def branch_state(self, branch_check_suite):
         all_complete = all(
-            elem['conclusion'] is not None for elem in self._check_suites
+            elem['conclusion'] is not None for elem in branch_check_suite
         )
+
         all_success = all(
             elem['conclusion'] == 'success'
-            for elem in self._check_suites
+            for elem in branch_check_suite
         )
-        if self._check_suites.__len__() == 0:
+        LOG.info(f'State on {self.branch}: '
+                 f'complete: {all_complete} '
+                 f'success: {all_success} '
+                 f'pending: {self.is_pending(branch_check_suite)} '
+                 f'queued: {self.is_queued(branch_check_suite)}')
+        LOG.info(f'branch check suites {branch_check_suite}')
+
+        if branch_check_suite.__len__() == 0:
             return 'NOTSTARTED'
-        elif self.is_pending() or self.is_queued() or not all_complete:
+        elif (self.is_pending(branch_check_suite) or
+              self.is_queued(branch_check_suite) or not all_complete):
             return 'INPROGRESS'
         elif all_complete and all_success:
             return 'SUCCESSFUL'

@@ -13,11 +13,12 @@
 # limitations under the License.
 
 """This module defines the server status page."""
-
+import logging
 from flask import Blueprint, current_app, render_template, request
 
 from ..git_host.cache import BUILD_STATUS_CACHE
 
+LOG = logging.getLogger(__name__)
 
 blueprint = Blueprint('status page', __name__)
 
@@ -52,6 +53,8 @@ def display():
             for version, sha1 in queued_commits:
                 status = BUILD_STATUS_CACHE[build_key].get(sha1, None)
                 state = status.state if status else 'NOTSTARTED'
+                LOG.info(f'state for PR {pr_id} on {version} is {state}')
+                LOG.info(status)
                 line[version] = {
                     'sha1': sha1,
                     'status': state,
