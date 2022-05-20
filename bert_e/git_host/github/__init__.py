@@ -14,6 +14,7 @@
 import json
 import logging
 from collections import defaultdict, namedtuple
+from itertools import groupby
 
 from requests import HTTPError
 from urllib.parse import quote_plus as quote
@@ -587,6 +588,7 @@ class AggregatedCheckSuites(base.AbstractGitHostObject,
         Remove two things:
         - check-suites not triggerd by github-actions
         - check-suites workflow triggerd by a `workflow_dispatch` event
+        - Same workflow with different result
         """
         if self._check_suites.__len__() == 0:
             return
@@ -604,9 +606,7 @@ class AggregatedCheckSuites(base.AbstractGitHostObject,
             self._check_suites
         ))
 
-    @property
-    def state(self):
-        self.remove_unwanted_workflows()
+    def branch_state(self, branch_check_suite):
         all_complete = all(
             elem['conclusion'] is not None for elem in self._check_suites
         )
@@ -622,6 +622,27 @@ class AggregatedCheckSuites(base.AbstractGitHostObject,
             return 'SUCCESSFUL'
         else:
             return 'FAILED'
+
+    @property
+    def state(self):
+        self.remove_unwanted_workflows()
+        res = [list(v) for i, v in groupby(
+            self._check_suites,
+            lambda elem: elem['head_branch']
+        )]
+
+        status = [
+            self.branch_state(branch_check_suite)
+            for branch_check_suite in res
+        ]
+        if 'SUCCESSFUL' in status:
+            return 'SUCCESSFUL'
+        elif 'INPROGRESS' in status:
+            return 'INPROGRESS'
+        elif 'FAILED' in status:
+            return 'FAILED'
+        else:
+            return 'NOTSTARTED'
 
     @property
     def description(self) -> str:
