@@ -371,11 +371,15 @@ class Repository(base.AbstractGitHostObject, base.AbstractRepository):
         return combined
 
     def get_build_status(self, revision: str, key: str) -> str:
+        LOG.info(f'Checking build status cache for revision: {revision} {cache.BUILD_STATUS_CACHE[key].get(revision, None)}')
         status = cache.BUILD_STATUS_CACHE[key].get(revision, None)
         if status and status.state == 'SUCCESSFUL':
+            LOG.info(f'Build status cache hit, build status is {status.state}')
             return status.state
         try:
-            return self.get_commit_status(revision).status.get(key, None).state
+            status = self.get_commit_status(revision).status.get(key, None).state
+            LOG.info(f'Commit {revision} status is: {status}')
+            return status
         except AttributeError as e:
             LOG.error(e)
             return 'NOTSTARTED'

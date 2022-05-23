@@ -63,10 +63,11 @@ def handle_commit(job: CommitJob):
     """Handle a job triggered by an updated build status."""
     candidates = [
         branch_factory(job.git.repo, b)
-        for b in job.git.repo.get_branches_from_commit(job.commit)
+        for b in job.git.repo.get_branches_from_commit(job.commit, refresh_cache=True)
     ]
-
+    LOG.info(f'CommitJob candidates: {candidates}')
     if not candidates:
+        LOG.info(f'No candidates has been found for {job.commit}')
         raise messages.NothingToDo(
             'Could not find any branch for commit {}' .format(job.commit)
         )
