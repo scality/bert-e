@@ -49,7 +49,8 @@ class MockBertE(bert_e.BertE):
         self.client = mock_api.Client("login", "password", "email")
         self.project_repo = SimpleNamespace(
             owner='test_owner',
-            slug='test_repo'
+            slug='test_repo',
+            full_name='test_owner/test_repo'
         )
         self.settings = SettingsDict
         self.git_repo = SimpleNamespace()
@@ -152,6 +153,41 @@ class TestServer(unittest.TestCase):
         # consume job
         server.BERTE.task_queue.get()
         server.BERTE.task_queue.task_done()
+
+    def test_in_progress_status(self):
+        server.BERTE.status['merge queue'] = OrderedDict([
+            ('10', [('4.3', '0010deadbeef'), ('6.0', '10370badf00d'), ('10.0', '10370f00b44r')]),
+            ('11', [('4.3', '0011deadbeef'), ('6.0', '11370badf00d'), ('10.0', '11370f00b44r')]),
+            ('12', [('4.3', '0012deadbeef'), ('6.0', '12370badf00d'), ('10.0', '12370f00b44r')]),
+        ])
+
+        for commit in ('0012deadbeef', '12370badf00d', '12370f00b44r'):
+            # Find a way to add INPROGRESS here
+            # might need to create an actual repo just like in test_bert_e.py
+            job = berte_job.CommitJob(
+                bert_e=server.BERTE,
+                commit=commit
+            )
+            job.start_time = datetime(2016, 12, 8, 14, 54, 18, 123456)
+            server.BERTE.put_job(job)
+            server.BERTE.task_queue.get()
+            server.BERTE.task_queue.task_done()
+
+        job = berte_job.PullRequestJob(
+            bert_e=server.BERTE,
+            pull_request=SimpleNamespace(id=12)
+        )
+        job.start_time = datetime(2016, 12, 8, 14, 54, 19, 123456)
+        server.BERTE.put_job(job)
+
+        server.BERTE.task_queue.get()
+        server.BERTE.task_queue.task_done()
+
+        client = self.test_client()
+        res = client.get('/?output=txt')
+        print(res.data)
+        import pdb; pdb.set_trace()
+
 
     def test_bert_e_status(self):
         server.BERTE.status['merge queue'] = OrderedDict([

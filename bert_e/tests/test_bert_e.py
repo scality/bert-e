@@ -6127,6 +6127,25 @@ class TestQueueing(RepositoryTests):
         with self.assertRaises(exns.NothingToDo):
             self.handle(sha1, options=self.bypass_all, backtrace=True)
 
+    def test_integration_branch_augmented_after_queued(self):
+        pr1 = self.create_pr('bugfix/TEST-00001', 'development/4.3')
+        pr2 = self.create_pr('bugfix/TEST-00002', 'development/4.3')
+
+        for pr in (pr1, pr2):
+            with self.assertRaises(exns.Queued):
+                self.handle(pr.id, options=self.bypass_all, backtrace=True)
+
+        self.set_build_status_on_branch_tip(f'q/{pr1.id}/4.3/bugfix/TEST-00001', 'INPROGRESS')
+        self.set_build_status_on_branch_tip(f'q/{pr1.id}/5.1/bugfix/TEST-00001', 'INPROGRESS')
+        self.set_build_status_on_branch_tip(f'q/{pr1.id}/10.0/bugfix/TEST-00001', 'INPROGRESS')
+
+        self.set_build_status_on_branch_tip(f'q/{pr2.id}/4.3/bugfix/TEST-00002', 'INPROGRESS')
+        self.set_build_status_on_branch_tip(f'q/{pr2.id}/5.1/bugfix/TEST-00002', 'INPROGRESS')
+        self.set_build_status_on_branch_tip(f'q/{pr2.id}/10.0/bugfix/TEST-00002', 'INPROGRESS')
+
+        branch = gwfb.branch_factory(self.gitrepo, f'q/{pr2.id}/10.0/bugfix/TEST-00002')
+        self.handle(branch.get_latest_commit(), options=self.bypass_all)
+
 
 class TaskQueueTests(RepositoryTests):
     def init_berte(self, options=[], backtrace=True, **all_settings):
