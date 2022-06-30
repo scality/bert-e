@@ -1,6 +1,10 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [3.6.19] - 2022-06-30
+# Fixed
+- Ensure check suites build status are stored on webhook event.
+
 ## [3.6.18] - 2022-05-20
 # Added
 - Extra logs to debug status of queue branches in the UI

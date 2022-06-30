@@ -108,13 +108,19 @@ def handle_github_status_event(bert_e, json_data):
     return CommitJob(bert_e=bert_e, commit=event.commit)
 
 
-def handle_github_check_run_event(bert_e, json_data):
-    event = github.CheckRunEvent(bert_e=bert_e.client, **json_data)
-    return CommitJob(bert_e=bert_e, commit=event.commit)
-
-
 def handle_github_check_suite_event(bert_e, json_data):
-    event = github.CheckSuiteEvent(bert_e=bert_e.client, **json_data)
+    event = github.CheckSuiteEvent(client=bert_e.client, **json_data)
+    status = event.status
+    LOG.debug("New check suite status received on commit {event.commit}")
+    cached = BUILD_STATUS_CACHE[status.key].get(event.commit)
+
+    if not cached or cached.state != 'SUCCESSFUL':
+        BUILD_STATUS_CACHE[status.key].set(event.commit, status)
+
+    if status.state == "INPROGRESS":
+        LOG.debug("The build just started on %s, ignoring event", event.commit)
+        return
+
     return CommitJob(bert_e=bert_e, commit=event.commit)
 
 
@@ -185,10 +191,8 @@ def parse_github_webhook():
         job = handle_github_pr_review_event(current_app.bert_e, json_data)
     elif event == 'status':
         job = handle_github_status_event(current_app.bert_e, json_data)
-    elif event == 'check_run':
-        job = handle_github_check_run_event(current_app.bert_e, json_data)
     elif event == 'check_suite':
-        job = handle_github_check_run_event(current_app.bert_e, json_data)
+        job = handle_github_check_suite_event(current_app.bert_e, json_data)
 
     if job is None:
         LOG.debug('Ignoring event.')
