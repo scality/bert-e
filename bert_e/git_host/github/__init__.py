@@ -695,6 +695,9 @@ class AggregatedCheckSuites(base.AbstractGitHostObject,
             return self._check_suites[0]['repository']['owner']['login']
         return None
 
+    def __str__(self) -> str:
+        return self.state
+
 
 class PullRequest(base.AbstractGitHostObject, base.AbstractPullRequest):
     LIST_URL = '/repos/{owner}/{repo}/pulls'
@@ -998,7 +1001,7 @@ class StatusEvent(base.AbstractGitHostObject):
 
 
 class CheckSuiteEvent(base.AbstractGitHostObject):
-    SCHEMA = schema.CheckRunEvent
+    SCHEMA = schema.CheckSuiteEvent
 
     @property
     def commit(self) -> str:
@@ -1008,17 +1011,22 @@ class CheckSuiteEvent(base.AbstractGitHostObject):
     def action(self) -> str:
         return self.data['action']
 
-
-class CheckRunEvent(base.AbstractGitHostObject):
-    SCHEMA = schema.CheckRunEvent
+    @property
+    def repo(self) -> str or None:
+        return self.data['repository']['name']
 
     @property
-    def commit(self) -> str:
-        return self.data['check_run']['head_sha']
+    def owner(self) -> str or None:
+        return self.data['repository']['owner']['login']
 
     @property
-    def action(self) -> str:
-        return self.data['action']
+    def status(self):
+        return AggregatedCheckSuites.get(
+            client=self.client,
+            owner=self.owner,
+            repo=self.repo,
+            ref=self.commit
+        )
 
 
 class User(base.AbstractGitHostObject):

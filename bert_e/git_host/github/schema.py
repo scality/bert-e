@@ -228,6 +228,7 @@ class StatusEvent(Schema):
     target_url = fields.Str(allow_none=True)
 
 
-class CheckRunEvent(Schema):
+class CheckSuiteEvent(Schema):
     action = fields.Str()
-    check_suite = fields.Nested(CheckRun)
+    check_suite = fields.Nested(CheckSuite)
+    repository = fields.Nested(Repo)
