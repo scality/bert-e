@@ -1,15 +1,6 @@
 name: release
 
-on:
-  push:
-    branches:
-      - 'user/**'
-      - 'feature/**'
-      - 'improvement/**'
-      - 'bugfix/**'
-      - 'dependabot/**'
-      - 'w/**'
-      - 'q/**'
+on: workflow_dispatch
 
 
 jobs:
@@ -19,8 +10,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v1
+
 
       - name: Set up Docker Buildk
         uses: docker/setup-buildx-action@v1
@@ -40,5 +30,5 @@ jobs:
           context: .
           file: ./Dockerfile
           push: true
-          tags: "registry.scality.com/bert-e/bert-e:v1"
+          tags: "registry.scality.com/bert-e/bert-e:${{ github.sha }}"
 
