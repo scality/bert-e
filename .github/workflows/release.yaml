@@ -1,7 +1,11 @@
 name: release
 
-on: workflow_dispatch
-
+on: 
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to be released'
+        required: true
 
 jobs:
   release-manager:
@@ -30,5 +34,5 @@ jobs:
           context: .
           file: ./Dockerfile
           push: true
-          tags: "registry.scality.com/bert-e/bert-e:${{ github.sha }}"
+          tags: "registry.scality.com/bert-e/bert-e:${{ github.event.inputs.tag }}"
 
