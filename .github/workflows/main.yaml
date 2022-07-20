@@ -10,6 +10,7 @@ on:
       - 'dependabot/**'
       - 'w/**'
       - 'q/**'
+
 permissions: write-all
 
 jobs:
