@@ -22,6 +22,7 @@ spec:
       annotations:
         checksum/settings: {{ include (print $.Template.BasePath "/settings.yaml") . | sha256sum }}
         checksum/secret: {{ include (print $.Template.BasePath "/secrets.yaml") . | sha256sum }}
+        checksum/env: {{ include (print $.Template.BasePath "/env.yaml") . | sha256sum }}
     spec:
       {{- if .Values.image.pullSecrets }}
       imagePullSecrets:
@@ -36,6 +37,10 @@ spec:
         envFrom:
         - secretRef:
             name: {{ template "fullname" $ }}
+        {{- if .Values.deployment.env }}
+        - configMapRef:
+            name: {{ template "fullname" $ }}-env
+        {{- end }}
         ports:
         - name: http
           containerPort: {{ .Values.deployment.servicePort }}
