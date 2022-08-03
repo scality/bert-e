@@ -78,7 +78,9 @@ def setup_server(bert_e):
         'WTF_CSRF_SECRET_KEY': secrets.token_hex(24),
     })
 
-    app.wsgi_app = ReverseProxied(app.wsgi_app)
+    app_prefix = os.getenv('APP_PREFIX', '/')
+
+    app.wsgi_app = ReverseProxied(app.wsgi_app, app_prefix)
 
     app.bert_e = bert_e
 

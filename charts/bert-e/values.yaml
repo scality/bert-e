@@ -313,6 +313,9 @@ image:
 
 ## Kubernetes deployment configuration
 deployment:
+  # Setup env vars on the deployment
+  env: {}
+    # MY_VAR: MY_VALUE
 
   ## Configure extra options for liveness and readiness probes
   livenessProbe:
