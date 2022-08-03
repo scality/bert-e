@@ -23,24 +23,12 @@ class ReverseProxied(object):
         - app: the WSGI application
 
     """
-    def __init__(self, app):
+    def __init__(self, app, prefix=""):
         self.app = app
+        self.prefix = prefix
 
     def __call__(self, environ, start_response):
-        script_name = environ.get('HTTP_X_SCRIPT_NAME', None)
-        if script_name is not None:
-            environ['SCRIPT_NAME'] = script_name
-            path_info = environ['PATH_INFO']
-            if path_info.startswith(script_name):
-                path_info = path_info[len(script_name):]
-                environ['PATH_INFO'] = path_info
-
-        scheme = environ.get('HTTP_X_SCHEME', None)
-        if scheme is not None:
-            environ['wsgi_url_scheme'] = scheme
-
-        server = environ.get('HTTP_X_FORWARDED_SERVER', None)
-        if server:
-            environ['HTTP_HOST'] = server
-
+        if environ['PATH_INFO'].startswith(self.prefix):
+            environ['PATH_INFO'] = environ['PATH_INFO'][len(self.prefix):]
+            environ['SCRIPT_NAME'] = self.prefix
         return self.app(environ, start_response)
