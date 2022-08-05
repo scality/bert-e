@@ -16,6 +16,7 @@
 
 import json
 import logging
+import os
 
 from flask import Blueprint, Response, current_app, request
 
@@ -26,7 +27,9 @@ from ..job import CommitJob, PullRequestJob
 from .auth import requires_basic_auth
 
 LOG = logging.getLogger(__name__)
-blueprint = Blueprint('Bert-E server webhook endpoints', __name__)
+APPLICATION_ROOT = os.getenv('APPLICATION_ROOT', '/')
+blueprint = Blueprint('Bert-E server webhook endpoints', __name__,
+                      url_prefix=APPLICATION_ROOT)
 
 
 def handle_bitbucket_repo_event(bert_e, event, json_data):

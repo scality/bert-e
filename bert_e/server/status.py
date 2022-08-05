@@ -14,13 +14,15 @@
 
 """This module defines the server status page."""
 import logging
+import os
 from flask import Blueprint, current_app, render_template, request
 
 from ..git_host.cache import BUILD_STATUS_CACHE
 
 LOG = logging.getLogger(__name__)
 
-blueprint = Blueprint('status page', __name__)
+APPLICATION_ROOT = os.getenv('APPLICATION_ROOT', '/')
+blueprint = Blueprint('status page', __name__, url_prefix=APPLICATION_ROOT)
 
 
 @blueprint.route('/', methods=['GET'])

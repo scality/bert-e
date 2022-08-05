@@ -71,6 +71,7 @@ def setup_server(bert_e):
     app = Flask(__name__)
 
     app.config.update({
+        'APPLICATION_ROOT': os.getenv('APPLICATION_ROOT', '/'),
         'WEBHOOK_LOGIN': os.environ['WEBHOOK_LOGIN'],
         'WEBHOOK_PWD': os.environ['WEBHOOK_LOGIN'],
         'CLIENT_ID': os.environ['BERT_E_CLIENT_ID'],
