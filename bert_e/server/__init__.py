@@ -70,6 +70,9 @@ def setup_server(bert_e):
     """Create and configure Flask server app."""
     app = Flask(__name__)
 
+    app_prefix = os.getenv('APP_PREFIX', '/')
+    app_scheme = os.getenv('APP_SCHEME', None)
+    app_server = os.getenv('APP_SERVER', None)
     app.config.update({
         'WEBHOOK_LOGIN': os.environ['WEBHOOK_LOGIN'],
         'WEBHOOK_PWD': os.environ['WEBHOOK_LOGIN'],
@@ -77,8 +80,12 @@ def setup_server(bert_e):
         'CLIENT_SECRET': os.environ['BERT_E_CLIENT_SECRET'],
         'WTF_CSRF_SECRET_KEY': secrets.token_hex(24),
     })
-
-    app.wsgi_app = ReverseProxied(app.wsgi_app)
+    app.wsgi_app = ReverseProxied(
+        app.wsgi_app,
+        app_prefix,
+        app_scheme,
+        app_server
+    )
 
     app.bert_e = bert_e
 

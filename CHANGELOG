@@ -1,6 +1,12 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [3.6.21] - 2022-08-05
+# Added
+- Making reverse proxy configuration through env.
+# Fixed
+- Wsgi config for http scheme had a typo.
+
 ## [3.6.19] - 2022-06-30
 # Fixed
 - Ensure check suites build status are stored on webhook event.
