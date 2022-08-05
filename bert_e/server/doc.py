@@ -14,8 +14,6 @@
 
 """This module defines the documentation web pages."""
 
-import os
-
 from pathlib import Path
 
 from flask import Blueprint, abort, render_template, request
@@ -26,8 +24,8 @@ from markdown.extensions.smart_strong import SmartEmphasisExtension
 from markdown.extensions.smarty import SmartyExtension
 from markdown.extensions.tables import TableExtension
 
-APPLICATION_ROOT = os.getenv('APPLICATION_ROOT', '/')
-blueprint = Blueprint('doc', __name__, url_prefix=APPLICATION_ROOT)
+
+blueprint = Blueprint('doc', __name__)
 
 
 @blueprint.route('/doc/<string:docname>', methods=['GET'])

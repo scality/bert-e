@@ -15,14 +15,11 @@
 """This module defines the server webhook endpoints."""
 
 import logging
-import os
 
 from flask import abort, Blueprint, current_app, render_template
 
 LOG = logging.getLogger(__name__)
-APPLICATION_ROOT = os.getenv('APPLICATION_ROOT', '/')
-blueprint = Blueprint('Bert-E server githost addon endpoints', __name__,
-                      url_prefix=APPLICATION_ROOT)
+blueprint = Blueprint('Bert-E server githost addon endpoints', __name__)
 
 
 @blueprint.route('/install-bitbucket-addon', methods=['GET'])

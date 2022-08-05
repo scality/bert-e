@@ -21,6 +21,8 @@ import secrets
 from threading import Thread
 
 from flask import Flask, render_template, request
+from werkzeug.exceptions import NotFound
+from werkzeug.wsgi import DispatcherMiddleware
 
 from ..bert_e import BertE
 from ..settings import setup_settings, BertEContextFilter
@@ -30,7 +32,6 @@ from .auth import configure as configure_auth
 from .doc import (blueprint as doc_blueprint,
                   configure as configure_doc)
 from .manage import blueprint as manage_blueprint
-from .reverse_proxy import ReverseProxied
 from .session import configure as configure_sessions
 from .status import blueprint as status_blueprint
 from .template_filter import configure as configure_filters
@@ -70,6 +71,7 @@ def setup_server(bert_e):
     """Create and configure Flask server app."""
     app = Flask(__name__)
 
+    app_prefix = os.getenv('APP_PREFIX', '/')
     app.config.update({
         'APPLICATION_ROOT': os.getenv('APPLICATION_ROOT', '/'),
         'WEBHOOK_LOGIN': os.environ['WEBHOOK_LOGIN'],
@@ -78,6 +80,8 @@ def setup_server(bert_e):
         'CLIENT_SECRET': os.environ['BERT_E_CLIENT_SECRET'],
         'WTF_CSRF_SECRET_KEY': secrets.token_hex(24),
     })
+
+    app.wsgi_app = DispatcherMiddleware(NotFound(), {app_prefix: app.wsgi_app})
 
     app.bert_e = bert_e
 
