@@ -78,8 +78,6 @@ def setup_server(bert_e):
         'WTF_CSRF_SECRET_KEY': secrets.token_hex(24),
     })
 
-    app.wsgi_app = ReverseProxied(app.wsgi_app)
-
     app.bert_e = bert_e
 
     configure_filters(app)
