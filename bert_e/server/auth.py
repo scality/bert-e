@@ -18,6 +18,7 @@ import logging
 from functools import wraps
 
 from authlib.flask.client import OAuth, RemoteApp
+from bert_e.git_host.github import Client
 from flask import Blueprint, Response, current_app, jsonify, \
     render_template, request, session, url_for, redirect
 from loginpass import Bitbucket, GitHub, create_flask_blueprint
@@ -111,6 +112,10 @@ def requires_auth(admin=False):
         return decorated
     return decorator
 
+def _get_user_emails(client):
+    response = client.get('/user/emails')
+    return [email['email'] for email in response.json()]
+
 
 def _handle_authorize(bert_e, user_info):
     """Parse user identification and configure session.
@@ -137,16 +142,23 @@ def _handle_authorize(bert_e, user_info):
     if not user:
         return unauthorized('preferred_username missing in user info!')
     user = user.lower()
+    access_token = user_info.get('access_token')
+    client = Client(
+        user,
+        access_token,
+        "",
+    )
+    emails = _get_user_emails(client)
     org = bert_e.settings.organization
     if org:
-        email = user_info.get('email', None)
-        LOG.info(f'email is {email}')
-        if not email or not email.endswith('@{}'.format(org)):
+        LOG.info(f'emails are {emails}')
+        if not any([email.endswith('@{}'.format(org)) for email in emails]):
             return unauthorized('Your email does not belong to '
                                 'organization %r.' % org)
 
     session['user'] = user
     session['admin'] = user in bert_e.settings.admins
+    session['emails'] = emails
 
     if request.is_json:
         return jsonify(user_info), 200, {'Content-Type': 'text/json'}
