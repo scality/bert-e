@@ -23,6 +23,9 @@ from loginpass import Bitbucket, GitHub, create_flask_blueprint
 from loginpass._core import register_to
 
 
+LOG = logging.getLogger(__name__)
+
+
 def invalid(message='The request is invalid for that endpoint.'):
     """Sends a 400 response."""
     if request.is_json:
@@ -136,6 +139,7 @@ def _handle_authorize(bert_e, user_info):
     org = bert_e.settings.organization
     if org:
         email = user_info.get('email', None)
+        LOG.info(f'email is {email}')
         if not email or not email.endswith('@{}'.format(org)):
             return unauthorized('Your email does not belong to '
                                 'organization %r.' % org)
