@@ -14,6 +14,7 @@
 
 """This module defines the server authentication."""
 
+import logging
 from functools import wraps
 
 from authlib.flask.client import OAuth, RemoteApp
