@@ -1,6 +1,6 @@
 name: release
 
-on: 
+on:
   workflow_dispatch:
     inputs:
       tag:
@@ -33,6 +33,8 @@ jobs:
           file: ./Dockerfile
           push: true
           tags: "registry.scality.com/bert-e/bert-e:${{ github.event.inputs.tag }}"
+          build-args: |
+            VERSION=${{ github.event.inputs.tag }}
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
