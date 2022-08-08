@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import os
 from os.path import abspath, dirname, join
 import pip
 
@@ -36,12 +37,9 @@ def requires():
 
 setup(
     name='bert-e',
-    use_scm_version={
-        'local_scheme': 'dirty-tag'
-    },
-    setup_requires=[
-        'setuptools_scm'
-    ],
+    version=os.getenv('VERSION', '1.0-dev'),
+    python_requires=">=3.6",
+    platforms=['any'],
     description='Scality\'s automated branch merging tool',
     url='https://bitbucket.org/scality/bert-e',
     license='Apache',

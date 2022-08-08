@@ -1,5 +1,9 @@
 FROM python:3.6.6-slim-stretch
 
+ARG VERSION 1.0-dev
+
+ENV VERSION=${VERSION}
+
 RUN apt-get update && apt-get install git -y && rm -rf /var/cache/apt
 
 COPY constraints.txt requirements.txt /app/
@@ -13,6 +17,6 @@ VOLUME '/root/.bert-e'
 WORKDIR /app/
 
 COPY . /app/
-RUN pip install --no-deps /app
+RUN pip install --no-deps .
 
 ENTRYPOINT ["bert-e-serve"]
