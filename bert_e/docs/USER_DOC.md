@@ -471,8 +471,82 @@ to progress to the next step.  message code
 
 Queues
 ------
-A mechanism to stack pull requests and reduced the number of builds has been
-implemented in Bert-E 2.0. This is not documented here yet.
+
+Bert-E's queue is a mechanism to stack and merge pull requests
+that have passed all the [conditions to merge](#conditions-to-merge-a-pull-request).
+
+When multiple people are working on the same repository, there
+will be multiple pull requests opened, each of them at
+different stages of meeting the conditions set by the bot.
+Therefore when the conditions are met, they will not contain
+the latest commits that are included in the destination branch.
+
+Bert-E will proceed in taking the pull request forward by merging it into
+the queue branches.
+
+Each development/x.y branch will have its according `q/x.y` branch, and
+each PR in the queue will also have its according `q/$PR_ID/x.y/$BRANCH_NAME` branch.
+
+For a PR that is in the queue to be merged into the development branch,
+a green build is required. Depending on the state of the queue or how many
+branches there are, the green build can be located at different places (refer
+to the scenarios for more information).
+
+Multiple PRs can be stacked into the queue and
+Bert-E will proceed in merging them either partially or as a whole package
+depending on the state of it.
+
+Following here a couple of scenarios of
+queue state and the behavior we can expect from Bert-E.
+
+> On all the scenarios below PR #42 will be the first to enter the queue, followed
+by PR #43 and PR #44.
+Bert-E will always sort the queue table view by order in which each PR got queued,
+the first line will be the first PR that got in, and the latest PR will be at the end.
+
+### Scenario 1
+
+| PR/Branches |        q/1.0       |        q/2.0       |        q/3.0       |
+|:-----------:|:------------------:|:------------------:|:------------------:|
+|     #42     | :heavy_check_mark: | :heavy_check_mark: |         :x:        |
+|     #43     | :heavy_check_mark: | :heavy_check_mark: |         :x:        |
+|     #44     | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |
+
+All PRs will be merged as #44 is the latest PR to enter the queue,
+it contains the code from both #42 and #43 and
+all the builds are green.
+At this point, we don't really care why some builds failed on `q/3.0`. It could be a flaky build (because of the code or because of the env) or even an incompatibility of the merging code with the destination branch. As long as we have a green build, we can ignore what's above.
+
+
+### Scenario 2
+
+| PR/Branches |        q/1.0       |        q/2.0       |        q/3.0       |
+|:-----------:|:------------------:|:------------------:|:------------------:|
+|     #42     | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |
+|     #43     | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |
+|     #44     | :heavy_check_mark: | :heavy_check_mark: |      :clock2:      |
+
+Only #42 and #43 will be merged as they both have all the queue branches with
+green builds. #44 still have one build pending, Bert-E will wait for the
+result of this build before taking any further actions on #44.
+
+### Scenario 3
+
+| PR/Branches |        q/1.0       |        q/2.0       |        q/3.0       |
+|:-----------:|:------------------:|:------------------:|:------------------:|
+|     #42     |         :x:        | :heavy_check_mark: | :heavy_check_mark: |
+|     #43     | :heavy_check_mark: |         :x:        | :heavy_check_mark: |
+|     #44     | :heavy_check_mark: | :heavy_check_mark: |         :x:        |
+
+No PR will be merged as they each have a failed build on a specific branch.
+
+> Note: to merge the queue above, the only build to succeed is `q/3.0` for #44.
+Refer to scenario 1 for more information.
+
+All those states can be found on Bert-E's UI.
+
+> Note: Bert-E will not notify the user if a build
+fails inside the queue.
 
 Going further with __Bert-E__
 -----------------------------
