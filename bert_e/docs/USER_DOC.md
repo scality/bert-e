@@ -473,7 +473,7 @@ Queues
 ------
 
 Bert-E's queue is a mechanism to stack and merge pull requests
-that have passed all the [conditions](#conditions-to-merge-a-pull-request).
+that have passed all the [conditions to merge](#conditions-to-merge-a-pull-request).
 
 When multiple people are working on the same repository, there
 will be multiple pull requests opened, each of them at
@@ -484,12 +484,12 @@ the latest commits that are included in the destination branch.
 Bert-E will proceed in taking the pull request forward by merging it into
 the queue branches.
 
-Each development/x.y branch will have it's according `q/x.y` branch, and
-each pr in the queue will also have it's according `q/$PR_ID/x.y/$BRANCH_NAME`
+Each development/x.y branch will have its according `q/x.y` branch, and
+each PR in the queue will also have its according `q/$PR_ID/x.y/$BRANCH_NAME` branch.
 
 For a PR that is in the queue to be merged into the development branch,
 a green build is required. Depending on the state of the queue or how many
-branch there is, the green build can be located at different places (refer
+branches there are, the green build can be located at different places (refer
 to the scenarios for more information).
 
 Multiple PRs can be stacked into the queue and
@@ -510,6 +510,7 @@ queue state and the behavior we can expect from Bert-E.
 All PRs will be merged as #44 is the latest PR to enter the queue,
 it contains the code from both #42 and #43 and
 all the builds are green.
+At this point, we don't really care why some builds failed on `q/3.0`. It could be a flaky build (because of the code or because of the env) or even an incompatibility of the merging code with the destination branch. As long as we have a green build, we can ignore what's above.
 
 
 ### Scenario 2
@@ -537,7 +538,7 @@ No PR will be merged as they each have a failed build on a specific branch.
 > Note: to merge the queue above, the only build to succeed is `q/3.0` for #44.
 Refer to scenario 1 for more information.
 
-All those state can be found on Bert-E's ui.
+All those states can be found on Bert-E's UI.
 
 > Note: Bert-E will not notify the user if a build
 fails inside the queue.
