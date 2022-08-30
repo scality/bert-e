@@ -499,6 +499,11 @@ depending on the state of it.
 Following here a couple of scenarios of
 queue state and the behavior we can expect from Bert-E.
 
+> On all the scenarios below PR #42 will be the first to enter the queue, followed
+by PR #43 and PR #44.
+Bert-E will always sort the queue table view by order in which each PR got queued,
+the first line will be the first PR that got in, and the latest PR will be at the end.
+
 ### Scenario 1
 
 | PR/Branches |        q/1.0       |        q/2.0       |        q/3.0       |
