@@ -10,6 +10,8 @@ however the merge queue is currently in an incoherent state. In order
 to protect this pull request, I have not added the changeset to the
 queue.
 
-Please contact a member of release engineering.
+Look into https://devdocs.scality.net/support/faq/#bert-e for guidance about
+what to do next to unlock the situation, or ask for help on the #ci-support
+Slack channel.
 
 {% endblock %}
