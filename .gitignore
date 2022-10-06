@@ -6,3 +6,4 @@ __pycache__
 .eggs
 bert_e.egg-info
 .tox/
+settings.yml
