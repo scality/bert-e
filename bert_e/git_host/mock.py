@@ -248,6 +248,9 @@ class Repository(BitBucketObject, base.AbstractRepository):
         self.get_git_url()
         self.gitrepo.revisions[(revision, key)] = state
 
+    def get_admins(self) -> list:
+        return ['admin']
+
     @property
     def owner(self):
         return self.repo_owner

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 from os.path import abspath, dirname, join
+from os import getenv
 import pip
 
 from setuptools import setup
@@ -36,21 +37,15 @@ def requires():
 
 setup(
     name='bert-e',
-    use_scm_version={
-        'local_scheme': 'dirty-tag'
-    },
-    setup_requires=[
-        'setuptools_scm'
-    ],
+    version=getenv('GITHUB_REF_NAME'),
     description='Scality\'s automated branch merging tool',
-    url='https://bitbucket.org/scality/bert-e',
+    url='https://github.com/scality/bert-e',
     license='Apache',
     include_package_data=True,
     packages=[
         'bert_e',
         'bert_e.jobs',
         'bert_e.lib',
-        'bert_e.bin',
         'bert_e.git_host',
         'bert_e.git_host.github',
         'bert_e.workflow',
@@ -61,10 +56,6 @@ setup(
         'console_scripts': [
             'bert-e=bert_e.bert_e:main',
             'bert-e-serve=bert_e.server.server:main',
-            'filter_pull_requests=bert_e.bin.filter_pull_requests:main',
-            'nobuildstatus=bert_e.bin.nobuildstatus:main',
-            'webhook_parser=bert_e.bin.webhook_parser:main',
-            'webhook_register=bert_e.bin.webhook_register:main',
         ],
     }
 )

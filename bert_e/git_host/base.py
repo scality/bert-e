@@ -414,6 +414,12 @@ class AbstractPullRequest(metaclass=ABCMeta):
 
 
 class AbstractRepository(metaclass=ABCMeta):
+
+
+    @abstractmethod
+    def get_admins(self) -> list:
+        """Repository admins"""
+
     @abstractmethod
     def get_build_status(self, revision: str, key: str) -> str:
         """Get the build status associated to a commit.
@@ -513,6 +519,8 @@ class AbstractRepository(metaclass=ABCMeta):
     @abstractmethod
     def slug(self) -> str:
         """Repository name or slug."""
+
+
 
 
 class AbstractClient(metaclass=ABCMeta):

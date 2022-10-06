@@ -9,7 +9,7 @@ the client class with @api_client(api_name).
 
 Example:
 
-    # bert_e.git_host.bitbucket module
+    # bert_e.git_host.github module
 
     from bert_e.git_host import base, factory
 

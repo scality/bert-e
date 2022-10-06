@@ -16,11 +16,10 @@
 
 from functools import wraps
 
-from authlib.flask.client import OAuth, RemoteApp
-from flask import Blueprint, Response, current_app, jsonify, \
+from authlib.integrations.flask_client import OAuth, LocalProxy
+
+from flask import Response, current_app, \
     render_template, request, session, url_for, redirect
-from loginpass import Bitbucket, GitHub, create_flask_blueprint
-from loginpass._core import register_to
 
 
 def invalid(message='The request is invalid for that endpoint.'):
@@ -108,7 +107,7 @@ def requires_auth(admin=False):
     return decorator
 
 
-def _handle_authorize(bert_e, user_info):
+def github_handle_authorize(auth: LocalProxy, token, owner, slug):
     """Parse user identification and configure session.
 
     This method is called once the OAuth identification process has
@@ -116,75 +115,77 @@ def _handle_authorize(bert_e, user_info):
     if the session is authorized or not, and if so, the level of
     access is also set.
 
-    If Bert-E is configured with the field 'organization', the user
-    email is checked before authorizing access.
-
     If authorized, the session is updated with fields 'user' (a copy
     of the Git host user handle); The session is also updated with an
     'admin' flag.  This flag is set to True if the handle of the user
-    belongs to the list of admins as configured in Bert-E's settings.
+    posess admin rights on the repository or belongs
+    to the list of admins as configured in Bert-E's settings.
 
     Args:
-      - bert_e: unique instance of running Bert-E
-      - user_info (dict): normalized loginpass user information
+      - auth: oauth LocalProxy
+      - token: User token
+      - owner: the owner of the repository
+      - slug: name of the repository configured with Bert-E
 
     """
-    user = user_info.get('preferred_username', None)
-    if not user:
-        return unauthorized('preferred_username missing in user info!')
-    user = user.lower()
-    org = bert_e.settings.organization
-    if org:
-        email = user_info.get('email', None)
-        if not email or not email.endswith('@{}'.format(org)):
-            return unauthorized('Your email does not belong to '
-                                'organization %r.' % org)
 
-    session['user'] = user
-    session['admin'] = user in bert_e.settings.admins
+    profile = auth.get('user', token=token).json()
+    repo = auth.get(
+        f'/repos/{owner}/{slug}',
+        token=token).json()
+    permissions = repo.get('permissions')
+    if permissions.get('push', False) is False:
+        return unauthorized('The user does not have write access to the repository')
 
-    if request.is_json:
-        return jsonify(user_info), 200, {'Content-Type': 'text/json'}
+    session['user'] = profile.get('login').lower()
+    # TODO support admins key
+    session['admin'] = permissions.get('admin', False)
 
     return redirect(url_for('status page.display'), code=302)
 
 
 def configure(app):
-    """Configure OAuth and register auth blueprint."""
-    def handle_authorize(remote, token, user_info):
-        return _handle_authorize(app.bert_e, user_info)
-
-    # configure web oauth
-    if app.bert_e.settings.repository_host == 'github':
-        backend = GitHub
-        app.config['GITHUB_CLIENT_ID'] = app.config['CLIENT_ID']
-        app.config['GITHUB_CLIENT_SECRET'] = app.config['CLIENT_SECRET']
-    else:
-        backend = Bitbucket
-        app.config['BITBUCKET_CLIENT_ID'] = app.config['CLIENT_ID']
-        app.config['BITBUCKET_CLIENT_SECRET'] = app.config['CLIENT_SECRET']
+    """Configure OAuth"""
 
     oauth = OAuth(app)
-    bp = create_flask_blueprint(backend, oauth, handle_authorize)
-    app.register_blueprint(bp)
+    if app.bert_e.settings.repository_host == 'github':
+        app.config['GITHUB_CLIENT_ID'] = app.config['CLIENT_ID']
+        app.config['GITHUB_CLIENT_SECRET'] = app.config['CLIENT_SECRET']
 
-    # create additional path for token based authentication
-    bp = Blueprint('auth', __name__)
-    remote = register_to(backend, oauth, RemoteApp)
+        auth = oauth.register(
+            name=app.bert_e.settings.repository_host,
+            access_token_url='https://github.com/login/oauth/access_token',
+            authorize_url='https://github.com/login/oauth/authorize',
+            api_base_url='https://api.github.com/',
+            client_kwargs={'scope': 'user:email read:org'},
+        )
+        handle_authorize = github_handle_authorize
+    else:
+        raise Exception('Repository oauth is not supported')
 
-    @bp.route('/api/auth')
+    owner = app.bert_e.settings.repository_owner
+    slug = app.bert_e.settings.repository_slug
+
+    @app.route('/login')
+    def login():
+        redirect_url = url_for("authorize", _external=True)
+        return auth.authorize_redirect(redirect_url)
+
+    @app.route("/authorize")
+    def authorize():
+        token = auth.authorize_access_token()
+        return handle_authorize(auth, token, owner, slug)
+
+    @app.route('/api/auth')
     def api_auth():
         access_token = request.args.get('access_token')
         if access_token:
             token = {'access_token': access_token, 'token_type': 'bearer'}
-            user_info = remote.profile(token=token)
-            return handle_authorize(remote, access_token, user_info)
+            return handle_authorize(auth, token, owner, slug)
         return unauthorized('Missing access token in request.')
 
-    @bp.route('/logout')
+    @app.route('/logout')
     def logout():
         session.pop('user')
         session.pop('admin')
         return redirect(url_for('status page.display'))
-
-    app.register_blueprint(bp)

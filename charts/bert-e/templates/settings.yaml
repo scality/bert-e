@@ -18,7 +18,6 @@ data:
     repository_slug: {{ .Values.bertE.repository.slug | quote }}
     robot: {{ .Values.bertE.robot.username | quote }}
     robot_email: {{ .Values.bertE.robot.email | quote }}
-    organization: {{ .Values.bertE.oauth.organization }}
     always_create_integration_pull_requests: {{ .Values.bertE.gating.alwaysCreateIntegrationPullRequests }}
     {{- if eq .Values.bertE.repository.gitHost "bitbucket" }}
     pull_request_base_url: https://bitbucket.org/{{ .Values.bertE.repository.owner }}/{{ .Values.bertE.repository.slug }}/pull-requests/{pr_id}

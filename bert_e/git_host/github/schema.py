@@ -21,6 +21,12 @@ used by Bert-E) are declared.
 from marshmallow import Schema, fields
 
 
+class Permissions(Schema):
+    admin = fields.Bool()
+    push = fields.Bool()
+    pull = fields.Bool()
+
+
 class User(Schema):
     id = fields.Int(required=True)
     login = fields.Str(required=True)
@@ -28,6 +34,7 @@ class User(Schema):
     # When it is the case, login should be used instead.
     name = fields.Str()
     type = fields.Str()
+    permissions = fields.Nested(Permissions)
 
 
 class Repo(Schema):

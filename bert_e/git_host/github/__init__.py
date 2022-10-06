@@ -345,6 +345,14 @@ class Repository(base.AbstractGitHostObject, base.AbstractRepository):
             self.owner,
             self.slug)
 
+    def get_admins(self) -> list:
+        collaborators = Collaborators.list(self.client, owner=self.owner, repo=self.slug)
+        admins = []
+        for user in collaborators.data:
+            if user['permissions']['admin'] is True:
+                admins.append(user['login'])
+        return admins
+
     def get_commit_url(self, revision):
         return 'https://github.com/{}/{}/commit/{}'.format(self.owner,
                                                            self.slug,
@@ -1032,3 +1040,7 @@ class CheckSuiteEvent(base.AbstractGitHostObject):
 class User(base.AbstractGitHostObject):
     SCHEMA = schema.User
     GET_URL = '/user'
+
+class Collaborators(base.AbstractGitHostObject):
+    SCHEMA = schema.User
+    LIST_URL = '/repos/{owner}/{repo}/collaborators'

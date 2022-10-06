@@ -50,6 +50,8 @@ class BertE(JobDispatcher):
             owner=settings.repository_owner,
             slug=settings.repository_slug
         )
+        admins = self.project_repo.get_admins()
+        self.settings.admins.append(admins)
         settings['use_queue'] = not settings.disable_queues
         if settings.repository_host == 'bitbucket':
             self.settings.robot.account_id = self.client.get_user_id()
@@ -246,14 +248,14 @@ class BertE(JobDispatcher):
 
 def setup_parser():
     parser = argparse.ArgumentParser(add_help=True,
-                                     description='Merges bitbucket '
+                                     description='Merges GitHub'
                                                  'pull requests.')
     parser.add_argument(
         'settings',
         help="Path to project settings file")
     parser.add_argument(
         'robot_password',
-        help="Robot Bitbucket/GitHub password")
+        help="Robot GitHub password")
     parser.add_argument(
         'jira_token',
         help="Robot Jira password")

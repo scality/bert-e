@@ -53,9 +53,9 @@
           {%- endif %}
           <li class="nav-item">
             {%- if 'user' in session %}
-            <a class="nav-link" href="{{ url_for('auth.logout', _external=True) }}">(logout)</a>
+            <a class="nav-link" href="{{ url_for('logout', _external=True) }}">(logout)</a>
             {%- else %}
-            <a class="nav-link" href="{{ url_for('loginpass_' + githost + '.login', _external=True) }}")>login</a>
+            <a class="nav-link" href="{{ url_for('login', _external=True) }}")>login</a>
             {%- endif %}
           </li>
         </ul>
