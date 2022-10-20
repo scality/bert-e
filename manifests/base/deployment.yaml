@@ -1,0 +1,40 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bert-e
+  labels:
+    app.kubernetes.io/name: bert-e
+    app.kubernetes.io/instance: bert-e
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: bert-e
+      app.kubernetes.io/instance: bert-e
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: bert-e
+        app.kubernetes.io/instance: bert-e
+    spec:
+      serviceAccountName: default
+      containers:
+      - name: bert-e
+        image: 'bert-e:latest'
+        imagePullPolicy: IfNotPresent
+        ports:
+          - name: http
+            containerPort: 80
+            protocol: TCP
+        livenessProbe:
+          httpGet:
+            path: /_/health
+            port: http
+        readinessProbe:
+          httpGet:
+            path: /_/health
+            port: http
+        envFrom:
+          - secretRef:
+              name: bert-e-env

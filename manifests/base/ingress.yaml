@@ -1,0 +1,29 @@
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: bert-e
+  labels:
+    app.kubernetes.io/name: bert-e
+    app.kubernetes.io/instance: bert-e
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60s"
+    nginx.ingress.kubernetes.io/proxy-write-timeout: "60s"
+spec:
+  rules:
+  - host: ${BERT-E_HOST}
+    http:
+      paths:
+      - backend:
+          service:
+            name: bert-e
+            port:
+              number: 80
+        path: /
+        pathType: Prefix
+  tls:
+  - hosts:
+    - ${BERT-E_HOST}
+    secretName: bert-e-cert

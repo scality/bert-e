@@ -1,0 +1,42 @@
+---
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+secretGenerator:
+- name: bert-e-env
+  envs:
+  - secret.env
+  options:
+    annotations:
+      avp.kubernetes.io/path: secret/data/bert-e
+
+configMapGenerator:
+- name: bert-e-env
+  envs:
+  - bert-e.env
+
+commonAnnotations:
+  host: my.bert-e.host
+
+images:
+- name: bert-e
+  newName: 'registry.scality.com/bert-e/bert-e'
+  newTag: '3.6.23'
+
+
+replacements:
+- source:
+    kind: ConfigMap
+    name: bert-e-env
+    fieldPath: data.BERT-E_HOST
+  targets:
+  - select:
+      kind: Ingress
+      name: bert-e
+    fieldPaths:
+    - spec.rules.0.host
+    - spec.tls.0.hosts.0
+
+resources:
+- deployment.yaml
+- ingress.yaml
+- service.yaml
