@@ -1,13 +1,6 @@
 ---
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-secretGenerator:
-- name: bert-e-env
-  envs:
-  - secret.env
-  options:
-    annotations:
-      avp.kubernetes.io/path: secret/data/bert-e
 
 configMapGenerator:
 - name: bert-e-env
