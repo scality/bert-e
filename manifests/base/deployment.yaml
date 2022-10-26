@@ -63,6 +63,6 @@ spec:
           emptyDir:
         - name: config
           configMap:
-            name: release-name-bert-e
+            name: bert-e-config
         - name: temp
           emptyDir:        
