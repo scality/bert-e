@@ -6,7 +6,9 @@ configMapGenerator:
 - name: bert-e-env
   envs:
   - bert-e.env
-
+- name: bert-e-config
+  files:
+  - settings.yml
 
 images:
 - name: bert-e
