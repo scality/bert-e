@@ -14,8 +14,6 @@ configMapGenerator:
   envs:
   - bert-e.env
 
-commonAnnotations:
-  host: my.bert-e.host
 
 images:
 - name: bert-e
