@@ -33,3 +33,4 @@ resources:
 - deployment.yaml
 - ingress.yaml
 - service.yaml
+- secrets/bert-e-secret.yaml # path to secret file
