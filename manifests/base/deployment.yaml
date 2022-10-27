@@ -57,7 +57,7 @@ spec:
           mountPath: /tmp      
           args:
             - "--settings-file"
-            - "/conf/settings.yml"
+            - "/conf/settings.yaml"
         volumes:
         - name: cache
           emptyDir:
