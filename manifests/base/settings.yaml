@@ -1,0 +1,79 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ template "fullname" $ }}
+  labels:
+    app: {{ template "fullname" $ }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    release: "{{ .Release.Name }}"
+    heritage: "{{ .Release.Service }}"
+data:
+  settings.yml: |-
+    {{- with .Values.bertE.robot.frontend_url }}
+    frontend_url: {{ . | quote }}
+    {{- end }}
+    repository_host: {{ .Values.bertE.repository.gitHost | quote }}
+    repository_owner: {{ .Values.bertE.repository.owner | quote }}
+    repository_slug: {{ .Values.bertE.repository.slug | quote }}
+    robot: {{ .Values.bertE.robot.username | quote }}
+    robot_email: {{ .Values.bertE.robot.email | quote }}
+    organization: {{ .Values.bertE.oauth.organization }}
+    always_create_integration_pull_requests: {{ .Values.bertE.gating.alwaysCreateIntegrationPullRequests }}
+    {{- if eq .Values.bertE.repository.gitHost "bitbucket" }}
+    pull_request_base_url: https://bitbucket.org/{{ .Values.bertE.repository.owner }}/{{ .Values.bertE.repository.slug }}/pull-requests/{pr_id}
+    commit_base_url: https://bitbucket.org/{{ .Values.bertE.repository.owner }}/{{ .Values.bertE.repository.slug }}/commits/{commit_id}
+    {{- else }}
+    pull_request_base_url: https://github.com/{{ .Values.bertE.repository.owner }}/{{ .Values.bertE.repository.slug }}/pull/{pr_id}
+    commit_base_url: https://github.com/{{ .Values.bertE.repository.owner }}/{{ .Values.bertE.repository.slug }}/commits/{commit_id}
+    {{- end }}
+    build_key: {{ .Values.bertE.gating.buildKey | quote }}
+    max_commit_diff: {{ .Values.bertE.gating.maxCommitDiff }}
+    need_author_approval: {{ .Values.bertE.gating.needAuthorApproval }}
+    required_peer_approvals: {{ .Values.bertE.gating.requiredPeerApprovals }}
+    required_leader_approvals: {{ .Values.bertE.gating.requiredProjectLeaderApprovals }}
+    disable_version_checks: {{ .Values.bertE.gating.disableVersionChecks }}
+    {{- if .Values.bertE.gating.projectAdmins }}
+    admins:
+      {{- range .Values.bertE.gating.projectAdmins }}
+      - {{ . | quote }}
+      {{- end }}
+    {{- end }}
+    {{- if .Values.bertE.gating.projectLeaders }}
+    project_leaders:
+      {{- range .Values.bertE.gating.projectLeaders }}
+      - {{ . | quote }}
+      {{- end }}
+    {{- end }}
+    {{- if .Values.bertE.gating.tasks }}
+    tasks:
+      {{- range .Values.bertE.gating.tasks }}
+      - {{ . | quote }}
+      {{- end }}
+    {{- end }}
+    {{- if .Values.bertE.jira.enabled }}
+    jira_account_url: {{ .Values.bertE.jira.accountUrl }}
+    jira_email: {{ .Values.bertE.jira.email }}
+    jira_keys:
+      {{- range .Values.bertE.jira.acceptedProjectKeys }}
+      - {{ . | quote }}
+      {{- end }}
+    {{- if .Values.bertE.jira.bypassedBranchPrefixes }}
+    bypass_prefixes:
+      {{- range .Values.bertE.jira.bypassedBranchPrefixes }}
+      - {{ . | quote }}
+      {{- end }} {{- end }}
+    {{- if .Values.bertE.jira.issueTypeToBranchPrefixes }}
+    prefixes:
+      {{- range $type, $prefix := .Values.bertE.jira.issueTypeToBranchPrefixes }}
+      {{ $type }}: {{ $prefix | quote }}
+      {{- end }}
+    {{- end }}
+    {{- end }}
+    bitbucket_addon_base_url: {{ .Values.bertE.addon.bitbucket.baseUrl }}
+    bitbucket_addon_client_id: {{ .Values.bertE.addon.bitbucket.clientId }}
+    bitbucket_addon_url: {{ .Values.bertE.addon.bitbucket.url }}
+    {{- if .Values.bertE.prAuthorOptions }}
+    pr_author_options:
+    {{ toYaml .Values.bertE.prAuthorOptions | nindent 6 }}
+    {{- end }}
