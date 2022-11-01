@@ -2,7 +2,7 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
-configMapGenerator:
+secretGenerator:
 - name: bert-e-config
   files:
   - settings.yml
@@ -11,8 +11,6 @@ images:
 - name: bert-e
   newName: 'registry.scality.com/bert-e/bert-e'
   newTag: '3.6.23'
-
-
 
 resources:
 - deployment.yaml

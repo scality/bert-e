@@ -1,388 +1,180 @@
-# Default values file for Bert-E helm chart.
-
-## nameOverride allows to change the name of the release
-## rather than default value 'bert-e'
-nameOverride: "bert-e"
-
-## useShortName shorten names of Kubernetes resources.
-##
-##   The release name will not be included in fullname. This
-##   is safe to use only if one release only of Bert-E is deployed
-##   per namespace (which is the typical use case).
-##
-useShortNames: false
-
-## Bert-E will run on the repository and with the settings declared here.
-bertE:
-  ## verbose raises the level of debug printed in the logs
-  ##
-  ##   defaults to false.
-  ##
-  verbose: false
-
-  ## sentryDsn can be declared to send the robot backtraces to a sentry account.
-  ##
-  ##   If different from "", python exceptions will be captured and sent to
-  ##   sentry, which is an external service responsible for capturing tracebacks
-  ##   and sending mails to operators. The value should be a URL that points to
-  ##   a dsn sentry resource.
-  ##
-  ##   default value: "" (the feature is inactive)
-  ##
-  sentryDsn: ""
-
-  ## repository stores details on the repository to work on
-  repository:
-    ## gitHost designates one of the supported Git host (bitbucket/github).
-    ##
-    gitHost: bitbucket
-
-    ## owner contains the name of the team or project on the Git host.
-    ##
-    ##   On GitHub, this value is also known as 'organization'.
-    ##
-    owner: scality
-
-    ## slug contains the name of the repository.
-    ##
-    ##   The duet owner/slug is sometimes designated as the
-    ##   fullname of the repository on the Git host.
-    ##
-    slug: bert-e
-
-  ## Bert-E impersonation details on Git host.
-  ##
-  ##   Bert-E will interact with the repository via a user on the Git host.
-  ##   This user should be configured as an adminitrator of the repository
-  ##   (fast method), or at least have full access to the branches the robot
-  ##   handles (check documentation).
-  robot:
-    ## username is a valid user handle on the Git host.
-    ##
-    ##   This user will act as the robot and will:
-    ##   - comment pull requests to indicate the progress of the merge,
-    ##   - merge feature branches to development/* branches.
-    ##
-    ##   The user must have the correct permissions in Bitbucket/GitHub
-    ##   to allow those operations (it is typically the only user allowed
-    ##   to merge to development/* branches).
-    ##
-    username: "a_user_handle"
-
-    ## email contains one email of the user on the Git host.
-    ##
-    ##   This email will be referenced in the Git merge commits created
-    ##   by the robot.
-    ##
-    ##
-    email: "a_user_email"
-
-    ## password contains the password of the user on the Git host.
-    ##
-    password: "a_secret_password"
-
-    ## frontend_url contains the url where the running bert-e's UI is reachable
-    ##
-    ##   This URL will be provided in the init messages for each PR.
-    ##
-    frontend_url:
-
-  ## Authentication details for webhook.
-  ##
-  ##   Bert-E wakes up on wehooks received from the git host, which must be
-  ##   configured by an administrator of the repository. Requests are
-  ##   authenticated with basic auth.
-  webhook:
-    ## username is the basic auth username accepted by Bert-E.
-    ##
-    ##   defaults to "dummy"
-    ##
-    username: "dummy"
-
-    ## password is the basic auth password accepted by Bert-E.
-    ##
-    ##   defaults to "dummy"
-    ##
-    password: "dummy"
-
-  ## Authentication details for management tools page and API.
-  ##
-  ##   Bert-E allows users to authenticate via the OAuth of the git
-  ##   host. Authenticated users can access the API and the management
-  ##   page on the server. Additionally, users in the admin list will
-  ##   access the admin levels tools on the management page.
-  oauth:
-    ## clientId is the id of a OAuth consumer defined on the Git host.
-    ##
-    clientId: "a_valid_oauth_client_id"
-
-    ## clientSecret is the corresponding OAuth consumer secret.
-    ##
-    clientSecret: "a_valid_oauth_client_secret"
-
-    ## organization restricts who can login by checking the user email suffix.
-    ##
-    ##   defaults to "" (email suffix is not checked)
-    ##
-    organization: ""
-
-  ## Bert-E will use the settings in the gating section below
-  ## to make the decision whether some code is ready be merged or not.
-  gating:
-    ## always_create_integration_pull_requests decides whether integration
-    ## pull requests are created in addition to integration branches.
-    ##
-    ##   Bert-E will create pull requests on integration branches by default.
-    ##   You can set this setting to false if you don't wan't any integration
-    ##   pull requests to be created automatically. You can then, create them on
-    ##   demand by using the `create_pull_requests` option.
-    ##
-    ##   default value: true
-    ##
-    alwaysCreateIntegrationPullRequests: true
-
-    ## buildKey is the label of the key to look for in commit statuses.
-    ##
-    ##   default value: pre-merge
-    ##
-    buildKey: "pre-merge"
-
-    ## needAuthorApproval specifies whether pull requests need to be approved
-    ## by their authors to be merged.
-    ##
-    ##   Not supported on Github (will be forced to false)
-    ##
-    ##   default value: true
-    ##
-    needAuthorApproval: true
-
-    ## requiredPeerApprovals is the number of approvals required in each
-    ## pull-request in addition to the author.
-    ##
-    ##   values: 0 or more
-    ##
-    ##   default value: 2
-    ##
-    requiredPeerApprovals: 2
-
-    ## requiredProjectLeaderApprovals is the number of leader approvals
-    ## required in the pull-request in addition to author.
-    ##
-    ##   Each leader approvals count as a normal peer approval as well.
-    ##
-    ##   values: 0 or more; must be lower or equal to required_peer_approvals.
-    ##
-    ##   default value: 0
-    ##
-    requiredProjectLeaderApprovals: 0
-
-    ## projectAdmins is the list of handles allowed to post privileged messages
-    ## to configure the behaviour of Bert-E in each pull request.
-    ##
-    ##   default value: []
-    ##
-    projectAdmins: []
-
-    ## projectLeaders is the list of handles which count in the leader
-    ## approvals count.
-    ##
-    ##   default value: []
-    ##     if required_leader_approvals is set, there must be a greater
-    ##     or equal number of handles in that list.
-    ##
-    projectLeaders: []
-
-    ## tasks is a list of tasks to create automatically on new pull requests.
-    ##
-    ##   Not supported on GitHub.
-    ##
-    ##   default value: empty
-    ##
-    tasks: []
-
-    ## maxCommitDiff specifies the maximum authorized divergence from target branches.
-    ##
-    ##   If > 0, the robot refuses to work on pull requests that have diverged with
-    ##   their destination branch by more that `maxCommitDiff` commits.
-    ##
-    ##   default value: 0 (the feature is inactive)
-    ##
-    maxCommitDiff: 0
-
-    ## disableVersionChecks specifies whether the issue tracker's version
-    ## checks should be disabled.
-    ##
-    ##   Only relevant if jira projects are set
-    ##
-    ##  default value: false
-    ##
-    disableVersionChecks: false
-
-  ## Bert-E can optionnaly check that a Jira ticket exists and is in the expected
-  ## correct state before agreeing on merging some code.
-  jira:
-    ## enabled specifies whether Jira checks should be activated or not.
-    ##
-    ##   When enabled, fill in the other fields below. Otherwise, skip to
-    ##   the next section.
-    ##
-    ##   default value: false
-    ##
-    enabled: false
-
-    ## accountUrl is the url of the Jira account.
-    ##
-    accountUrl: "https://myaccount.atlassian.net"
-
-    ## the jira email to use to retrieve information from Jira.
-    ##
-    email: "a_jira_account"
-
-    ## token is the API token of the Jira account.
-    ##
-    token: "jira_token"
-
-    ## acceptedProjectKeys is the list of accepted Jira keys for this project.
-    ##
-    ##   With an empty list, no Jira checks will be performed.
-    ##
-    ##   default value: []
-    ##
-    acceptedProjectKeys: []
-
-    ## bypassedBranchPrefixes is a list branch prefixes that are
-    ## automatically bypassed during the issue tracker related checks.
-    ##
-    ##   default value: []
-    ##
-    bypassedBranchPrefixes: []
-
-    ## issueTypeToBranchPrefixes is a dictionnary of expected match
-    ## between the Jira issue type and branch prefix.
-    ##
-    ##   When empty: the branch prefix is not checked.
-    ##
-    ##   default value: {}
-    ##
-    issueTypeToBranchPrefixes: {}
-
-  ## prAuthorOptions is a dictionnary of users with specific bypass
-  ##
-  ##   When empty: the options in not checked.
-  ##
-  ##   default value: {}
-  ##
-  prAuthorOptions: {}
-#    username:
-#      - bypass_author
-#      - bypass_jira_check
-
-  addon:
-    ## Bitbucket addon details (link to Bert-E in side bar)
-    bitbucket:
-      baseUrl: ""
-      clientId: ""
-      url: ""
-
-## Bert-E container image
-image:
-  ## regitry to pull from.
-  ##
-  registry: docker.io
-
-  ## repository on the registry to pull from.
-  ##
-  repository: scality/bert-e
-
-  ## tag specifies the version of Bert-E to deploy.
-  ##
-  tag: 3.1.13
-
-  ## pullPolicy specifies the image pull policy
-  ##
-  ##   Defaults to 'IfNotPresent'
-  ##
-  pullPolicy: IfNotPresent
-
-  ## pullsecrets specifies a list of imagePullSecrets.
-  ##
-  ##   Secrets must be manually created in the namespace.
-  ##
-  pullSecrets: []
+frontend_url: https://bert-e.mydomain.com/bitbucket/my_company/my_repository/bert-e/
+repository_host: github
+repository_owner: scality
+repository_slug: my_repository
+robot: robot_username
 
 
-## Kubernetes deployment configuration
-deployment:
-  # Setup env vars on the deployment
-  env: {}
-    # MY_VAR: MY_VALUE
+robot_email: nobody@nowhere.com
+pull_request_base_url: https://github.com/pull-requests/{pr_id}
 
-  ## Configure extra options for liveness and readiness probes
-  livenessProbe:
-    initialDelaySeconds: 120
-    periodSeconds: 10
-    timeoutSeconds: 5
-    failureThreshold: 3
-    successThreshold: 1
-  readinessProbe:
-    initialDelaySeconds: 30
-    periodSeconds: 10
-    timeoutSeconds: 5
-    failureThreshold: 3
-    successThreshold: 1
 
-  ## Configure the ingress resource that allows you to access the service.
-  ingress:
-    ## enabled sets the ingress record generation or not.
-    ##
-    ##   Defaults to false.
-    ##
-    enabled: false
+commit_base_url: https://bitbucket.org/foo/bar/commits/{commit_id}
 
-    ## fqdn is the protocol/hostname to be covered with this ingress record.
-    ##
-    fqdn: "http://bert-e.local"
 
-    ## path contains the subpath where to access the HTTP service.
-    ##
-    ##   Defaults to '/'.
-    ##
-    path: "/"
+build_key: pre-merge
 
-    ## tls is set to true in order to enable TLS on the ingress record.
-    ##
-    ##   Defaults to false.
-    ##
-    tls: false
+required_peer_approvals: 2
 
-    ## tlsSecret specifies a secret that contains the key/certificate for TLS
-    ##
-    tlsSecret: "bert-e-tls-secret"
+# need_author_approval [OPTIONAL]:
+#   Pull Requests need to be approved by their authors to be merged.
+#   NOT SUPPORTED ON GITHUB
+#
+#   values: true or false
+#   default value: true
+#
+need_author_approval: true
 
-    ## annotations contains the Ingress annotations done as key:value pairs
-    ##
-    annotations: {}
+# jira_account_url [OPTIONAL]:
+#   The url of the Jira account.
+#
+#   empty: no Jira checks will be performed.
+#
+jira_account_url: https://my_account.atlassian.net
 
-  ## service port
-  ##
-  ##   Defaults to 5000
-  ##
-  servicePort: 5000
 
-  ## Configure resource requests and limits
-  resources:
-    requests:
-      memory: 512Mi
-      cpu: 300m
+# jira_email [OPTIONAL]:
+#   The email to use to retrieve information from Jira.
+#
+#   empty: no Jira checks will be performed.
+#
+jira_email: my_jira@email.com
 
-  ## Node labels for pod assignment
-  ##
-  nodeSelector: {}
 
-  ## Tolerations for pod assignment
-  ##
-  tolerations: []
+# jira_keys [OPTIONAL]:
+#   The list of accepted Jira keys for this project.
+#
+#   values: list of accepted keys
+#   default value: empty
+#   empty: no Jira checks will be performed.
+#
+jira_keys:
+  - MYJIRAPROJECTKEY
 
-  ## Affinity for pod assignment
-  ##
-  affinity: {}
+
+# prefixes [OPTIONAL]:
+#   The dictionnary of expected match between the Jira issue type
+#   and branch prefix.
+#
+#   default value: empty
+#   empty: the branch prefix is not checked.
+#
+prefixes:
+  Story: feature
+  Bug: bugfix
+  Improvement: improvement
+  Epic: epic
+
+
+# bypass_prefixes [OPTIONAL]
+#
+# List of branch prefixes that are allowed and that
+# automatically bypass issue tracker related checks.
+#
+#   default value: empty
+#   accepted values: (improvement|bugfix|feature|project|documentation|dependabot)
+bypass_prefixes:
+  - documentation
+  - dependabot
+
+
+# disable_version_checks [OPTIONAL]
+#
+# Disable the fix_version checks when the project has jira_keys set
+#
+#   default value: false
+#   accepted values: true or false
+disable_version_checks: true
+
+
+pr_author_options:
+  username:
+    - bypass_author_approval
+    - bypass_jira_check
+    - bypass_build_status
+    - bypass_incompatible_branch
+    - bypass_peer_approval
+    - bypass_leader_approval
+
+
+# admins [OPTIONAL]:
+#   The list of githost accounts allowed to post privileged messages
+#   to the bot
+#
+#   default value: empty
+#   empty: no one can post privileged messages
+#
+# Due to GDPR constraints on Bitbucket's API an account_id needs to be
+# retrieved and setted as the following:
+# admins:
+#   - username@account_id
+#
+admins:
+  - username_admin_1
+  # Every user setting for Bitbucket must look like the following
+  - username_admin_2@557042:08898ca4-5f12-4042-9942-87e167728afd
+
+
+# tasks [OPTIONAL]:
+#   The list of tasks to create by default on the githost pull request
+#   NOT SUPPORTED ON GITHUB.
+#
+#   default value: empty
+#   empty: no task is created by default
+tasks:
+  - do this
+  - do that
+
+
+# max_commit_diff [OPTIONAL]:
+#   If > 0, the robot refuses to work on pull requests that have diverged with
+#   their destination branch by more that `max_commit_diff` commits.
+#
+#   default value: 0 (the feature is inactive)
+max_commit_diff: 100
+
+# sentry_dsn [OPTIONAL]:
+#   If different from '', python exceptions will be captured and sent to
+#   sentry, which is an external service responsible for capturing tracebacks
+#   and sending mails to operators. The value should be a URL that points to
+#   a dsn sentry resource.
+#
+#   default value: '' (the feature is inactive)
+sentry_dsn: ''
+
+
+# always_create_integration_pull_requests [OPTIONAL]:
+#   Bert-E will create pull requests on integration branches by default.
+#   You can set this setting to false if you don't wan't any integration
+#   pull requests to be created automatically. You can then, create them on
+#   demand by using the `create_pull_requests` option.
+#
+#   default value: true
+always_create_integration_pull_requests: true
+
+
+# required_leader_approvals [OPTIONAL]:
+#   Number of leader approvals required in the pull-request in addition to author.
+#   Each leader approvals count as a normal peer approval as well.
+#
+#   values: 0 or more; must be lower or equal to required_peer_approvals.
+#   default value: 0
+#
+required_leader_approvals: 1
+
+
+# project_leaders [OPTIONAL]:
+#   The list of githost accounts which count in leader approvals count.
+#
+#   default value: empty; if required_leader_approvals is set, there
+#                  must be a greater or equal number of handles in that
+#                  list
+#
+# Due to GDPR constraints on Bitbucket's API an account_id needs to be
+# retrieved and setted as the following:
+# project_leaders:
+#   - username@account_id
+project_leaders:
+  - username_leader_1
+  # Every user setting for Bitbucket must look like the following
+  - username_leader_2@557042:66898ca4-5f12-4042-9942-87e167728afd
