@@ -1,7 +1,7 @@
 {{- if .Values.deployment.ingress.enabled }}
 {{- with .Values.deployment.ingress }}
 ---
-apiVersion: extensions/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: {{ template "fullname" $ }}
@@ -20,9 +20,12 @@ spec:
     http:
       paths:
         - path: {{ .path | quote }}
+          pathType: Prefix
           backend:
-            serviceName: {{ template "fullname" $ }}
-            servicePort: {{ $.Values.deployment.servicePort }}
+            service:
+              name: {{ template "fullname" $ }}
+              port:
+                number: {{ $.Values.deployment.servicePort }}
 {{- if .tls }}
   tls:
   - hosts:

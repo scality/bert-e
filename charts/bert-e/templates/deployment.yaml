@@ -36,7 +36,7 @@ spec:
         imagePullPolicy: {{ .Values.image.pullPolicy | quote }}
         envFrom:
         - secretRef:
-            name: {{ template "fullname" $ }}
+            name: {{ template "fullname" $ }}-env
         {{- if .Values.deployment.env }}
         - configMapRef:
             name: {{ template "fullname" $ }}-env
@@ -73,8 +73,8 @@ spec:
       - name: cache
         emptyDir:
       - name: config
-        configMap:
-          name: {{ template "fullname" $ }}
+        secret:
+          secretName: {{ template "fullname" $ }}
       - name: temp
         emptyDir:
       {{- if .Values.deployment.nodeSelector }}
