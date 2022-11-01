@@ -35,7 +35,7 @@ bertE:
   repository:
     ## gitHost designates one of the supported Git host (bitbucket/github).
     ##
-    gitHost: bitbucket
+    gitHost: github
 
     ## owner contains the name of the team or project on the Git host.
     ##
@@ -145,7 +145,7 @@ bertE:
     ##
     ##   default value: pre-merge
     ##
-    buildKey: "pre-merge"
+    buildKey: "github_actions"
 
     ## needAuthorApproval specifies whether pull requests need to be approved
     ## by their authors to be merged.
@@ -288,15 +288,15 @@ bertE:
 image:
   ## regitry to pull from.
   ##
-  registry: docker.io
+  registry: registry.scality.com
 
   ## repository on the registry to pull from.
   ##
-  repository: scality/bert-e
+  repository: bert-e/bert-e
 
   ## tag specifies the version of Bert-E to deploy.
   ##
-  tag: 3.1.13
+  tag: 3.6.23
 
   ## pullPolicy specifies the image pull policy
   ##
