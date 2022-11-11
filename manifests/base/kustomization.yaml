@@ -10,6 +10,11 @@ secretGenerator:
   envs:
   - secrets.env
 
+configMapGenerator:
+- name: bert-e-env
+  envs:
+    - bert-e.env
+
 images:
 - name: bert-e
   newName: 'registry.scality.com/bert-e/bert-e'
@@ -18,4 +23,4 @@ images:
 resources:
 - deployment.yaml
 - service.yaml
-- secrets.yaml
+
