@@ -51,6 +51,8 @@ spec:
         envFrom:
         - secretRef:
             name: bert-e-env
+        - configMapRef:
+            name: special-config
         volumeMounts:
         - name: cache
           mountPath: /root/.bert-e
