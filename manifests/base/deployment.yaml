@@ -64,7 +64,7 @@ spec:
       - name: cache
         emptyDir:
       - name: config
-        configMap:
-          name: bert-e-config
+        secret:
+          secretName: bert-e-config
       - name: temp
         emptyDir:        
