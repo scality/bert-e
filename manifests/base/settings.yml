@@ -1,0 +1,180 @@
+frontend_url: https://bert-e.mydomain.com/bitbucket/my_company/my_repository/bert-e/
+repository_host: github
+repository_owner: scality
+repository_slug: my_repository
+robot: robot_username
+
+
+robot_email: nobody@nowhere.com
+pull_request_base_url: https://github.com/pull-requests/{pr_id}
+
+
+commit_base_url: https://bitbucket.org/foo/bar/commits/{commit_id}
+
+
+build_key: pre-merge
+
+required_peer_approvals: 2
+
+# need_author_approval [OPTIONAL]:
+#   Pull Requests need to be approved by their authors to be merged.
+#   NOT SUPPORTED ON GITHUB
+#
+#   values: true or false
+#   default value: true
+#
+need_author_approval: true
+
+# jira_account_url [OPTIONAL]:
+#   The url of the Jira account.
+#
+#   empty: no Jira checks will be performed.
+#
+jira_account_url: https://my_account.atlassian.net
+
+
+# jira_email [OPTIONAL]:
+#   The email to use to retrieve information from Jira.
+#
+#   empty: no Jira checks will be performed.
+#
+jira_email: my_jira@email.com
+
+
+# jira_keys [OPTIONAL]:
+#   The list of accepted Jira keys for this project.
+#
+#   values: list of accepted keys
+#   default value: empty
+#   empty: no Jira checks will be performed.
+#
+jira_keys:
+  - MYJIRAPROJECTKEY
+
+
+# prefixes [OPTIONAL]:
+#   The dictionnary of expected match between the Jira issue type
+#   and branch prefix.
+#
+#   default value: empty
+#   empty: the branch prefix is not checked.
+#
+prefixes:
+  Story: feature
+  Bug: bugfix
+  Improvement: improvement
+  Epic: epic
+
+
+# bypass_prefixes [OPTIONAL]
+#
+# List of branch prefixes that are allowed and that
+# automatically bypass issue tracker related checks.
+#
+#   default value: empty
+#   accepted values: (improvement|bugfix|feature|project|documentation|dependabot)
+bypass_prefixes:
+  - documentation
+  - dependabot
+
+
+# disable_version_checks [OPTIONAL]
+#
+# Disable the fix_version checks when the project has jira_keys set
+#
+#   default value: false
+#   accepted values: true or false
+disable_version_checks: true
+
+
+pr_author_options:
+  username:
+    - bypass_author_approval
+    - bypass_jira_check
+    - bypass_build_status
+    - bypass_incompatible_branch
+    - bypass_peer_approval
+    - bypass_leader_approval
+
+
+# admins [OPTIONAL]:
+#   The list of githost accounts allowed to post privileged messages
+#   to the bot
+#
+#   default value: empty
+#   empty: no one can post privileged messages
+#
+# Due to GDPR constraints on Bitbucket's API an account_id needs to be
+# retrieved and setted as the following:
+# admins:
+#   - username@account_id
+#
+admins:
+  - username_admin_1
+  # Every user setting for Bitbucket must look like the following
+  - username_admin_2@557042:08898ca4-5f12-4042-9942-87e167728afd
+
+
+# tasks [OPTIONAL]:
+#   The list of tasks to create by default on the githost pull request
+#   NOT SUPPORTED ON GITHUB.
+#
+#   default value: empty
+#   empty: no task is created by default
+tasks:
+  - do this
+  - do that
+
+
+# max_commit_diff [OPTIONAL]:
+#   If > 0, the robot refuses to work on pull requests that have diverged with
+#   their destination branch by more that `max_commit_diff` commits.
+#
+#   default value: 0 (the feature is inactive)
+max_commit_diff: 100
+
+# sentry_dsn [OPTIONAL]:
+#   If different from '', python exceptions will be captured and sent to
+#   sentry, which is an external service responsible for capturing tracebacks
+#   and sending mails to operators. The value should be a URL that points to
+#   a dsn sentry resource.
+#
+#   default value: '' (the feature is inactive)
+sentry_dsn: ''
+
+
+# always_create_integration_pull_requests [OPTIONAL]:
+#   Bert-E will create pull requests on integration branches by default.
+#   You can set this setting to false if you don't wan't any integration
+#   pull requests to be created automatically. You can then, create them on
+#   demand by using the `create_pull_requests` option.
+#
+#   default value: true
+always_create_integration_pull_requests: true
+
+
+# required_leader_approvals [OPTIONAL]:
+#   Number of leader approvals required in the pull-request in addition to author.
+#   Each leader approvals count as a normal peer approval as well.
+#
+#   values: 0 or more; must be lower or equal to required_peer_approvals.
+#   default value: 0
+#
+required_leader_approvals: 1
+
+
+# project_leaders [OPTIONAL]:
+#   The list of githost accounts which count in leader approvals count.
+#
+#   default value: empty; if required_leader_approvals is set, there
+#                  must be a greater or equal number of handles in that
+#                  list
+#
+# Due to GDPR constraints on Bitbucket's API an account_id needs to be
+# retrieved and setted as the following:
+# project_leaders:
+#   - username@account_id
+project_leaders:
+  - username_leader_1
+  # Every user setting for Bitbucket must look like the following
+  - username_leader_2@557042:66898ca4-5f12-4042-9942-87e167728afd

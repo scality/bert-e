@@ -1,0 +1,60 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bert-e
+  labels:
+    app.kubernetes.io/name: bert-e
+    app.kubernetes.io/instance: bert-e
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: bert-e
+      app.kubernetes.io/instance: bert-e
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: bert-e
+        app.kubernetes.io/instance: bert-e
+    spec:
+      serviceAccountName: default
+      containers:
+      - name: bert-e
+        image: 'bert-e:latest'
+        imagePullPolicy: IfNotPresent
+        args:
+        - "--settings-file"
+        - "/conf/settings.yml"
+        ports:
+        - name: http
+          containerPort: 5000
+          protocol: TCP
+        livenessProbe:
+          httpGet:
+            path: /
+            port: http
+        readinessProbe:
+          httpGet:
+            path: /
+            port: http
+        envFrom:
+        - secretRef:
+            name: bert-e-env
+        - configMapRef:
+            name: bert-e-env
+        volumeMounts:
+        - name: cache
+          mountPath: /root/.bert-e
+        - name: config
+          mountPath: /conf
+        - name: temp
+          mountPath: /tmp      
+      volumes:
+      - name: cache
+        emptyDir:
+      - name: config
+        secret:
+          secretName: bert-e-config
+      - name: temp
+        emptyDir:        

@@ -1,0 +1,19 @@
+---
+# Source: bert-e/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: bert-e
+  labels:
+    app.kubernetes.io/name: bert-e
+    app.kubernetes.io/instance: bert-e
+spec:
+  type: ClusterIP
+  ports:
+    - port: 5000
+      targetPort: 5000
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: bert-e
+    app.kubernetes.io/instance: bert-e
