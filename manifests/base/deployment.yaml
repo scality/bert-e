@@ -52,7 +52,7 @@ spec:
         - secretRef:
             name: bert-e-env
         - configMapRef:
-            name: special-config
+            name: bert-e-env
         volumeMounts:
         - name: cache
           mountPath: /root/.bert-e
