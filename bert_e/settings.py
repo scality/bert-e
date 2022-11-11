@@ -1,3 +1,4 @@
+from os import getenv, path
 from os.path import exists
 
 import yaml
@@ -128,12 +129,17 @@ class SettingsSchema(Schema):
     repository_slug = fields.Str(required=True)
     repository_host = fields.Str(required=True)
 
-    robot = fields.Nested(UserSettingSchema, required=True)
-    robot_email = fields.Str(required=True)
+    robot = fields.Nested(UserSettingSchema, required=True,
+        missing=getenv('BERT_E_ROBOT'))
+    robot_email = fields.Str(required=True,
+        missing=getenv('BERT_E_ROBOT_EMAIL'))
 
-    pull_request_base_url = fields.Str(required=True)
-    commit_base_url = fields.Str(required=True)
-
+    githost_url = fields.Str(
+        missing=f'https://{repository_host}.com/{repository_owner}/{repository_slug}')
+    pull_request_base_url = fields.Str(required=True,
+        missing=path.join(githost_url, 'pulls/{pr_id}'))
+    commit_base_url = fields.Str(required=True,
+        missing=path.join(githost_url, 'commits/{commit_id}'))
     build_key = fields.Str(missing="pre-merge")
 
     need_author_approval = fields.Bool(missing=True)
@@ -141,8 +147,8 @@ class SettingsSchema(Schema):
     required_peer_approvals = fields.Int(missing=2)
     pr_author_options = PrAuthorsOptions(missing={})
 
-    jira_account_url = fields.Str(missing='')
-    jira_email = fields.Str(missing='')
+    jira_account_url = fields.Str(missing=getenv('BERT_E_JIRA_ACCOUNT_URL'))
+    jira_email = fields.Str(missing=getenv('BERT_E_JIRA_EMAIL'))
     jira_keys = fields.List(fields.Str(), missing=[])
 
     prefixes = fields.Dict(missing={})
