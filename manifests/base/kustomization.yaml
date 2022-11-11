@@ -6,7 +6,7 @@ secretGenerator:
 - name: bert-e-config
   files:
   - settings.yml
-- name: bert-e-secret
+- name: bert-e-env
   envs:
   - secrets.env
 
