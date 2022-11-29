@@ -31,10 +31,18 @@ spec:
           containerPort: 5000
           protocol: TCP
         livenessProbe:
+          initialDelaySeconds: 3
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 5
           httpGet:
             path: /
             port: http
         readinessProbe:
+          initialDelaySeconds: 3
+          periodSeconds: 10
+          timeoutSeconds: 1
+          failureThreshold: 3
           httpGet:
             path: /
             port: http
@@ -49,7 +57,7 @@ spec:
         - name: config
           mountPath: /conf
         - name: temp
-          mountPath: /tmp      
+          mountPath: /tmp
       volumes:
       - name: cache
         emptyDir:
@@ -57,4 +65,4 @@ spec:
         secret:
           secretName: bert-e-config
       - name: temp
-        emptyDir:        
+        emptyDir:
