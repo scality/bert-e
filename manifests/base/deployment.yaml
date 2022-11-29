@@ -46,6 +46,10 @@ spec:
           httpGet:
             path: /
             port: http
+        resources:
+          requests:
+            memory: 256Mi
+            cpu: 150m
         envFrom:
         - secretRef:
             name: bert-e-env
