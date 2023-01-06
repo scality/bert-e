@@ -1,7 +1,8 @@
-from os.path import exists
+from os.path import exists, join
 
 import yaml
 import logging
+import os
 from marshmallow import Schema, fields, post_load, pre_load
 
 from bert_e.exceptions import (IncorrectSettingsFile, MalformedSettings,
@@ -125,14 +126,15 @@ class SettingsSchema(Schema):
     frontend_url = fields.Str(missing='')
 
     repository_owner = fields.Str(required=True)
-    repository_slug = fields.Str(required=True)
+    repository_slug = fields.Str(required=False, missing=None)
+
     repository_host = fields.Str(required=True)
 
     robot = fields.Nested(UserSettingSchema, required=True)
     robot_email = fields.Str(required=True)
 
-    pull_request_base_url = fields.Str(required=True)
-    commit_base_url = fields.Str(required=True)
+    pull_request_base_url = fields.Str(required=False)
+    commit_base_url = fields.Str(required=False)
 
     build_key = fields.Str(missing="pre-merge")
 
@@ -174,6 +176,51 @@ class SettingsSchema(Schema):
     disable_queues = fields.Bool(missing=False)
     use_queues = fields.Bool(missing=True)
     cmd_line_options = fields.List(fields.Str(), missing=[])
+
+    @pre_load
+    def load_env(self, data):
+        """Load environment variables"""
+        for key, value in os.environ.items():
+            if key.startswith('BERT_E_'):
+                data[key[7:].lower()] = value
+
+        return data
+
+    @post_load
+    def base_url(self, data):
+        """Add base urls for repository, commits and pull requests."""
+
+        if "repository_host_url" not in data:
+            hosts = {
+                'bitbucket': 'https://bitbucket.org',
+                'github': 'https://github.com',
+                'mock': 'https://bitbucket.org',
+            }
+            if data["repository_host"] in hosts:
+                data["repository_host_url"] = hosts[data["repository_host"]]
+            else:
+                raise IncorrectSettingsFile(
+                    f'Unknown repository host: {data["repository_host"]}'
+                )
+
+        if "pull_request_base_url" not in data:
+
+            data["pull_request_base_url"] = join(
+                data["repository_host_url"],
+                data["repository_owner"],
+                data["repository_slug"],
+                "pull/{pr_id}"
+            )
+
+        if "commit_base_url" not in data:
+            data["commit_base_url"] = join(
+                data["repository_host_url"],
+                data["repository_owner"],
+                data["repository_slug"],
+                "commits/{commit_id}"
+            )
+
+        return data
 
     @post_load
     def mk_settings(self, data):

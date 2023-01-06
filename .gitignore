@@ -7,3 +7,5 @@ __pycache__
 bert_e.egg-info
 .tox/
 settings.yml
+.coverage
+.pytest_cache/
