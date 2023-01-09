@@ -1,0 +1,46 @@
+---
+frontend_url: https://bert-e.mydomain.com/bitbucket/my_company/my_repository/bert-e/
+
+jira_keys:
+  - MYJIRAPROJECTKEY
+
+prefixes:
+  Story: feature
+  Bug: bugfix
+  Improvement: improvement
+  Epic: epic
+
+bypass_prefixes:
+  - documentation
+  - dependabot
+
+disable_version_checks: true
+
+pr_author_options:
+  username:
+    - bypass_author_approval
+    - bypass_jira_check
+    - bypass_build_status
+    - bypass_incompatible_branch
+    - bypass_peer_approval
+    - bypass_leader_approval
+
+admins:
+  - username_admin_1
+  - username_admin_2@557042:08898ca4-5f12-4042-9942-87e167728afd
+
+tasks:
+  - do this
+  - do that
+
+max_commit_diff: 100
+
+sentry_dsn: ''
+
+always_create_integration_pull_requests: true
+
+required_leader_approvals: 1
+
+project_leaders:
+  - username_leader_1
+  - username_leader_2@557042:66898ca4-5f12-4042-9942-87e167728afd
