@@ -6,7 +6,7 @@ coverage==5.0a1
 Flask==1.0.2
 Flask-Markdown==0.3
 Flask-WTF==0.14.2
-ItsDangerous==0.24
+ItsDangerous==2.1.2
 Jinja2==2.10
 jira==2.0.0
 Markdown==2.6.11
