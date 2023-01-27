@@ -1,0 +1,65 @@
+---
+
+name: containersec
+
+on:
+  push:
+    branches: [ development/* ]
+  schedule:
+  # Every day at noon
+  - cron: '0 12 * * *'
+
+jobs:
+  # A job that will use actions/github-script get all releases and output them
+  releases:
+    runs-on: ubuntu-latest
+    outputs:
+      names: ${{ steps.releases.outputs.names }}
+    steps:
+      - name: Get all releases
+        id: releases
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const releases = await github.rest.repos.listReleases({
+              owner: context.repo.owner,
+              repo: context.repo.repo
+            })
+            // Set output a list of the tag name of each releases under the key names
+            core.setOutput('names', releases.data.map(release => release.tag_name))
+            return releases.data.map(release => release.tag_name)
+      - name: Output all releases
+        run: |
+          echo "All releases: ${{ steps.releases.outputs.result }}"
+          echo "All releases: ${{ steps.releases.outputs.names }}"
+  analyse:
+    name: analyse
+    runs-on: ubuntu-latest
+    needs: releases
+    strategy:
+      matrix:
+        releases: ${{ fromJson(needs.releases.outputs.names) }}
+      fail-fast: false
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ matrix.releases }}
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: "registry.scality.com/bert-e/bert-e:${{ matrix.releases }}"
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+        env:
+          TRIVY_USERNAME: ${{ secrets.REGISTRY_LOGIN }}
+          TRIVY_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}
+        continue-on-error: true
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v2
+        # execute step on if previous step was successful
+        if: ${{ success() }}
+        with:
+          sarif_file: 'trivy-results.sarif'
