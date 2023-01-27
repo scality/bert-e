@@ -2,7 +2,12 @@
 
 name: containersec
 
-on: push
+on:
+  push:
+    branches: [ development/* ]
+  schedule:
+  # Every day at noon
+  - cron: '0 12 * * *'
 
 jobs:
   # A job that will use actions/github-script get all releases and output them
@@ -50,8 +55,11 @@ jobs:
         env:
           TRIVY_USERNAME: ${{ secrets.REGISTRY_LOGIN }}
           TRIVY_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}
+        continue-on-error: true
 
       - name: Upload Trivy scan results to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v2
+        # execute step on if previous step was successful
+        if: ${{ success() }}
         with:
           sarif_file: 'trivy-results.sarif'
