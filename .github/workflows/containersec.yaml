@@ -59,20 +59,6 @@ jobs:
           TRIVY_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}
         continue-on-error: true
 
-      # In order to specify the ref and sha in which trivy
-      # ran the analysis, the action codeql-action/upload-sarif@v2
-      # must be set with the following parameters:
-      # ref: ${{ matrix.releases.tag_name }}
-      # commit: ${{ matrix.releases.sha }}
-      # The following step is a workaround to set the ref and sha
-      # in the sarif file.
-
-      - name: Set ref and sha in sarif file
-        run: |
-          sed -i "s|\"ref\": null|\"ref\": \"${{ matrix.releases.tag_name }}\"|g" trivy-results.sarif
-          sed -i "s|\"commit\": null|\"commit\": \"${{ matrix.releases.sha }}\"|g" trivy-results.sarif
-        continue-on-error: true
-
       - name: Upload Trivy scan results to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v2
         # execute step on if previous step was successful
