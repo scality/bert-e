@@ -2,12 +2,7 @@
 
 name: containersec
 
-on:
-  push:
-    branches: [ development/* ]
-  schedule:
-  # Every day at noon
-  - cron: '0 12 * * *'
+on: push
 
 jobs:
   # A job that will use actions/github-script get all releases and output them
