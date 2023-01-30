@@ -38,4 +38,4 @@ jobs:
 
   scan:
     needs: build
-    uses: ./.github/actions/trivy.yaml
+    uses: ./.github/workflows/trivy.yaml

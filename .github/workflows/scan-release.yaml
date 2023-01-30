@@ -46,7 +46,7 @@ jobs:
       matrix:
         releases: ${{ fromJson(needs.releases.outputs.releases) }}
       fail-fast: false
-    uses: ./.github/actions/scan-release.yaml
+    uses: ./.github/workflows/trivy.yaml
     with:
       image: 'registry.scality.com/bert-e/bert-e'
       ref: ${{ matrix.releases.tag_name }}
