@@ -39,3 +39,5 @@ jobs:
   scan:
     needs: build
     uses: ./.github/workflows/trivy.yaml
+    with:
+      image: ghcr.io/scality/bert-e:${{ github.sha }}

@@ -10,7 +10,7 @@ on:
     inputs:
       image:
         description: 'Image to scan'
-        required: false
+        required: true
         type: string
       ref:
         description: |
@@ -21,16 +21,11 @@ on:
         description: 'Scanned git SHA'
         required: false
         type: string
-      ref_type:
-        description: 'Type of ref to scan, choices are heads, tags, or pull.'
-        required: false
-        type: string
 
 env:
-  IMAGE: ${{ inputs.image || 'ghcr.io/scality/bert-e' }}
-  REF: ${{ inputs.ref || github.sha }}
+  IMAGE: ${{ inputs.image }}
+  REF: ${{ inputs.ref || github.ref }}
   SHA: ${{ inputs.sha || github.sha }}
-  REF_TYPE: ${{ inputs.ref_type || 'heads' }}
 
 jobs:
   analyse:
@@ -45,14 +40,13 @@ jobs:
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: "${{ env.IMAGE }}:${{ env.REF }}"
+          image-ref: "${{ env.IMAGE }}"
           format: 'sarif'
           output: 'trivy-results.sarif'
-        continue-on-error: true
 
       - name: Upload Trivy scan results to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v2
         with:
           sarif_file: 'trivy-results.sarif'
-          ref: 'refs/${{ env.REF_TYPE }}/${{ env.REF }}'
+          ref: '${{ env.REF }}'
           sha: ${{ env.SHA }}
