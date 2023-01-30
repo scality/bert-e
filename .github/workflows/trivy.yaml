@@ -22,7 +22,7 @@ on:
         required: false
         type: string
       ref_type:
-        description: 'Type of ref to scan'
+        description: 'Type of ref to scan, choices are heads, tags, or pull.'
         required: false
         type: string
 
@@ -30,7 +30,7 @@ env:
   IMAGE: ${{ inputs.image || 'ghcr.io/scality/bert-e' }}
   REF: ${{ inputs.ref || github.sha }}
   SHA: ${{ inputs.sha || github.sha }}
-  REF_TYPE: ${{ inputs.ref_type || github.ref_type }}
+  REF_TYPE: ${{ inputs.ref_type || 'heads' }}
 
 jobs:
   analyse:
