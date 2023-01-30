@@ -46,7 +46,7 @@ jobs:
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: "${{ inputs.image }}:${{ inputs.ref }"
+          image-ref: "${{ inputs.image }}:${{ inputs.ref }}"
           format: 'sarif'
           output: 'trivy-results.sarif'
         continue-on-error: true
