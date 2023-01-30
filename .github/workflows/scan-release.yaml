@@ -48,7 +48,6 @@ jobs:
       fail-fast: false
     uses: ./.github/workflows/trivy.yaml
     with:
-      image: 'registry.scality.com/bert-e/bert-e'
-      ref: ${{ matrix.releases.tag_name }}
+      image: 'registry.scality.com/bert-e/bert-e:${{ matrix.releases.tag_name }}'
+      ref: 'refs/tags/${{ matrix.releases.tag_name }}'
       sha: ${{ matrix.releases.sha }}
-      ref_type: 'tag'
