@@ -4,7 +4,7 @@ name: containersec
 
 on:
   push:
-    branches: [ development/* ]
+    branches: [ '**' ]
   schedule:
   # Every day at noon
   - cron: '0 12 * * *'
