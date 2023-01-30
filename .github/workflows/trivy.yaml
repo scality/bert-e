@@ -1,0 +1,52 @@
+---
+
+name: trivy
+
+on:
+  schedule:
+  # Every day at noon
+  - cron: '0 12 * * *'
+  workflow_call:
+    inputs:
+      image:
+        description: 'Image to scan'
+        required: true
+        type: string
+      ref:
+        description: |
+          The branch or tag to scan. If not specified, the default branch is used.
+        required: false
+        type: string
+      sha:
+        description: 'Scanned git SHA'
+        required: false
+        type: string
+
+env:
+  IMAGE: ${{ inputs.image }}
+  REF: ${{ inputs.ref || github.ref }}
+  SHA: ${{ inputs.sha || github.sha }}
+
+jobs:
+  analyse:
+    name: analyse
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ env.REF }}
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: "${{ env.IMAGE }}"
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: 'trivy-results.sarif'
+          ref: '${{ env.REF }}'
+          sha: ${{ env.SHA }}
