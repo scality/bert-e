@@ -9,3 +9,4 @@ bert_e.egg-info
 settings.yml
 .coverage
 .pytest_cache/
+build/

@@ -22,7 +22,6 @@ def test_env_settings(settings_env):
 
     for key, value in os.environ.items():
         if key.startswith('BERT_E_'):
-            print(key)
             config_value = settings_env[key[7:].lower()]
             if isinstance(config_value, bool):
                 assert config_value == strtobool(value)
@@ -47,3 +46,11 @@ def test_commit_base_url(settings_env):
     """Test that commit_base_url is set correctly."""
     assert settings_env['commit_base_url'] == \
         'https://github.com/scality/bert-e/commits/{commit_id}'
+
+
+def test_settings_as_obj(settings):
+    """Test that settings can be accessed as an object."""
+    assert settings.repository_host == 'github'
+    assert settings.repository_owner == 'scality'
+    assert settings.repository_slug == 'bert-e'
+    assert settings.repository_host_url == 'https://github.com'

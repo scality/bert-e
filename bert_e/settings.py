@@ -3,10 +3,12 @@ from os.path import exists, join
 import yaml
 import logging
 import os
-from marshmallow import Schema, fields, post_load, pre_load
+from marshmallow import (
+    Schema, fields, post_load, pre_load, validates_schema, ValidationError)
 
-from bert_e.exceptions import (IncorrectSettingsFile, MalformedSettings,
-                               SettingsFileNotFound)
+from bert_e.exceptions import (IncorrectSettingsFile,
+                               SettingsFileNotFound,
+                               MalformedSettings)
 from bert_e.lib.settings_dict import SettingsDict
 
 
@@ -65,10 +67,10 @@ class UserDict(SettingsDict):
 
 class UserSettingSchema(Schema):
     username = Username(required=True)
-    account_id = fields.Str(required=False, missing=None)
+    account_id = fields.Str(required=False, load_default=None)
 
     @pre_load
-    def split_usernames(self, username):
+    def split_usernames(self, username, **kwargs):
         data = iter(username.split('@'))
         user = dict(username=None, account_id=None)
         user['username'] = next(data, None)
@@ -76,7 +78,7 @@ class UserSettingSchema(Schema):
         return user
 
     @post_load
-    def output(self, data):
+    def output(self, data, **kwargs):
         return UserDict(data)
 
 
@@ -91,7 +93,7 @@ class PrAuthorsOptions(fields.Dict):
         'bypass_leader_approval',
     ]
 
-    def serialize(self, value, attr=None, obj=None):
+    def serialize(self, value, attr=None, obj=None, **kwargs):
         data = super(PrAuthorsOptions, self).serialize(value, attr, obj)
         res = dict()
         for user, values in data.items():
@@ -99,7 +101,7 @@ class PrAuthorsOptions(fields.Dict):
 
         return res
 
-    def deserialize(self, value, attr=None, data=None):
+    def deserialize(self, value, attr=None, data=None, **kwargs):
         data = super(PrAuthorsOptions, self).deserialize(value, attr, data)
 
         found_elem = []
@@ -121,12 +123,13 @@ class PrAuthorsOptions(fields.Dict):
 
 class SettingsSchema(Schema):
     # Settings defined in config files
-    always_create_integration_pull_requests = fields.Bool(missing=True)
+    always_create_integration_pull_requests = fields.Bool(
+        required=False, load_default=True)
 
-    frontend_url = fields.Str(missing='')
+    frontend_url = fields.Str(required=False, load_default='')
 
     repository_owner = fields.Str(required=True)
-    repository_slug = fields.Str(required=False, missing=None)
+    repository_slug = fields.Str(required=False, load_default=None)
 
     repository_host = fields.Str(required=True)
 
@@ -136,58 +139,83 @@ class SettingsSchema(Schema):
     pull_request_base_url = fields.Str(required=False)
     commit_base_url = fields.Str(required=False)
 
-    build_key = fields.Str(missing="pre-merge")
+    build_key = fields.Str(required=False, load_default="pre-merge")
 
-    need_author_approval = fields.Bool(missing=True)
-    required_leader_approvals = fields.Int(missing=0)
-    required_peer_approvals = fields.Int(missing=2)
-    pr_author_options = PrAuthorsOptions(missing={})
+    need_author_approval = fields.Bool(required=False, load_default=True)
+    required_leader_approvals = fields.Int(required=False, load_default=0)
+    required_peer_approvals = fields.Int(required=False, load_default=2)
+    pr_author_options = PrAuthorsOptions(load_default={})
 
-    jira_account_url = fields.Str(missing='')
-    jira_email = fields.Str(missing='')
-    jira_keys = fields.List(fields.Str(), missing=[])
+    jira_account_url = fields.Str(required=False, load_default='')
+    jira_email = fields.Str(required=False, load_default='')
+    jira_keys = fields.List(fields.Str(), required=False, load_default=[])
 
-    prefixes = fields.Dict(missing={})
-    bypass_prefixes = fields.List(fields.Str(), missing=[])
+    prefixes = fields.Dict(required=False, load_default={})
+    bypass_prefixes = fields.List(fields.Str(), load_default=[])
 
-    disable_version_checks = fields.Bool(missing=False)
+    disable_version_checks = fields.Bool(required=False, load_default=False)
 
-    organization = fields.Str(fields.Str(), missing='')
-    admins = fields.Nested(UserSettingSchema, many=True, missing=[])
-    project_leaders = fields.Nested(UserSettingSchema, many=True, missing=[])
-    tasks = fields.List(fields.Str(), missing=[])
+    organization = fields.Str(load_default='')
+    admins = fields.Nested(
+        UserSettingSchema, many=True, load_default=[])
+    project_leaders = fields.Nested(
+        UserSettingSchema, many=True, load_default=[])
+    tasks = fields.List(fields.Str(), load_default=[])
 
-    max_commit_diff = fields.Int(missing=0)
+    max_commit_diff = fields.Int(required=False, load_default=0)
 
-    sentry_dsn = fields.Str(missing='')
+    sentry_dsn = fields.Str(load_default='')
 
-    bitbucket_addon_base_url = fields.Str(missing='')
-    bitbucket_addon_client_id = fields.Str(missing='')
-    bitbucket_addon_url = fields.Str(missing='')
+    bitbucket_addon_base_url = fields.Str(required=False, load_default='')
+    bitbucket_addon_client_id = fields.Str(required=False, load_default='')
+    bitbucket_addon_url = fields.Str(required=False, load_default='')
 
     # Settings coming from CLI arguments
-    robot_password = fields.Str(missing='')
-    jira_token = fields.Str(missing='')
+    robot_password = fields.Str(required=False, load_default='')
+    jira_token = fields.Str(required=False, load_default='')
 
-    backtrace = fields.Bool(missing=False)
-    interactive = fields.Bool(missing=False)
-    no_comment = fields.Bool(missing=False)
-    quiet = fields.Bool(missing=False)
-    disable_queues = fields.Bool(missing=False)
-    use_queues = fields.Bool(missing=True)
-    cmd_line_options = fields.List(fields.Str(), missing=[])
+    backtrace = fields.Bool(required=False, load_default=False)
+    interactive = fields.Bool(required=False, load_default=False)
+    no_comment = fields.Bool(required=False, load_default=False)
+    quiet = fields.Bool(required=False, load_default=False)
+    disable_queues = fields.Bool(required=False, load_default=False)
+    use_queues = fields.Bool(required=False, load_default=True)
+    cmd_line_options = fields.List(fields.Str(), load_default=[])
 
-    @pre_load
-    def load_env(self, data):
+    client_id = fields.Str(required=False, load_default='')
+    client_secret = fields.Str(required=False, load_default='')
+
+    @pre_load(pass_many=True)
+    def load_env(self, data, **kwargs):
         """Load environment variables"""
         for key, value in os.environ.items():
             if key.startswith('BERT_E_'):
                 data[key[7:].lower()] = value
-
         return data
 
-    @post_load
-    def base_url(self, data):
+    # # beyond individual setting validity,
+    # # check now for inter-settings validity
+
+    @validates_schema
+    def validate_inter_settings(self, data, **kwargs):
+        errors = {}
+        if (data['required_leader_approvals'] >
+                data['required_peer_approvals']):
+            errors['required_leader_approvals'] = [
+                'required_peer_approvals must be equal to, '
+                'or exceed, required_leader_approvals'
+            ]
+        if (data['required_leader_approvals'] >
+                len(data['project_leaders'])):
+            errors['required_leader_approvals'] = [
+                'the number of project leaders must be equal to, '
+                'or exceed, the value of required_leader_approvals'
+            ]
+        if errors:
+            raise ValidationError(errors)
+
+    @post_load(pass_many=True)
+    def base_url(self, data, **kwargs):
         """Add base urls for repository, commits and pull requests."""
 
         if "repository_host_url" not in data:
@@ -223,7 +251,9 @@ class SettingsSchema(Schema):
         return data
 
     @post_load
-    def mk_settings(self, data):
+    def mk_settings(self, data, **kwargs):
+        """Return the settings as a python object."""
+
         return SettingsDict(data)
 
 
@@ -253,28 +283,11 @@ def setup_settings(settings_file: str) -> dict:
         except Exception as err:
             raise IncorrectSettingsFile(settings_file) from err
 
-    settings, errors = SettingsSchema().load(data)
-    if errors:
-        raise MalformedSettings(settings_file, errors, data)
-
-    # beyond individual setting validity,
-    # check now for inter-settings validity
-
-    if (settings['required_leader_approvals'] >
-            settings['required_peer_approvals']):
-        errors['required_leader_approvals'] = [
-            'required_peer_approvals must be equal to, '
-            'or exceed, required_leader_approvals'
-        ]
-
-    if (settings['required_leader_approvals'] >
-            len(settings['project_leaders'])):
-        errors['required_leader_approvals'] = [
-            'the number of project leaders must be equal to, '
-            'or exceed, the value of required_leader_approvals'
-        ]
-
-    if errors:
-        raise MalformedSettings(settings_file, errors, data)
+    try:
+        settings = SettingsSchema().load(data)
+    except IncorrectSettingsFile as exp:
+        raise exp
+    except Exception as exp:
+        raise MalformedSettings(settings_file, exp, data) from exp
 
     return settings

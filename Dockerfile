@@ -1,11 +1,11 @@
-FROM python:3.6.6-slim-stretch
+FROM python:3.10-slim-bullseye
 
 RUN apt-get update && apt-get install git -y && rm -rf /var/cache/apt
 
-COPY constraints.txt requirements.txt /app/
+COPY requirements.txt /app/
 
-ENV PYTHON_PIP_VERSION 21.0.1
-RUN pip3 install pip==$PYTHON_PIP_VERSION
+ENV PYTHON_PIP_VERSION 22.3.1
+RUN pip install pip==$PYTHON_PIP_VERSION
 RUN pip install -r /app/requirements.txt
 
 VOLUME '/tmp'

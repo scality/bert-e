@@ -110,7 +110,7 @@ def handle_fault_job(job: FaultJob):
 def initialize_git_repo(repo, username, usermail):
     """resets the git repo"""
     assert '/ring/' not in repo._url  # This is a security, do not remove
-    repo.cmd('git init')
+    repo.cmd('git init --initial-branch=master')
     repo.cmd('git config user.email %s' % usermail)
     repo.cmd('git config user.name %s' % username)
     repo.cmd('touch a')
