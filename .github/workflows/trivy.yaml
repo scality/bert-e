@@ -3,9 +3,6 @@
 name: trivy
 
 on:
-  schedule:
-  # Every day at noon
-  - cron: '0 12 * * *'
   workflow_call:
     inputs:
       image:
