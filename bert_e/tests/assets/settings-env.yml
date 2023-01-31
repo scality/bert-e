@@ -35,8 +35,6 @@ tasks:
 
 max_commit_diff: 100
 
-sentry_dsn: ''
-
 always_create_integration_pull_requests: true
 
 required_leader_approvals: 1

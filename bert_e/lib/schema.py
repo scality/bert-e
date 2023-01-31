@@ -68,5 +68,5 @@ def dumps(cls: Schema, data, **kwargs):
         schema.validate(data)
     except ValidationError as err:
         raise SchemaError(err.messages) from err
-    res, _ = schema.dumps(data)
+    res = schema.dumps(data)
     return res

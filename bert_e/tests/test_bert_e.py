@@ -44,7 +44,7 @@ from bert_e.git_host import mock as bitbucket_api_mock
 from bert_e.git_host.base import BertESession
 from bert_e.git_host.base import NoSuchRepository
 from bert_e.git_host.factory import client_factory
-from bert_e.job import handler, CommitJob, Job, PullRequestJob
+from bert_e.job import CommitJob, PullRequestJob
 from bert_e.lib import jira as jira_api
 from bert_e.lib.git import Repository as GitRepository
 from bert_e.lib.git import Branch, MergeFailedException
@@ -93,24 +93,10 @@ tasks:
 """ # noqa
 
 
-class FaultJob(Job):
-    """Fault job which will raise an exception to test sentry logging."""
-
-
-class FaultError(Exception):
-    """Exception raised on purpose from a FaultJob."""
-
-
-@handler(FaultJob)
-def handle_fault_job(job: FaultJob):
-    raise FaultError("This is an exception raised when a fault job has been "
-                     "handled for tests purposes.")
-
-
 def initialize_git_repo(repo, username, usermail):
     """resets the git repo"""
     assert '/ring/' not in repo._url  # This is a security, do not remove
-    repo.cmd('git init')
+    repo.cmd('git init --initial-branch=master')
     repo.cmd('git config user.email %s' % usermail)
     repo.cmd('git config user.name %s' % username)
     repo.cmd('touch a')
@@ -6144,7 +6130,6 @@ class TaskQueueTests(RepositoryTests):
         settings['jira_token'] = 'dummy_jira_token'
         settings['cmd_line_options'] = options
         settings['backtrace'] = backtrace
-        settings['sentry_dsn'] = self.args.sentry_dsn
         settings.update(all_settings)
         self.berte = BertE(settings)
 
@@ -7495,13 +7480,6 @@ class TaskQueueTests(RepositoryTests):
         self.process_pr_job(pr, 'ApprovalRequired',
                             bypass_prefixes=['documentation'])
 
-    def test_sentry(self):
-        """Test Sentry support by throwing an exception which will be
-        sent to Sentry eventually.
-        """
-        self.init_berte()
-        self.process_job(self.process_job(FaultJob(self.berte), "FaultError"))
-
     def test_flakiness(self):
         if self.args.git_host != 'bitbucket':
             self.skipTest("flakiness test is only supported on bitbucket")
@@ -7530,9 +7508,6 @@ def main():
     parser.add_argument('admin_password',
                         help='Privileged user Bitbucket/GitHub password')
     parser.add_argument('tests', nargs='*', help='run only these tests')
-    parser.add_argument('--sentry-dsn', dest='sentry_dsn',
-                        help='url to the sentry dsn if needed',
-                        default='')
     parser.add_argument('--repo-prefix', default="_test_bert_e",
                         help='Prefix of the test repository')
     parser.add_argument('-v', action='store_true', dest='verbose',

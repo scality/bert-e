@@ -387,13 +387,8 @@ class MalformedSettings(InternalException):
     code = 220
 
     def __init__(self, filename, errors, data):
-        errs = '\n'.join(
-            "{}: {}".format(
-                key, ', '.join(val) if isinstance(val, list) else val)
-            for key, val in errors.items()
-        )
         msg = "One or more errors were found while parsing {!r}:\n{}".format(
-            filename, errs
+            filename, errors
         )
         super().__init__(msg)
 
