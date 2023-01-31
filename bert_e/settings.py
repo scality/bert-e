@@ -164,8 +164,6 @@ class SettingsSchema(Schema):
 
     max_commit_diff = fields.Int(required=False, load_default=0)
 
-    sentry_dsn = fields.Str(load_default='')
-
     bitbucket_addon_base_url = fields.Str(required=False, load_default='')
     bitbucket_addon_client_id = fields.Str(required=False, load_default='')
     bitbucket_addon_url = fields.Str(required=False, load_default='')

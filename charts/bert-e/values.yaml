@@ -20,17 +20,6 @@ bertE:
   ##
   verbose: false
 
-  ## sentryDsn can be declared to send the robot backtraces to a sentry account.
-  ##
-  ##   If different from "", python exceptions will be captured and sent to
-  ##   sentry, which is an external service responsible for capturing tracebacks
-  ##   and sending mails to operators. The value should be a URL that points to
-  ##   a dsn sentry resource.
-  ##
-  ##   default value: "" (the feature is inactive)
-  ##
-  sentryDsn: ""
-
   ## repository stores details on the repository to work on
   repository:
     ## gitHost designates one of the supported Git host (bitbucket/github).
