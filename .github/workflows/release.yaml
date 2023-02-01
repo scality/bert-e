@@ -39,6 +39,8 @@ jobs:
           context: .
           file: ./Dockerfile
           push: true
+          build-args: |
+            VERSION=${{ github.event.inputs.tag }}
           tags: |
             ghcr.io/scality/bert-e:${{ inputs.tag }}
             registry.scality.com/bert-e/bert-e:${{ inputs.tag }}

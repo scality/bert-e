@@ -1,7 +1,16 @@
 ---
 name: build
 
-on: push
+on:
+  push:
+    branches:
+    - '**'
+  schedule:
+  # Run once a week at 00:00 on Sunday
+  - cron: '0 0 * * 0'
+  release:
+    types:
+    - created
 
 permissions:
   contents: read

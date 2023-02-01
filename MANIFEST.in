@@ -1,2 +1,3 @@
 recursive-include bert_e/templates *
 recursive-include bert_e/docs *
+include requirements.txt
