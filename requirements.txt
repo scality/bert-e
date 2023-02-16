@@ -1,6 +1,6 @@
 Authlib==0.8
 flask-session==0.4.0
-loginpass==0.1.1
+loginpass==0.5
 coverage==5.0a1
 Flask==2.2.3
 Flask-Markdown==0.3
