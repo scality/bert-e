@@ -1159,6 +1159,57 @@ admins:
         self.assertIn('Hello %s' % self.args.contributor_username,
                       self.get_last_pr_comment(pr))
 
+    def test_request_integration_branch_creation(self):
+        """Test comments to request integration branches creation.
+
+        1. Create a PR and ensure the proper message is sent regarding
+           the creation of integration branches
+        2. Request the creation of integration branches and ensure the
+           branches are created.
+        3. Once the integration branches are created,
+           ensure the bot is able to merge the PR.
+
+        """
+        settings = """
+repository_owner: {owner}
+repository_slug: {slug}
+repository_host: {host}
+robot: {robot}
+robot_email: nobody@nowhere.com
+pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
+commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
+build_key: pre-merge
+required_leader_approvals: 0
+required_peer_approvals: 1
+always_create_integration_branches: false
+admins:
+  - {admin}
+""" # noqa
+        options = self.bypass_all_but(['bypass_build_status'])
+        pr = self.create_pr('feature/TEST-0069', 'development/4.3')
+        with self.assertRaises(exns.RequestIntegrationBranches):
+            self.handle(
+                pr.id, settings=settings, options=options, backtrace=True)
+        self.assertEqual(len(list(pr.get_comments())), 2)
+        self.assertIn(
+            'Request integration branches', self.get_last_pr_comment(pr))
+        self.assertIn(
+            '/create_integration_branches', self.get_last_pr_comment(pr))
+
+        pr.add_comment('/create_integration_branches')
+        with self.assertRaises(exns.BuildNotStarted):
+            self.handle(
+                pr.id, settings=settings, options=options, backtrace=True)
+        self.assertEqual(len(list(pr.get_comments())), 4)
+        self.assertIn('Integration data created', self.get_last_pr_comment(pr))
+        self.assertIn(
+            'create_integration_branches', self.get_last_pr_comment(pr))
+
+        options = self.bypass_all
+        with self.assertRaises(exns.SuccessMessage):
+            self.handle(
+                pr.id, settings=settings, options=options, backtrace=True)
+
     def test_comments_for_manual_integration_pr_creation(self):
         """Test comments when integration data is created.
 

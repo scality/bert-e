@@ -1,6 +1,11 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [3.8.0] - 2023-06-13
+# Added
+- Introducing new option `create_integration_branches`
+  to allow the creation of integration branches on demand.
+
 ## [3.7.0] - 2022-08-08
 # Added
 - Support config settings through environment.

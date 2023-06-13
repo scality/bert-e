@@ -136,6 +136,16 @@ def update_integration_branches(job, wbranches):
         prev = branch
 
 
+def check_integration_branches(job):
+    """Check if the integration branches can be created."""
+
+    if (job.settings.always_create_integration_branches is False and
+            job.settings.create_integration_branches is False):
+        raise exceptions.RequestIntegrationBranches(
+            active_options=job.active_options,
+        )
+
+
 def check_conflict(job, dst: git.Branch, src: git.Branch):
     """Check conflict between the source and destination branches of a PR."""
     # Create a temporary branch starting off from the destination branch, only
