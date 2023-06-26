@@ -1,4 +1,4 @@
-Authlib==0.8
+Authlib==1.2.1
 flask-session==0.4.0
 loginpass==0.1.1
 coverage==5.0a1
