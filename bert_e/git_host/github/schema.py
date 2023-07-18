@@ -18,10 +18,15 @@
 used by Bert-E) are declared.
 
 """
-from marshmallow import Schema, fields
+from marshmallow import Schema, fields, EXCLUDE
 
 
-class User(Schema):
+class GitHubSchema(Schema):
+    class Meta:
+        unknown = EXCLUDE
+
+
+class User(GitHubSchema):
     id = fields.Int(required=True)
     login = fields.Str(required=True)
     # Note: the "printable" name can be absent in most API call results.
@@ -30,7 +35,7 @@ class User(Schema):
     type = fields.Str()
 
 
-class Repo(Schema):
+class Repo(GitHubSchema):
     name = fields.Str(required=True)
     owner = fields.Nested(User, required=True)
     full_name = fields.Str(required=True)
@@ -41,7 +46,7 @@ class Repo(Schema):
     default_branch = fields.Str()
 
 
-class CreateRepo(Schema):
+class CreateRepo(GitHubSchema):
     name = fields.Str(required=True)
     description = fields.Str()
     homepage = fields.Url()
@@ -54,14 +59,14 @@ class CreateRepo(Schema):
     licence_template = fields.Str()
 
 
-class Status(Schema):
+class Status(GitHubSchema):
     state = fields.Str(required=True)
     target_url = fields.Str(required=True, allow_none=True)
     description = fields.Str(required=True, allow_none=True)
     context = fields.Str(required=True)
 
 
-class AggregatedStatus(Schema):
+class AggregatedStatus(GitHubSchema):
     # The most convenient way to get a pull request's build status is to
     # query github's API for an aggregated status.
     state = fields.Str()
@@ -70,7 +75,7 @@ class AggregatedStatus(Schema):
     statuses = fields.Nested(Status, many=True, required=True)
 
 
-class Branch(Schema):
+class Branch(GitHubSchema):
     label = fields.Str()  # user:ref or org:ref
     ref = fields.Str()
     sha = fields.Str()
@@ -78,7 +83,7 @@ class Branch(Schema):
     repo = fields.Nested(Repo)
 
 
-class App(Schema):
+class App(GitHubSchema):
     id = fields.Int()
     slug = fields.Str()
     owner = fields.Nested(User)
@@ -86,7 +91,7 @@ class App(Schema):
     description = fields.Str()
 
 
-class CheckSuite(Schema):
+class CheckSuite(GitHubSchema):
     id = fields.Integer()
     head_sha = fields.Str()
     head_branch = fields.Str()
@@ -98,12 +103,12 @@ class CheckSuite(Schema):
     app = fields.Nested(App)
 
 
-class AggregateCheckSuites(Schema):
+class AggregateCheckSuites(GitHubSchema):
     total_count = fields.Integer()
     check_suites = fields.Nested(CheckSuite, many=True)
 
 
-class CheckRun(Schema):
+class CheckRun(GitHubSchema):
     id = fields.Integer()
     head_sha = fields.Str()
     status = fields.Str()
@@ -111,7 +116,7 @@ class CheckRun(Schema):
     html_url = fields.Url()
 
 
-class WorkflowRun(Schema):
+class WorkflowRun(GitHubSchema):
     id = fields.Integer()
     head_sha = fields.Str()
     head_branch = fields.Str()
@@ -121,17 +126,17 @@ class WorkflowRun(Schema):
     event = fields.Str()
 
 
-class AggregateWorkflowRuns(Schema):
+class AggregateWorkflowRuns(GitHubSchema):
     total_count = fields.Integer()
     workflow_runs = fields.Nested(WorkflowRun, many=True)
 
 
-class AggregateCheckRuns(Schema):
+class AggregateCheckRuns(GitHubSchema):
     total_count = fields.Integer()
     check_runs = fields.Nested(CheckRun, many=True)
 
 
-class PullRequest(Schema):
+class PullRequest(GitHubSchema):
     number = fields.Int(required=True)
     url = fields.Url()
     html_url = fields.Url()
@@ -149,7 +154,7 @@ class PullRequest(Schema):
     merged_at = fields.DateTime(allow_none=True)
 
 
-class CreatePullRequest(Schema):
+class CreatePullRequest(GitHubSchema):
     title = fields.Str(required=True)
     head = fields.Str(required=True)
     base = fields.Str(required=True)
@@ -157,7 +162,7 @@ class CreatePullRequest(Schema):
     maintainer_can_modify = fields.Bool()
 
 
-class UpdatePullRequest(Schema):
+class UpdatePullRequest(GitHubSchema):
     title = fields.Str()
     body = fields.Str()
     state = fields.Str()
@@ -165,7 +170,7 @@ class UpdatePullRequest(Schema):
     maintainer_can_modify = fields.Bool()
 
 
-class Comment(Schema):
+class Comment(GitHubSchema):
     id = fields.Int(required=True)
     body = fields.Str()
     created_at = fields.DateTime()
@@ -174,11 +179,11 @@ class Comment(Schema):
     url = fields.Url()
 
 
-class CreateComment(Schema):
+class CreateComment(GitHubSchema):
     body = fields.Str(required=True)
 
 
-class Review(Schema):
+class Review(GitHubSchema):
     id = fields.Int(allow_none=True)
     body = fields.Str(allow_none=True)
     commit_id = fields.Str()
@@ -186,41 +191,41 @@ class Review(Schema):
     user = fields.Nested(User)
 
 
-class DraftReview(Schema):
+class DraftReview(GitHubSchema):
     path = fields.Str()
     position = fields.Int()
     body = fields.Str()
 
 
-class CreateReview(Schema):
+class CreateReview(GitHubSchema):
     body = fields.Str(allow_none=True)
     event = fields.Str()
 
 
-class PullRequestEvent(Schema):
+class PullRequestEvent(GitHubSchema):
     action = fields.Str(required=True)
     number = fields.Int()
     pull_request = fields.Nested(PullRequest)
 
 
-class Issue(Schema):
+class Issue(GitHubSchema):
     number = fields.Int()
     title = fields.Str()
     # If this dict is present and non-empty, then the issue is a pull request.
     pull_request = fields.Dict(optional=True, default={})
 
 
-class IssueCommentEvent(Schema):
+class IssueCommentEvent(GitHubSchema):
     action = fields.Str()
     issue = fields.Nested(Issue)
 
 
-class PullRequestReviewEvent(Schema):
+class PullRequestReviewEvent(GitHubSchema):
     action = fields.Str()
     pull_request = fields.Nested(PullRequest)
 
 
-class StatusEvent(Schema):
+class StatusEvent(GitHubSchema):
     sha = fields.Str()
     state = fields.Str()
     context = fields.Str()
@@ -228,7 +233,7 @@ class StatusEvent(Schema):
     target_url = fields.Str(allow_none=True)
 
 
-class CheckSuiteEvent(Schema):
+class CheckSuiteEvent(GitHubSchema):
     action = fields.Str()
     check_suite = fields.Nested(CheckSuite)
     repository = fields.Nested(Repo)
