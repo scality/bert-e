@@ -4,7 +4,8 @@ import yaml
 import logging
 import os
 from marshmallow import (
-    Schema, fields, post_load, pre_load, validates_schema, ValidationError)
+    Schema, fields, post_load, pre_load, validates_schema, ValidationError,
+    EXCLUDE)
 
 from bert_e.exceptions import (IncorrectSettingsFile,
                                SettingsFileNotFound,
@@ -122,6 +123,9 @@ class PrAuthorsOptions(fields.Dict):
 
 
 class SettingsSchema(Schema):
+    class Meta:
+        unknown = EXCLUDE
+
     # Settings defined in config files
     always_create_integration_pull_requests = fields.Bool(
         required=False, load_default=True)
