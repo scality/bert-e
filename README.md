@@ -22,7 +22,7 @@ All above instructions will assume you are inside the codespace environment
 ```shell
 $ cp settings.sample.yml settings.yml
 # Configure settings.yml to your liking
-$ tox -e run
+$ tox run -e run
 ```
 
 ### Run local tests

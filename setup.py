@@ -4,7 +4,7 @@ from os.path import abspath, dirname, join
 import os
 import pip
 
-from setuptools import setup
+from setuptools import setup, find_packages
 
 
 # Besides not advised,
@@ -44,16 +44,7 @@ setup(
     url='https://github.com/scality/bert-e',
     license='Apache',
     include_package_data=True,
-    packages=[
-        'bert_e',
-        'bert_e.jobs',
-        'bert_e.lib',
-        'bert_e.bin',
-        'bert_e.git_host',
-        'bert_e.git_host.github',
-        'bert_e.workflow',
-        'bert_e.workflow.gitwaterflow',
-    ],
+    packages=find_packages(),
     install_requires=requires(),
     entry_points={
         'console_scripts': [

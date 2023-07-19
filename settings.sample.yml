@@ -5,20 +5,20 @@ frontend_url: https://bert-e.mydomain.com/bitbucket/my_company/my_repository/ber
 
 # repository_host [MANDATORY]:
 #   The git hosting provider for the repository. Either bitbucket or github.
-repository_host: bitbucket
+repository_host: github
 
 # repository_owner [MANDATORY]:
 #   The name of the owner of the Bitbucket/GitHub repository to work on
 #
 #   (a.k.a. Bitbucket team or GitHub organization)
 #
-repository_owner: my_company
+repository_owner: scality
 
 
 # repository_slug [MANDATORY]:
 #   The slug of the Bitbucket/GitHub repository to work on
 #
-repository_slug: my_repository
+repository_slug: bert-e
 
 
 # robot [MANDATORY]:

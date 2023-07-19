@@ -37,8 +37,9 @@ def load(cls: Schema, data, **kwargs):
         the result of any @post_load processing.
 
     """
-    res, errors = cls(**kwargs).load(data)
-    if errors:
+    try:
+        res = cls(**kwargs).load(data)
+    except Exception as errors:
         raise SchemaError(errors)
     return res
 
