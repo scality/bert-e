@@ -30,7 +30,7 @@ $ tox -e run
 A series of test scenario will be executed locally using mocks.
 
 ```shell
-$ tox -e tests
+$ tox run -e tests
 ```
 
 ### Run tests against githost
