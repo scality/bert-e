@@ -140,7 +140,8 @@ def check_integration_branches(job):
     """Check if the integration branches can be created."""
 
     if (job.settings.always_create_integration_branches is False and
-            job.settings.create_integration_branches is False):
+            job.settings.create_integration_branches is False and
+            len(job.git.cascade.dst_branches) > 1):
         raise exceptions.RequestIntegrationBranches(
             active_options=job.active_options,
         )

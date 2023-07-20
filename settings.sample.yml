@@ -191,6 +191,22 @@ max_commit_diff: 100
 always_create_integration_pull_requests: true
 
 
+# always_create_integration_branches decides whether integration
+# branches are created in automatically when a pull request is opened.
+#
+# Bert-e will by default automatically create them.
+#
+#   Set this setting to false to require users to explicitly request the creation
+#   of integration branches by adding a `/create_integration_branches`
+#   comment in their pull request.
+#
+#   The above allow to temporize the creation of those branches as
+#   in the review process requested changes as expected.
+#
+#   default value: true
+#
+always_create_integration_branches: true
+
 # required_leader_approvals [OPTIONAL]:
 #   Number of leader approvals required in the pull-request in addition to author.
 #   Each leader approvals count as a normal peer approval as well.
