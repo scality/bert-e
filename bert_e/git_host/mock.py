@@ -290,6 +290,7 @@ class PullRequestController(Controller, base.AbstractPullRequest):
     def approve(self):
         self.update_participant(approved=True, changes_requested=False,
                                 role='REVIEWER')
+        self.add_comment(msg="/create_integration_branches")
 
     def dismiss(self, review):
         self.update_participant(approved=False, changes_requested=False,
