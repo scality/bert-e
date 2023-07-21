@@ -1210,6 +1210,120 @@ admins:
             self.handle(
                 pr.id, settings=settings, options=options, backtrace=True)
 
+    def test_creation_integration_branch_by_approve(self):
+        """Test pr.approve() to request integration branches creation.
+
+        1. Create a PR and verify that the appropriate message is sent
+           regarding its creation
+        2. Ensure that author approval is required for the PR
+        3. Approve the PR from the author's perspective and check if
+           the integration branches are created.
+        4. Once the integration branches are created,
+           ensure the bot is able to merge the PR.
+
+        """
+        settings = """
+repository_owner: {owner}
+repository_slug: {slug}
+repository_host: {host}
+robot: {robot}
+robot_email: nobody@nowhere.com
+pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
+commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
+build_key: pre-merge
+required_leader_approvals: 0
+required_peer_approvals: 0
+always_create_integration_branches: false
+admins:
+  - {admin}
+""" # noqa
+        options = self.bypass_all_but(['bypass_build_status', 'bypass_author_approval'])
+        pr = self.create_pr('feature/TEST-0069', 'development/4.3')
+
+        with self.assertRaises(exns.ApprovalRequired):
+            self.handle(pr.id, options=options, backtrace=True)
+
+        self.assertEqual(len(list(pr.get_comments())), 3)
+
+        self.assertIn(
+            'Integration data created', list(pr.get_comments())[-2].text)
+
+        self.assertIn(
+            'Waiting for approval', self.get_last_pr_comment(pr))
+        self.assertIn(
+            'The following approvals are needed', self.get_last_pr_comment(pr))
+
+        pr.approve()
+
+        with self.assertRaises(exns.BuildNotStarted):
+            self.handle(
+                pr.id, settings=settings, options=options, backtrace=True)
+
+        options = self.bypass_all
+        with self.assertRaises(exns.SuccessMessage):
+            self.handle(
+                pr.id, settings=settings, options=options, backtrace=True)
+        
+        self.assertIn(
+            'I have successfully merged the changeset', self.get_last_pr_comment(pr))
+
+    def test_creation_integration_branch_by_approve_2(self):
+        """Test /approve to request integration branches creation.
+
+        1. Create a PR and verify that the appropriate message is sent
+           regarding its creation
+        2. Ensure that author approval is required for the PR
+        3. Approve the PR from the author's perspective and check if
+           the integration branches are created.
+        4. Once the integration branches are created,
+           ensure the bot is able to merge the PR.
+
+        """
+        settings = """
+repository_owner: {owner}
+repository_slug: {slug}
+repository_host: {host}
+robot: {robot}
+robot_email: nobody@nowhere.com
+pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
+commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
+build_key: pre-merge
+required_leader_approvals: 0
+required_peer_approvals: 0
+always_create_integration_branches: false
+admins:
+  - {admin}
+""" # noqa
+        options = self.bypass_all_but(['bypass_build_status', 'bypass_author_approval'])
+        pr = self.create_pr('feature/TEST-0069', 'development/4.3')
+
+        with self.assertRaises(exns.ApprovalRequired):
+            self.handle(pr.id, options=options, backtrace=True)
+
+        self.assertEqual(len(list(pr.get_comments())), 3)
+
+        self.assertIn(
+            'Integration data created', list(pr.get_comments())[-2].text)
+
+        self.assertIn(
+            'Waiting for approval', self.get_last_pr_comment(pr))
+        self.assertIn(
+            'The following approvals are needed', self.get_last_pr_comment(pr))
+
+        pr.add_comment('/approve')
+
+        with self.assertRaises(exns.BuildNotStarted):
+            self.handle(
+                pr.id, settings=settings, options=options, backtrace=True)
+
+        options = self.bypass_all
+        with self.assertRaises(exns.SuccessMessage):
+            self.handle(
+                pr.id, settings=settings, options=options, backtrace=True)
+        
+        self.assertIn(
+            'I have successfully merged the changeset', self.get_last_pr_comment(pr))
+
     def test_integration_branch_creation_latest_branch(self):
         """Test there is no comment to request integration branches creation.
 

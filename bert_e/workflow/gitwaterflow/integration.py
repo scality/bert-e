@@ -140,10 +140,9 @@ def check_integration_branches(job):
     """Check if the integration branches can be created."""
 
     approvals = set(job.pull_request.get_approvals())
-    approved_by_author |= job.pull_request.author in approvals
-    if (approved_by_author is True and
-        len(job.git.cascade.dst_branches) > 1):
-        create_integration_branches()
+    if job.settings.approve:
+        approvals.add(job.pull_request.author)
+    approved_by_author = job.pull_request.author in approvals
 
     if (job.settings.always_create_integration_branches is False and
             job.settings.create_integration_branches is False and
