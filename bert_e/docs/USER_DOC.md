@@ -181,7 +181,8 @@ parameter in the bot settings:
   pull request is opened.
 * *false*: users will be required to explicitly request the creation
   of integration branches by adding a `/create_integration_branches`
-  comment in their pull request.
+  comment in their pull request (or it will be set for them during
+  other operations, like `approve` or `create_pull_requests`).
   The above allows to temporize the creation of those branches as
   in the review process requested changes as expected.
 

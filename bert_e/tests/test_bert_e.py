@@ -1211,10 +1211,12 @@ admins:
                 pr.id, settings=settings, options=options, backtrace=True)
 
     def test_request_integration_branch_by_creating_pull_requests(self):
-        """Test creating integration branches by create pull requests
+        """Test creating integration branches by creating pull requests
 
-        1. X
-        2. X
+        1. Create a PR and verify that the appropriate message is sent
+           regarding its creation
+        2. Type `/create_integration_branches` and ensure the
+           branches are created.
         3. Once the integration branches are created,
            ensure the bot is able to merge the PR.
 
@@ -1402,6 +1404,13 @@ admins:
         pr = self.create_pr('feature/TEST-0069', 'development/10.0')
         self.handle(pr.id, settings=settings, options=options)
         self.assertEqual(len(list(pr.get_comments())), 1)
+
+        # command: status
+        pr.add_comment('@%s status' % self.args.robot_username)
+        with self.assertRaises(exns.StatusReport):
+            self.handle(pr.id, backtrace=True)
+
+        print(self.get_build_status_on_pr_id(pr.id))
 
         options = self.bypass_all
         with self.assertRaises(exns.SuccessMessage):
