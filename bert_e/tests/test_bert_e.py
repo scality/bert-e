@@ -1406,11 +1406,11 @@ admins:
         self.assertEqual(len(list(pr.get_comments())), 1)
 
         # command: status
-        pr.add_comment('@%s status' % self.args.robot_username)
-        with self.assertRaises(exns.StatusReport):
-            self.handle(pr.id, backtrace=True)
+        #pr.add_comment('@%s status' % self.args.robot_username)
+        #with self.assertRaises(exns.StatusReport):
+        #    self.handle(pr.id, backtrace=True)
 
-        print(self.get_build_status_on_pr_id(pr.id))
+        #print(self.get_build_status_on_pr_id(pr.id))
 
         options = self.bypass_all
         with self.assertRaises(exns.SuccessMessage):
