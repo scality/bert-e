@@ -1182,6 +1182,7 @@ build_key: pre-merge
 required_leader_approvals: 0
 required_peer_approvals: 1
 always_create_integration_branches: false
+always_create_integration_pull_requests: false
 admins:
   - {admin}
 """ # noqa
@@ -1285,65 +1286,41 @@ always_create_integration_branches: false
 admins:
   - {admin}
 """ # noqa
-        options = self.bypass_all_but(['bypass_build_status', 'bypass_author_approval'])
-        pr = self.create_pr('feature/TEST-0069', 'development/4.3')
+        pr_1 = self.create_pr('feature/TEST-0069', 'development/4.3')
+        pr_2 = self.create_pr('feature/TEST-0070', 'development/4.3')
+        prs = [pr_1, pr_2]
 
-        with self.assertRaises(exns.ApprovalRequired):
-            self.handle(pr.id, options=options, backtrace=True)
+        for pr in prs:
+            options = self.bypass_all_but(['bypass_build_status', 'bypass_author_approval'])
+            with self.assertRaises(exns.ApprovalRequired):
+                self.handle(pr.id, options=options, backtrace=True)
 
-        self.assertEqual(len(list(pr.get_comments())), 3)
+            self.assertEqual(len(list(pr.get_comments())), 3)
 
-        self.assertIn(
+            self.assertIn(
             'Integration data created', list(pr.get_comments())[-2].text)
 
-        self.assertIn(
-            'Waiting for approval', self.get_last_pr_comment(pr))
-        self.assertIn(
-            'The following approvals are needed', self.get_last_pr_comment(pr))
+            self.assertIn(
+                'Waiting for approval', self.get_last_pr_comment(pr))
+            self.assertIn(
+                'The following approvals are needed', self.get_last_pr_comment(pr))
 
-        pr.approve()
+            if pr.src_branch == "feature/TEST-0069":
+                pr.approve()
+            elif pr.src_branch == "feature/TEST-0070":
+                pr.add_comment('/approve')
 
-        with self.assertRaises(exns.BuildNotStarted):
-            self.handle(
-                pr.id, settings=settings, options=options, backtrace=True)
+            with self.assertRaises(exns.BuildNotStarted):
+                self.handle(
+                    pr.id, settings=settings, options=options, backtrace=True)
 
-        options = self.bypass_all
-        with self.assertRaises(exns.SuccessMessage):
-            self.handle(
-                pr.id, settings=settings, options=options, backtrace=True)
-        
-        self.assertIn(
-            'I have successfully merged the changeset', self.get_last_pr_comment(pr))
-
-        options = self.bypass_all_but(['bypass_build_status', 'bypass_author_approval'])
-        pr = self.create_pr('feature/TEST-0070', 'development/4.3')
-
-        with self.assertRaises(exns.ApprovalRequired):
-            self.handle(pr.id, options=options, backtrace=True)
-
-        self.assertEqual(len(list(pr.get_comments())), 3)
-
-        self.assertIn(
-            'Integration data created', list(pr.get_comments())[-2].text)
-
-        self.assertIn(
-            'Waiting for approval', self.get_last_pr_comment(pr))
-        self.assertIn(
-            'The following approvals are needed', self.get_last_pr_comment(pr))
-
-        pr.add_comment('/approve')
-
-        with self.assertRaises(exns.BuildNotStarted):
-            self.handle(
-                pr.id, settings=settings, options=options, backtrace=True)
-
-        options = self.bypass_all
-        with self.assertRaises(exns.SuccessMessage):
-            self.handle(
-                pr.id, settings=settings, options=options, backtrace=True)
-        
-        self.assertIn(
-            'I have successfully merged the changeset', self.get_last_pr_comment(pr))
+            options = self.bypass_all
+            with self.assertRaises(exns.SuccessMessage):
+                self.handle(
+                    pr.id, settings=settings, options=options, backtrace=True)
+            
+            self.assertIn(
+                'I have successfully merged the changeset', self.get_last_pr_comment(pr))
 
     def test_integration_branch_creation_latest_branch(self):
         """Test there is no comment to request integration branches creation.
