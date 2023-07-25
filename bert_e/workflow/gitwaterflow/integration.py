@@ -144,12 +144,18 @@ def check_integration_branches(job):
         approvals.add(job.pull_request.author)
     approved_by_author = job.pull_request.author in approvals
 
-    if (job.settings.always_create_integration_branches is False and
-            job.settings.create_integration_branches is False and
-            job.settings.always_create_integration_pull_requests is False and
-            job.settings.create_pull_requests is False and
-            approved_by_author is False and
-            len(job.git.cascade.dst_branches) > 1):
+    always_create_integration = job.settings.always_create_integration_branches
+    create_integration = job.settings.create_integration_branches
+    always_create_integration_prs = job.settings.always_create_integration_pull_requests
+    create_prs = job.settings.create_pull_requests
+    multiple_dst_branches = len(job.git.cascade.dst_branches) <= 1
+
+    if not (always_create_integration
+            or create_integration
+            or always_create_integration_prs
+            or create_prs
+            or approved_by_author
+            or multiple_dst_branches):
         raise exceptions.RequestIntegrationBranches(
             active_options=job.active_options,
         )
