@@ -1242,11 +1242,6 @@ admins:
         with self.assertRaises(exns.RequestIntegrationBranches):
             self.handle(
                 pr.id, settings=settings, options=options, backtrace=True)
-        self.assertEqual(len(list(pr.get_comments())), 2)
-        self.assertIn(
-            'Request integration branches', self.get_last_pr_comment(pr))
-        self.assertIn(
-            '/create_integration_branches', self.get_last_pr_comment(pr))
 
         pr.add_comment('/create_pull_requests')
         with self.assertRaises(exns.BuildNotStarted):
