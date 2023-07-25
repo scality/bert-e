@@ -183,8 +183,6 @@ parameter in the bot settings:
   of integration branches by adding a `/create_integration_branches`
   comment in their pull request (or it will be set for them during
   other operations, like `approve` or `create_pull_requests`).
-  The above allows to temporize the creation of those branches as
-  in the review process requested changes as expected.
 
 On the Git project, the name of the integration branches follow the format:
 
