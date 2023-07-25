@@ -1373,12 +1373,9 @@ admins:
         self.handle(pr.id, settings=settings, options=options)
         self.assertEqual(len(list(pr.get_comments())), 1)
 
-        # command: status
-        #pr.add_comment('@%s status' % self.args.robot_username)
-        #with self.assertRaises(exns.StatusReport):
-        #    self.handle(pr.id, backtrace=True)
-
-        #print(self.get_build_status_on_pr_id(pr.id))
+        with self.assertRaises(exns.BuildNotStarted):
+            self.handle(
+                pr.id, settings=settings, options=options, backtrace=True)
 
         options = self.bypass_all
         with self.assertRaises(exns.SuccessMessage):
