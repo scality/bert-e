@@ -34,7 +34,8 @@ from .utils import (
     bypass_author_approval, bypass_leader_approval, bypass_build_status
 )
 from .commands import setup  # noqa
-from .integration import (create_integration_branches,
+from .integration import (check_integration_branches,
+                          create_integration_branches,
                           create_integration_pull_requests,
                           merge_integration_branches,
                           notify_integration_data,
@@ -158,6 +159,7 @@ def _handle_pull_request(job: PullRequestJob):
     check_branch_compatibility(job)
     jira_checks(job)
 
+    check_integration_branches(job)
     wbranches = list(create_integration_branches(job))
     use_queue = job.settings.use_queue
     if use_queue and queueing.already_in_queue(job, wbranches):

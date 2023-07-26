@@ -1,6 +1,11 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [3.9.0] - 2023-07-20
+# Added
+- Introducing a new option that prevent the creation of
+  integration branches.
+
 ## [3.7.0] - 2022-08-08
 # Added
 - Support config settings through environment.

@@ -129,6 +129,8 @@ class SettingsSchema(Schema):
     # Settings defined in config files
     always_create_integration_pull_requests = fields.Bool(
         required=False, load_default=True)
+    always_create_integration_branches = fields.Bool(
+        required=False, load_default=True)
 
     frontend_url = fields.Str(required=False, load_default='')
 

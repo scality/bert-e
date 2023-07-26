@@ -136,6 +136,29 @@ def update_integration_branches(job, wbranches):
         prev = branch
 
 
+def check_integration_branches(job):
+    """Check if the integration branches can be created."""
+
+    approvals = set(job.pull_request.get_approvals())
+    if job.settings.approve:
+        approvals.add(job.pull_request.author)
+    approved_by_author = job.pull_request.author in approvals
+
+    create_integration = (job.settings.always_create_integration_branches or
+                          job.settings.create_integration_branches)
+    create_prs = (job.settings.always_create_integration_pull_requests or
+                  job.settings.create_pull_requests)
+    multiple_dst_branches = len(job.git.cascade.dst_branches) <= 1
+
+    if not (create_integration or
+            create_prs or
+            approved_by_author or
+            multiple_dst_branches):
+        raise exceptions.RequestIntegrationBranches(
+            active_options=job.active_options,
+        )
+
+
 def check_conflict(job, dst: git.Branch, src: git.Branch):
     """Check conflict between the source and destination branches of a PR."""
     # Create a temporary branch starting off from the destination branch, only

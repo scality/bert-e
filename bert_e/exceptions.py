@@ -229,6 +229,11 @@ class NotAuthor(TemplateException):
     template = "not_author.md"
 
 
+class RequestIntegrationBranches(TemplateException):
+    code = 135
+    template = "request_integration_branches.md"
+
+
 # internal exceptions
 class UnableToSendEmail(InternalException):
     code = 201

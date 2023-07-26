@@ -119,6 +119,7 @@ __Bert-E__.
 | bypass_peer_approval      | Bypass the pull request peer's approval | yes | no
 | bypass_leader_approval    | Bypass the pull request leader's approval | yes | no
 | create_pull_requests      | Let __Bert-E__ create pull requests corresponding to integration branches | no | no
+| create_integration_branches | Request __Bert-E__ to create integration branches and move forward with the gitwaterflow | no | no
 | no_octopus                | Prevent Wall-E from doing any octopus merge and use multiple consecutive merge instead | yes | no
 | unanimity                 | Change review acceptance criteria from `one reviewer at least` to `all reviewers` (**this feature is not supported on GitHub**) | no | no
 | wait                      | Instruct __Bert-E__ not to run until further notice | no | no
@@ -169,6 +170,19 @@ The latest code from the pull request is merged with the latest code from the
 target development branch. This code is then tested in the build pipeline,
 before any merge can happen. There are as many integration branches as there
 are target branches.
+
+The integration branches are mandatory in the GitWaterFlow process,
+and by default they are automatically created when a pull request is
+opened.
+This behaviour can be changed with the `always_create_integration_branches`
+parameter in the bot settings:
+
+* *true* (default): integration branches are created automatically when a
+  pull request is opened.
+* *false*: users will be required to explicitly request the creation
+  of integration branches by adding a `/create_integration_branches`
+  comment in their pull request (or it will be set for them during
+  other operations, like `approve` or `create_pull_requests`).
 
 On the Git project, the name of the integration branches follow the format:
 
