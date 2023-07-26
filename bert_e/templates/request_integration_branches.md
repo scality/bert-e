@@ -13,7 +13,7 @@ To request integration branches, please comment on this pull request with the fo
 /create_integration_branches
 ```
 
-Alternatively, there's another way to accomplish this. Simply tag this PR with `/approve` or
-`/create_pull_requests`, and it will automatically create the integration branches
+Alternatively, the `/approve` and `/create_pull_requests` commands will automatically
+create the integration branches.
 
 {% endblock %}
