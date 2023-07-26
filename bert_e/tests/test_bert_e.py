@@ -1250,14 +1250,15 @@ admins:
                 pr.id, settings=settings, options=options, backtrace=True)
         self.assertEqual(len(list(pr.get_comments())), 4)
         self.assertIn('Integration data created', self.get_last_pr_comment(pr))
-        
+
         options = self.bypass_all
         with self.assertRaises(exns.SuccessMessage):
             self.handle(
                 pr.id, settings=settings, options=options, backtrace=True)
 
         self.assertIn(
-            'I have successfully merged the changeset', self.get_last_pr_comment(pr))
+            'I have successfully merged the changeset',
+            self.get_last_pr_comment(pr))
 
     def test_creation_integration_branch_by_approve(self):
         """Test pr.approve() to request integration branches creation.
@@ -1291,19 +1292,21 @@ admins:
         prs = [pr_1, pr_2]
 
         for pr in prs:
-            options = self.bypass_all_but(['bypass_build_status', 'bypass_author_approval'])
+            options = self.bypass_all_but(['bypass_build_status',
+                                           'bypass_author_approval'])
             with self.assertRaises(exns.ApprovalRequired):
                 self.handle(pr.id, options=options, backtrace=True)
 
             self.assertEqual(len(list(pr.get_comments())), 3)
 
             self.assertIn(
-            'Integration data created', list(pr.get_comments())[-2].text)
+                'Integration data created', list(pr.get_comments())[-2].text)
 
             self.assertIn(
                 'Waiting for approval', self.get_last_pr_comment(pr))
             self.assertIn(
-                'The following approvals are needed', self.get_last_pr_comment(pr))
+                'The following approvals are needed',
+                self.get_last_pr_comment(pr))
 
             if pr.src_branch == "feature/TEST-0069":
                 pr.approve()
@@ -1318,9 +1321,10 @@ admins:
             with self.assertRaises(exns.SuccessMessage):
                 self.handle(
                     pr.id, settings=settings, options=options, backtrace=True)
-            
+
             self.assertIn(
-                'I have successfully merged the changeset', self.get_last_pr_comment(pr))
+                'I have successfully merged the changeset',
+                self.get_last_pr_comment(pr))
 
     def test_integration_branch_creation_latest_branch(self):
         """Test there is no comment to request integration branches creation.
