@@ -277,7 +277,7 @@ bertE:
 image:
   ## regitry to pull from.
   ##
-  registry: ghcr.io
+  registry: ghcr.io/scality
 
   ## repository on the registry to pull from.
   ##
