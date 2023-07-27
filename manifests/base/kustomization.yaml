@@ -17,7 +17,7 @@ configMapGenerator:
 
 images:
 - name: bert-e
-  newName: 'registry.scality.com/bert-e/bert-e'
+  newName: 'ghcr.io/bert-e'
   newTag: '3.6.23'
 
 resources:

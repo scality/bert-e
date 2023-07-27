@@ -277,11 +277,11 @@ bertE:
 image:
   ## regitry to pull from.
   ##
-  registry: registry.scality.com
+  registry: ghcr.io
 
   ## repository on the registry to pull from.
   ##
-  repository: bert-e/bert-e
+  repository: bert-e
 
   ## tag specifies the version of Bert-E to deploy.
   ##
