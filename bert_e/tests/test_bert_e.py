@@ -670,6 +670,26 @@ class QuickTest(unittest.TestCase):
         with self.assertRaises(exns.DeprecatedStabilizationBranch):
             self.finalize_cascade(branches, tags, destination, fixver)
 
+    def test_with_v_prefix(self):
+        destination = 'development/4.3'
+        branches = OrderedDict({
+            1: {'name': 'stabilization/4.3.18', 'ignore': True},
+            2: {'name': 'development/4.3', 'ignore': False},
+            3: {'name': 'stabilization/5.1.4', 'ignore': True},
+            4: {'name': 'development/5.1', 'ignore': False},
+            5: {'name': 'development/10.0', 'ignore': False}
+        })
+        # mix and match tags with v prefix and without
+        tags = ['4.3.16', '4.3.17', '4.3.18_rc1',
+                'v5.1.3', 'v5.1.4_rc1', 'v10.0.1']
+        fixver = ['4.3.19', '5.1.5', '10.0.2']
+        self.finalize_cascade(branches, tags, destination, fixver)
+        # only tags with v prefix
+        v_tags = ['v4.3.16', 'v4.3.17', 'v4.3.18_rc1', 'v5.1.3',
+                  'v5.1.4_rc1', 'v10.0.1']
+        # expect the same result
+        self.finalize_cascade(branches, v_tags, destination, fixver)
+
     def test_retry_handler(self):
         class DummyError(Exception):
             pass
