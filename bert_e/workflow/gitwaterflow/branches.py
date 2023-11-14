@@ -843,7 +843,7 @@ class BranchCascade(object):
 
     def update_micro(self, tag):
         """Update development branch latest micro based on tag."""
-        pattern = r"^(?P<major>\d+)\.(?P<minor>\d+)\.(?P<micro>\d+)" \
+        pattern = r"^v?(?P<major>\d+)\.(?P<minor>\d+)\.(?P<micro>\d+)" \
                   r"(\.(?P<hfrev>\d+)|)$"
         match = re.match(pattern, tag)
         if not match:
