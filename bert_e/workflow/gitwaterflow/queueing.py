@@ -23,11 +23,11 @@ from bert_e.lib import git
 
 from ..git_utils import clone_git_repo, consecutive_merge, robust_merge, push
 from ..pr_utils import send_comment
-from .branches import (BranchCascade, DevelopmentBranch, IntegrationBranch,
+from .branches import (BranchCascade, DevelopmentBranch, GWFBranch, IntegrationBranch,
                        QueueBranch, QueueIntegrationBranch,
                        branch_factory, build_queue_collection)
 from .integration import get_integration_branches
-
+from typing import List
 LOG = logging.getLogger(__name__)
 
 
@@ -207,3 +207,23 @@ def close_queued_pull_request(job, pr_id, cascade):
         except git.RemoveFailedException:
             # not critical
             pass
+
+def is_needed(job, wbranches: List[GWFBranch]):
+    """This function will analyze the current state of the given PR and the queue
+    and return a boolean indicating if the PR should pass through the queue
+    in order to be merged."""
+
+    queues = build_queue_collection(job)
+    queues.validate()
+
+    if already_in_queue(job, wbranches) or len(queues.queued_prs) > 0:
+        return True
+
+    if not job.src_branch.includes_commit(job.dst_branch.get_latest_commit()):
+        return True
+    # Check if the wbranches all contain the commits in the dst branches
+    for branch, dst_branch in zip(wbranches, job.git.cascade.dst_branches):
+        if not branch.includes_commit(dst_branch.get_latest_commit()):
+            return True
+
+    return False

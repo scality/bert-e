@@ -207,7 +207,7 @@ def _handle_pull_request(job: PullRequestJob):
     # check for conflicts), and all builds were green, and we reached
     # this point without an error, then all conditions are met to enter
     # the queue.
-    if job.settings.use_queue:
+    if job.settings.use_queue and queueing.is_needed(job, wbranches) is False:
         # validate current state of queues
         try:
             queues = queueing.build_queue_collection(job)
