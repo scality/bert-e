@@ -203,7 +203,11 @@ def _handle_pull_request(job: PullRequestJob):
     if interactive and not confirm('Do you want to merge/queue?'):
         return
 
-    # Check if queueing is needed or if we can merge right away
+    # If the integration pull requests were already in sync with the
+    # feature branch before our last update (which serves as a final
+    # check for conflicts), and all builds were green, and we reached
+    # this point without an error, then all conditions are met to enter
+    # the queue.
     if job.settings.use_queue:
         # validate current state of queues
         try:

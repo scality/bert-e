@@ -746,12 +746,11 @@ class QueueCollection(object):
     def delete(self):
         """Delete the queues entirely."""
 
-        if len(self._queues) > 0:
-            for branch in self._queues.values():
-                # TODO: Review if QueueIntegrationBranch should be removed as well
-                queue: QueueBranch = branch[QueueBranch]
-                queue.dst_branch.checkout()
-                queue.remove(do_push=True)
+        for branch in self._queues.values():
+            # TODO: Review if QueueIntegrationBranch should be removed as well
+            queue: QueueBranch = branch[QueueBranch]
+            queue.dst_branch.checkout()
+            queue.remove(do_push=True)
 
 
 
