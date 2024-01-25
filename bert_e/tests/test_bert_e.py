@@ -7690,6 +7690,40 @@ class TaskQueueTests(RepositoryTests):
             self.assertFalse(self.gitrepo.remote_branch_exists(branch),
                              "branch %s shouldn't exist" % branch)
 
+    def test_no_need_queuing(self):
+        """Expect Bert-E to skip the queue when there is no need to queue."""
+
+        # Two PRs created at the same time
+        # At the moment they were created they are both up to date with the
+        # destination branch
+        self.init_berte(options=self.bypass_all)
+        first_pr = self.create_pr('feature/TEST-1', 'development/4.3')
+        second_pr = self.create_pr('feature/TEST-2', 'development/4.3')
+        # The first PR is ready to merge, and is expected to merge directly
+        # without going through the queue.
+        self.process_pr_job(first_pr, 'SuccessMessage')
+        # When the second PR is merged we expect it to go through the queue
+        # as it is no longer up to date with the destination branch.
+        self.process_pr_job(second_pr, 'Queued')
+        # At this point the repository should now contain queue branches.
+        # We force the merge to get everything setup according for the next
+        # scenario.
+        self.process_job(ForceMergeQueuesJob(bert_e=self.berte), 'Merged')
+        # We expect the PR to be merged so there should be nothing left to do.
+        self.process_pr_job(second_pr, 'NothingToDo')
+        # We get the local repo setup for a third PR that should be up to
+        # date with the latest changes.
+        self.gitrepo.cmd('git checkout development/4.3')
+        self.gitrepo.cmd('git branch --set-upstream-to=origin/development/4.3')
+        self.gitrepo.cmd('git pull')
+        third_pr = self.create_pr('feature/TEST-3', 'development/4.3')
+        fourth_pr = self.create_pr('feature/TEST-4', 'development/4.3')
+        # Just like the first PR, we expect this one to be merged directly.
+        self.process_pr_job(third_pr, 'SuccessMessage')
+        # Now we want to know if when the queue is a bit late is Bert-E
+        # capable of reeastablishing the Queue in order, and queue PR number 4.
+        self.process_pr_job(fourth_pr, 'Queued')
+
     def test_bypass_prefixes(self):
         self.init_berte()
         pr = self.create_pr('documentation/stuff', 'development/4.3')
