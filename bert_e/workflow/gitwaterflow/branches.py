@@ -747,10 +747,13 @@ class QueueCollection(object):
         """Delete the queues entirely."""
 
         for branch in self._queues.values():
-            # TODO: Review if QueueIntegrationBranch should be removed as well
             queue: QueueBranch = branch[QueueBranch]
             queue.dst_branch.checkout()
             queue.remove(do_push=True)
+            queue_integration: QueueIntegrationBranch | None = branch.get(
+                QueueIntegrationBranch)
+            if queue_integration:
+                queue_integration.remove(do_push=True)
 
 
 class BranchCascade(object):
