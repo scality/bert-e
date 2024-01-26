@@ -220,7 +220,9 @@ def is_needed(job: PullRequestJob, wbranches: List[GWFBranch], queues: QueueColl
     - False otherwise.
     """
 
-    if already_in_queue(job, wbranches) or len(queues.queued_prs) > 0:
+    if (job.settings.skip_queue_when_possible is False or
+            already_in_queue(job, wbranches) or
+            len(queues.queued_prs) > 0):
         return True
 
     if not job.git.src_branch.includes_commit(job.git.dst_branch.get_latest_commit()):
