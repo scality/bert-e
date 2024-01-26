@@ -213,7 +213,7 @@ def close_queued_pull_request(job, pr_id, cascade):
 def is_needed(
         job: PullRequestJob,
         wbranches: List[GWFBranch],
-        queues: QueueCollection):
+        queues: QueueCollection | None):
     """Determine if queuing is required to merge the given PR.
 
     Queuing a pull request should only be done if:

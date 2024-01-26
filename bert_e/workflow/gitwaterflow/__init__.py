@@ -207,37 +207,26 @@ def _handle_pull_request(job: PullRequestJob):
     # check for conflicts), and all builds were green, and we reached
     # this point without an error, then all conditions are met to enter
     # the queue.
-    if job.settings.use_queue:
-        # validate current state of queues
-        queues = queueing.build_queue_collection(job)
-        is_needed = queueing.is_needed(job, wbranches, queues)
-        # Enter the merge queue!
-        if is_needed:
-            try:
-                queues.validate()
-            except messages.IncoherentQueues as err:
-                raise messages.QueueOutOfOrder(
-                    active_options=job.active_options) from err
-            queueing.add_to_queue(job, wbranches)
-            message = messages.Queued(
-                branches=job.git.cascade.dst_branches,
-                ignored=job.git.cascade.ignored_branches,
-                issue=job.git.src_branch.jira_issue_key,
-                author=job.pull_request.author_display_name,
-                active_options=job.active_options)
-        else:
-            queues.delete()
-            merge_integration_branches(job, wbranches)
-            message = messages.SuccessMessage(
-                branches=job.git.cascade.dst_branches,
-                ignored=job.git.cascade.ignored_branches,
-                issue=job.git.src_branch.jira_issue_key,
-                author=job.pull_request.author_display_name,
-                active_options=job.active_options)
-        job.git.cascade.validate()
-        raise message
+    queues = queueing.build_queue_collection(job) if job.settings.use_queue \
+        else None
+    is_needed = queueing.is_needed(job, wbranches, queues)
 
+    if is_needed:
+        try:
+            queues.validate()
+        except messages.IncoherentQueues as err:
+            raise messages.QueueOutOfOrder(
+                active_options=job.active_options) from err
+        queueing.add_to_queue(job, wbranches)
+        raise messages.Queued(
+            branches=job.git.cascade.dst_branches,
+            ignored=job.git.cascade.ignored_branches,
+            issue=job.git.src_branch.jira_issue_key,
+            author=job.pull_request.author_display_name,
+            active_options=job.active_options)
     else:
+        if queues is not None:
+            queues.delete()
         merge_integration_branches(job, wbranches)
         job.bert_e.add_merged_pr(job.pull_request.id)
         job.git.cascade.validate()
