@@ -233,7 +233,7 @@ def _handle_pull_request(job: PullRequestJob):
         # integration branches right away.
         # But if the bot is configured with the 'use_queue' option, we
         # still need to delete the queue to ensure that we don't raise
-        # IncohorentQueues in the next runs.
+        # IncoherentQueues in the next runs.
         if queues is not None:
             queues.delete()
         merge_integration_branches(job, wbranches)
