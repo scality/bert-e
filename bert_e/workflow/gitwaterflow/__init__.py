@@ -21,7 +21,6 @@ import re
 
 from bert_e import exceptions as messages
 from bert_e.job import handler, CommitJob, PullRequestJob, QueuesJob
-from bert_e.jobs.delete_queues import delete_queues
 from bert_e.lib.cli import confirm
 from bert_e.reactor import Reactor, NotFound, NotPrivileged, NotAuthored
 from ..git_utils import push, clone_git_repo

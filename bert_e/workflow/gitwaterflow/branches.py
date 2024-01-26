@@ -753,7 +753,6 @@ class QueueCollection(object):
             queue.remove(do_push=True)
 
 
-
 class BranchCascade(object):
     def __init__(self):
         self._cascade = OrderedDict()
