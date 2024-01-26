@@ -209,9 +209,11 @@ def _handle_pull_request(job: PullRequestJob):
     # the queue.
     queues = queueing.build_queue_collection(job) if job.settings.use_queue \
         else None
-    is_needed = queueing.is_needed(job, wbranches, queues)
 
-    if is_needed:
+    # If we need to go through the queue, we need to check if we can
+    # merge the integration branches right away, or if we need to add
+    # the pull request to the queue.
+    if queueing.is_needed(job, wbranches, queues):
         try:
             queues.validate()
         except messages.IncoherentQueues as err:
@@ -225,6 +227,11 @@ def _handle_pull_request(job: PullRequestJob):
             author=job.pull_request.author_display_name,
             active_options=job.active_options)
     else:
+        # If we don't need to go through the queue, we can merge the
+        # integration branches right away.
+        # But if the bot is configured with the 'use_queue' option, we
+        # still need to delete the queue to ensure that we don't raise
+        # IncohorentQueues in the next runs.
         if queues is not None:
             queues.delete()
         merge_integration_branches(job, wbranches)
