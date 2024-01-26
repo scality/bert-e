@@ -184,7 +184,8 @@ class SettingsSchema(Schema):
     quiet = fields.Bool(required=False, load_default=False)
     disable_queues = fields.Bool(required=False, load_default=False)
     use_queues = fields.Bool(required=False, load_default=True)
-    skip_queue_when_possible = fields.Bool(required=False, load_default=False)
+    skip_queue_when_not_needed = fields.Bool(
+        required=False, load_default=False)
     cmd_line_options = fields.List(fields.Str(), load_default=[])
 
     client_id = fields.Str(required=False, load_default='')

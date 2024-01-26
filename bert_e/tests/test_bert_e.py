@@ -7696,7 +7696,8 @@ class TaskQueueTests(RepositoryTests):
         # Two PRs created at the same time
         # At the moment they were created they are both up to date with the
         # destination branch
-        self.init_berte(options=self.bypass_all, skip_queue_when_possible=True)
+        self.init_berte(
+            options=self.bypass_all, skip_queue_when_not_needed=True)
         first_pr = self.create_pr('feature/TEST-1', 'development/4.3')
         second_pr = self.create_pr('feature/TEST-2', 'development/4.3')
         # The first PR is ready to merge, and is expected to merge directly
