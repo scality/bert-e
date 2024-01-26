@@ -219,7 +219,9 @@ def _handle_pull_request(job: PullRequestJob):
         except messages.IncoherentQueues as err:
             raise messages.QueueOutOfOrder(
                 active_options=job.active_options) from err
+        # Enter the merge queue!
         queueing.add_to_queue(job, wbranches)
+        job.git.cascade.validate()
         raise messages.Queued(
             branches=job.git.cascade.dst_branches,
             ignored=job.git.cascade.ignored_branches,
