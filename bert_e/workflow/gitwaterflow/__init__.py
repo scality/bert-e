@@ -209,15 +209,15 @@ def _handle_pull_request(job: PullRequestJob):
     # the queue.
     if job.settings.use_queue:
         # validate current state of queues
-        try:
-            queues = queueing.build_queue_collection(job)
-            is_needed = queueing.is_needed(job, wbranches, queues)
-        except messages.IncoherentQueues as err:
-            raise messages.QueueOutOfOrder(
-                active_options=job.active_options) from err
+        queues = queueing.build_queue_collection(job)
+        is_needed = queueing.is_needed(job, wbranches, queues)
         # Enter the merge queue!
         if is_needed:
-            queues.validate()
+            try:
+                queues.validate()
+            except messages.IncoherentQueues as err:
+                raise messages.QueueOutOfOrder(
+                    active_options=job.active_options) from err
             queueing.add_to_queue(job, wbranches)
             message = messages.Queued(
                 branches=job.git.cascade.dst_branches,
