@@ -226,6 +226,9 @@ def is_needed(
     - False otherwise.
     """
 
+    if queues is None or job.settings.use_queue is False:
+        return False
+
     if (job.settings.skip_queue_when_possible is False or
             already_in_queue(job, wbranches) or
             len(queues.queued_prs) > 0):
