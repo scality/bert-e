@@ -743,6 +743,18 @@ class QueueCollection(object):
         return (self._queues.get(version, {}).get(QueueIntegrationBranch)
                 is not None)
 
+    def delete(self):
+        """Delete the queues entirely."""
+
+        for branch in self._queues.values():
+            queue: QueueBranch = branch[QueueBranch]
+            queue.dst_branch.checkout()
+            queue.remove(do_push=True)
+            queue_integration: QueueIntegrationBranch | None = branch.get(
+                QueueIntegrationBranch)
+            if queue_integration:
+                queue_integration.remove(do_push=True)
+
 
 class BranchCascade(object):
     def __init__(self):

@@ -18,16 +18,17 @@ from copy import deepcopy
 
 from bert_e import exceptions
 from bert_e.job import handler as job_handler
-from bert_e.job import QueuesJob
+from bert_e.job import QueuesJob, PullRequestJob
 from bert_e.lib import git
 
 from ..git_utils import clone_git_repo, consecutive_merge, robust_merge, push
 from ..pr_utils import send_comment
-from .branches import (BranchCascade, DevelopmentBranch, IntegrationBranch,
-                       QueueBranch, QueueIntegrationBranch,
-                       branch_factory, build_queue_collection)
+from .branches import (BranchCascade, DevelopmentBranch, GWFBranch,
+                       IntegrationBranch, QueueBranch, QueueCollection,
+                       QueueIntegrationBranch, branch_factory,
+                       build_queue_collection)
 from .integration import get_integration_branches
-
+from typing import List
 LOG = logging.getLogger(__name__)
 
 
@@ -207,3 +208,38 @@ def close_queued_pull_request(job, pr_id, cascade):
         except git.RemoveFailedException:
             # not critical
             pass
+
+
+def is_needed(
+        job: PullRequestJob,
+        wbranches: List[GWFBranch],
+        queues: QueueCollection | None):
+    """Determine if queuing is required to merge the given PR.
+
+    Queuing a pull request should only be done if:
+    - The PR or the integration branches are not up to date
+      with the destination branch.
+    - Other PRs are already in the queue.
+
+    Returns:
+    - True if the PR should be queued.
+    - False otherwise.
+    """
+
+    if queues is None or job.settings.use_queue is False:
+        return False
+
+    if (job.settings.skip_queue_when_not_needed is False or
+            already_in_queue(job, wbranches) or
+            len(queues.queued_prs) > 0):
+        return True
+
+    if not job.git.src_branch.includes_commit(
+            job.git.dst_branch.get_latest_commit()):
+        return True
+    # Check if the wbranches all contain the commits in the dst branches
+    for branch, dst_branch in zip(wbranches, job.git.cascade.dst_branches):
+        if not branch.includes_commit(dst_branch.get_latest_commit()):
+            return True
+
+    return False

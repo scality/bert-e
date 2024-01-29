@@ -207,10 +207,14 @@ def _handle_pull_request(job: PullRequestJob):
     # check for conflicts), and all builds were green, and we reached
     # this point without an error, then all conditions are met to enter
     # the queue.
-    if job.settings.use_queue:
-        # validate current state of queues
+    queues = queueing.build_queue_collection(job) if job.settings.use_queue \
+        else None
+
+    # If we need to go through the queue, we need to check if we can
+    # merge the integration branches right away, or if we need to add
+    # the pull request to the queue.
+    if queueing.is_needed(job, wbranches, queues):
         try:
-            queues = queueing.build_queue_collection(job)
             queues.validate()
         except messages.IncoherentQueues as err:
             raise messages.QueueOutOfOrder(
@@ -224,8 +228,14 @@ def _handle_pull_request(job: PullRequestJob):
             issue=job.git.src_branch.jira_issue_key,
             author=job.pull_request.author_display_name,
             active_options=job.active_options)
-
     else:
+        # If we don't need to go through the queue, we can merge the
+        # integration branches right away.
+        # But if the bot is configured with the 'use_queue' option, we
+        # still need to delete the queue to ensure that we don't raise
+        # IncoherentQueues in the next runs.
+        if queues is not None:
+            queues.delete()
         merge_integration_branches(job, wbranches)
         job.bert_e.add_merged_pr(job.pull_request.id)
         job.git.cascade.validate()
