@@ -4925,6 +4925,17 @@ project_leaders:
                 backtrace=True
             )
 
+    def test_init_message(self):
+        pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
+        self.handle(pr.id)
+        init_message = pr.comments[0].text
+        assert f"Hello {pr.author}" in init_message
+        # Assert init message the list of options
+        for option in self.bypass_all:
+            assert option in init_message
+        for command in ['help', 'reset']:
+            assert command in init_message
+
 
 class TestQueueing(RepositoryTests):
     """Tests which validate all things related to the merge queue.
