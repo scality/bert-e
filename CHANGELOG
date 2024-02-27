@@ -1,6 +1,10 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [3.12.0] - 2024-02-26
+# Added
+- Add toggable list of options and commands to init message.
+
 ## [3.11.0] - 2024-01-26
 # Added
 - Support of merging a PR and skip the queue when it is not needed.
