@@ -42,7 +42,10 @@ class BertE(JobDispatcher):
             settings.repository_host,
             settings.robot.username,
             settings.robot_password,
-            settings.robot_email
+            settings.robot_email,
+            settings.github_app_id,
+            settings.github_private_key,
+            settings.github_installation_id,
         )
         self.project_repo = self.client.get_repository(
             owner=settings.repository_owner,

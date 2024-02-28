@@ -190,6 +190,9 @@ class SettingsSchema(Schema):
 
     client_id = fields.Str(required=False, load_default='')
     client_secret = fields.Str(required=False, load_default='')
+    github_app_id = fields.Int(required=False, load_default='')
+    github_private_key = fields.Str(required=False, load_default='')
+    github_installation_id = fields.Int(required=False, load_default='')
 
     @pre_load(pass_many=True)
     def load_env(self, data, **kwargs):

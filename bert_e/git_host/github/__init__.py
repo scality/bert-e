@@ -13,8 +13,11 @@
 # limitations under the License.
 import json
 import logging
+import time
+from functools import lru_cache
 from collections import defaultdict, namedtuple
 from itertools import groupby
+from jwt import JWT, jwk_from_pem
 
 from requests import HTTPError
 from urllib.parse import quote_plus as quote
@@ -37,15 +40,10 @@ CacheEntry = namedtuple('CacheEntry', ['obj', 'etag', 'date'])
 @factory.api_client('github')
 class Client(base.AbstractClient):
 
-    def __init__(self, login: str, password: str, email: str, org=None,
-                 base_url='https://api.github.com'):
-        headers = {
-            'Accept': 'application/vnd.github.v3+json',
-            'User-Agent': 'Bert-E',
-            'Content-Type': 'application/json',
-            'From': email,
-            'Authorization': 'token ' + password
-        }
+    def __init__(self, login: str, password: str, email: str,
+                 app_id: int, installation_id: int, private_key: str,
+                 org=None, base_url='https://api.github.com'):
+
 
         rlog = logging.getLogger('requests.packages.urllib3.connectionpool')
         rlog.setLevel(logging.CRITICAL)
@@ -54,10 +52,66 @@ class Client(base.AbstractClient):
 
         self.login = login
         self.password = password
+        self.app_id = app_id
+        self.installation_id = installation_id
+        self.private_key = jwk_from_pem(private_key)
         self.email = email
         self.org = org
         self.base_url = base_url.rstrip('/')
         self.query_cache = defaultdict(LRUCache)
+
+
+    def _get_jwt(self):
+        """Get a JWT for the installation."""
+
+        payload = {
+            # Issued at time
+            'iat': int(time.time()),
+            # JWT expiration time (10 minutes maximum)
+            'exp': int(time.time()) + 600,
+            # GitHub App's identifier
+            'iss': self.app_id
+        }
+        jwt_instance = JWT()
+        return jwt_instance.encode(payload, self.private_key, alg='RS256')
+
+    # Cache the return value of the _get_installation_token method for 5 minutes
+    @lru_cache()
+    def _get_installation_token(self, ttl_cache=None):
+        """Get an installation token for the client's installation."""
+        # ttl_cache is a parameter used by lru_cache to set the time to live
+        # of the cache. It is not used in this method.
+        del ttl_cache
+
+        url = f'{self.base_url}/app/installations/{self.installation_id}/access_tokens'
+        headers = {
+            'Authorization': f'Bearer {self._get_jwt()}',
+            'Accept': 'application/vnd.github.v3+json',
+        }
+        response = self.session.post(url, headers=headers)
+        response.raise_for_status()
+        return response.json()['token']
+
+    @property
+    def is_app(self):
+        if self.app_id and self.installation_id and self.private_key:
+            return True
+        return False
+
+    @property
+    def headers(self):
+        headers = {
+            'Accept': 'application/vnd.github.v3+json',
+            'User-Agent': 'Bert-E',
+            'Content-Type': 'application/json',
+            'From': self.email,
+        }
+        if self.is_app:
+            token = self._get_installation_token(ttl_cache=round(time.time() / 600))
+            headers['Authorization'] = f'Bearer {token}'
+        else:
+            headers['Authorization'] = f'token {self.password}'
+        return headers
 
     def _patch_url(self, url):
         """Patch URLs if it is relative to the API root.
