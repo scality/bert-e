@@ -44,11 +44,9 @@ class Client(base.AbstractClient):
                  app_id: int, installation_id: int, private_key: str,
                  org=None, base_url='https://api.github.com'):
 
-
         rlog = logging.getLogger('requests.packages.urllib3.connectionpool')
         rlog.setLevel(logging.CRITICAL)
         self.session = base.BertESession()
-        self.session.headers.update(headers)
 
         self.login = login
         self.password = password
@@ -60,6 +58,7 @@ class Client(base.AbstractClient):
         self.base_url = base_url.rstrip('/')
         self.query_cache = defaultdict(LRUCache)
 
+        self.session.headers.update(self.headers)
 
     def _get_jwt(self):
         """Get a JWT for the installation."""
@@ -75,7 +74,6 @@ class Client(base.AbstractClient):
         jwt_instance = JWT()
         return jwt_instance.encode(payload, self.private_key, alg='RS256')
 
-    # Cache the return value of the _get_installation_token method for 5 minutes
     @lru_cache()
     def _get_installation_token(self, ttl_cache=None):
         """Get an installation token for the client's installation."""
