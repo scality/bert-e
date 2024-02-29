@@ -1,0 +1,6 @@
+---
+services:
+  github-mock:
+    build: github-mock
+    ports:
+      - 4010:4010

@@ -41,8 +41,9 @@ CacheEntry = namedtuple('CacheEntry', ['obj', 'etag', 'date'])
 class Client(base.AbstractClient):
 
     def __init__(self, login: str, password: str, email: str,
-                 app_id: int, installation_id: int, private_key: str,
-                 org=None, base_url='https://api.github.com'):
+                 app_id: int | None = None, installation_id: int | None = None,
+                 private_key: str | None = None, org=None, base_url='https://api.github.com',
+                 accept_header="application/vnd.github.v3+json"):
 
         rlog = logging.getLogger('requests.packages.urllib3.connectionpool')
         rlog.setLevel(logging.CRITICAL)
@@ -57,6 +58,7 @@ class Client(base.AbstractClient):
         self.org = org
         self.base_url = base_url.rstrip('/')
         self.query_cache = defaultdict(LRUCache)
+        self.accept_header = accept_header
 
         self.session.headers.update(self.headers)
 
@@ -84,8 +86,9 @@ class Client(base.AbstractClient):
         url = f'{self.base_url}/app/installations/{self.installation_id}/access_tokens'
         headers = {
             'Authorization': f'Bearer {self._get_jwt()}',
-            'Accept': 'application/vnd.github.v3+json',
+            'Accept': self.accept_header,
         }
+        print(headers)
         response = self.session.post(url, headers=headers)
         response.raise_for_status()
         return response.json()['token']
@@ -99,7 +102,7 @@ class Client(base.AbstractClient):
     @property
     def headers(self):
         headers = {
-            'Accept': 'application/vnd.github.v3+json',
+            'Accept': self.accept_header,
             'User-Agent': 'Bert-E',
             'Content-Type': 'application/json',
             'From': self.email,

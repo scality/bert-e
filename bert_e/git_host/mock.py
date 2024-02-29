@@ -55,11 +55,13 @@ class Error404Response:
 
 @api_client('mock')
 class Client(base.AbstractClient):
-    def __init__(self, username, password, email):
+    def __init__(self, username, password, email, *args, **kwargs):
         self.login = username
         self.password = password
         self.auth = self
         self.email = email
+        self.args = args
+        self.kwargs = kwargs
 
     def create_repository(self, slug, owner=None, scm='git',
                           is_private=True):
