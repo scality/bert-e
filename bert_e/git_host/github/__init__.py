@@ -42,7 +42,8 @@ class Client(base.AbstractClient):
 
     def __init__(self, login: str, password: str, email: str,
                  app_id: int | None = None, installation_id: int | None = None,
-                 private_key: str | None = None, org=None, base_url='https://api.github.com',
+                 private_key: str | None = None, org=None,
+                 base_url='https://api.github.com',
                  accept_header="application/vnd.github.v3+json"):
 
         rlog = logging.getLogger('requests.packages.urllib3.connectionpool')
@@ -83,7 +84,10 @@ class Client(base.AbstractClient):
         # of the cache. It is not used in this method.
         del ttl_cache
 
-        url = f'{self.base_url}/app/installations/{self.installation_id}/access_tokens'
+        url = (
+            f'{self.base_url}/app/installations/'
+            f'{self.installation_id}/access_tokens'
+        )
         headers = {
             'Authorization': f'Bearer {self._get_jwt()}',
             'Accept': self.accept_header,
@@ -108,7 +112,8 @@ class Client(base.AbstractClient):
             'From': self.email,
         }
         if self.is_app:
-            token = self._get_installation_token(ttl_cache=round(time.time() / 600))
+            token = self._get_installation_token(
+                ttl_cache=round(time.time() / 600))
             headers['Authorization'] = f'Bearer {token}'
         else:
             headers['Authorization'] = f'token {self.password}'

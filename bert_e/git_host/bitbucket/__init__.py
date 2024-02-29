@@ -51,7 +51,8 @@ def build_filter_query(filters):
 
 @factory.api_client('bitbucket')
 class Client(base.BertESession, base.AbstractClient):
-    def __init__(self, bitbucket_login, bitbucket_password, bitbucket_mail, *args, **kwargs):
+    def __init__(self, bitbucket_login, bitbucket_password, bitbucket_mail,
+                 *args, **kwargs):
         super().__init__()
         headers = {
             'Accept': 'application/json',
