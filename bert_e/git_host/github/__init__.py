@@ -825,6 +825,24 @@ class PullRequest(base.AbstractGitHostObject, base.AbstractPullRequest):
         url = self.data['comments_url']
         return Comment.create(self.client, {'body': msg}, url=url)
 
+    def add_checkrun(
+            self, name: str, status: str, conclusion: str,
+            title: str, summary: str):
+        return CheckRun.create(
+            client=self.client,
+            data={
+                'name': name,
+                'head_sha': self.src_commit,
+                'status': status,
+                'conclusion': conclusion,
+                'output': {
+                    'title': title,
+                    'summary': summary,
+                },
+            },
+            owner=self.repo.owner, repo=self.repo.slug
+        )
+
     def get_comments(self):
         return Comment.list(self.client, url=self.data['comments_url'])
 
@@ -972,6 +990,34 @@ class Comment(base.AbstractGitHostObject, base.AbstractComment):
 
     def delete(self) -> None:
         self.client.delete(self.data['url'])
+
+
+class CheckRun(base.AbstractGitHostObject):
+    GET_URL = '/repos/{owner}/{repo}/check-runs/{id}'
+    CREATE_URL = '/repos/{owner}/{repo}/check-runs'
+
+    SCHEMA = schema.CheckRun
+    CREATE_SCHEMA = schema.CreateCheckRun
+
+    @property
+    def name(self) -> str:
+        return self.data['name']
+
+    @property
+    def status(self) -> str:
+        return self.data['status']
+
+    @property
+    def conclusion(self) -> str:
+        return self.data['conclusion']
+
+    @property
+    def title(self) -> str:
+        return self.data['output']['title']
+
+    @property
+    def summary(self) -> str:
+        return self.data['output']['summary']
 
 
 class Review(base.AbstractGitHostObject):
