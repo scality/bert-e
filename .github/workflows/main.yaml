@@ -26,6 +26,9 @@ jobs:
           cache: pip
       - name: Install dependencies
         run: pip install -r requirements.txt
+      - name: Boot compose test service
+        run: docker compose up --build --detach
+        working-directory: bert_e/tests/images
       - name: Install tox
         run: pip install tox
       - run: tox -e utests

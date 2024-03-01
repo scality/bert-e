@@ -51,7 +51,8 @@ def build_filter_query(filters):
 
 @factory.api_client('bitbucket')
 class Client(base.BertESession, base.AbstractClient):
-    def __init__(self, bitbucket_login, bitbucket_password, bitbucket_mail):
+    def __init__(self, bitbucket_login, bitbucket_password, bitbucket_mail,
+                 *args, **kwargs):
         super().__init__()
         headers = {
             'Accept': 'application/json',
@@ -63,6 +64,8 @@ class Client(base.BertESession, base.AbstractClient):
         self.email = bitbucket_mail
         self.headers.update(headers)
         self.auth = HTTPBasicAuth(bitbucket_login, bitbucket_password)
+        self.args = args
+        self.kwargs = kwargs
 
     def get_repository(self, slug, owner=None):
         """Get the repository with the associated owner and slug."""
