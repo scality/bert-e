@@ -38,6 +38,11 @@ def test_github_auth_app(client_app):
 def test_github_check_run(client_app):
     repository = client_app.get_repository('octo-org', 'Hello-World')
     pr = repository.get_pull_request(1)
-    check_run = pr.add_checkrun(
+    check_run = pr._add_checkrun(
         'bert-e', 'completed', 'success', 'title', 'summary')
     assert check_run.name == check_run.data['name']
+
+def test_github_set_status(client_app):
+    repository = client_app.get_repository('octo-org', 'Hello-World')
+    pr = repository.get_pull_request(1)
+    pr.set_bot_status('success', 'title', 'summary')

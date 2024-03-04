@@ -350,6 +350,16 @@ class AbstractPullRequest(metaclass=ABCMeta):
     def decline(self):
         """Decline this pull request."""
 
+    @abstractmethod
+    def set_bot_status(self, status: str | None, title: str, summary: str) -> None:
+        """Set a status check reporting its advancement regarding Bert-E's checks
+
+        Args:
+            - status: the status of the check.
+            - title: the title of the check.
+            - summary: the summary of the check.
+        """
+
     @property
     @abstractmethod
     def id(self) -> str:

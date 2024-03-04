@@ -4936,6 +4936,19 @@ project_leaders:
         for command in ['help', 'reset']:
             assert command in init_message
 
+    def test_set_bot_status(self):
+        """Test Bert-E's capability to its own status on PRs"""
+        settings = DEFAULT_SETTINGS + "send_bot_status: true"
+        pr = self.create_pr('bugfix/TEST-01', 'development/4.3')
+        self.handle(pr.id)
+        assert self.get_build_status(pr.src_commit, key="bert-e") == "NOTSTARTED"
+        self.handle(pr.id, settings=settings)
+        assert self.get_build_status(pr.src_commit, key="bert-e") == "failure"
+        self.handle(pr.id, settings=settings, options=["bypass_jira_check"])
+        assert self.get_build_status(pr.src_commit, key="bert-e") == "in_progress"
+        self.handle(pr.id, settings=settings, options=self.bypass_all)
+
+
 
 class TestQueueing(RepositoryTests):
     """Tests which validate all things related to the merge queue.

@@ -825,8 +825,24 @@ class PullRequest(base.AbstractGitHostObject, base.AbstractPullRequest):
         url = self.data['comments_url']
         return Comment.create(self.client, {'body': msg}, url=url)
 
-    def add_checkrun(
-            self, name: str, status: str, conclusion: str,
+    def set_bot_status(self, status: str | None, title: str, summary: str):
+        conclusion: str | None = None
+        if status == "success":
+            conclusion = "success"
+            status = "completed"
+        elif status == "in_progress":
+            conclusion = None
+        elif status == "failure":
+            conclusion = "failure"
+            status = "completed"
+
+        self._add_checkrun(
+            name='bert-e', status=status, conclusion=conclusion,
+            title=title, summary=summary
+        )
+
+    def _add_checkrun(
+            self, name: str, status: str, conclusion: str | None,
             title: str, summary: str):
         return CheckRun.create(
             client=self.client,

@@ -168,6 +168,16 @@ class Repository(BitBucketObject, base.AbstractRepository):
         self.size = 76182262
         self.is_private = is_private
         self.uuid = "{9970a9b6-2d86-413f-8555-da8e1ac0e542}"
+        # revisions will be used to store the build status
+        # It is a dict that will return the build status for a given revision and key
+        # The value of revisions will be consistent across every instance of Repository
+        # Even if the class is instantiated multiple times
+        # therefore it needs to be cached at the class level
+        if not hasattr(Repository, 'revisions'):
+            Repository.revisions = {}
+
+
+
 
         # ###############
 
@@ -180,7 +190,6 @@ class Repository(BitBucketObject, base.AbstractRepository):
     def create(self):
         self.gitrepo = GitRepository(None)
         self.gitrepo.cmd('git init --bare')
-        self.gitrepo.revisions = {}  # UGLY
         Repository.repos[(self.repo_owner, self.repo_slug)] = self.gitrepo
         return super().create()
 
@@ -235,11 +244,11 @@ class Repository(BitBucketObject, base.AbstractRepository):
 
     def get_build_url(self, revision, key):
         key = '{}-build'.format(revision)
-        return self.gitrepo.revisions.get((revision, key), None)
+        return self.revisions.get((revision, key), None)
 
     def get_build_status(self, revision, key):
         try:
-            return self.gitrepo.revisions[(revision, key)]
+            return self.revisions[(revision, key)]
         except KeyError:
             return 'NOTSTARTED'
 
@@ -248,7 +257,7 @@ class Repository(BitBucketObject, base.AbstractRepository):
 
     def set_build_status(self, revision, key, state, **kwargs):
         self.get_git_url()
-        self.gitrepo.revisions[(revision, key)] = state
+        self.revisions[(revision, key)] = state
 
     @property
     def owner(self):
@@ -350,6 +359,15 @@ class PullRequestController(Controller, base.AbstractPullRequest):
             self['source']['commit'] = {'hash': self.src_commit}
         except Exception:
             pass
+
+    def set_bot_status(self, status: str, title: str, summary: str):
+
+        self['repo'].set_build_status(
+            revision=self.src_commit,
+            key="bert-e",
+            state=status,
+            description=f"# {title}\n{summary}"
+        )
 
     @property
     def id(self):
