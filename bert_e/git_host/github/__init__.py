@@ -826,6 +826,9 @@ class PullRequest(base.AbstractGitHostObject, base.AbstractPullRequest):
         return Comment.create(self.client, {'body': msg}, url=url)
 
     def set_bot_status(self, status: str | None, title: str, summary: str):
+        if self.client and self.client.is_app is False:
+            LOG.error("Cannot set bot status without a GitHub App")
+            return
         conclusion: str | None = None
         if status == "success":
             conclusion = "success"
