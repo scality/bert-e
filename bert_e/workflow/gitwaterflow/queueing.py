@@ -18,7 +18,7 @@ from copy import deepcopy
 
 from bert_e import exceptions
 from bert_e.job import handler as job_handler
-from bert_e.job import QueuesJob, PullRequestJob
+from bert_e.job import QueuesJob, PullRequestJob, Job
 from bert_e.lib import git
 
 from ..git_utils import clone_git_repo, consecutive_merge, robust_merge, push
@@ -29,7 +29,21 @@ from .branches import (BranchCascade, DevelopmentBranch, GWFBranch,
                        build_queue_collection)
 from .integration import get_integration_branches
 from typing import List
+
+from bert_e.workflow.gitwaterflow import check_build_status
+
 LOG = logging.getLogger(__name__)
+
+
+def notify_queue_build_failed(job: PullRequestJob, queues):
+    """Notify on the pull request that the queue build failed."""
+    # find the corresponding q/{job.pull_request.id}/* branches
+    pr_id = job.pull_request.id
+    wbranches = list(get_integration_branches(job))
+    qbranches = [get_queue_integration_branch(job, pr_id, w.dst_branch)
+                 for w in wbranches]
+
+    check_build_status(job, qbranches)
 
 
 @job_handler(QueuesJob)
@@ -48,6 +62,7 @@ def handle_merge_queues(job):
     job.bert_e.update_queue_status(queues)
 
     if not queues.mergeable_prs:
+        notify_queue_build_failed(job, queues)
         raise exceptions.NothingToDo()
 
     merge_queues(queues.mergeable_queues)
