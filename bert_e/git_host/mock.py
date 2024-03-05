@@ -169,17 +169,14 @@ class Repository(BitBucketObject, base.AbstractRepository):
         self.is_private = is_private
         self.uuid = "{9970a9b6-2d86-413f-8555-da8e1ac0e542}"
         # revisions will be used to store the build status
-        # It is a dict that will return the build status for a given revision and key
-        # The value of revisions will be consistent across every instance of Repository
-        # Even if the class is instantiated multiple times
-        # therefore it needs to be cached at the class level
+        # It is a dict that will return the build status for a given
+        # revision and key.
+        # The value of revisions will be consistent across
+        # every instance of Repository even if the class is
+        # instantiated multiple times, therefore it needs to be
+        # cached at the class level.
         if not hasattr(Repository, 'revisions'):
             Repository.revisions = {}
-
-
-
-
-        # ###############
 
     def delete(self):
         super().delete()

@@ -108,6 +108,7 @@ def send_bot_status(settings, pull_request: AbstractPullRequest,
         summary=str(comment),
     )
 
+
 def create_task(settings, task: str, comment: AbstractComment):
     """Add a task to a comment."""
     if settings.no_comment:

@@ -42,6 +42,7 @@ def test_github_check_run(client_app):
         'bert-e', 'completed', 'success', 'title', 'summary')
     assert check_run.name == check_run.data['name']
 
+
 def test_github_set_status(client_app):
     repository = client_app.get_repository('octo-org', 'Hello-World')
     pr = repository.get_pull_request(1)

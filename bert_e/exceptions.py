@@ -42,11 +42,11 @@ class TemplateException(BertE_Exception):
         self.msg = render(self.template, code=self.code, **kwargs)
         super(TemplateException, self).__init__(self.msg)
 
-
     @property
     def title(self) -> str:
         # Return the exception class name as the title
         return self.__class__.__name__
+
 
 class InternalException(BertE_Exception):
     code = 1

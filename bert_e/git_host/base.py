@@ -351,7 +351,8 @@ class AbstractPullRequest(metaclass=ABCMeta):
         """Decline this pull request."""
 
     @abstractmethod
-    def set_bot_status(self, status: str | None, title: str, summary: str) -> None:
+    def set_bot_status(self, status: str | None, title: str,
+                       summary: str) -> None:
         """Set a status check reporting its advancement regarding Bert-E's checks
 
         Args:

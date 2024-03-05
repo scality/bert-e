@@ -356,6 +356,10 @@ class PullRequest(BitBucketObject, base.AbstractPullRequest):
             pull_request_id=self['id']
         )
 
+    def set_bot_status(self, status: str | None, title: str, summary: str):
+        raise NotImplementedError('"set_bot_status" feature '
+                                  'is not available in bitbucket')
+
     def get_comments(self, deleted=False):
         return sorted(
             (comment
