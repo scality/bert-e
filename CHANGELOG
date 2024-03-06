@@ -1,6 +1,13 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [4.0.0] - 2024-03-06
+# Removed
+- Support of tasks as it unused to due its incompatibility with GitHub.
+
+# Added
+- Bert-E's status notifications through a build status check.
+
 ## [3.12.0] - 2024-02-26
 # Added
 - Add toggable list of options and commands to init message.
