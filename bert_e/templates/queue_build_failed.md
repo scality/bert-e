@@ -12,13 +12,13 @@ The corresponding build for the queue failed:
 - Identify the failing build and review the logs.
 - If no issue is found, re-run the build.
 - If an issue is identified, checkout the steps below to remove
-  the pull request from the queue.
+  the pull request from the queue for further analysis and maybe rebase/merge.
 
 <details>
   <summary><b>Remove the pull request from the queue</b></summary>
 
-- Add a `/wait` comment on the pull request.
-- Click on login on the [status page]({{ frontend_url }})
+- Add a `/wait` comment on this pull request.
+- Click on login on the [status page]({{ frontend_url }}).
 - Go into the [manage]({{ frontend_url }}/manage) page.
 - Find the option called `Rebuild the queue` and click on it.
   This will remove the pull request from the queue.
