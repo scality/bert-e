@@ -22,7 +22,6 @@ from jwt import JWT, jwk_from_pem
 from requests import HTTPError
 from urllib.parse import quote_plus as quote
 
-from bert_e.exceptions import TaskAPIError
 from bert_e.lib.lru_cache import LRUCache
 from . import schema
 from .. import base, cache, factory
@@ -873,9 +872,6 @@ class PullRequest(base.AbstractGitHostObject, base.AbstractPullRequest):
     def repo(self):
         return Repository(**self.data['base']['repo'], client=self.client)
 
-    def get_tasks(self):
-        raise TaskAPIError("PullRequest.get_tasks", NotImplemented)
-
     def get_reviews(self):
         repo = self.repo
         self._reviews = list(Review.list(
@@ -986,9 +982,6 @@ class Comment(base.AbstractGitHostObject, base.AbstractComment):
 
     SCHEMA = schema.Comment
     CREATE_SCHEMA = schema.CreateComment
-
-    def add_task(self, *args):
-        raise TaskAPIError("Comment.add_task", NotImplemented)
 
     @property
     def author(self) -> str:

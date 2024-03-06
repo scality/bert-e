@@ -166,7 +166,6 @@ class SettingsSchema(Schema):
         UserSettingSchema, many=True, load_default=[])
     project_leaders = fields.Nested(
         UserSettingSchema, many=True, load_default=[])
-    tasks = fields.List(fields.Str(), load_default=[])
 
     max_commit_diff = fields.Int(required=False, load_default=0)
 

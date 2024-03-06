@@ -23,7 +23,6 @@ from requests.auth import HTTPBasicAuth
 
 from . import schema
 from .. import base, cache, factory
-from bert_e.exceptions import TaskAPIError
 
 MAX_PR_TITLE_LEN = 255
 
@@ -371,10 +370,6 @@ class PullRequest(BitBucketObject, base.AbstractPullRequest):
             key=lambda c: c.created_on
         )
 
-    def get_tasks(self):
-        return Task.get_list(self.client, full_name=self.full_name(),
-                             pull_request_id=self['id'])
-
     def get_change_requests(self):
         # Not supported by bitbucket, default to an empty tuple of usernames
         return tuple()
@@ -489,11 +484,6 @@ class Comment(base.AbstractGitHostObject, base.AbstractComment):
         p = Path(urlparse(self.data['links']['self']['href']).path).resolve()
         return '%s/%s' % p.parts[3:5]
 
-    def add_task(self, msg):
-        return Task(self.client, content=msg, full_name=self.full_name(),
-                    pull_request_id=self.data['pullrequest']['id'],
-                    comment_id=self.id).create()
-
     def delete(self):
         return super().delete(self.client, full_name=self.full_name(),
                               pull_request_id=self.data['pullrequest']['id'],
@@ -522,46 +512,6 @@ class Comment(base.AbstractGitHostObject, base.AbstractComment):
     @property
     def deleted(self):
         return self.data['deleted']
-
-
-class Task(BitBucketObject, base.AbstractTask):
-    get_url = 'https://bitbucket.org/!api/internal/repositories/$full_name/' \
-        'pullrequests/$pull_request_id/tasks/$task_id'
-    add_url = 'https://bitbucket.org/!api/internal/repositories/$full_name/' \
-        'pullrequests/$pull_request_id/tasks'
-    list_url = add_url + '?page=$page'
-
-    def __init__(self, client, **kwargs):
-        super().__init__(client, **kwargs)
-        if 'comment_id' in self._json_data:
-            self._json_data['comment'] = {'id': self._json_data['comment_id']}
-        if 'content' in self._json_data:
-            self._json_data['content'] = {'raw': self._json_data['content']}
-
-    def create(self, *args, **kwargs):
-        try:
-            return super().create(*args, **kwargs)
-        except Exception as err:
-            raise TaskAPIError('create', err)
-
-    def delete(self, *args, **kwargs):
-        try:
-            return super().delete(*args, **kwargs)
-        except Exception as err:
-            raise TaskAPIError('delete', err)
-
-    def get(self, *args, **kwargs):
-        try:
-            return super().get(*args, **kwargs)
-        except Exception as err:
-            raise TaskAPIError('get', err)
-
-    @classmethod
-    def get_list(self, *args, **kwargs):
-        try:
-            return list(super().get_list(*args, **kwargs))
-        except Exception as err:
-            raise TaskAPIError('get_list', err)
 
 
 class BuildStatus(BitBucketObject, base.AbstractBuildStatus):

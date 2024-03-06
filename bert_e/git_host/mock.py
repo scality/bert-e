@@ -19,7 +19,6 @@ from datetime import datetime
 import requests
 
 from . import base
-from ..exceptions import TaskAPIError
 from ..lib.git import Branch as GitBranch
 from ..lib.git import Repository as GitRepository
 from .factory import api_client
@@ -181,7 +180,6 @@ class Repository(BitBucketObject, base.AbstractRepository):
     def delete(self):
         super().delete()
         PullRequest.items = []
-        Task.items = []
         Comment.items = []
 
     def create(self):
@@ -279,11 +277,6 @@ class PullRequestController(Controller, base.AbstractPullRequest):
                 for c in Comment.get_list(
                     self.client, full_name=self.controlled.full_name(),
                     pull_request_id=self.controlled.id))
-
-    def get_tasks(self):
-        return [Controller(self.client, t) for t in Task.get_list(
-                self.client, full_name=self.controlled.full_name(),
-                pull_request_id=self.controlled.id)]
 
     def merge(self):
         raise NotImplementedError('Merge')
@@ -412,14 +405,6 @@ class PullRequestController(Controller, base.AbstractPullRequest):
 
 
 class CommentController(Controller, base.AbstractComment):
-    def add_task(self, msg):
-        task = Task(self.client, content=msg,
-                    full_name=self.controlled.full_name,
-                    pr_id=self.controlled.pull_request_id,
-                    comment_id=self.controlled.id).create()
-
-        PullRequest.items[self.controlled.pull_request_id - 1].task_count += 1
-        return task
 
     def delete(self):
         self.controlled.delete()
@@ -485,7 +470,6 @@ class PullRequest(BitBucketObject):
             "commit": Branch(self.repo.gitrepo, source['branch']['name']),
             "repository": fake_repository_dict("")
         }
-        self.task_count = 0
         self.title = title
         self.type = "pullrequest"
         self.updated_on = "2016-01-12T19:31:23.673329+00:00"
@@ -531,35 +515,6 @@ class Comment(BitBucketObject):
     def get_list(client, full_name, pull_request_id):
         return [c for c in Comment.items if c.full_name == full_name and
                 c.pull_request_id == pull_request_id]
-
-
-class Task(BitBucketObject, base.AbstractTask):
-    add_url = 'legit_add_url'
-    list_url = 'legit_list_url'
-    items = []
-
-    def __init__(self, client, content, pr_id, full_name, comment_id):
-        #  URL params #
-        self.pull_request_id = pr_id
-        self.full_name = full_name
-        self.comment_id = comment_id
-
-        #  JSON params #
-        self.content = {"raw": content}
-        self.id = len(Task.items)
-
-    def create(self):
-        if self.add_url != 'legit_add_url':
-            raise TaskAPIError('create', 'url does not work')
-        self.__class__.items.append(self)
-        return self
-
-    @staticmethod
-    def get_list(client, full_name, pull_request_id):
-        if Task.list_url != 'legit_list_url':
-            raise TaskAPIError('get_list', 'url does not work')
-        return [t for t in Task.items if t.full_name == full_name and
-                t.pull_request_id == pull_request_id]
 
 
 class BuildStatus(BitBucketObject, base.AbstractBuildStatus):

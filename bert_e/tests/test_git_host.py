@@ -244,19 +244,6 @@ class TestBasicFunctionality:
         assert cmt1.text == 'First comment'
         assert cmt2.text == 'Last comment'
 
-    def test_tasks(self, workspace):
-        if workspace.host == 'github':
-            pytest.skip('Tasks are not supported by this host.')
-
-        pull_request = make_pull_request(workspace, 'test_tasks', 'master')
-        pull_request.get_tasks()
-
-        comment = pull_request.add_comment('Some comment')
-        comment2 = pull_request.add_comment('Some other comment')
-        comment.add_task('do spam')
-        comment.add_task('do egg')
-        comment2.add_task('do bacon')
-        assert len(list(pull_request.get_tasks())) == 3
 
     def test_build_status(self, workspace):
         pull_request = make_pull_request(workspace, 'test_build_status',

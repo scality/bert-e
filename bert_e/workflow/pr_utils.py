@@ -81,13 +81,13 @@ def _send_comment(settings, pull_request: AbstractPullRequest, msg: str,
             return
 
     LOG.debug('SENDING MESSAGE %s', msg)
-    return pull_request.add_comment(msg)
 
 
-def send_comment(settings, pull_request: AbstractPullRequest,
+def notify_user(settings, pull_request: AbstractPullRequest,
                  comment: exceptions.TemplateException):
-    """Post a comment in a pull request."""
+    """Notify user by sending a comment or a build status in a pull request."""
     try:
+        send_bot_status(settings, pull_request, comment)
         return _send_comment(settings, pull_request, str(comment),
                              comment.dont_repeat_if_in_history)
     except exceptions.CommentAlreadyExists:
@@ -103,26 +103,7 @@ def send_bot_status(settings, pull_request: AbstractPullRequest,
     LOG.info(f"Setting bot status to {comment.status} as {comment.title}")
     pull_request.set_bot_status(
         comment.status,
-        # title is the name of the exception class
-        title=comment.__class__.__name__,
+        title=comment.title,
         summary=str(comment),
     )
 
-
-def create_task(settings, task: str, comment: AbstractComment):
-    """Add a task to a comment."""
-    if settings.no_comment:
-        LOG.debug("Not setting task (no_comment==True)")
-        return
-
-    if settings.interactive:
-        print(task, '\n')
-        if not confirm('Do you want to create this task?'):
-            return
-
-    LOG.debug('CREATING TASK %s', task)
-
-    try:
-        comment.add_task(task)
-    except exceptions.TaskAPIError as err:
-        LOG.error('Could not create task %s (%s)', task, err)

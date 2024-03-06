@@ -11,12 +11,6 @@ pull request. {% if frontend_url
 on this process, or consult the [user documentation](
 {{ frontend_url }}/doc/user).{% endif %}
 
-{% if tasks %}
-I have created below the minimum set of tasks expected to be performed during
-this review.
-{% endif%}
-
-
 {% if options %}
 <details>
   <summary><b>Available options</b></summary>

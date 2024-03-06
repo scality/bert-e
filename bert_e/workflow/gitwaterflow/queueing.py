@@ -22,7 +22,7 @@ from bert_e.job import QueuesJob, PullRequestJob
 from bert_e.lib import git
 
 from ..git_utils import clone_git_repo, consecutive_merge, robust_merge, push
-from ..pr_utils import send_comment
+from ..pr_utils import notify_user
 from .branches import (BranchCascade, DevelopmentBranch, GWFBranch,
                        IntegrationBranch, QueueBranch, QueueCollection,
                        QueueIntegrationBranch, branch_factory,
@@ -174,7 +174,7 @@ def close_queued_pull_request(job, pr_id, cascade):
 
     if dst.includes_commit(src.get_latest_commit()):
         # Everything went fine, send a success message
-        send_comment(
+        notify_user(
             job.settings, pull_request, exceptions.SuccessMessage(
                 branches=target_branches,
                 ignored=job.git.cascade.ignored_branches,
@@ -189,7 +189,7 @@ def close_queued_pull_request(job, pr_id, cascade):
         # have disappeared, so the normal pre-queuing workflow will restart
         # naturally.
         commits = list(src.get_commit_diff(dst))
-        send_comment(
+        notify_user(
             job.settings, pull_request, exceptions.PartialMerge(
                 commits=commits, branches=job.git.cascade.dst_branches,
                 active_options=[])

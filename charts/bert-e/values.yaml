@@ -196,13 +196,6 @@ bertE:
     ##
     projectLeaders: []
 
-    ## tasks is a list of tasks to create automatically on new pull requests.
-    ##
-    ##   Not supported on GitHub.
-    ##
-    ##   default value: empty
-    ##
-    tasks: []
 
     ## maxCommitDiff specifies the maximum authorized divergence from target branches.
     ##

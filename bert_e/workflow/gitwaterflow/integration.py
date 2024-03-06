@@ -22,7 +22,7 @@ from bert_e import exceptions
 from bert_e.lib import git
 
 from ..git_utils import consecutive_merge, robust_merge, push
-from ..pr_utils import send_comment
+from ..pr_utils import notify_user
 from .branches import (branch_factory, build_branch_cascade,
                        GhostIntegrationBranch)
 
@@ -207,7 +207,7 @@ def create_integration_pull_requests(job, wbranches):
 
 def notify_integration_data(job, wbranches, child_prs):
     if len(wbranches) > 1:
-        send_comment(
+        notify_user(
             job.settings, job.pull_request,
             exceptions.IntegrationDataCreated(
                 bert_e=job.settings.robot,
