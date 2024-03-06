@@ -87,9 +87,6 @@ admins:
   - {admin}
 project_leaders:
   - {admin}
-tasks:
-  - do foo
-  - do bar
 """ # noqa
 
 
@@ -4212,154 +4209,6 @@ project_leaders:
                 pr.id, options=['bypass_author_approval'], backtrace=True,
                 settings=settings)
 
-    def test_task_list_creation(self):
-        if self.args.git_host == 'github':
-            self.skipTest("Tasks are not supported on GitHub")
-
-        pr = self.create_pr('feature/death-ray', 'development/10.0')
-        try:
-            self.handle(pr.id)
-        except requests.HTTPError as err:
-            self.fail("Error from bitbucket: %s" % err.response.text)
-        # retrieving tasks from private bitbucket API only works for admin
-        pr_admin = self.admin_bb.get_pull_request(pull_request_id=pr.id)
-        self.assertEqual(len(list(pr_admin.get_tasks())), 2)
-        init_comment = pr.comments[0].text
-        self.assertIn('task', init_comment)
-
-    def test_task_list_missing(self):
-        if self.args.git_host == 'github':
-            self.skipTest("Tasks are not supported on GitHub")
-
-        pr = self.create_pr('feature/death-ray', 'development/10.0')
-        settings = """
-repository_owner: {owner}
-repository_slug: {slug}
-repository_host: {host}
-robot: {robot}
-robot_email: nobody@nowhere.com
-pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
-commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
-build_key: pre-merge
-required_leader_approvals: 0
-required_peer_approvals: 0
-admins:
-  - {admin}
-""" # noqa
-        try:
-            self.handle(pr.id, settings=settings)
-        except requests.HTTPError as err:
-            self.fail("Error from bitbucket: %s" % err.response.text)
-        pr_admin = self.admin_bb.get_pull_request(pull_request_id=pr.id)
-        self.assertEqual(len(list(pr_admin.get_tasks())), 0)
-        init_comment = pr.comments[0].text
-        self.assertNotIn('task', init_comment)
-
-    def test_task_list_funky(self):
-        if self.args.git_host == 'github':
-            self.skipTest("Tasks are not supported on GitHub")
-
-        pr = self.create_pr('feature/death-ray', 'development/10.0')
-        settings = """
-repository_owner: {owner}
-repository_slug: {slug}
-repository_host: {host}
-robot: {robot}
-robot_email: nobody@nowhere.com
-pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
-commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
-build_key: pre-merge
-required_leader_approvals: 0
-required_peer_approvals: 0
-admins:
-  - {admin}
-tasks:
-  - ''
-  - zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz
-  - éâàë€
-  - 1
-  - 2
-  - 3
-  - 3
-  - 3
-  - 3
-  - 3
-  - 3
-  - 3
-  - 3
-  - 3
-  - 3
-""" # noqa
-        try:
-            self.handle(pr.id, settings=settings)
-        except requests.HTTPError as err:
-            self.fail("Error from bitbucket: %s" % err.response.text)
-        pr_admin = self.admin_bb.get_pull_request(pull_request_id=pr.id)
-        self.assertEqual(len(list(pr_admin.get_tasks())), 15)
-
-    def test_task_list_illegal(self):
-        if self.args.git_host == 'github':
-            self.skipTest("Tasks are not supported on GitHub")
-
-        pr = self.create_pr('feature/death-ray', 'development/10.0')
-        settings = """
-repository_owner: {owner}
-repository_slug: {slug}
-repository_host: {host}
-robot: {robot}
-robot_email: nobody@nowhere.com
-pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
-commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
-build_key: pre-merge
-required_leader_approvals: 0
-required_peer_approvals: 0
-admins:
-  - {admin}
-tasks:
-  - ['a task in a list']
-""" # noqa
-        with self.assertRaises(exns.MalformedSettings):
-            self.handle(pr.id, backtrace=True, settings=settings)
-
-    def test_task_list_incompatible_api_update_create(self):
-        if self.args.git_host == 'github':
-            self.skipTest("Tasks are not supported on GitHub")
-
-        try:
-            real = bitbucket_api.Task.add_url
-            bitbucket_api.Task.add_url = 'https://bitbucket.org/plouf'
-
-            pr = self.create_pr('feature/death-ray', 'development/10.0')
-            try:
-                self.handle(pr.id)
-            except requests.HTTPError as err:
-                self.fail("Error from bitbucket: %s" % err.response.text)
-            pr_admin = self.admin_bb.get_pull_request(pull_request_id=pr.id)
-            self.assertEqual(len(list(pr_admin.get_tasks())), 0)
-
-        finally:
-            bitbucket_api.Task.add_url = real
-
-    def test_task_list_incompatible_api_update_list(self):
-        if self.args.git_host == 'github':
-            self.skipTest("Tasks are not supported on GitHub")
-
-        try:
-            real = bitbucket_api.Task.list_url
-            bitbucket_api.Task.list_url = 'https://bitbucket.org/plouf'
-
-            pr = self.create_pr('feature/death-ray', 'development/10.0')
-            try:
-                self.handle(pr.id)
-            except requests.HTTPError as err:
-                self.fail("Error from bitbucket: %s" % err.response.text)
-            pr_admin = self.admin_bb.get_pull_request(pull_request_id=pr.id)
-            with self.assertRaises(exns.TaskAPIError):
-                len(list(pr_admin.get_tasks()))
-
-        finally:
-            bitbucket_api.Task.list_url = real
-
     def test_branches_have_diverged(self):
         settings = DEFAULT_SETTINGS + 'max_commit_diff: 5'
         pr = self.create_pr('feature/time-warp', 'development/10.0')
@@ -4935,6 +4784,21 @@ project_leaders:
             assert option in init_message
         for command in ['help', 'reset']:
             assert command in init_message
+
+    def test_set_bot_status(self):
+        """Test Bert-E's capability to its own status on PRs"""
+        settings = DEFAULT_SETTINGS + "send_bot_status: true"
+        pr = self.create_pr('bugfix/TEST-01', 'development/4.3')
+        self.handle(pr.id)
+        assert self.get_build_status(
+            pr.src_commit, key="bert-e") == "NOTSTARTED"
+        self.handle(pr.id, settings=settings)
+        assert self.get_build_status(
+            pr.src_commit, key="bert-e") == "failure"
+        self.handle(pr.id, settings=settings, options=["bypass_jira_check"])
+        assert self.get_build_status(
+            pr.src_commit, key="bert-e") == "in_progress"
+        self.handle(pr.id, settings=settings, options=self.bypass_all)
 
 
 class TestQueueing(RepositoryTests):
@@ -7808,7 +7672,6 @@ def main():
     if RepositoryTests.args.git_host == 'mock':
         bitbucket_api.Client = bitbucket_api_mock.Client
         bitbucket_api.Repository = bitbucket_api_mock.Repository
-        bitbucket_api.Task = bitbucket_api_mock.Task
     jira_api.JiraIssue = jira_api_mock.JiraIssue
 
     if RepositoryTests.args.verbose:

@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Literal
 from bert_e.lib.template_loader import render
 
 # When dont_repeat_if_in_history is None, Bert-E will look for the message
@@ -27,6 +28,7 @@ class BertE_Exception(Exception):
 class TemplateException(BertE_Exception):
     code = -2
     template = None
+    status: Literal[None, "in_progress", "success", "failure"] = None
     # whether to re-publish if the message is already in the history
     dont_repeat_if_in_history = -1
 
@@ -39,6 +41,11 @@ class TemplateException(BertE_Exception):
         assert norepeat is None or norepeat >= -1
         self.msg = render(self.template, code=self.code, **kwargs)
         super(TemplateException, self).__init__(self.msg)
+
+    @property
+    def title(self) -> str:
+        # Return the exception class name as the title
+        return self.__class__.__name__
 
 
 class InternalException(BertE_Exception):
@@ -69,6 +76,7 @@ class HelpMessage(TemplateException):
 class SuccessMessage(TemplateException):
     code = 102
     template = 'successful_merge.md'
+    status = "success"
 
 
 class CommandNotImplemented(TemplateException):
@@ -86,61 +94,73 @@ class StatusReport(TemplateException):
 class IncompatibleSourceBranchPrefix(TemplateException):
     code = 106
     template = 'incompatible_source_branch_prefix.md'
+    status = "failure"
 
 
 class MissingJiraId(TemplateException):
     code = 107
     template = 'missing_jira_id.md'
+    status = "failure"
 
 
 class JiraIssueNotFound(TemplateException):
     code = 108
     template = 'jira_issue_not_found.md'
+    status = "failure"
 
 
 class IssueTypeNotSupported(TemplateException):
     code = 109
     template = 'issue_type_not_supported.md'
+    status = "failure"
 
 
 class IncorrectJiraProject(TemplateException):
     code = 110
     template = 'incorrect_jira_project.md'
+    status = "failure"
 
 
 class MismatchPrefixIssueType(TemplateException):
     code = 111
     template = 'mismatch_prefix_issue_type.md'
+    status = "failure"
 
 
 class IncorrectFixVersion(TemplateException):
     code = 112
     template = 'incorrect_fix_version.md'
+    status = "failure"
 
 
 class BranchHistoryMismatch(TemplateException):
     code = 113
     template = 'history_mismatch.md'
+    status = "failure"
 
 
 class Conflict(TemplateException):
     code = 114
     template = 'conflict.md'
+    status = "failure"
 
 
 class ApprovalRequired(TemplateException):
     code = 115
     template = 'need_approval.md'
+    status = "in_progress"
 
 
 class BuildFailed(TemplateException):
     code = 118
     template = 'build_failed.md'
+    status = "failure"
 
 
 class AfterPullRequest(TemplateException):
     code = 120
     template = 'after_pull_request.md'
+    status = "in_progress"
 
 
 class IntegrationDataCreated(InformationException):
@@ -151,21 +171,25 @@ class IntegrationDataCreated(InformationException):
 class UnknownCommand(TemplateException):
     code = 122
     template = 'unknown_command.md'
+    status = "failure"
 
 
 class NotEnoughCredentials(TemplateException):
     code = 123
     template = "not_enough_credentials.md"
+    status = "failure"
 
 
 class QueueConflict(TemplateException):
     code = 124
     template = "queue_conflict.md"
+    status = "failure"
 
 
 class Queued(TemplateException):
     code = 125
     template = 'queued.md'
+    status = "in_progress"
 
     def __init__(self, branches, ignored, issue, author, active_options):
         """Save args for later use by tests."""
@@ -187,11 +211,13 @@ class PartialMerge(TemplateException):
     code = 126
     template = 'partial_merge.md'
     dont_repeat_if_in_history = 0  # allow repeating as many times as it occurs
+    status = "success"
 
 
 class QueueOutOfOrder(TemplateException):
     code = 127
     template = "queue_out_of_order.md"
+    status = "failure"
 
 
 class ResetComplete(TemplateException):
@@ -202,36 +228,44 @@ class ResetComplete(TemplateException):
 class LossyResetWarning(TemplateException):
     code = 129
     template = "lossy_reset.md"
+    status = "failure"
 
 
 class IncorrectCommandSyntax(TemplateException):
     code = 130
     template = "incorrect_command_syntax.md"
+    status = "failure"
 
 
 class IncorrectPullRequestNumber(TemplateException):
     code = 131
     template = "incorrect_pull_request_number.md"
+    status = "failure"
 
 
 class SourceBranchTooOld(TemplateException):
     code = 132
     template = "source_branch_too_old.md"
+    status = "failure"
 
 
 class FlakyGitHost(TemplateException):
     code = 133
     template = "flaky_git_host.md"
+    status = "failure"
 
 
 class NotAuthor(TemplateException):
     code = 134
     template = "not_author.md"
+    status = "failure"
 
 
 class RequestIntegrationBranches(TemplateException):
     code = 135
     template = "request_integration_branches.md"
+    # TODO: review if it should be failure.
+    status = "in_progress"
 
 
 # internal exceptions

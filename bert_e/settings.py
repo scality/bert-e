@@ -166,7 +166,6 @@ class SettingsSchema(Schema):
         UserSettingSchema, many=True, load_default=[])
     project_leaders = fields.Nested(
         UserSettingSchema, many=True, load_default=[])
-    tasks = fields.List(fields.Str(), load_default=[])
 
     max_commit_diff = fields.Int(required=False, load_default=0)
 
@@ -193,6 +192,8 @@ class SettingsSchema(Schema):
     github_app_id = fields.Int(required=False, load_default='')
     github_private_key = fields.Str(required=False, load_default='')
     github_installation_id = fields.Int(required=False, load_default='')
+
+    send_bot_status = fields.Bool(required=False, load_default=False)
 
     @pre_load(pass_many=True)
     def load_env(self, data, **kwargs):

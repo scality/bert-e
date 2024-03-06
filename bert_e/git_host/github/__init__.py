@@ -22,7 +22,6 @@ from jwt import JWT, jwk_from_pem
 from requests import HTTPError
 from urllib.parse import quote_plus as quote
 
-from bert_e.exceptions import TaskAPIError
 from bert_e.lib.lru_cache import LRUCache
 from . import schema
 from .. import base, cache, factory
@@ -825,8 +824,27 @@ class PullRequest(base.AbstractGitHostObject, base.AbstractPullRequest):
         url = self.data['comments_url']
         return Comment.create(self.client, {'body': msg}, url=url)
 
-    def add_checkrun(
-            self, name: str, status: str, conclusion: str,
+    def set_bot_status(self, status: str | None, title: str, summary: str):
+        if self.client and self.client.is_app is False:
+            LOG.error("Cannot set bot status without a GitHub App")
+            return
+        conclusion: str | None = None
+        if status == "success":
+            conclusion = "success"
+            status = "completed"
+        elif status == "in_progress":
+            conclusion = None
+        elif status == "failure":
+            conclusion = "failure"
+            status = "completed"
+
+        self._add_checkrun(
+            name='bert-e', status=status, conclusion=conclusion,
+            title=title, summary=summary
+        )
+
+    def _add_checkrun(
+            self, name: str, status: str, conclusion: str | None,
             title: str, summary: str):
         return CheckRun.create(
             client=self.client,
@@ -853,9 +871,6 @@ class PullRequest(base.AbstractGitHostObject, base.AbstractPullRequest):
     @property
     def repo(self):
         return Repository(**self.data['base']['repo'], client=self.client)
-
-    def get_tasks(self):
-        raise TaskAPIError("PullRequest.get_tasks", NotImplemented)
 
     def get_reviews(self):
         repo = self.repo
@@ -967,9 +982,6 @@ class Comment(base.AbstractGitHostObject, base.AbstractComment):
 
     SCHEMA = schema.Comment
     CREATE_SCHEMA = schema.CreateComment
-
-    def add_task(self, *args):
-        raise TaskAPIError("Comment.add_task", NotImplemented)
 
     @property
     def author(self) -> str:

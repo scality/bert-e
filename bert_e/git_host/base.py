@@ -250,23 +250,8 @@ class AbstractBuildStatus(metaclass=ABCMeta):
         """The build status key."""
 
 
-class AbstractTask(metaclass=ABCMeta):
-    """Abstract class defining a task's interface."""
-    # Empty, but used as a return value below
-
-
 class AbstractComment(metaclass=ABCMeta):
     """Abstract class defining the interface of a pull requests's comment."""
-    @abstractmethod
-    def add_task(self, msg: str) -> AbstractTask:
-        """Attach a new task attached to this comment.
-
-        Args:
-            - msg: the message of the task to attach.
-
-        Returns: the newly created task.
-
-        """
 
     @abstractmethod
     def delete(self) -> None:
@@ -327,14 +312,6 @@ class AbstractPullRequest(metaclass=ABCMeta):
         """Get the usernames of the participants to this pull request."""
 
     @abstractmethod
-    def get_tasks(self) -> Iterable[AbstractTask]:
-        """Get this pull request's tasks.
-
-        Returns: an iterable over the Task objects.
-
-        """
-
-    @abstractmethod
     def comment_review(self):
         """Request changes on this pull request."""
 
@@ -349,6 +326,17 @@ class AbstractPullRequest(metaclass=ABCMeta):
     @abstractmethod
     def decline(self):
         """Decline this pull request."""
+
+    @abstractmethod
+    def set_bot_status(self, status: str | None, title: str,
+                       summary: str) -> None:
+        """Set a status check reporting its advancement regarding Bert-E's checks
+
+        Args:
+            - status: the status of the check.
+            - title: the title of the check.
+            - summary: the summary of the check.
+        """
 
     @property
     @abstractmethod

@@ -81,33 +81,29 @@ def _send_comment(settings, pull_request: AbstractPullRequest, msg: str,
             return
 
     LOG.debug('SENDING MESSAGE %s', msg)
-    return pull_request.add_comment(msg)
+    pull_request.add_comment(msg)
 
 
-def send_comment(settings, pull_request: AbstractPullRequest,
-                 comment: exceptions.TemplateException):
-    """Post a comment in a pull request."""
+def _send_bot_status(settings, pull_request: AbstractPullRequest,
+                     comment: exceptions.TemplateException):
+    """Post the bot status in a pull request."""
+    if settings.send_bot_status is False:
+        LOG.debug("Not sending bot status (send_bot_status==False)")
+        return
+    LOG.info(f"Setting bot status to {comment.status} as {comment.title}")
+    pull_request.set_bot_status(
+        comment.status,
+        title=comment.title,
+        summary=str(comment),
+    )
+
+
+def notify_user(settings, pull_request: AbstractPullRequest,
+                comment: exceptions.TemplateException):
+    """Notify user by sending a comment or a build status in a pull request."""
     try:
-        return _send_comment(settings, pull_request, str(comment),
-                             comment.dont_repeat_if_in_history)
+        _send_bot_status(settings, pull_request, comment)
+        _send_comment(settings, pull_request, str(comment),
+                      comment.dont_repeat_if_in_history)
     except exceptions.CommentAlreadyExists:
         LOG.info("Comment '%s' already posted", comment.__class__.__name__)
-
-
-def create_task(settings, task: str, comment: AbstractComment):
-    """Add a task to a comment."""
-    if settings.no_comment:
-        LOG.debug("Not setting task (no_comment==True)")
-        return
-
-    if settings.interactive:
-        print(task, '\n')
-        if not confirm('Do you want to create this task?'):
-            return
-
-    LOG.debug('CREATING TASK %s', task)
-
-    try:
-        comment.add_task(task)
-    except exceptions.TaskAPIError as err:
-        LOG.error('Could not create task %s (%s)', task, err)

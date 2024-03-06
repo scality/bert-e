@@ -47,12 +47,6 @@ stringData:
       - {{ . | quote }}
       {{- end }}
     {{- end }}
-    {{- if .Values.bertE.gating.tasks }}
-    tasks:
-      {{- range .Values.bertE.gating.tasks }}
-      - {{ . | quote }}
-      {{- end }}
-    {{- end }}
     {{- if .Values.bertE.jira.enabled }}
     jira_account_url: {{ .Values.bertE.jira.accountUrl }}
     jira_email: {{ .Values.bertE.jira.email }}

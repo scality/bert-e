@@ -24,7 +24,7 @@ from bert_e.job import handler, CommitJob, PullRequestJob, QueuesJob
 from bert_e.lib.cli import confirm
 from bert_e.reactor import Reactor, NotFound, NotPrivileged, NotAuthored
 from ..git_utils import push, clone_git_repo
-from ..pr_utils import find_comment, send_comment, create_task
+from ..pr_utils import find_comment, notify_user
 from .branches import (
     branch_factory, build_branch_cascade, is_cascade_consumer,
     is_cascade_producer, BranchCascade, QueueBranch, IntegrationBranch
@@ -55,7 +55,7 @@ def handle_pull_request(job: PullRequestJob):
     try:
         _handle_pull_request(job)
     except messages.TemplateException as err:
-        send_comment(job.settings, job.pull_request, err)
+        notify_user(job.settings, job.pull_request, err)
         raise
 
 
@@ -264,26 +264,23 @@ def early_checks(job):
 
 
 def send_greetings(job):
-    """Send welcome message to the pull request's author and set default tasks.
+    """Send welcome message to the pull request's author.
 
     """
     username = job.settings.robot
     if find_comment(job.pull_request, username=username):
         return
 
-    tasks = list(reversed(job.settings.tasks))
-
-    comment = send_comment(
-        job.settings, job.pull_request, messages.InitMessage(
-            bert_e=username, author=job.pull_request.author_display_name,
-            status={}, active_options=job.active_options, tasks=tasks,
-            frontend_url=job.bert_e.settings.frontend_url,
-            options=Reactor.get_options(), commands=Reactor.get_commands()
-        )
+    init_message = messages.InitMessage(
+        bert_e=username, author=job.pull_request.author_display_name,
+        status={}, active_options=job.active_options,
+        frontend_url=job.bert_e.settings.frontend_url,
+        options=Reactor.get_options(), commands=Reactor.get_commands()
     )
 
-    for task in tasks:
-        create_task(job.settings, task, comment)
+    notify_user(
+        job.settings, job.pull_request, init_message
+    )
 
 
 def handle_comments(job):

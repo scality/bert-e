@@ -49,10 +49,6 @@ class BertE(JobDispatcher):
         )
         if settings.repository_host == 'bitbucket':
             self.settings.robot.account_id = self.client.get_user_id()
-        if settings.repository_host == 'github':
-            if settings['tasks']:
-                LOG.warning("Disabling tasks on GitHub repo")
-                settings['tasks'] = []
         self.project_repo = self.client.get_repository(
             owner=settings.repository_owner,
             slug=settings.repository_slug
