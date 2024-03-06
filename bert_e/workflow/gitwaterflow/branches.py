@@ -570,8 +570,8 @@ class QueueCollection(object):
                     qint.get_latest_commit(),
                     self.build_key
                 )
-            if status == 'FAILED':
-                failed.append(qint.pr_id)
+                if status == 'FAILED':
+                    failed.append(qint.pr_id)
         return failed
 
     def _recursive_lookup(self, queues):
