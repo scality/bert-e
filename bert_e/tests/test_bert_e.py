@@ -22,7 +22,7 @@ import unittest
 import warnings
 from collections import OrderedDict
 from copy import deepcopy
-from hashlib import md5
+from hashlib import md5, sha256
 from unittest.mock import Mock
 from unittest.mock import patch
 from urllib.parse import quote_plus
@@ -5445,6 +5445,18 @@ class TestQueueing(RepositoryTests):
         qc.finalize()
         qc.validate()
         self.assertEqual(qc.mergeable_prs, [1])
+
+
+    def test_notify_pr_on_queue_fail(self):
+        pr = self.create_pr('bugfix/TEST-01', 'development/4.3')
+        with self.assertRaises(exns.Queued):
+            self.handle(pr.id, options=self.bypass_all, backtrace=True)
+        self.gitrepo.cmd('git fetch')
+        branch = f"q/{pr.id}/4.3/{pr.src_branch}"
+        sha = self.gitrepo.cmd(f'git rev-parse origin/{branch}').rstrip()
+        self.set_build_status(sha1=sha, state='FAILED')
+        self.handle(pr.id, options=self.bypass_all)
+
 
     def test_system_nominal_case(self):
         pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')

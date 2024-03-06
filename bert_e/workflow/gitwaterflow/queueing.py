@@ -30,21 +30,18 @@ from .branches import (BranchCascade, DevelopmentBranch, GWFBranch,
 from .integration import get_integration_branches
 from typing import List
 
-from bert_e.workflow.gitwaterflow import check_build_status
 
 LOG = logging.getLogger(__name__)
 
 
-def notify_queue_build_failed(job: PullRequestJob, queues):
+def notify_queue_build_failed(failed_prs: List[int], job: QueuesJob):
     """Notify on the pull request that the queue build failed."""
-    # find the corresponding q/{job.pull_request.id}/* branches
-    pr_id = job.pull_request.id
-    wbranches = list(get_integration_branches(job))
-    qbranches = [get_queue_integration_branch(job, pr_id, w.dst_branch)
-                 for w in wbranches]
-
-    check_build_status(job, qbranches)
-
+    for pr_id in failed_prs:
+        pull_request = job.project_repo.get_pull_request(pr_id)
+        send_comment(
+            job.settings, pull_request, exceptions.QueueBuildFailedMessage(
+                active_options=job.active_options, frontend_url=job.bert_e.settings.frontend_url)
+        )
 
 @job_handler(QueuesJob)
 def handle_merge_queues(job):
@@ -62,8 +59,12 @@ def handle_merge_queues(job):
     job.bert_e.update_queue_status(queues)
 
     if not queues.mergeable_prs:
-        notify_queue_build_failed(job, queues)
-        raise exceptions.NothingToDo()
+        failed_prs = queues.failed_prs
+        if not failed_prs:
+            raise exceptions.NothingToDo()
+        else:
+            notify_queue_build_failed(failed_prs, job)
+            raise exceptions.QueueBuildFailed()
 
     merge_queues(queues.mergeable_queues)
 

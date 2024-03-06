@@ -548,6 +548,25 @@ class QueueCollection(object):
 
         self._validated = True
 
+    @property
+    def failed_prs(self):
+        """Return a list PRs in which the build have failed in the queue."""
+        if not self._validated:
+            raise errors.QueuesNotValidated()
+
+        failed = []
+        for version in self._queues.keys():
+            qint = self._queues[version][QueueIntegrationBranch]
+            if qint:
+                qint = qint[0]
+                status = self.bbrepo.get_build_status(
+                    qint.get_latest_commit(),
+                    self.build_key
+                )
+            if status == 'FAILED':
+                failed.append(qint.pr_id)
+        return failed
+
     def _recursive_lookup(self, queues):
         """Given a set of queues, remove all queues that can't be merged,
         based on the build status obtained from the repository manager.
