@@ -81,6 +81,7 @@ def _send_comment(settings, pull_request: AbstractPullRequest, msg: str,
             return
 
     LOG.debug('SENDING MESSAGE %s', msg)
+    pull_request.add_comment(msg)
 
 
 def _send_bot_status(settings, pull_request: AbstractPullRequest,
