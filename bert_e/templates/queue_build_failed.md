@@ -24,6 +24,8 @@ The corresponding build for the queue failed:
   This will remove the pull request from the queue.
 - Wait for the new queue to merge, then update your pull request
   with the latest change to then work on a proper fix.
+- Once the issue is fixed, delete the `/wait` comment and
+  follow the usual process to merge the pull request.
 
 </details>
 
