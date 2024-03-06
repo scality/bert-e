@@ -21,7 +21,8 @@ The corresponding build for the queue failed:
 - Click on login on the [status page]({{ frontend_url }}).
 - Go into the [manage]({{ frontend_url }}/manage) page.
 - Find the option called `Rebuild the queue` and click on it.
-  This will remove the pull request from the queue.
+  Bert-E will loop again on all pull requests to put the valid ones
+  in the queue again, while skipping the one with the `/wait` comment.
 - Wait for the new queue to merge, then merge/rebase your pull request
   with the latest changes to then work on a proper fix.
 - Once the issue is fixed, delete the `/wait` comment and
