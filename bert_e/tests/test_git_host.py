@@ -244,7 +244,6 @@ class TestBasicFunctionality:
         assert cmt1.text == 'First comment'
         assert cmt2.text == 'Last comment'
 
-
     def test_build_status(self, workspace):
         pull_request = make_pull_request(workspace, 'test_build_status',
                                          'master')

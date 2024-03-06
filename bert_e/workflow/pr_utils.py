@@ -84,7 +84,7 @@ def _send_comment(settings, pull_request: AbstractPullRequest, msg: str,
 
 
 def notify_user(settings, pull_request: AbstractPullRequest,
-                 comment: exceptions.TemplateException):
+                comment: exceptions.TemplateException):
     """Notify user by sending a comment or a build status in a pull request."""
     try:
         send_bot_status(settings, pull_request, comment)
@@ -106,4 +106,3 @@ def send_bot_status(settings, pull_request: AbstractPullRequest,
         title=comment.title,
         summary=str(comment),
     )
-

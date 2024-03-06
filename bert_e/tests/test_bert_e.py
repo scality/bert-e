@@ -4209,7 +4209,6 @@ project_leaders:
                 pr.id, options=['bypass_author_approval'], backtrace=True,
                 settings=settings)
 
-
     def test_branches_have_diverged(self):
         settings = DEFAULT_SETTINGS + 'max_commit_diff: 5'
         pr = self.create_pr('feature/time-warp', 'development/10.0')

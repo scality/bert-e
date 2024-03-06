@@ -311,7 +311,6 @@ class AbstractPullRequest(metaclass=ABCMeta):
     def get_participants(self) -> Iterable[str]:
         """Get the usernames of the participants to this pull request."""
 
-
     @abstractmethod
     def comment_review(self):
         """Request changes on this pull request."""
