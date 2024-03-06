@@ -551,6 +551,13 @@ class QueueCollection(object):
     @property
     def failed_prs(self):
         """Return a list PRs in which the build have failed in the queue."""
+        # TODO: Review if we should include the list of branches in the returned
+        # list of failed PRs. (To be used in the template to notify the user).
+        # Currently the drawback is that if the template changes a lot
+        # (one branch mentioned then two, then back to one)
+        # we will be sending multiple notifications to the user, with no good reason sometimes.
+        # But at the same time if we don't send them in some cases, the user will not be aware of
+        # the issue.
         if not self._validated:
             raise errors.QueuesNotValidated()
 
