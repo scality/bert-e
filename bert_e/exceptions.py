@@ -272,6 +272,7 @@ class QueueBuildFailedMessage(TemplateException):
     code = 136
     template = "queue_build_failed.md"
 
+
 # internal exceptions
 class UnableToSendEmail(InternalException):
     code = 201

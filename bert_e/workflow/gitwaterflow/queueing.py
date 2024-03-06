@@ -18,7 +18,7 @@ from copy import deepcopy
 
 from bert_e import exceptions
 from bert_e.job import handler as job_handler
-from bert_e.job import QueuesJob, PullRequestJob, Job
+from bert_e.job import QueuesJob, PullRequestJob
 from bert_e.lib import git
 
 from ..git_utils import clone_git_repo, consecutive_merge, robust_merge, push
@@ -36,6 +36,14 @@ LOG = logging.getLogger(__name__)
 
 def notify_queue_build_failed(failed_prs: List[int], job: QueuesJob):
     """Notify on the pull request that the queue build failed."""
+    # TODO: As this feature evolves, we might want to include
+    # the list of failed q/ branches in the message.
+    # Currently the drawback is that if the template changes a lot
+    # (one branch mentioned then two, then back to one)
+    # we will be sending multiple notifications to the user,
+    # in some cases with no good reason, and in other cases with a good reason.
+    # This becomes less of an issue if we focus on notifying the user
+    # only through build status checks.
     for pr_id in failed_prs:
         pull_request = job.project_repo.get_pull_request(pr_id)
         send_comment(
