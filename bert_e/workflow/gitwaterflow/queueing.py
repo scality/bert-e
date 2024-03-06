@@ -46,7 +46,7 @@ def notify_queue_build_failed(failed_prs: List[int], job: QueuesJob):
     # only through build status checks.
     for pr_id in failed_prs:
         pull_request = job.project_repo.get_pull_request(pr_id)
-        send_comment(
+        notify_user(
             job.settings, pull_request, exceptions.QueueBuildFailedMessage(
                 active_options=job.active_options,
                 frontend_url=job.bert_e.settings.frontend_url)
