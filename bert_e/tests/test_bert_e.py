@@ -5446,17 +5446,20 @@ class TestQueueing(RepositoryTests):
         qc.validate()
         self.assertEqual(qc.mergeable_prs, [1])
 
-
     def test_notify_pr_on_queue_fail(self):
         pr = self.create_pr('bugfix/TEST-01', 'development/4.3')
         with self.assertRaises(exns.Queued):
             self.handle(pr.id, options=self.bypass_all, backtrace=True)
-        self.gitrepo.cmd('git fetch')
         branch = f"q/{pr.id}/4.3/{pr.src_branch}"
-        sha = self.gitrepo.cmd(f'git rev-parse origin/{branch}').rstrip()
-        self.set_build_status(sha1=sha, state='FAILED')
-        self.handle(pr.id, options=self.bypass_all)
-
+        self.set_build_status_on_branch_tip(branch, 'INPROGRESS')
+        with self.assertRaises(exns.NothingToDo):
+            self.handle(pr.id, options=self.bypass_all, backtrace=True)
+        self.set_build_status_on_branch_tip(branch, 'FAILED')
+        with self.assertRaises(exns.QueueBuildFailed):
+            self.handle(pr.id, options=self.bypass_all, backtrace=True)
+        # get last comment
+        comment = list(pr.get_comments())[-1].text
+        assert "Queue build failed" in comment
 
     def test_system_nominal_case(self):
         pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')

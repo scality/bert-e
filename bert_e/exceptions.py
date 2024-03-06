@@ -220,8 +220,6 @@ class QueueOutOfOrder(TemplateException):
     status = "failure"
 
 
-
-
 class ResetComplete(TemplateException):
     code = 128
     template = "reset_complete.md"

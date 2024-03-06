@@ -40,8 +40,10 @@ def notify_queue_build_failed(failed_prs: List[int], job: QueuesJob):
         pull_request = job.project_repo.get_pull_request(pr_id)
         send_comment(
             job.settings, pull_request, exceptions.QueueBuildFailedMessage(
-                active_options=job.active_options, frontend_url=job.bert_e.settings.frontend_url)
+                active_options=job.active_options,
+                frontend_url=job.bert_e.settings.frontend_url)
         )
+
 
 @job_handler(QueuesJob)
 def handle_merge_queues(job):
