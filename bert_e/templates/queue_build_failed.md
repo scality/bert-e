@@ -22,7 +22,7 @@ The corresponding build for the queue failed:
 - Go into the [manage]({{ frontend_url }}/manage) page.
 - Find the option called `Rebuild the queue` and click on it.
   This will remove the pull request from the queue.
-- Wait for the new queue to merge, then update your pull request
+- Wait for the new queue to merge, then merge/rebase your pull request
   with the latest changes to then work on a proper fix.
 - Once the issue is fixed, delete the `/wait` comment and
   follow the usual process to merge the pull request.
