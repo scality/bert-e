@@ -83,18 +83,7 @@ def _send_comment(settings, pull_request: AbstractPullRequest, msg: str,
     LOG.debug('SENDING MESSAGE %s', msg)
 
 
-def notify_user(settings, pull_request: AbstractPullRequest,
-                comment: exceptions.TemplateException):
-    """Notify user by sending a comment or a build status in a pull request."""
-    try:
-        send_bot_status(settings, pull_request, comment)
-        return _send_comment(settings, pull_request, str(comment),
-                             comment.dont_repeat_if_in_history)
-    except exceptions.CommentAlreadyExists:
-        LOG.info("Comment '%s' already posted", comment.__class__.__name__)
-
-
-def send_bot_status(settings, pull_request: AbstractPullRequest,
+def _send_bot_status(settings, pull_request: AbstractPullRequest,
                     comment: exceptions.TemplateException):
     """Post the bot status in a pull request."""
     if settings.send_bot_status is False:
@@ -106,3 +95,14 @@ def send_bot_status(settings, pull_request: AbstractPullRequest,
         title=comment.title,
         summary=str(comment),
     )
+
+
+def notify_user(settings, pull_request: AbstractPullRequest,
+                comment: exceptions.TemplateException):
+    """Notify user by sending a comment or a build status in a pull request."""
+    try:
+        _send_bot_status(settings, pull_request, comment)
+        _send_comment(settings, pull_request, str(comment),
+                             comment.dont_repeat_if_in_history)
+    except exceptions.CommentAlreadyExists:
+        LOG.info("Comment '%s' already posted", comment.__class__.__name__)
