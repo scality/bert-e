@@ -22,7 +22,7 @@ import unittest
 import warnings
 from collections import OrderedDict
 from copy import deepcopy
-from hashlib import md5, sha256
+from hashlib import md5
 from unittest.mock import Mock
 from unittest.mock import patch
 from urllib.parse import quote_plus
