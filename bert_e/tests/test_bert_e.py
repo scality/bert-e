@@ -5446,6 +5446,21 @@ class TestQueueing(RepositoryTests):
         qc.validate()
         self.assertEqual(qc.mergeable_prs, [1])
 
+    def test_notify_pr_on_queue_fail(self):
+        pr = self.create_pr('bugfix/TEST-01', 'development/4.3')
+        with self.assertRaises(exns.Queued):
+            self.handle(pr.id, options=self.bypass_all, backtrace=True)
+        branch = f"q/{pr.id}/4.3/{pr.src_branch}"
+        self.set_build_status_on_branch_tip(branch, 'INPROGRESS')
+        with self.assertRaises(exns.NothingToDo):
+            self.handle(pr.id, options=self.bypass_all, backtrace=True)
+        self.set_build_status_on_branch_tip(branch, 'FAILED')
+        with self.assertRaises(exns.QueueBuildFailed):
+            self.handle(pr.id, options=self.bypass_all, backtrace=True)
+        # get last comment
+        comment = list(pr.get_comments())[-1].text
+        assert "Queue build failed" in comment
+
     def test_system_nominal_case(self):
         pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
         self.handle(pr.id,
@@ -5490,11 +5505,16 @@ class TestQueueing(RepositoryTests):
         self.set_build_status_on_pr_id(pr.id, 'SUCCESSFUL')
         self.set_build_status(sha1=sha1_w_5_1, state='SUCCESSFUL')
         self.set_build_status(sha1=sha1_w_10_0, state='FAILED')
-        with self.assertRaises(exns.NothingToDo):
+        with self.assertRaises(exns.QueueBuildFailed):
             self.handle(pr.id, options=self.bypass_all, backtrace=True)
 
+        with self.assertRaises(exns.QueueBuildFailed):
+            self.handle(pr.src_commit, options=self.bypass_all, backtrace=True)
+
+        self.set_build_status(sha1=sha1_w_10_0, state='INPROGRESS')
         with self.assertRaises(exns.NothingToDo):
             self.handle(pr.src_commit, options=self.bypass_all, backtrace=True)
+
         self.set_build_status(sha1=sha1_w_10_0, state='SUCCESSFUL')
         with self.assertRaises(exns.Merged):
             self.handle(pr.src_commit, options=self.bypass_all, backtrace=True)
@@ -5937,7 +5957,7 @@ class TestQueueing(RepositoryTests):
         sha1 = self.set_build_status_on_branch_tip(
             'q/%d/10.0/bugfix/TEST-00001' % pr1.id, 'SUCCESSFUL')
 
-        with self.assertRaises(exns.NothingToDo):
+        with self.assertRaises(exns.QueueBuildFailed):
             self.handle(sha1, options=self.bypass_all, backtrace=True)
         self.assertEqual(self.prs_in_queue(), {pr0.id, pr1.id})
 
@@ -6059,6 +6079,12 @@ class TestQueueing(RepositoryTests):
 
         sha1 = self.set_build_status_on_branch_tip(
             'q/%d/10.0.0.1/bugfix/TEST-00000' % pr0.id, 'FAILED')
+        with self.assertRaises(exns.QueueBuildFailed):
+            self.handle(sha1, options=self.bypass_all, backtrace=True)
+        self.assertEqual(self.prs_in_queue(), {pr0.id})
+
+        sha1 = self.set_build_status_on_branch_tip(
+            'q/%d/10.0.0.1/bugfix/TEST-00000' % pr0.id, 'INPROGRESS')
         with self.assertRaises(exns.NothingToDo):
             self.handle(sha1, options=self.bypass_all, backtrace=True)
         self.assertEqual(self.prs_in_queue(), {pr0.id})
@@ -6110,7 +6136,7 @@ class TestQueueing(RepositoryTests):
         sha1 = self.set_build_status_on_branch_tip(
             'q/%d/10.0/bugfix/TEST-00003' % pr3.id, 'SUCCESSFUL')
 
-        with self.assertRaises(exns.NothingToDo):
+        with self.assertRaises(exns.QueueBuildFailed):
             self.handle(sha1, options=self.bypass_all, backtrace=True)
         self.assertEqual(self.prs_in_queue(), {pr1.id, pr2.id, pr3.id,
                                                pr4217.id})
@@ -6140,7 +6166,7 @@ class TestQueueing(RepositoryTests):
             'q/%d/5.1/bugfix/TEST-00004' % pr4.id, 'SUCCESSFUL')
         sha1 = self.set_build_status_on_branch_tip(
             'q/%d/10.0/bugfix/TEST-00004' % pr4.id, 'FAILED')
-        with self.assertRaises(exns.NothingToDo):
+        with self.assertRaises(exns.QueueBuildFailed):
             self.handle(sha1, options=self.bypass_all, backtrace=True)
         self.assertEqual(self.prs_in_queue(), {pr2.id, pr3.id, pr4.id})
 

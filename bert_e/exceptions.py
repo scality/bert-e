@@ -268,6 +268,11 @@ class RequestIntegrationBranches(TemplateException):
     status = "in_progress"
 
 
+class QueueBuildFailedMessage(TemplateException):
+    code = 136
+    template = "queue_build_failed.md"
+
+
 # internal exceptions
 class UnableToSendEmail(InternalException):
     code = 201
@@ -583,3 +588,7 @@ class JobSuccess(SilentException):
 
 class JobFailure(SilentException):
     code = 308
+
+
+class QueueBuildFailed(SilentException):
+    code = 309
