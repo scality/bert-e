@@ -53,7 +53,7 @@ class Client(base.AbstractClient):
         self.password = password
         self.app_id = app_id
         self.installation_id = installation_id
-        self.private_key = jwk_from_pem(private_key)
+        self.private_key = jwk_from_pem(private_key.encode('utf-8')) if private_key else None
         self.email = email
         self.org = org
         self.base_url = base_url.rstrip('/')
