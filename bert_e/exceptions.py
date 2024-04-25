@@ -22,13 +22,13 @@ NEVER_REPEAT = None
 
 class BertE_Exception(Exception):
     code = -1
+    status: Literal[None, "in_progress", "queued", "success", "failure"] = None
 
 
 # base exceptions
 class TemplateException(BertE_Exception):
     code = -2
     template = None
-    status: Literal[None, "in_progress", "success", "failure"] = None
     # whether to re-publish if the message is already in the history
     dont_repeat_if_in_history = -1
 
@@ -148,7 +148,7 @@ class Conflict(TemplateException):
 class ApprovalRequired(TemplateException):
     code = 115
     template = 'need_approval.md'
-    status = "in_progress"
+    status = "queued"
 
 
 class BuildFailed(TemplateException):
@@ -160,7 +160,7 @@ class BuildFailed(TemplateException):
 class AfterPullRequest(TemplateException):
     code = 120
     template = 'after_pull_request.md'
-    status = "in_progress"
+    status = "queued"
 
 
 class IntegrationDataCreated(InformationException):
@@ -265,7 +265,7 @@ class RequestIntegrationBranches(TemplateException):
     code = 135
     template = "request_integration_branches.md"
     # TODO: review if it should be failure.
-    status = "in_progress"
+    status = "queued"
 
 
 class QueueBuildFailedMessage(TemplateException):
@@ -568,6 +568,7 @@ class NothingToDo(SilentException):
 
 class BuildInProgress(SilentException):
     code = 303
+    status = "in_progress"
 
 
 class BuildNotStarted(SilentException):
