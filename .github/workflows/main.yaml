@@ -35,6 +35,12 @@ jobs:
       - run: tox -e tests-api-mock
       - run: tox -e coverage-report
       - run: tox -e tests-server
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v4.0.1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          slug: ${{ github.repository }}
+          flags: unittests,server,api-mock
 
   tests-noqueue:
     runs-on: ubuntu-20.04
@@ -51,6 +57,12 @@ jobs:
       - name: Install tox
         run: pip install tox
       - run: tox -e tests-noqueue
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v4.0.1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          slug: ${{ github.repository }}
+          flags: tests-noqueue
 
   all-tests:
     runs-on: ubuntu-20.04
@@ -67,6 +79,12 @@ jobs:
       - name: Install tox
         run: pip install tox
       - run: tox -e tests
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v4.0.1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          slug: ${{ github.repository }}
+          flags: all-tests
 
   lint:
     runs-on: ubuntu-20.04
