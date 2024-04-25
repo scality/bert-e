@@ -11,3 +11,4 @@ settings.yml
 .pytest_cache/
 build/
 .env
+coverage.xml
