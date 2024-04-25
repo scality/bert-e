@@ -1,5 +1,7 @@
 # README
 
+[![codecov](https://codecov.io/gh/scality/bert-e/graph/badge.svg?token=VWEQLKMUN5)](https://codecov.io/gh/scality/bert-e)
+
 Scality's automated branch merging tool.
 
 ## User documentation
