@@ -53,7 +53,8 @@ class Client(base.AbstractClient):
         self.password = password
         self.app_id = app_id
         self.installation_id = installation_id
-        self.private_key = jwk_from_pem(private_key)
+        self.private_key = jwk_from_pem(private_key.encode('utf-8')) \
+            if private_key else None
         self.email = email
         self.org = org
         self.base_url = base_url.rstrip('/')
@@ -832,11 +833,11 @@ class PullRequest(base.AbstractGitHostObject, base.AbstractPullRequest):
         if status == "success":
             conclusion = "success"
             status = "completed"
-        elif status == "in_progress":
-            conclusion = None
         elif status == "failure":
             conclusion = "failure"
             status = "completed"
+        else:
+            conclusion = None
 
         self._add_checkrun(
             name='bert-e', status=status, conclusion=conclusion,
@@ -846,18 +847,21 @@ class PullRequest(base.AbstractGitHostObject, base.AbstractPullRequest):
     def _add_checkrun(
             self, name: str, status: str, conclusion: str | None,
             title: str, summary: str):
+        data = {
+            'name': name,
+            'head_sha': self.src_commit,
+            'status': status,
+            'output': {
+                'title': title,
+                'summary': summary,
+            },
+        }
+        if conclusion is not None:
+            data['conclusion'] = conclusion
+        LOG.debug(data)
         return CheckRun.create(
             client=self.client,
-            data={
-                'name': name,
-                'head_sha': self.src_commit,
-                'status': status,
-                'conclusion': conclusion,
-                'output': {
-                    'title': title,
-                    'summary': summary,
-                },
-            },
+            data=data,
             owner=self.repo.owner, repo=self.repo.slug
         )
 

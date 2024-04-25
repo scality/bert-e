@@ -87,8 +87,8 @@ def _send_comment(settings, pull_request: AbstractPullRequest, msg: str,
 def _send_bot_status(settings, pull_request: AbstractPullRequest,
                      comment: exceptions.TemplateException):
     """Post the bot status in a pull request."""
-    if settings.send_bot_status is False:
-        LOG.debug("Not sending bot status (send_bot_status==False)")
+    if settings.send_bot_status is False or comment.status is None:
+        LOG.debug("No need to send bot status")
         return
     LOG.info(f"Setting bot status to {comment.status} as {comment.title}")
     pull_request.set_bot_status(

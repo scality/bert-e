@@ -4797,7 +4797,7 @@ project_leaders:
             pr.src_commit, key="bert-e") == "failure"
         self.handle(pr.id, settings=settings, options=["bypass_jira_check"])
         assert self.get_build_status(
-            pr.src_commit, key="bert-e") == "in_progress"
+            pr.src_commit, key="bert-e") == "queued"
         self.handle(pr.id, settings=settings, options=self.bypass_all)
 
 

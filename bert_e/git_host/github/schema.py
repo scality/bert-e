@@ -111,7 +111,7 @@ class AggregateCheckSuites(GitHubSchema):
 class Output(GitHubSchema):
     title = fields.Str()
     summary = fields.Str()
-    text = fields.Str()
+    text = fields.Str(allow_none=True)
 
 
 class CheckRun(GitHubSchema):
