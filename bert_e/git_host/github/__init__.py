@@ -13,13 +13,15 @@
 # limitations under the License.
 import json
 import logging
+import time
+from functools import lru_cache
 from collections import defaultdict, namedtuple
 from itertools import groupby
+from jwt import JWT, jwk_from_pem
 
 from requests import HTTPError
 from urllib.parse import quote_plus as quote
 
-from bert_e.exceptions import TaskAPIError
 from bert_e.lib.lru_cache import LRUCache
 from . import schema
 from .. import base, cache, factory
@@ -37,27 +39,84 @@ CacheEntry = namedtuple('CacheEntry', ['obj', 'etag', 'date'])
 @factory.api_client('github')
 class Client(base.AbstractClient):
 
-    def __init__(self, login: str, password: str, email: str, org=None,
-                 base_url='https://api.github.com'):
-        headers = {
-            'Accept': 'application/vnd.github.v3+json',
-            'User-Agent': 'Bert-E',
-            'Content-Type': 'application/json',
-            'From': email,
-            'Authorization': 'token ' + password
-        }
+    def __init__(self, login: str, password: str, email: str,
+                 app_id: int | None = None, installation_id: int | None = None,
+                 private_key: str | None = None, org=None,
+                 base_url='https://api.github.com',
+                 accept_header="application/vnd.github.v3+json"):
 
         rlog = logging.getLogger('requests.packages.urllib3.connectionpool')
         rlog.setLevel(logging.CRITICAL)
         self.session = base.BertESession()
-        self.session.headers.update(headers)
 
         self.login = login
         self.password = password
+        self.app_id = app_id
+        self.installation_id = installation_id
+        self.private_key = jwk_from_pem(private_key)
         self.email = email
         self.org = org
         self.base_url = base_url.rstrip('/')
         self.query_cache = defaultdict(LRUCache)
+        self.accept_header = accept_header
+
+        self.session.headers.update(self.headers)
+
+    def _get_jwt(self):
+        """Get a JWT for the installation."""
+
+        payload = {
+            # Issued at time
+            'iat': int(time.time()),
+            # JWT expiration time (10 minutes maximum)
+            'exp': int(time.time()) + 600,
+            # GitHub App's identifier
+            'iss': self.app_id
+        }
+        jwt_instance = JWT()
+        return jwt_instance.encode(payload, self.private_key, alg='RS256')
+
+    @lru_cache()
+    def _get_installation_token(self, ttl_cache=None):
+        """Get an installation token for the client's installation."""
+        # ttl_cache is a parameter used by lru_cache to set the time to live
+        # of the cache. It is not used in this method.
+        del ttl_cache
+
+        url = (
+            f'{self.base_url}/app/installations/'
+            f'{self.installation_id}/access_tokens'
+        )
+        headers = {
+            'Authorization': f'Bearer {self._get_jwt()}',
+            'Accept': self.accept_header,
+        }
+        print(headers)
+        response = self.session.post(url, headers=headers)
+        response.raise_for_status()
+        return response.json()['token']
+
+    @property
+    def is_app(self):
+        if self.app_id and self.installation_id and self.private_key:
+            return True
+        return False
+
+    @property
+    def headers(self):
+        headers = {
+            'Accept': self.accept_header,
+            'User-Agent': 'Bert-E',
+            'Content-Type': 'application/json',
+            'From': self.email,
+        }
+        if self.is_app:
+            token = self._get_installation_token(
+                ttl_cache=round(time.time() / 600))
+            headers['Authorization'] = f'Bearer {token}'
+        else:
+            headers['Authorization'] = f'token {self.password}'
+        return headers
 
     def _patch_url(self, url):
         """Patch URLs if it is relative to the API root.
@@ -765,6 +824,43 @@ class PullRequest(base.AbstractGitHostObject, base.AbstractPullRequest):
         url = self.data['comments_url']
         return Comment.create(self.client, {'body': msg}, url=url)
 
+    def set_bot_status(self, status: str | None, title: str, summary: str):
+        if self.client and self.client.is_app is False:
+            LOG.error("Cannot set bot status without a GitHub App")
+            return
+        conclusion: str | None = None
+        if status == "success":
+            conclusion = "success"
+            status = "completed"
+        elif status == "in_progress":
+            conclusion = None
+        elif status == "failure":
+            conclusion = "failure"
+            status = "completed"
+
+        self._add_checkrun(
+            name='bert-e', status=status, conclusion=conclusion,
+            title=title, summary=summary
+        )
+
+    def _add_checkrun(
+            self, name: str, status: str, conclusion: str | None,
+            title: str, summary: str):
+        return CheckRun.create(
+            client=self.client,
+            data={
+                'name': name,
+                'head_sha': self.src_commit,
+                'status': status,
+                'conclusion': conclusion,
+                'output': {
+                    'title': title,
+                    'summary': summary,
+                },
+            },
+            owner=self.repo.owner, repo=self.repo.slug
+        )
+
     def get_comments(self):
         return Comment.list(self.client, url=self.data['comments_url'])
 
@@ -775,9 +871,6 @@ class PullRequest(base.AbstractGitHostObject, base.AbstractPullRequest):
     @property
     def repo(self):
         return Repository(**self.data['base']['repo'], client=self.client)
-
-    def get_tasks(self):
-        raise TaskAPIError("PullRequest.get_tasks", NotImplemented)
 
     def get_reviews(self):
         repo = self.repo
@@ -890,9 +983,6 @@ class Comment(base.AbstractGitHostObject, base.AbstractComment):
     SCHEMA = schema.Comment
     CREATE_SCHEMA = schema.CreateComment
 
-    def add_task(self, *args):
-        raise TaskAPIError("Comment.add_task", NotImplemented)
-
     @property
     def author(self) -> str:
         return self.data['user']['login'].lower()
@@ -912,6 +1002,34 @@ class Comment(base.AbstractGitHostObject, base.AbstractComment):
 
     def delete(self) -> None:
         self.client.delete(self.data['url'])
+
+
+class CheckRun(base.AbstractGitHostObject):
+    GET_URL = '/repos/{owner}/{repo}/check-runs/{id}'
+    CREATE_URL = '/repos/{owner}/{repo}/check-runs'
+
+    SCHEMA = schema.CheckRun
+    CREATE_SCHEMA = schema.CreateCheckRun
+
+    @property
+    def name(self) -> str:
+        return self.data['name']
+
+    @property
+    def status(self) -> str:
+        return self.data['status']
+
+    @property
+    def conclusion(self) -> str:
+        return self.data['conclusion']
+
+    @property
+    def title(self) -> str:
+        return self.data['output']['title']
+
+    @property
+    def summary(self) -> str:
+        return self.data['output']['summary']
 
 
 class Review(base.AbstractGitHostObject):

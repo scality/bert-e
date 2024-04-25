@@ -108,12 +108,28 @@ class AggregateCheckSuites(GitHubSchema):
     check_suites = fields.Nested(CheckSuite, many=True)
 
 
+class Output(GitHubSchema):
+    title = fields.Str()
+    summary = fields.Str()
+    text = fields.Str()
+
+
 class CheckRun(GitHubSchema):
     id = fields.Integer()
     head_sha = fields.Str()
     status = fields.Str()
     conclusion = fields.Str(allow_none=True)
+    output = fields.Nested(Output)
     html_url = fields.Url()
+    name = fields.Str()
+
+
+class CreateCheckRun(GitHubSchema):
+    name = fields.Str()
+    head_sha = fields.Str()
+    status = fields.Str()
+    conclusion = fields.Str(allow_none=True)
+    output = fields.Nested(Output)
 
 
 class WorkflowRun(GitHubSchema):

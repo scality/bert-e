@@ -87,9 +87,6 @@ admins:
   - {admin}
 project_leaders:
   - {admin}
-tasks:
-  - do foo
-  - do bar
 """ # noqa
 
 
@@ -670,6 +667,26 @@ class QuickTest(unittest.TestCase):
         with self.assertRaises(exns.DeprecatedStabilizationBranch):
             self.finalize_cascade(branches, tags, destination, fixver)
 
+    def test_with_v_prefix(self):
+        destination = 'development/4.3'
+        branches = OrderedDict({
+            1: {'name': 'stabilization/4.3.18', 'ignore': True},
+            2: {'name': 'development/4.3', 'ignore': False},
+            3: {'name': 'stabilization/5.1.4', 'ignore': True},
+            4: {'name': 'development/5.1', 'ignore': False},
+            5: {'name': 'development/10.0', 'ignore': False}
+        })
+        # mix and match tags with v prefix and without
+        tags = ['4.3.16', '4.3.17', '4.3.18_rc1',
+                'v5.1.3', 'v5.1.4_rc1', 'v10.0.1']
+        fixver = ['4.3.19', '5.1.5', '10.0.2']
+        self.finalize_cascade(branches, tags, destination, fixver)
+        # only tags with v prefix
+        v_tags = ['v4.3.16', 'v4.3.17', 'v4.3.18_rc1', 'v5.1.3',
+                  'v5.1.4_rc1', 'v10.0.1']
+        # expect the same result
+        self.finalize_cascade(branches, v_tags, destination, fixver)
+
     def test_retry_handler(self):
         class DummyError(Exception):
             pass
@@ -1158,6 +1175,210 @@ admins:
         self.assertIs(len(list(pr.get_comments())), 1)
         self.assertIn('Hello %s' % self.args.contributor_username,
                       self.get_last_pr_comment(pr))
+
+    def test_request_integration_branch_creation(self):
+        """Test comments to request integration branches creation.
+
+        1. Create a PR and ensure the proper message is sent regarding
+           the creation of integration branches.
+        2. Request the creation of integration branches and ensure the
+           branches are created.
+        3. Once the integration branches are created,
+           ensure the bot is able to merge the PR.
+
+        """
+        settings = """
+repository_owner: {owner}
+repository_slug: {slug}
+repository_host: {host}
+robot: {robot}
+robot_email: nobody@nowhere.com
+pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
+commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
+build_key: pre-merge
+required_leader_approvals: 0
+required_peer_approvals: 1
+always_create_integration_branches: false
+always_create_integration_pull_requests: false
+admins:
+  - {admin}
+""" # noqa
+        options = self.bypass_all_but(['bypass_build_status'])
+        pr = self.create_pr('feature/TEST-0069', 'development/4.3')
+        with self.assertRaises(exns.RequestIntegrationBranches):
+            self.handle(
+                pr.id, settings=settings, options=options, backtrace=True)
+        self.assertEqual(len(list(pr.get_comments())), 2)
+        self.assertIn(
+            'Request integration branches', self.get_last_pr_comment(pr))
+        self.assertIn(
+            '/create_integration_branches', self.get_last_pr_comment(pr))
+
+        pr.add_comment('/create_integration_branches')
+        with self.assertRaises(exns.BuildNotStarted):
+            self.handle(
+                pr.id, settings=settings, options=options, backtrace=True)
+        self.assertEqual(len(list(pr.get_comments())), 4)
+        self.assertIn('Integration data created', self.get_last_pr_comment(pr))
+        self.assertIn(
+            'create_integration_branches', self.get_last_pr_comment(pr))
+
+        options = self.bypass_all
+        with self.assertRaises(exns.SuccessMessage):
+            self.handle(
+                pr.id, settings=settings, options=options, backtrace=True)
+
+    def test_request_integration_branch_by_creating_pull_requests(self):
+        """Test creating integration branches by creating pull requests
+
+        1. Create a PR and verify that the appropriate message is sent
+           regarding its creation
+        2. Type `/create_integration_branches` and ensure the
+           branches are created.
+        3. Once the integration branches are created,
+           ensure the bot is able to merge the PR.
+
+        """
+        settings = """
+repository_owner: {owner}
+repository_slug: {slug}
+repository_host: {host}
+robot: {robot}
+robot_email: nobody@nowhere.com
+pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
+commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
+build_key: pre-merge
+required_leader_approvals: 0
+required_peer_approvals: 1
+always_create_integration_branches: false
+always_create_integration_pull_requests: false
+admins:
+  - {admin}
+""" # noqa
+        options = self.bypass_all_but(['bypass_build_status'])
+        pr = self.create_pr('feature/TEST-0069', 'development/4.3')
+        with self.assertRaises(exns.RequestIntegrationBranches):
+            self.handle(
+                pr.id, settings=settings, options=options, backtrace=True)
+
+        pr.add_comment('/create_pull_requests')
+        with self.assertRaises(exns.BuildNotStarted):
+            self.handle(
+                pr.id, settings=settings, options=options, backtrace=True)
+        self.assertEqual(len(list(pr.get_comments())), 4)
+        self.assertIn('Integration data created', self.get_last_pr_comment(pr))
+
+        options = self.bypass_all
+        with self.assertRaises(exns.SuccessMessage):
+            self.handle(
+                pr.id, settings=settings, options=options, backtrace=True)
+
+        self.assertIn(
+            'I have successfully merged the changeset',
+            self.get_last_pr_comment(pr))
+
+    def test_creation_integration_branch_by_approve(self):
+        """Test pr.approve() to request integration branches creation.
+
+        1. Create a PR and verify that the appropriate message is sent
+           regarding its creation
+        2. Ensure that author approval is required for the PR
+        3. Approve the PR from the author's perspective and check if
+           the integration branches are created.
+        4. Once the integration branches are created,
+           ensure the bot is able to merge the PR.
+
+        """
+        settings = """
+repository_owner: {owner}
+repository_slug: {slug}
+repository_host: {host}
+robot: {robot}
+robot_email: nobody@nowhere.com
+pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
+commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
+build_key: pre-merge
+required_leader_approvals: 0
+required_peer_approvals: 0
+always_create_integration_branches: false
+admins:
+  - {admin}
+""" # noqa
+        pr_1 = self.create_pr('feature/TEST-0069', 'development/4.3')
+        pr_2 = self.create_pr('feature/TEST-0070', 'development/4.3')
+        prs = [pr_1, pr_2]
+
+        for pr in prs:
+            options = self.bypass_all_but(['bypass_build_status',
+                                           'bypass_author_approval'])
+            with self.assertRaises(exns.ApprovalRequired):
+                self.handle(pr.id, options=options, backtrace=True)
+
+            self.assertEqual(len(list(pr.get_comments())), 3)
+
+            self.assertIn(
+                'Integration data created', list(pr.get_comments())[-2].text)
+
+            self.assertIn(
+                'Waiting for approval', self.get_last_pr_comment(pr))
+            self.assertIn(
+                'The following approvals are needed',
+                self.get_last_pr_comment(pr))
+
+            if pr.src_branch == "feature/TEST-0069":
+                pr.approve()
+            elif pr.src_branch == "feature/TEST-0070":
+                pr.add_comment('/approve')
+
+            with self.assertRaises(exns.BuildNotStarted):
+                self.handle(
+                    pr.id, settings=settings, options=options, backtrace=True)
+
+            options = self.bypass_all
+            with self.assertRaises(exns.SuccessMessage):
+                self.handle(
+                    pr.id, settings=settings, options=options, backtrace=True)
+
+            self.assertIn(
+                'I have successfully merged the changeset',
+                self.get_last_pr_comment(pr))
+
+    def test_integration_branch_creation_latest_branch(self):
+        """Test there is no comment to request integration branches creation.
+
+        1. Create a PR with the latest branch and check if there is no comment
+           to request integration branches creation.
+        2. Then, ensure the bot is able to merge the PR.
+
+        """
+        settings = """
+repository_owner: {owner}
+repository_slug: {slug}
+repository_host: {host}
+robot: {robot}
+robot_email: nobody@nowhere.com
+pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
+commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
+build_key: pre-merge
+required_leader_approvals: 0
+required_peer_approvals: 1
+always_create_integration_branches: false
+admins:
+  - {admin}
+""" # noqa
+        options = self.bypass_all_but(['bypass_build_status'])
+        pr = self.create_pr('feature/TEST-0069', 'development/10.0')
+        self.handle(pr.id, settings=settings, options=options)
+        self.assertEqual(len(list(pr.get_comments())), 1)
+
+        with self.assertRaises(exns.BuildNotStarted):
+            self.handle(
+                pr.id, settings=settings, options=options, backtrace=True)
+
+        options = self.bypass_all
+        with self.assertRaises(exns.SuccessMessage):
+            self.handle(
+                pr.id, settings=settings, options=options, backtrace=True)
 
     def test_comments_for_manual_integration_pr_creation(self):
         """Test comments when integration data is created.
@@ -3988,154 +4209,6 @@ project_leaders:
                 pr.id, options=['bypass_author_approval'], backtrace=True,
                 settings=settings)
 
-    def test_task_list_creation(self):
-        if self.args.git_host == 'github':
-            self.skipTest("Tasks are not supported on GitHub")
-
-        pr = self.create_pr('feature/death-ray', 'development/10.0')
-        try:
-            self.handle(pr.id)
-        except requests.HTTPError as err:
-            self.fail("Error from bitbucket: %s" % err.response.text)
-        # retrieving tasks from private bitbucket API only works for admin
-        pr_admin = self.admin_bb.get_pull_request(pull_request_id=pr.id)
-        self.assertEqual(len(list(pr_admin.get_tasks())), 2)
-        init_comment = pr.comments[0].text
-        self.assertIn('task', init_comment)
-
-    def test_task_list_missing(self):
-        if self.args.git_host == 'github':
-            self.skipTest("Tasks are not supported on GitHub")
-
-        pr = self.create_pr('feature/death-ray', 'development/10.0')
-        settings = """
-repository_owner: {owner}
-repository_slug: {slug}
-repository_host: {host}
-robot: {robot}
-robot_email: nobody@nowhere.com
-pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
-commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
-build_key: pre-merge
-required_leader_approvals: 0
-required_peer_approvals: 0
-admins:
-  - {admin}
-""" # noqa
-        try:
-            self.handle(pr.id, settings=settings)
-        except requests.HTTPError as err:
-            self.fail("Error from bitbucket: %s" % err.response.text)
-        pr_admin = self.admin_bb.get_pull_request(pull_request_id=pr.id)
-        self.assertEqual(len(list(pr_admin.get_tasks())), 0)
-        init_comment = pr.comments[0].text
-        self.assertNotIn('task', init_comment)
-
-    def test_task_list_funky(self):
-        if self.args.git_host == 'github':
-            self.skipTest("Tasks are not supported on GitHub")
-
-        pr = self.create_pr('feature/death-ray', 'development/10.0')
-        settings = """
-repository_owner: {owner}
-repository_slug: {slug}
-repository_host: {host}
-robot: {robot}
-robot_email: nobody@nowhere.com
-pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
-commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
-build_key: pre-merge
-required_leader_approvals: 0
-required_peer_approvals: 0
-admins:
-  - {admin}
-tasks:
-  - ''
-  - zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz
-  - éâàë€
-  - 1
-  - 2
-  - 3
-  - 3
-  - 3
-  - 3
-  - 3
-  - 3
-  - 3
-  - 3
-  - 3
-  - 3
-""" # noqa
-        try:
-            self.handle(pr.id, settings=settings)
-        except requests.HTTPError as err:
-            self.fail("Error from bitbucket: %s" % err.response.text)
-        pr_admin = self.admin_bb.get_pull_request(pull_request_id=pr.id)
-        self.assertEqual(len(list(pr_admin.get_tasks())), 15)
-
-    def test_task_list_illegal(self):
-        if self.args.git_host == 'github':
-            self.skipTest("Tasks are not supported on GitHub")
-
-        pr = self.create_pr('feature/death-ray', 'development/10.0')
-        settings = """
-repository_owner: {owner}
-repository_slug: {slug}
-repository_host: {host}
-robot: {robot}
-robot_email: nobody@nowhere.com
-pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
-commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
-build_key: pre-merge
-required_leader_approvals: 0
-required_peer_approvals: 0
-admins:
-  - {admin}
-tasks:
-  - ['a task in a list']
-""" # noqa
-        with self.assertRaises(exns.MalformedSettings):
-            self.handle(pr.id, backtrace=True, settings=settings)
-
-    def test_task_list_incompatible_api_update_create(self):
-        if self.args.git_host == 'github':
-            self.skipTest("Tasks are not supported on GitHub")
-
-        try:
-            real = bitbucket_api.Task.add_url
-            bitbucket_api.Task.add_url = 'https://bitbucket.org/plouf'
-
-            pr = self.create_pr('feature/death-ray', 'development/10.0')
-            try:
-                self.handle(pr.id)
-            except requests.HTTPError as err:
-                self.fail("Error from bitbucket: %s" % err.response.text)
-            pr_admin = self.admin_bb.get_pull_request(pull_request_id=pr.id)
-            self.assertEqual(len(list(pr_admin.get_tasks())), 0)
-
-        finally:
-            bitbucket_api.Task.add_url = real
-
-    def test_task_list_incompatible_api_update_list(self):
-        if self.args.git_host == 'github':
-            self.skipTest("Tasks are not supported on GitHub")
-
-        try:
-            real = bitbucket_api.Task.list_url
-            bitbucket_api.Task.list_url = 'https://bitbucket.org/plouf'
-
-            pr = self.create_pr('feature/death-ray', 'development/10.0')
-            try:
-                self.handle(pr.id)
-            except requests.HTTPError as err:
-                self.fail("Error from bitbucket: %s" % err.response.text)
-            pr_admin = self.admin_bb.get_pull_request(pull_request_id=pr.id)
-            with self.assertRaises(exns.TaskAPIError):
-                len(list(pr_admin.get_tasks()))
-
-        finally:
-            bitbucket_api.Task.list_url = real
-
     def test_branches_have_diverged(self):
         settings = DEFAULT_SETTINGS + 'max_commit_diff: 5'
         pr = self.create_pr('feature/time-warp', 'development/10.0')
@@ -4700,6 +4773,32 @@ project_leaders:
                 ],
                 backtrace=True
             )
+
+    def test_init_message(self):
+        pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
+        self.handle(pr.id)
+        init_message = pr.comments[0].text
+        assert f"Hello {pr.author}" in init_message
+        # Assert init message the list of options
+        for option in self.bypass_all:
+            assert option in init_message
+        for command in ['help', 'reset']:
+            assert command in init_message
+
+    def test_set_bot_status(self):
+        """Test Bert-E's capability to its own status on PRs"""
+        settings = DEFAULT_SETTINGS + "send_bot_status: true"
+        pr = self.create_pr('bugfix/TEST-01', 'development/4.3')
+        self.handle(pr.id)
+        assert self.get_build_status(
+            pr.src_commit, key="bert-e") == "NOTSTARTED"
+        self.handle(pr.id, settings=settings)
+        assert self.get_build_status(
+            pr.src_commit, key="bert-e") == "failure"
+        self.handle(pr.id, settings=settings, options=["bypass_jira_check"])
+        assert self.get_build_status(
+            pr.src_commit, key="bert-e") == "in_progress"
+        self.handle(pr.id, settings=settings, options=self.bypass_all)
 
 
 class TestQueueing(RepositoryTests):
@@ -5347,6 +5446,21 @@ class TestQueueing(RepositoryTests):
         qc.validate()
         self.assertEqual(qc.mergeable_prs, [1])
 
+    def test_notify_pr_on_queue_fail(self):
+        pr = self.create_pr('bugfix/TEST-01', 'development/4.3')
+        with self.assertRaises(exns.Queued):
+            self.handle(pr.id, options=self.bypass_all, backtrace=True)
+        branch = f"q/{pr.id}/4.3/{pr.src_branch}"
+        self.set_build_status_on_branch_tip(branch, 'INPROGRESS')
+        with self.assertRaises(exns.NothingToDo):
+            self.handle(pr.id, options=self.bypass_all, backtrace=True)
+        self.set_build_status_on_branch_tip(branch, 'FAILED')
+        with self.assertRaises(exns.QueueBuildFailed):
+            self.handle(pr.id, options=self.bypass_all, backtrace=True)
+        # get last comment
+        comment = list(pr.get_comments())[-1].text
+        assert "Queue build failed" in comment
+
     def test_system_nominal_case(self):
         pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
         self.handle(pr.id,
@@ -5391,11 +5505,16 @@ class TestQueueing(RepositoryTests):
         self.set_build_status_on_pr_id(pr.id, 'SUCCESSFUL')
         self.set_build_status(sha1=sha1_w_5_1, state='SUCCESSFUL')
         self.set_build_status(sha1=sha1_w_10_0, state='FAILED')
-        with self.assertRaises(exns.NothingToDo):
+        with self.assertRaises(exns.QueueBuildFailed):
             self.handle(pr.id, options=self.bypass_all, backtrace=True)
 
+        with self.assertRaises(exns.QueueBuildFailed):
+            self.handle(pr.src_commit, options=self.bypass_all, backtrace=True)
+
+        self.set_build_status(sha1=sha1_w_10_0, state='INPROGRESS')
         with self.assertRaises(exns.NothingToDo):
             self.handle(pr.src_commit, options=self.bypass_all, backtrace=True)
+
         self.set_build_status(sha1=sha1_w_10_0, state='SUCCESSFUL')
         with self.assertRaises(exns.Merged):
             self.handle(pr.src_commit, options=self.bypass_all, backtrace=True)
@@ -5838,7 +5957,7 @@ class TestQueueing(RepositoryTests):
         sha1 = self.set_build_status_on_branch_tip(
             'q/%d/10.0/bugfix/TEST-00001' % pr1.id, 'SUCCESSFUL')
 
-        with self.assertRaises(exns.NothingToDo):
+        with self.assertRaises(exns.QueueBuildFailed):
             self.handle(sha1, options=self.bypass_all, backtrace=True)
         self.assertEqual(self.prs_in_queue(), {pr0.id, pr1.id})
 
@@ -5960,6 +6079,12 @@ class TestQueueing(RepositoryTests):
 
         sha1 = self.set_build_status_on_branch_tip(
             'q/%d/10.0.0.1/bugfix/TEST-00000' % pr0.id, 'FAILED')
+        with self.assertRaises(exns.QueueBuildFailed):
+            self.handle(sha1, options=self.bypass_all, backtrace=True)
+        self.assertEqual(self.prs_in_queue(), {pr0.id})
+
+        sha1 = self.set_build_status_on_branch_tip(
+            'q/%d/10.0.0.1/bugfix/TEST-00000' % pr0.id, 'INPROGRESS')
         with self.assertRaises(exns.NothingToDo):
             self.handle(sha1, options=self.bypass_all, backtrace=True)
         self.assertEqual(self.prs_in_queue(), {pr0.id})
@@ -6011,7 +6136,7 @@ class TestQueueing(RepositoryTests):
         sha1 = self.set_build_status_on_branch_tip(
             'q/%d/10.0/bugfix/TEST-00003' % pr3.id, 'SUCCESSFUL')
 
-        with self.assertRaises(exns.NothingToDo):
+        with self.assertRaises(exns.QueueBuildFailed):
             self.handle(sha1, options=self.bypass_all, backtrace=True)
         self.assertEqual(self.prs_in_queue(), {pr1.id, pr2.id, pr3.id,
                                                pr4217.id})
@@ -6041,7 +6166,7 @@ class TestQueueing(RepositoryTests):
             'q/%d/5.1/bugfix/TEST-00004' % pr4.id, 'SUCCESSFUL')
         sha1 = self.set_build_status_on_branch_tip(
             'q/%d/10.0/bugfix/TEST-00004' % pr4.id, 'FAILED')
-        with self.assertRaises(exns.NothingToDo):
+        with self.assertRaises(exns.QueueBuildFailed):
             self.handle(sha1, options=self.bypass_all, backtrace=True)
         self.assertEqual(self.prs_in_queue(), {pr2.id, pr3.id, pr4.id})
 
@@ -7466,6 +7591,41 @@ class TaskQueueTests(RepositoryTests):
             self.assertFalse(self.gitrepo.remote_branch_exists(branch),
                              "branch %s shouldn't exist" % branch)
 
+    def test_no_need_queuing(self):
+        """Expect Bert-E to skip the queue when there is no need to queue."""
+
+        # Two PRs created at the same time
+        # At the moment they were created they are both up to date with the
+        # destination branch
+        self.init_berte(
+            options=self.bypass_all, skip_queue_when_not_needed=True)
+        first_pr = self.create_pr('feature/TEST-1', 'development/4.3')
+        second_pr = self.create_pr('feature/TEST-2', 'development/4.3')
+        # The first PR is ready to merge, and is expected to merge directly
+        # without going through the queue.
+        self.process_pr_job(first_pr, 'SuccessMessage')
+        # When the second PR is merged we expect it to go through the queue
+        # as it is no longer up to date with the destination branch.
+        self.process_pr_job(second_pr, 'Queued')
+        # At this point the repository should now contain queue branches.
+        # We force the merge to get everything setup according for the next
+        # scenario.
+        self.process_job(ForceMergeQueuesJob(bert_e=self.berte), 'Merged')
+        # We expect the PR to be merged so there should be nothing left to do.
+        self.process_pr_job(second_pr, 'NothingToDo')
+        # We get the local repo setup for a third PR that should be up to
+        # date with the latest changes.
+        self.gitrepo.cmd('git checkout development/4.3')
+        self.gitrepo.cmd('git branch --set-upstream-to=origin/development/4.3')
+        self.gitrepo.cmd('git pull')
+        third_pr = self.create_pr('feature/TEST-3', 'development/4.3')
+        fourth_pr = self.create_pr('feature/TEST-4', 'development/4.3')
+        # Just like the first PR, we expect this one to be merged directly.
+        self.process_pr_job(third_pr, 'SuccessMessage')
+        # Now we want to know if when the queue is a bit late is Bert-E
+        # capable of reeastablishing the Queue in order, and queue PR number 4.
+        self.process_pr_job(fourth_pr, 'Queued')
+
     def test_bypass_prefixes(self):
         self.init_berte()
         pr = self.create_pr('documentation/stuff', 'development/4.3')
@@ -7538,7 +7698,6 @@ def main():
     if RepositoryTests.args.git_host == 'mock':
         bitbucket_api.Client = bitbucket_api_mock.Client
         bitbucket_api.Repository = bitbucket_api_mock.Repository
-        bitbucket_api.Task = bitbucket_api_mock.Task
     jira_api.JiraIssue = jira_api_mock.JiraIssue
 
     if RepositoryTests.args.verbose:

@@ -21,6 +21,7 @@ stringData:
     robot_email: {{ .Values.bertE.robot.email | quote }}
     organization: {{ .Values.bertE.oauth.organization }}
     always_create_integration_pull_requests: {{ .Values.bertE.gating.alwaysCreateIntegrationPullRequests }}
+    always_create_integration_branches: {{ .Values.bertE.gating.alwaysCreateIntegrationBranches }}
     {{- if eq .Values.bertE.repository.gitHost "bitbucket" }}
     pull_request_base_url: https://bitbucket.org/{{ .Values.bertE.repository.owner }}/{{ .Values.bertE.repository.slug }}/pull-requests/{pr_id}
     commit_base_url: https://bitbucket.org/{{ .Values.bertE.repository.owner }}/{{ .Values.bertE.repository.slug }}/commits/{commit_id}
@@ -43,12 +44,6 @@ stringData:
     {{- if .Values.bertE.gating.projectLeaders }}
     project_leaders:
       {{- range .Values.bertE.gating.projectLeaders }}
-      - {{ . | quote }}
-      {{- end }}
-    {{- end }}
-    {{- if .Values.bertE.gating.tasks }}
-    tasks:
-      {{- range .Values.bertE.gating.tasks }}
       - {{ . | quote }}
       {{- end }}
     {{- end }}

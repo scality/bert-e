@@ -129,6 +129,8 @@ class SettingsSchema(Schema):
     # Settings defined in config files
     always_create_integration_pull_requests = fields.Bool(
         required=False, load_default=True)
+    always_create_integration_branches = fields.Bool(
+        required=False, load_default=True)
 
     frontend_url = fields.Str(required=False, load_default='')
 
@@ -164,7 +166,6 @@ class SettingsSchema(Schema):
         UserSettingSchema, many=True, load_default=[])
     project_leaders = fields.Nested(
         UserSettingSchema, many=True, load_default=[])
-    tasks = fields.List(fields.Str(), load_default=[])
 
     max_commit_diff = fields.Int(required=False, load_default=0)
 
@@ -182,10 +183,17 @@ class SettingsSchema(Schema):
     quiet = fields.Bool(required=False, load_default=False)
     disable_queues = fields.Bool(required=False, load_default=False)
     use_queues = fields.Bool(required=False, load_default=True)
+    skip_queue_when_not_needed = fields.Bool(
+        required=False, load_default=False)
     cmd_line_options = fields.List(fields.Str(), load_default=[])
 
     client_id = fields.Str(required=False, load_default='')
     client_secret = fields.Str(required=False, load_default='')
+    github_app_id = fields.Int(required=False, load_default='')
+    github_private_key = fields.Str(required=False, load_default='')
+    github_installation_id = fields.Int(required=False, load_default='')
+
+    send_bot_status = fields.Bool(required=False, load_default=False)
 
     @pre_load(pass_many=True)
     def load_env(self, data, **kwargs):

@@ -225,7 +225,6 @@ PULL_REQUEST = {'author': {'display_name': 'Johanna Doe',
                                 'type': 'repository',
                                 'uuid': '{49a4c5bf-6684-4102-9e82-f9016f691392}'}},
                 'state': 'OPEN',
-                'task_count': 0,
                 'title': 'Bugfix/releng 1966 allow bitbucket pipeline to deploy',
                 'type': 'pullrequest',
                 'updated_on': '2016-07-30T14:17:11.959821+00:00'}

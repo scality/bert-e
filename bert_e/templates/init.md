@@ -11,10 +11,30 @@ pull request. {% if frontend_url
 on this process, or consult the [user documentation](
 {{ frontend_url }}/doc/user).{% endif %}
 
-{% if tasks %}
-I have created below the minimum set of tasks expected to be performed during
-this review.
-{% endif%}
+{% if options %}
+<details>
+  <summary><b>Available options</b></summary>
+
+  name   | description  | privileged   | authored
+  ------ | ------------ | ------------ |----------
+  {% for option in options -%}
+  `/{{option}}` | {{options[option].help}} | {% if options[option].privileged %} :star: {% endif %} | {% if options[option].authored %} :writing_hand: {% endif %}
+  {% endfor %}
+
+</details>
+{% endif %}
+
+{% if commands %}
+<details>
+  <summary><b>Available commands</b></summary>
+
+  name   | description  | privileged
+  ------ | ------------ | ------------
+  {% for cmd in commands -%}
+  `/{{cmd}}` | {{commands[cmd].help}} | {% if commands[cmd].privileged %} :star: {% endif %}
+  {% endfor %}
+</details>
+{% endif %}
 
 {% include 'status_report.md' %}
 {% endblock %}

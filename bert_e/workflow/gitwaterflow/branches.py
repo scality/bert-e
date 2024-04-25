@@ -548,6 +548,25 @@ class QueueCollection(object):
 
         self._validated = True
 
+    @property
+    def failed_prs(self):
+        """Return a list PRs in which the build have failed in the queue."""
+        if not self._validated:
+            raise errors.QueuesNotValidated()
+
+        failed = []
+        for version in self._queues.keys():
+            qint = self._queues[version][QueueIntegrationBranch]
+            if qint:
+                qint = qint[0]
+                status = self.bbrepo.get_build_status(
+                    qint.get_latest_commit(),
+                    self.build_key
+                )
+                if status == 'FAILED':
+                    failed.append(qint.pr_id)
+        return failed
+
     def _recursive_lookup(self, queues):
         """Given a set of queues, remove all queues that can't be merged,
         based on the build status obtained from the repository manager.
@@ -743,6 +762,18 @@ class QueueCollection(object):
         return (self._queues.get(version, {}).get(QueueIntegrationBranch)
                 is not None)
 
+    def delete(self):
+        """Delete the queues entirely."""
+
+        for branch in self._queues.values():
+            queue: QueueBranch = branch[QueueBranch]
+            queue.dst_branch.checkout()
+            queue.remove(do_push=True)
+            queue_integration: QueueIntegrationBranch | None = branch.get(
+                QueueIntegrationBranch)
+            if queue_integration:
+                queue_integration.remove(do_push=True)
+
 
 class BranchCascade(object):
     def __init__(self):
@@ -843,7 +874,7 @@ class BranchCascade(object):
 
     def update_micro(self, tag):
         """Update development branch latest micro based on tag."""
-        pattern = r"^(?P<major>\d+)\.(?P<minor>\d+)\.(?P<micro>\d+)" \
+        pattern = r"^v?(?P<major>\d+)\.(?P<minor>\d+)\.(?P<micro>\d+)" \
                   r"(\.(?P<hfrev>\d+)|)$"
         match = re.match(pattern, tag)
         if not match:

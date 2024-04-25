@@ -29,10 +29,6 @@ admins:
   - username_admin_1
   - username_admin_2@557042:08898ca4-5f12-4042-9942-87e167728afd
 
-tasks:
-  - do this
-  - do that
-
 max_commit_diff: 100
 
 always_create_integration_pull_requests: true

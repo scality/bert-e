@@ -162,17 +162,6 @@ admins:
   - username_admin_2@557042:08898ca4-5f12-4042-9942-87e167728afd
 
 
-# tasks [OPTIONAL]:
-#   The list of tasks to create by default on the githost pull request
-#   NOT SUPPORTED ON GITHUB.
-#
-#   default value: empty
-#   empty: no task is created by default
-tasks:
-  - do this
-  - do that
-
-
 # max_commit_diff [OPTIONAL]:
 #   If > 0, the robot refuses to work on pull requests that have diverged with
 #   their destination branch by more that `max_commit_diff` commits.
@@ -190,6 +179,22 @@ max_commit_diff: 100
 #   default value: true
 always_create_integration_pull_requests: true
 
+
+# always_create_integration_branches decides whether integration
+# branches are created in automatically when a pull request is opened.
+#
+# Bert-e will by default automatically create them.
+#
+#   Set this setting to false to require users to explicitly request the creation
+#   of integration branches by adding a `/create_integration_branches`
+#   comment in their pull request.
+#
+#   The above allow to temporize the creation of those branches as
+#   in the review process requested changes as expected.
+#
+#   default value: true
+#
+always_create_integration_branches: true
 
 # required_leader_approvals [OPTIONAL]:
 #   Number of leader approvals required in the pull-request in addition to author.

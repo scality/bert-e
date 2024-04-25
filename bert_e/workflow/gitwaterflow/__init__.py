@@ -24,7 +24,7 @@ from bert_e.job import handler, CommitJob, PullRequestJob, QueuesJob
 from bert_e.lib.cli import confirm
 from bert_e.reactor import Reactor, NotFound, NotPrivileged, NotAuthored
 from ..git_utils import push, clone_git_repo
-from ..pr_utils import find_comment, send_comment, create_task
+from ..pr_utils import find_comment, notify_user
 from .branches import (
     branch_factory, build_branch_cascade, is_cascade_consumer,
     is_cascade_producer, BranchCascade, QueueBranch, IntegrationBranch
@@ -34,7 +34,8 @@ from .utils import (
     bypass_author_approval, bypass_leader_approval, bypass_build_status
 )
 from .commands import setup  # noqa
-from .integration import (create_integration_branches,
+from .integration import (check_integration_branches,
+                          create_integration_branches,
                           create_integration_pull_requests,
                           merge_integration_branches,
                           notify_integration_data,
@@ -54,7 +55,7 @@ def handle_pull_request(job: PullRequestJob):
     try:
         _handle_pull_request(job)
     except messages.TemplateException as err:
-        send_comment(job.settings, job.pull_request, err)
+        notify_user(job.settings, job.pull_request, err)
         raise
 
 
@@ -158,6 +159,7 @@ def _handle_pull_request(job: PullRequestJob):
     check_branch_compatibility(job)
     jira_checks(job)
 
+    check_integration_branches(job)
     wbranches = list(create_integration_branches(job))
     use_queue = job.settings.use_queue
     if use_queue and queueing.already_in_queue(job, wbranches):
@@ -205,10 +207,14 @@ def _handle_pull_request(job: PullRequestJob):
     # check for conflicts), and all builds were green, and we reached
     # this point without an error, then all conditions are met to enter
     # the queue.
-    if job.settings.use_queue:
-        # validate current state of queues
+    queues = queueing.build_queue_collection(job) if job.settings.use_queue \
+        else None
+
+    # If we need to go through the queue, we need to check if we can
+    # merge the integration branches right away, or if we need to add
+    # the pull request to the queue.
+    if queueing.is_needed(job, wbranches, queues):
         try:
-            queues = queueing.build_queue_collection(job)
             queues.validate()
         except messages.IncoherentQueues as err:
             raise messages.QueueOutOfOrder(
@@ -222,8 +228,14 @@ def _handle_pull_request(job: PullRequestJob):
             issue=job.git.src_branch.jira_issue_key,
             author=job.pull_request.author_display_name,
             active_options=job.active_options)
-
     else:
+        # If we don't need to go through the queue, we can merge the
+        # integration branches right away.
+        # But if the bot is configured with the 'use_queue' option, we
+        # still need to delete the queue to ensure that we don't raise
+        # IncoherentQueues in the next runs.
+        if queues is not None:
+            queues.delete()
         merge_integration_branches(job, wbranches)
         job.bert_e.add_merged_pr(job.pull_request.id)
         job.git.cascade.validate()
@@ -252,25 +264,23 @@ def early_checks(job):
 
 
 def send_greetings(job):
-    """Send welcome message to the pull request's author and set default tasks.
+    """Send welcome message to the pull request's author.
 
     """
     username = job.settings.robot
     if find_comment(job.pull_request, username=username):
         return
 
-    tasks = list(reversed(job.settings.tasks))
-
-    comment = send_comment(
-        job.settings, job.pull_request, messages.InitMessage(
-            bert_e=username, author=job.pull_request.author_display_name,
-            status={}, active_options=job.active_options, tasks=tasks,
-            frontend_url=job.bert_e.settings.frontend_url
-        )
+    init_message = messages.InitMessage(
+        bert_e=username, author=job.pull_request.author_display_name,
+        status={}, active_options=job.active_options,
+        frontend_url=job.bert_e.settings.frontend_url,
+        options=Reactor.get_options(), commands=Reactor.get_commands()
     )
 
-    for task in tasks:
-        create_task(job.settings, task, comment)
+    notify_user(
+        job.settings, job.pull_request, init_message
+    )
 
 
 def handle_comments(job):

@@ -42,19 +42,18 @@ class BertE(JobDispatcher):
             settings.repository_host,
             settings.robot.username,
             settings.robot_password,
-            settings.robot_email
+            settings.robot_email,
+            settings.github_app_id,
+            settings.github_installation_id,
+            settings.github_private_key,
         )
+        if settings.repository_host == 'bitbucket':
+            self.settings.robot.account_id = self.client.get_user_id()
         self.project_repo = self.client.get_repository(
             owner=settings.repository_owner,
             slug=settings.repository_slug
         )
         settings['use_queue'] = not settings.disable_queues
-        if settings.repository_host == 'bitbucket':
-            self.settings.robot.account_id = self.client.get_user_id()
-        if settings.repository_host == 'github':
-            if settings['tasks']:
-                LOG.warning("Disabling tasks on GitHub repo")
-                settings['tasks'] = []
 
         self.git_repo = GitRepository(
             self.project_repo.git_url,

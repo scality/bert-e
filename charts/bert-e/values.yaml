@@ -130,6 +130,21 @@ bertE:
     ##
     alwaysCreateIntegrationPullRequests: true
 
+    ## always_create_integration_branches decides whether integration
+    ## branches are created in automatically when a pull request is opened.
+    ##
+    ## Bert-e will by default automatically create them.
+    ##
+    ##   Set this setting to false to require users to explicitly request the creation
+    ##   of integration branches by adding a `/create_integration_branches`
+    ##   comment in their pull request.
+    ##
+    ##   The above allow to temporize the creation of those branches as
+    ##   in the review process requested changes as expected.
+    ##
+    ##   default value: true
+    ##
+    alwaysCreateIntegrationBranches: true
     ## buildKey is the label of the key to look for in commit statuses.
     ##
     ##   default value: pre-merge
@@ -181,13 +196,6 @@ bertE:
     ##
     projectLeaders: []
 
-    ## tasks is a list of tasks to create automatically on new pull requests.
-    ##
-    ##   Not supported on GitHub.
-    ##
-    ##   default value: empty
-    ##
-    tasks: []
 
     ## maxCommitDiff specifies the maximum authorized divergence from target branches.
     ##
@@ -277,11 +285,11 @@ bertE:
 image:
   ## regitry to pull from.
   ##
-  registry: registry.scality.com
+  registry: ghcr.io/scality
 
   ## repository on the registry to pull from.
   ##
-  repository: bert-e/bert-e
+  repository: bert-e
 
   ## tag specifies the version of Bert-E to deploy.
   ##
