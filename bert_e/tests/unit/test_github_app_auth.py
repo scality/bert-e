@@ -22,7 +22,7 @@ def client_app():
             serialization.Encoding.PEM,
             serialization.PrivateFormat.PKCS8,
             serialization.NoEncryption()
-        ),
+        ).decode('utf-8'),
         base_url="http://localhost:4010",
         accept_header="application/json"
     )
