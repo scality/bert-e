@@ -1,15 +1,12 @@
 name: basic tests
 
 on:
+  pull_request:
+    branches:
+      - main
   push:
     branches:
-      - 'user/**'
-      - 'feature/**'
-      - 'improvement/**'
-      - 'bugfix/**'
-      - 'dependabot/**'
-      - 'w/**'
-      - 'q/**'
+      - main
 
 permissions: write-all
 
