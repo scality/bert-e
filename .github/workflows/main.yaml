@@ -1,15 +1,12 @@
 name: basic tests
 
 on:
+  pull_request:
+    branches:
+      - main
   push:
     branches:
-      - 'user/**'
-      - 'feature/**'
-      - 'improvement/**'
-      - 'bugfix/**'
-      - 'dependabot/**'
-      - 'w/**'
-      - 'q/**'
+      - main
 
 permissions: write-all
 
@@ -20,7 +17,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Setup Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.10'
           cache: pip
@@ -35,6 +32,12 @@ jobs:
       - run: tox -e tests-api-mock
       - run: tox -e coverage-report
       - run: tox -e tests-server
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v4.3.1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          slug: ${{ github.repository }}
+          flags: unittests,server,api-mock
 
   tests-noqueue:
     runs-on: ubuntu-20.04
@@ -42,7 +45,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Setup Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.10'
           cache: pip
@@ -51,6 +54,12 @@ jobs:
       - name: Install tox
         run: pip install tox
       - run: tox -e tests-noqueue
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v4.3.1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          slug: ${{ github.repository }}
+          flags: tests-noqueue
 
   all-tests:
     runs-on: ubuntu-20.04
@@ -58,7 +67,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Setup Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.10'
           cache: pip
@@ -67,6 +76,12 @@ jobs:
       - name: Install tox
         run: pip install tox
       - run: tox -e tests
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v4.3.1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          slug: ${{ github.repository }}
+          flags: all-tests
 
   lint:
     runs-on: ubuntu-20.04
@@ -74,7 +89,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Setup Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.10'
           cache: pip
