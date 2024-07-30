@@ -48,10 +48,36 @@ def compare_queues(version1, version2):
         return 0
 
 
+def compare_branches(branch1, branch2):
+    """This function will compare branches based on their major and minor version.
+
+    Important to note that when a branch has a minor version of -1, it will be considered
+    as the latest version.
+    """
+    major1, minor1 = branch1[0]
+    major2, minor2 = branch2[0]
+
+    if major1 == major2:
+        if minor1 == minor2:
+            return 0
+        if minor1 == -1:
+            return 1
+        if minor2 == -1:
+            return -1
+        if minor1 < minor2:
+            return -1
+        return 1
+    if major1 < major2:
+        return -1
+    if major1 > major2:
+        return 1
+    return 0
+
+
 class GWFBranch(git.Branch):
     pattern = r'(?P<prefix>[a-z]+)/(?P<label>.+)'
     major = 0
-    minor = 0
+    minor = -1
     micro = -1  # is incremented always, first version is 0
     hfrev = -1
     cascade_producer = False
@@ -151,7 +177,7 @@ class HotfixBranch(GWFBranch):
 
 @total_ordering
 class DevelopmentBranch(GWFBranch):
-    pattern = r'^development/(?P<version>(?P<major>\d+)\.(?P<minor>\d+))$'
+    pattern = r'^development/(?P<version>(?P<major>\d+)(\.(?P<minor>\d+))?)$'
     cascade_producer = True
     cascade_consumer = True
     can_be_destination = True
@@ -164,10 +190,19 @@ class DevelopmentBranch(GWFBranch):
                 self.minor == other.minor)
 
     def __lt__(self, other):
-        return (self.__class__ == other.__class__ and
-                (self.major < other.major or
-                 (self.major == other.major and
-                  self.minor < other.minor)))
+        if self.__class__ != other.__class__:
+            return NotImplemented
+        if self.major != other.major:
+            return self.major < other.major
+        if self.minor == -1:
+            return False  # development/<major> is greater than development/<major>.<minor>
+        if other.minor == -1:
+            return True  # development/<major>.<minor> is less than development/<major>
+        return self.minor < other.minor
+
+    @property
+    def has_minor(self) -> bool:
+        return self.minor != -1
 
     @property
     def version_t(self):
@@ -201,7 +236,7 @@ class StabilizationBranch(DevelopmentBranch):
 
 
 class IntegrationBranch(GWFBranch):
-    pattern = r'^w/(?P<version>(?P<major>\d+)\.(?P<minor>\d+)' \
+    pattern = r'^w/(?P<version>(?P<major>\d+)(\.(?P<minor>\d+))?' \
               r'(\.(?P<micro>\d+)(\.(?P<hfrev>\d+))?)?)/' + \
               FeatureBranch.pattern[1:]
     dst_branch = ''
@@ -267,7 +302,7 @@ class GhostIntegrationBranch(IntegrationBranch):
 
 
 class QueueBranch(GWFBranch):
-    pattern = r'^q/(?P<version>(?P<major>\d+)\.(?P<minor>\d+)' \
+    pattern = r'^q/(?P<version>(?P<major>\d+)(\.(?P<minor>\d+))?' \
               r'(\.(?P<micro>\d+)(\.(?P<hfrev>\d+))?)?)$'
     dst_branch = ''
 
@@ -855,6 +890,7 @@ class BranchCascade(object):
             else:
                 return
 
+        # TODO: ensure it's ok to have a -1 minor version included in the cascade
         (major, minor) = branch.major, branch.minor
         if (major, minor) not in self._cascade.keys():
             self._cascade[(major, minor)] = {
@@ -863,7 +899,7 @@ class BranchCascade(object):
                 HotfixBranch: None,
             }
             # Sort the cascade again
-            self._cascade = OrderedDict(sorted(self._cascade.items()))
+            self._cascade = OrderedDict(sorted(self._cascade.items(), key=cmp_to_key(compare_branches)))
 
         cur_branch = self._cascade[(major, minor)][branch.__class__]
 
@@ -958,9 +994,9 @@ class BranchCascade(object):
 
         """
         for (major, minor), branch_set in self._cascade.items():
-            dev_branch = branch_set[DevelopmentBranch]
-            stb_branch = branch_set[StabilizationBranch]
-            hf_branch = branch_set[HotfixBranch]
+            dev_branch: DevelopmentBranch = branch_set[DevelopmentBranch]
+            stb_branch: StabilizationBranch = branch_set[StabilizationBranch]
+            hf_branch: HotfixBranch = branch_set[HotfixBranch]
 
             if hf_branch and dst_branch.name.startswith('hotfix/'):
                 self.target_versions.append('%d.%d.%d.%d' % (
@@ -970,10 +1006,17 @@ class BranchCascade(object):
             if stb_branch:
                 self.target_versions.append('%d.%d.%d' % (
                     major, minor, stb_branch.micro))
-            elif dev_branch:
+            elif dev_branch and dev_branch.has_minor is True:
                 offset = 2 if dev_branch.has_stabilization else 1
+
                 self.target_versions.append('%d.%d.%d' % (
                     major, minor, dev_branch.micro + offset))
+            # TODO: For now the expected minor remains unknown
+            # let see if we will be able to guess it in the future
+            elif dev_branch and dev_branch.has_minor is False:
+                minor = "x"
+                self.target_versions.append(f"{major}.{minor}")
+
 
     def finalize(self, dst_branch):
         """Finalize cascade considering given destination.
