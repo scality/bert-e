@@ -121,6 +121,8 @@ def initialize_git_repo(repo, username, usermail):
         create_branch(repo, 'development/' + major_minor,
                       'stabilization/' + full_version, file_=True,
                       do_push=False)
+        create_branch(repo, f'development/{major}', f'development/{major_minor}',
+                      file_=True, do_push=False)
         if major != 6 and major != 10:
             repo.cmd('git tag %s.%s.%s', major, minor, micro - 1)
 
@@ -4800,6 +4802,13 @@ project_leaders:
             pr.src_commit, key="bert-e") == "queued"
         self.handle(pr.id, settings=settings, options=self.bypass_all)
 
+    def test_dev_major_only(self):
+        """Test Bert-E's capability to handle a gitwaterflow with a development/x branch."""
+        # create a development/4 branch
+        pr = self.create_pr('bugfix/TEST-01', 'development/4.3')
+        self.handle(pr.id, options=self.bypass_all)
+        pr = self.create_pr('bugfix/TEST-02', 'stabilization/4.3.18')
+        self.handle(pr.id, options=self.bypass_all)
 
 class TestQueueing(RepositoryTests):
     """Tests which validate all things related to the merge queue.

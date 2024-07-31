@@ -11,7 +11,7 @@ def test_sorted_with_branches():
         StabilizationBranch: None,
         HotfixBranch: None,
     }
-    branches[1, -1] = {
+    branches[1, None] = {
         DevelopmentBranch: None,
         StabilizationBranch: None,
         HotfixBranch: None,
@@ -28,4 +28,4 @@ def test_sorted_with_branches():
     }
 
     sorted_branches = OrderedDict(sorted(branches.items(), key=cmp_to_key(compare_branches)))
-    assert list(sorted_branches.keys()) == [(1, 0), (1, 1), (1, -1), (2, 0)]
+    assert list(sorted_branches.keys()) == [(1, 0), (1, 1), (1, None), (2, 0)]

@@ -1010,6 +1010,7 @@ class BranchCascade(object):
             elif dev_branch and dev_branch.has_minor is False:
                 latest_minor = self._find_latest_minor(major)
                 minor = latest_minor + 1 if latest_minor is not None else 0
+                # TODO: handle case with stab/x.y.z with no dev/x.y
                 self.target_versions.append(f"{major}.{minor}.{dev_branch.micro + 1}")
 
 
