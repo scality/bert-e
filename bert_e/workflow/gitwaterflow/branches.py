@@ -28,6 +28,27 @@ from bert_e.lib.template_loader import render
 
 LOG = logging.getLogger(__name__)
 
+def compare_branches(branch1, branch2):
+    """This function will compare branches based on their major and minor version.
+
+    Important to note that when a branch has a minor version as None, it will be considered
+    as the latest version.
+    """
+    # need to set the major and minor version
+    # branch1[0] and branch2[0] is a tuple which can be (major, minor) or (major, minor, micro)
+
+    major1, minor1 = branch1[0][:2]
+    major2, minor2 = branch2[0][:2]
+    if major1 == major2:
+        if minor1 == minor2:
+            return 0
+        if minor1 is None:
+            return 1
+        if minor2 is None:
+            return -1
+        return minor1 - minor2
+    return major1 - major2
+
 
 def compare_queues(version1, version2):
     # if we have a stab and its related dev, put the stab first.
@@ -39,45 +60,13 @@ def compare_queues(version1, version2):
         elif len(v2) == 3 and len(v1) == 2:
             return 1
 
-    # normal sorting
-    if v1 < v2:
-        return -1
-    elif v1 > v2:
-        return 1
-    else:
-        return 0
-
-
-def compare_branches(branch1, branch2):
-    """This function will compare branches based on their major and minor version.
-
-    Important to note that when a branch has a minor version of -1, it will be considered
-    as the latest version.
-    """
-    major1, minor1 = branch1[0]
-    major2, minor2 = branch2[0]
-
-    if major1 == major2:
-        if minor1 == minor2:
-            return 0
-        if minor1 == -1:
-            return 1
-        if minor2 == -1:
-            return -1
-        if minor1 < minor2:
-            return -1
-        return 1
-    if major1 < major2:
-        return -1
-    if major1 > major2:
-        return 1
-    return 0
+    return compare_branches(version1, version2)
 
 
 class GWFBranch(git.Branch):
     pattern = r'(?P<prefix>[a-z]+)/(?P<label>.+)'
     major = 0
-    minor = -1
+    minor = 0
     micro = -1  # is incremented always, first version is 0
     hfrev = -1
     cascade_producer = False
@@ -194,15 +183,15 @@ class DevelopmentBranch(GWFBranch):
             return NotImplemented
         if self.major != other.major:
             return self.major < other.major
-        if self.minor == -1:
+        if self.minor is None:
             return False  # development/<major> is greater than development/<major>.<minor>
-        if other.minor == -1:
+        if other.minor is None:
             return True  # development/<major>.<minor> is less than development/<major>
         return self.minor < other.minor
 
     @property
     def has_minor(self) -> bool:
-        return self.minor != -1
+        return self.minor is not None
 
     @property
     def version_t(self):
@@ -987,6 +976,13 @@ class BranchCascade(object):
 
             previous_dev_branch = dev_branch
 
+    def _find_latest_minor(self, major) -> int | None:
+        """For a given major version, find in the cascade the latest minor."""
+        minors = [minor for (m, minor) in self._cascade.keys() if m == major and minor is not None]
+        if not minors:
+            return None
+        return max(minors)
+
     def _set_target_versions(self, dst_branch):
         """Compute list of expected Jira FixVersion/s.
 
@@ -1011,11 +1007,10 @@ class BranchCascade(object):
 
                 self.target_versions.append('%d.%d.%d' % (
                     major, minor, dev_branch.micro + offset))
-            # TODO: For now the expected minor remains unknown
-            # let see if we will be able to guess it in the future
             elif dev_branch and dev_branch.has_minor is False:
-                minor = "x"
-                self.target_versions.append(f"{major}.{minor}")
+                latest_minor = self._find_latest_minor(major)
+                minor = latest_minor + 1 if latest_minor is not None else 0
+                self.target_versions.append(f"{major}.{minor}.{dev_branch.micro + 1}")
 
 
     def finalize(self, dst_branch):
