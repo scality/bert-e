@@ -164,6 +164,8 @@ class HotfixBranch(GWFBranch):
         return (self.major, self.minor, self.micro, self.hfrev)
 
 
+# TODO: consider creating a 4th element in the cascade with a
+# MajorDevlopment branch that will inherit from DevelopmentBranch
 @total_ordering
 class DevelopmentBranch(GWFBranch):
     pattern = r'^development/(?P<version>(?P<major>\d+)(\.(?P<minor>\d+))?)$'
@@ -172,6 +174,7 @@ class DevelopmentBranch(GWFBranch):
     can_be_destination = True
     allow_prefixes = FeatureBranch.all_prefixes
     has_stabilization = False
+    latest_minor = -1
 
     def __eq__(self, other):
         return (self.__class__ == other.__class__ and
@@ -897,6 +900,7 @@ class BranchCascade(object):
 
         self._cascade[(major, minor)][branch.__class__] = branch
 
+    # TODO: rename method or split it in two
     def update_micro(self, tag):
         """Update development branch latest micro based on tag."""
         pattern = r"^v?(?P<major>\d+)\.(?P<minor>\d+)\.(?P<micro>\d+)" \
@@ -913,15 +917,17 @@ class BranchCascade(object):
         if match.groupdict()['hfrev'] is not None:
             hfrev = int(match.groupdict()['hfrev'])
 
-        try:
-            branches = self._cascade[(major, minor)]
-        except KeyError:
+        branches = self._cascade.get((major, minor), {})
+        major_branches = self._cascade.get((major, None), {})
+
+        if not branches and not major_branch:
             LOG.debug("Ignore tag: %s", tag)
             return
 
-        hf_branch = branches[HotfixBranch]
-        stb_branch = branches[StabilizationBranch]
-        dev_branch = branches[DevelopmentBranch]
+        hf_branch: HotfixBranch = branches.get(HotfixBranch)
+        stb_branch: StabilizationBranch = branches.get(StabilizationBranch)
+        dev_branch: DevelopmentBranch = branches.get(DevelopmentBranch)
+        major_branch: DevelopmentBranch = major_branches.get(DevelopmentBranch)
 
         if hf_branch:
             if hf_branch.micro == micro:
@@ -943,6 +949,9 @@ class BranchCascade(object):
 
         if dev_branch:
             dev_branch.micro = max(micro, dev_branch.micro)
+
+        if major_branch:
+            major_branch.latest_minor = max(minor, major_branch.latest_minor)
 
     def validate(self):
         previous_dev_branch = None
@@ -976,6 +985,7 @@ class BranchCascade(object):
 
             previous_dev_branch = dev_branch
 
+    # not used right now but might come useful to handle a case with dev/1 and stab/1.0.0
     def _find_latest_minor(self, major) -> int | None:
         """For a given major version, find in the cascade the latest minor."""
         minors = [minor for (m, minor) in self._cascade.keys() if m == major and minor is not None]
@@ -1008,10 +1018,8 @@ class BranchCascade(object):
                 self.target_versions.append('%d.%d.%d' % (
                     major, minor, dev_branch.micro + offset))
             elif dev_branch and dev_branch.has_minor is False:
-                latest_minor = self._find_latest_minor(major)
-                minor = latest_minor + 1 if latest_minor is not None else 0
                 # TODO: handle case with stab/x.y.z with no dev/x.y
-                self.target_versions.append(f"{major}.{minor}.{dev_branch.micro + 1}")
+                self.target_versions.append(f"{major}.{dev_branch.latest_minor + 1}.{dev_branch.micro + 1}")
 
 
     def finalize(self, dst_branch):
