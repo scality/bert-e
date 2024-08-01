@@ -1018,7 +1018,8 @@ class BranchCascade(object):
                 self.target_versions.append('%d.%d.%d' % (
                     major, minor, dev_branch.micro + offset))
             elif dev_branch and dev_branch.has_minor is False:
-                # TODO: handle case with stab/x.y.z with no dev/x.y
+                # TODO: handle case with stab/x.y.z with no dev/x.y -> no need as stab/x.y.z cannot exist without a dev/x.y
+                # TODO: handle case where dev/1 and dev/1.0 exists (but no 1.0.0 tag) -> Should return 1.0.0 only
                 self.target_versions.append(f"{major}.{dev_branch.latest_minor + 1}.{dev_branch.micro + 1}")
 
 
