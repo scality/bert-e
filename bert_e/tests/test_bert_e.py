@@ -832,7 +832,7 @@ class RepositoryTests(unittest.TestCase):
         self.ci: bool = bool(getenv('CI', False))
         if self.ci:
             # print a group with the test name that is about to run
-            log.info(f"\n::group::{self._testMethodName}")
+            log.info(f"\n::group::{self.__class__}.{self._testMethodName}")
         self.admin_id = None
         self.contributor_id = None
         # repo creator and reviewer
@@ -1518,16 +1518,20 @@ admins:
         with self.assertRaises(Exception):
             self.handle(pr.id + 1, settings=settings, options=options)
         self.gitrepo.cmd('git fetch --all')
-        sha1_w_5_1 = self.gitrepo \
-                         .cmd('git rev-parse origin/w/5.1/%s' % src_branch) \
-                         .rstrip()
-        sha1_w_10_0 = self.gitrepo \
-                          .cmd('git rev-parse origin/w/10.0/%s' % src_branch) \
-                          .rstrip()
-
         self.set_build_status_on_pr_id(pr.id, 'SUCCESSFUL')
-        self.set_build_status(sha1=sha1_w_5_1, state='SUCCESSFUL')
-        self.set_build_status(sha1=sha1_w_10_0, state='INPROGRESS')
+        integration_branches = [
+            f'w/4/{src_branch}',
+            f'w/5.1/{src_branch}',
+            f'w/5/{src_branch}',
+            f'w/10.0/{src_branch}',
+            f'w/10/{src_branch}',
+        ]
+        # loop through all integration_branches but the latest
+        for branch in integration_branches[:-1]:
+            sha = self.gitrepo.cmd(f'git rev-parse origin/{branch}').rstrip()
+            self.set_build_status(sha, 'SUCCESSFUL')
+        sha1_w_10 = self.gitrepo.cmd(f'git rev-parse origin/{integration_branches[-1]}').rstrip()
+        self.set_build_status(sha1=sha1_w_10, state='INPROGRESS')
         if self.args.git_host == 'github':
             pr.add_comment('@%s approve' % (self.args.robot_username))
         else:
@@ -1535,12 +1539,19 @@ admins:
         with self.assertRaises(exns.BuildInProgress):
             self.handle(pr.id, settings=settings,
                         options=options, backtrace=True)
-        self.set_build_status(sha1=sha1_w_10_0, state='SUCCESSFUL')
+        self.set_build_status(sha1=sha1_w_10, state='SUCCESSFUL')
         with self.assertRaises(exns.SuccessMessage):
-            self.handle(sha1_w_10_0, settings=settings,
+            self.handle(sha1_w_10, settings=settings,
                         options=options, backtrace=True)
-
-        for dev in ['development/4.3', 'development/5.1', 'development/10.0']:
+        dev_branches = [
+            'development/4.3',
+            'development/4',
+            'development/5.1',
+            'development/5',
+            'development/10.0',
+            'development/10',
+        ]
+        for dev in dev_branches:
             branch = gwfb.branch_factory(self.gitrepo, dev)
             branch.checkout()
             self.gitrepo.cmd('git pull origin %s', dev)
@@ -3419,7 +3430,8 @@ pr_author_options:
             # github enforces valid build urls
             url='https://builds.test.com/DEADBEEF'
         )
-        self.set_build_status_on_pr_id(pr.id + 1, 'SUCCESSFUL')
+        for pr_id in range(pr.id + 1, pr.id + 4):
+            self.set_build_status_on_pr_id(pr_id, 'SUCCESSFUL')
 
         with self.assertRaises(exns.BuildFailed) as err:
             childpr = self.robot_bb.get_pull_request(
@@ -3688,13 +3700,17 @@ always_create_integration_pull_requests: False
         dest = 'stabilization/5.1.4'
         res = ["origin/bugfix/TEST-00001",
                "origin/development/5.1",
+               "origin/development/5",
                "origin/development/10.0",
+               "origin/development/10",
                "origin/stabilization/5.1.4"]
         if not self.args.disable_queues:
             res.extend([
                 "origin/q/5.1.4",
                 "origin/q/5.1",
+                "origin/q/5",
                 "origin/q/10.0",
+                "origin/q/10",
             ])
         self.successful_merge_into_stabilization_branch(dest, res)
 
@@ -4021,11 +4037,15 @@ always_create_integration_pull_requests: False
         self.handle(
             pr.id, options=self.bypass_all_but(['bypass_build_status']))
 
+        exp_int_branches = [
+            'w/4/bugfix/TEST-0001',
+            'w/5.1/bugfix/TEST-0001',
+            'w/5/bugfix/TEST-0001',
+            'w/10.0/bugfix/TEST-0001',
+            'w/10/bugfix/TEST-0001'
+        ]
         int_prs = list(self.contributor_bb.get_pull_requests(
-            src_branch=[
-                'w/5.1/bugfix/TEST-0001',
-                'w/10.0/bugfix/TEST-0001'
-            ])
+            src_branch=exp_int_branches)
         )
 
         self.gitrepo.cmd('git checkout bugfix/TEST-0001')
@@ -4036,13 +4056,13 @@ always_create_integration_pull_requests: False
             self.handle(pr.id, options=self.bypass_all, backtrace=True)
 
         # Decline integration pull requests
-        self.assertEqual(len(int_prs), 2)
+        self.assertEqual(len(int_prs), 5)
         for ipr in int_prs:
             ipr.decline()
 
         # Delete integration branches
-        self.gitrepo.push(':w/5.1/bugfix/TEST-0001 '
-                          ':w/10.0/bugfix/TEST-0001')
+        for branch in exp_int_branches:
+            self.gitrepo.push(f':{branch}')
 
         with self.assertRaises(exns.SuccessMessage):
             self.handle(pr.id, options=self.bypass_all, backtrace=True)
@@ -4163,7 +4183,7 @@ required_peer_approvals: 0
             )
 
         # test with different build key
-        pr = self.create_pr('bugfix/TEST-00003', 'development/10.0')
+        pr = self.create_pr('bugfix/TEST-00003', 'development/10')
         settings = """
 repository_owner: {owner}
 repository_slug: {slug}
@@ -7006,13 +7026,21 @@ class TaskQueueTests(RepositoryTests):
             ('development/10.0', self.assertTrue),
             ('q/10.0', self.assertTrue),
             ('q/1/5.1/feature/TEST-01', self.assertTrue),
+            ('q/1/5/feature/TEST-01', self.assertTrue),
             ('q/1/10.0/feature/TEST-01', self.assertTrue),
+            ('q/1/10/feature/TEST-01', self.assertTrue),
             ('q/2/5.1/feature/TEST-02', self.assertTrue),
+            ('q/2/5/feature/TEST-02', self.assertTrue),
             ('q/2/10.0/feature/TEST-02', self.assertTrue),
+            ('q/2/10/feature/TEST-02', self.assertTrue),
             ('q/3/5.1/feature/TEST-03', self.assertTrue),
+            ('q/3/5/feature/TEST-03', self.assertTrue),
             ('q/3/10.0/feature/TEST-03', self.assertTrue),
-            ('q/7/5.1/feature/TEST-9998', self.assertTrue),
-            ('q/7/10.0/feature/TEST-9998', self.assertTrue),
+            ('q/3/10/feature/TEST-03', self.assertTrue),
+            ('q/13/5.1/feature/TEST-9998', self.assertTrue),
+            ('q/13/5/feature/TEST-9998', self.assertTrue),
+            ('q/13/10.0/feature/TEST-9998', self.assertTrue),
+            ('q/13/10/feature/TEST-9998', self.assertTrue),
         ]
         self.gitrepo._get_remote_branches(force=True)
         for branch, func in expected_branches:
