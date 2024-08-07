@@ -3721,15 +3721,19 @@ always_create_integration_pull_requests: False
                 'bypass_build_status',
                 'bypass_leader_approval',
                 'bypass_peer_approval',
-                'bypass_author_approval'],
+                'bypass_author_approval',
+                'bypass_jira_check'],
                 backtrace=True)
         except exns.SuccessMessage as e:
             self.assertIn('* :heavy_check_mark: `stabilization/5.1.4`', e.msg)
             self.assertIn('* :heavy_check_mark: `development/5.1`', e.msg)
+            self.assertIn('* :heavy_check_mark: `development/5`', e.msg)
             self.assertIn('* :heavy_check_mark: `development/10.0`', e.msg)
+            self.assertIn('* :heavy_check_mark: `development/10`', e.msg)
             self.assertIn('* `stabilization/4.3.18`', e.msg)
             self.assertIn('* `stabilization/10.0.0`', e.msg)
             self.assertIn('* `development/4.3`', e.msg)
+            self.assertIn('* `development/4`', e.msg)
 
     def test_unanimity_option(self):
         """Test unanimity by passing option to bert-e"""
@@ -4404,14 +4408,14 @@ project_leaders:
 
         self.gitrepo.cmd('git fetch --prune')
         self.gitrepo.cmd('git checkout -B development/5.1'
-                         ' origin/development/4.3')
+                         ' origin/development/4')
         self.gitrepo.cmd('git checkout -B stabilization/5.1.4'
                          ' development/5.1')
         self.gitrepo.cmd('git push -u origin '
                          'development/5.1 stabilization/5.1.4')
 
         if not self.args.disable_queues:
-            self.gitrepo.cmd('git push origin :q/4.3 :q/10.0')
+            self.gitrepo.cmd('git push origin :q/4.3 :q/4 :q/10 :q/10.0')
 
         with self.assertRaises(exns.BranchHistoryMismatch):
             self.handle(pr.id, options=self.bypass_all, backtrace=True)
@@ -6892,7 +6896,7 @@ class TaskQueueTests(RepositoryTests):
         self.gitrepo._get_remote_branches(force=True)
         self.assertEqual(
             self.gitrepo._remote_branches['development/11.3'],
-            self.gitrepo._remote_branches['development/10.0']
+            self.gitrepo._remote_branches['development/10']
         )
 
         # consume the 3 expected pr jobs sitting in the job queue
@@ -6918,23 +6922,35 @@ class TaskQueueTests(RepositoryTests):
             'q/10.0',
             'q/11.3',
             'q/1/4.3/feature/TEST-01',
+            'q/1/4/feature/TEST-01',
             'q/1/5.1/feature/TEST-01',
+            'q/1/5/feature/TEST-01',
             'q/1/10.0/feature/TEST-01',
+            'q/1/10/feature/TEST-01',
             'q/1/11.3/feature/TEST-01',
             'q/2/4.3/feature/TEST-02',
+            'q/2/4/feature/TEST-02',
             'q/2/5.1/feature/TEST-02',
+            'q/2/5/feature/TEST-02',
             'q/2/10.0/feature/TEST-02',
+            'q/2/10/feature/TEST-02',
             'q/2/11.3/feature/TEST-02',
             'q/3/4.3/feature/TEST-03',
+            'q/3/4/feature/TEST-03',
             'q/3/5.1/feature/TEST-03',
+            'q/3/5/feature/TEST-03',
             'q/3/10.0/feature/TEST-03',
+            'q/3/10/feature/TEST-03',
             'q/3/11.3/feature/TEST-03',
-            'q/13/11.3/feature/TEST-9997',
-            'q/14/4.3.18/feature/TEST-9998',
-            'q/14/4.3/feature/TEST-9998',
-            'q/14/5.1/feature/TEST-9998',
-            'q/14/10.0/feature/TEST-9998',
-            'q/14/11.3/feature/TEST-9998',
+            'q/22/11.3/feature/TEST-9997',
+            'q/23/4.3.18/feature/TEST-9998',
+            'q/23/4.3/feature/TEST-9998',
+            'q/23/4/feature/TEST-9998',
+            'q/23/5.1/feature/TEST-9998',
+            'q/23/5/feature/TEST-9998',
+            'q/23/10.0/feature/TEST-9998',
+            'q/23/10/feature/TEST-9998',
+            'q/23/11.3/feature/TEST-9998',
         ]
         self.gitrepo._get_remote_branches(force=True)
         for branch in expected_branches:
@@ -6943,7 +6959,7 @@ class TaskQueueTests(RepositoryTests):
 
         # merge everything so that branches advance
         # and also to allow creation of intermediary dest branches
-        sha1_middle = self.gitrepo._remote_branches['q/11.3']
+        sha1_middle = self.gitrepo._remote_branches['q/10']
         self.process_job(ForceMergeQueuesJob(bert_e=self.berte), 'Merged')
 
         # test a branch creation with source specified
@@ -6958,7 +6974,7 @@ class TaskQueueTests(RepositoryTests):
             CreateBranchJob(
                 settings={
                     'branch': 'development/10.2',
-                    'branch_from': 'development/11.3'},
+                    'branch_from': 'development/10'},
                 bert_e=self.berte),
             'JobSuccess')
 
@@ -6970,7 +6986,7 @@ class TaskQueueTests(RepositoryTests):
         )
         self.assertEqual(
             self.gitrepo._remote_branches['development/10.2'],
-            self.gitrepo._remote_branches['development/11.3']
+            self.gitrepo._remote_branches['development/10']
         )
 
         # one last PR to check the repo is in order
@@ -7147,13 +7163,16 @@ class TaskQueueTests(RepositoryTests):
             'development/10.0',
             'q/4.3.18',
             'q/4.3',
-            'q/5.1',
+            'q/4',
             'q/5.1.4',
+            'q/5.1',
+            'q/5',
             'q/10.0',
-            'q/16/4.3.18/feature/TEST-9999',
-            'q/16/4.3/feature/TEST-9999',
-            'q/16/5.1/feature/TEST-9999',
-            'q/16/10.0/feature/TEST-9999',
+            'q/10',
+            'q/30/4.3.18/feature/TEST-9999',
+            'q/30/4.3/feature/TEST-9999',
+            'q/30/5.1/feature/TEST-9999',
+            'q/30/10.0/feature/TEST-9999',
         ]
         self.gitrepo._get_remote_branches(force=True)
         for branch in expected_branches:
@@ -7255,7 +7274,7 @@ class TaskQueueTests(RepositoryTests):
         self.assertEqual(sha1_q_10_0, sha1_dev_10_0)
 
     def test_job_force_merge_queues_with_hotfix(self):
-        self.init_berte(options=self.bypass_all)
+        self.init_berte(options=self.bypass_all, skip_queue_when_not_needed=True)
 
         # When queues are disabled, Bert-E should respond with 'NotMyJob'
         self.process_job(
@@ -7277,7 +7296,7 @@ class TaskQueueTests(RepositoryTests):
         prs.append(self.create_pr('feature/TEST-666', 'hotfix/4.2.17'))
 
         for pr in prs:
-            self.process_pr_job(pr, 'Queued')
+            self.process_pr_job(pr)
 
         # put a mix of build statuses in the queue
         self.gitrepo._get_remote_branches()
@@ -7350,7 +7369,7 @@ class TaskQueueTests(RepositoryTests):
         self.assertTrue(self.berte.task_queue.empty())
 
     def test_job_delete_queues_with_hotfix(self):
-        self.init_berte(options=self.bypass_all)
+        self.init_berte(options=self.bypass_all, skip_queue_when_not_needed=True)
 
         # When queues are disabled, Bert-E should respond with 'NotMyJob'
         self.process_job(
@@ -7371,23 +7390,14 @@ class TaskQueueTests(RepositoryTests):
         prs.append(self.create_pr('feature/TEST-666', 'hotfix/4.2.17'))
 
         for pr in prs:
-            self.process_pr_job(pr, 'Queued')
+            self.process_pr_job(pr)
 
         expected_branches = [
             'q/4.2.17.1',
             'q/4.3',
             'q/5.1',
             'q/10.0',
-            'q/1/4.3/feature/TEST-01',
-            'q/1/5.1/feature/TEST-01',
-            'q/1/10.0/feature/TEST-01',
-            'q/2/4.3/feature/TEST-02',
-            'q/2/5.1/feature/TEST-02',
-            'q/2/10.0/feature/TEST-02',
-            'q/3/4.3/feature/TEST-03',
-            'q/3/5.1/feature/TEST-03',
-            'q/3/10.0/feature/TEST-03',
-            'q/4/4.2.17.1/feature/TEST-666',
+
         ]
         # Check that all PRs are queued
 

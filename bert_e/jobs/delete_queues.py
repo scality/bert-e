@@ -48,12 +48,8 @@ def delete_queues(job: DeleteQueuesJob):
 
     if not queue_branches:
         raise exceptions.JobSuccess()
-
-    branch_factory(
-        repo,
-        'development/{}.{}'.format(queue_branches[0].major,
-                                   queue_branches[0].minor)
-    ).checkout()
+    # Checkout latest development to delete queue branches.
+    queue_branches[0].dst_branch.checkout()
 
     for branch in queue_branches:
         branch.remove(do_push=False)
