@@ -5062,12 +5062,24 @@ class TestQueueing(RepositoryTests):
                 gwfb.QueueBranch: self.queue_branch('q/4.3'),
                 gwfb.QueueIntegrationBranch: []
             }),
+            ((4, None), {
+                gwfb.QueueBranch: self.queue_branch('q/4'),
+                gwfb.QueueIntegrationBranch: []
+            }),
             ((5, 1), {
                 gwfb.QueueBranch: self.queue_branch('q/5.1'),
                 gwfb.QueueIntegrationBranch: []
             }),
+            ((5, None), {
+                gwfb.QueueBranch: self.queue_branch('q/5'),
+                gwfb.QueueIntegrationBranch: []
+            }),
             ((10, 0), {
                 gwfb.QueueBranch: self.queue_branch('q/10.0'),
+                gwfb.QueueIntegrationBranch: []
+            }),
+            ((10, None), {
+                gwfb.QueueBranch: self.queue_branch('q/10'),
                 gwfb.QueueIntegrationBranch: []
             }),
         ])
