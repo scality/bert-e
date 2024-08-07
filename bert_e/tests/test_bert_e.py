@@ -1173,7 +1173,7 @@ always_create_integration_pull_requests: False
 admins:
   - {admin}
 """ # noqa
-        pr = self.create_pr('feature/TEST-0002', 'development/4.3')
+        pr = self.create_pr('feature/TEST-0002', 'development/5')
         options = ['create_pull_requests', 'bypass_jira_check']
         try:
             self.handle(pr.id)
@@ -1216,7 +1216,7 @@ admins:
   - {admin}
 """ # noqa
         options = self.bypass_all_but(['bypass_build_status'])
-        pr = self.create_pr('feature/TEST-0042', 'development/10.0')
+        pr = self.create_pr('feature/TEST-0042', 'development/10')
         self.handle(pr.id, settings=settings, options=options)
         self.assertIs(len(list(pr.get_comments())), 1)
         self.assertIn('Hello %s' % self.args.contributor_username,
@@ -1413,7 +1413,7 @@ admins:
   - {admin}
 """ # noqa
         options = self.bypass_all_but(['bypass_build_status'])
-        pr = self.create_pr('feature/TEST-0069', 'development/10.0')
+        pr = self.create_pr('feature/TEST-0069', 'development/10')
         self.handle(pr.id, settings=settings, options=options)
         self.assertEqual(len(list(pr.get_comments())), 1)
 
@@ -1601,7 +1601,7 @@ admins:
                              file_='toto.txt')
         pr3 = self.create_pr('improvement/TEST-0006', 'development/10.0',
                              file_='toto.txt')
-        pr4 = self.create_pr('improvement/TEST-0006-other', 'development/5.1',
+        pr4 = self.create_pr('improvement/TEST-0006-other', 'development/5',
                              file_='toto.txt')
         pr5 = self.create_pr('improvement/TEST-0006-last', 'development/4.3',
                              file_='toto.txt')
@@ -1668,14 +1668,14 @@ admins:
         except exns.Conflict as e:
             self.assertIn(
                 '`w/10.0/improvement/TEST-0006-last` with contents from '
-                '`w/5.1/improvement/TEST-0006-last`\nand `development/10.0`',
+                '`w/5/improvement/TEST-0006-last`\nand `development/10.0`',
                 e.msg)
             # Bert-E MUST instruct the user to modify the integration
             # branch with the same target as the original PR
             self.assertIn(
                 "git checkout -B w/10.0/improvement/TEST-0006", e.msg)
             self.assertIn(
-                "git merge origin/w/5.1/improvement/TEST-0006", e.msg)
+                "git merge origin/w/5/improvement/TEST-0006", e.msg)
             self.assertIn("git push -u origin w/10.0/improvement/TEST-0006",
                           e.msg)
         else:
@@ -2952,7 +2952,7 @@ pr_author_options:
     - bypass_peer_approval
 """  # noqa
         # test bypass branch prefix through comment
-        pr = self.create_pr('bugfix/TEST-00081', 'development/4.3')
+        pr = self.create_pr('bugfix/TEST-00081', 'development/5')
 
         # test build not started
         with self.assertRaises(exns.BuildNotStarted):
@@ -2970,7 +2970,7 @@ pr_author_options:
                         backtrace=True)
         except exns.BuildFailed as excp:
             self.assertIn(
-                "did not succeed in branch w/10.0/bugfix/TEST-00081",
+                "did not succeed in branch w/10/bugfix/TEST-00081",
                 excp.msg,
             )
         else:
@@ -3051,7 +3051,7 @@ pr_author_options:
   {contributor}:
     - bypass_jira_check
 """ # noqa
-        pr = self.create_pr('feature/TEST-0042', 'development/10.0')
+        pr = self.create_pr('feature/TEST-0042', 'development/10')
         self.handle(pr.id, settings=settings)
         self.assertIs(len(list(pr.get_comments())), 2)
         self.assertIn('bypass_jira_check', self.get_last_pr_comment(pr))
@@ -3073,7 +3073,7 @@ pr_author_options:
   {contributor}:
     - bypass_author_approval
 """ # noqa
-        pr = self.create_pr('feature/TEST-0043', 'development/10.0')
+        pr = self.create_pr('feature/TEST-0043', 'development/10')
         self.handle(pr.id, settings=settings)
         self.assertIs(len(list(pr.get_comments())), 2)
         self.assertIn('bypass_author_approval', self.get_last_pr_comment(pr))
@@ -3096,7 +3096,7 @@ pr_author_options:
   {contributor}:
     - bypass_peer_approval
 """ # noqa
-        pr = self.create_pr('feature/TEST-0044', 'development/10.0')
+        pr = self.create_pr('feature/TEST-0044', 'development/10')
         self.handle(pr.id, settings=settings)
         self.assertIs(len(list(pr.get_comments())), 2)
         self.assertIn('bypass_peer_approval', self.get_last_pr_comment(pr))
@@ -3119,7 +3119,7 @@ pr_author_options:
   {contributor}:
     - bypass_build_status
 """ # noqa
-        pr = self.create_pr('feature/TEST-0045', 'development/10.0')
+        pr = self.create_pr('feature/TEST-0045', 'development/10')
         self.handle(pr.id, settings=settings)
         self.assertIs(len(list(pr.get_comments())), 2)
         self.assertIn('bypass_build_status', self.get_last_pr_comment(pr))
@@ -3684,15 +3684,21 @@ always_create_integration_pull_requests: False
         dest = 'stabilization/4.3.18'
         res = ["origin/bugfix/TEST-00001",
                "origin/development/4.3",
+               "origin/development/4",
+               "origin/development/5",
                "origin/development/5.1",
+               "origin/development/10",
                "origin/development/10.0",
                "origin/stabilization/4.3.18"]
         if not self.args.disable_queues:
             res.extend([
                 "origin/q/4.3.18",
                 "origin/q/4.3",
+                "origin/q/4",
                 "origin/q/5.1",
+                "origin/q/5",
                 "origin/q/10.0",
+                "origin/q/10",
             ])
         self.successful_merge_into_stabilization_branch(dest, res)
 
