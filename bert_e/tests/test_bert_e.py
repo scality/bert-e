@@ -832,7 +832,7 @@ class RepositoryTests(unittest.TestCase):
         self.ci: bool = bool(getenv('CI', False))
         if self.ci:
             # print a group with the test name that is about to run
-            log.info(f"::group::{self._testMethodName}")
+            log.info(f"\n::group::{self._testMethodName}")
         self.admin_id = None
         self.contributor_id = None
         # repo creator and reviewer
@@ -899,7 +899,7 @@ class RepositoryTests(unittest.TestCase):
         self.gitrepo.delete()
         if self.ci:
             # end the group with the test name that just ran
-            log.info("::endgroup::")
+            log.info("\n::endgroup::")
 
     def create_pr(
             self,
