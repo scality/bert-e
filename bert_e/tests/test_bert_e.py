@@ -3360,7 +3360,7 @@ pr_author_options:
             gwf.create_integration_pull_requests = real
 
     def test_build_status(self):
-        pr = self.create_pr('bugfix/TEST-00081', 'development/4.3')
+        pr = self.create_pr('bugfix/TEST-00081', 'development/5')
 
         # test build not started
         with self.assertRaises(exns.BuildNotStarted):
@@ -3390,7 +3390,7 @@ pr_author_options:
                         backtrace=True)
         except exns.BuildFailed as excp:
             self.assertIn(
-                "did not succeed in branch w/10.0/bugfix/TEST-00081",
+                "did not succeed in branch w/10/bugfix/TEST-00081",
                 excp.msg,
             )
         else:
@@ -6481,10 +6481,16 @@ class TaskQueueTests(RepositoryTests):
             self.gitrepo.cmd('git fetch --prune')
             expected_branches = [
                 'q/1/4.3/bugfix/TEST-00001',
+                'q/1/4/bugfix/TEST-00001',
                 'q/1/5.1/bugfix/TEST-00001',
+                'q/1/5/bugfix/TEST-00001',
                 'q/1/10.0/bugfix/TEST-00001',
+                'q/1/10/bugfix/TEST-00001',
+                'w/4/bugfix/TEST-00001',
                 'w/5.1/bugfix/TEST-00001',
-                'w/10.0/bugfix/TEST-00001'
+                'w/5/bugfix/TEST-00001',
+                'w/10.0/bugfix/TEST-00001',
+                'w/10/bugfix/TEST-00001'
             ]
             for branch in expected_branches:
                 self.assertTrue(self.gitrepo.remote_branch_exists(branch),
@@ -6498,7 +6504,7 @@ class TaskQueueTests(RepositoryTests):
             versions = tuple(version for version, _ in status[1])
             for _, sha1 in status[1]:
                 self.set_build_status(sha1=sha1, state='SUCCESSFUL')
-            self.assertEqual(versions, ('10.0', '5.1', '4.3'))
+            self.assertEqual(versions, ('10', '10.0', '5', '5.1', '4', '4.3'))
             self.process_sha1_job(sha1_q_10_0, 'Merged')
 
             merged_pr = self.berte.status.get('merged PRs', [])
