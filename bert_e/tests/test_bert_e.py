@@ -4917,28 +4917,28 @@ class TestQueueing(RepositoryTests):
             # set build status on q branches
             if problem[pr]['dst'] == 'development/4.3':
                 branches = [
-                    'q/{pr}/4.3/{name}',
-                    'q/{pr}/5.1/{name}',
-                    'q/{pr}/10.0/{name}'
+                    'q/w/{pr}/4.3/{name}',
+                    'q/w/{pr}/5.1/{name}',
+                    'q/w/{pr}/10.0/{name}'
                 ]
             elif problem[pr]['dst'] == 'stabilization/5.1.4':
                 branches = [
-                    'q/{pr}/5.1.4/{name}',
-                    'q/{pr}/5.1/{name}',
-                    'q/{pr}/10.0/{name}'
+                    'q/w/{pr}/5.1.4/{name}',
+                    'q/w/{pr}/5.1/{name}',
+                    'q/w/{pr}/10.0/{name}'
                 ]
             elif problem[pr]['dst'] == 'development/5.1':
                 branches = [
-                    'q/{pr}/5.1/{name}',
-                    'q/{pr}/10.0/{name}'
+                    'q/w/{pr}/5.1/{name}',
+                    'q/w/{pr}/10.0/{name}'
                 ]
             elif problem[pr]['dst'] == 'development/10.0':
                 branches = [
-                    'q/{pr}/10.0/{name}'
+                    'q/w/{pr}/10.0/{name}'
                 ]
             elif problem[pr]['dst'] == 'hotfix/4.2.17':
                 branches = [
-                    'q/{pr}/4.2.17.1/{name}'
+                    'q/w/{pr}/4.2.17.1/{name}'
                 ]
             else:
                 raise Exception('invalid dst branch name')
@@ -5019,7 +5019,7 @@ class TestQueueing(RepositoryTests):
             self.qint_branch("q/6.2/feature/RELENG-001-plop")
 
         qint_branch = gwfb.branch_factory(FakeGitRepo(),
-                                          "q/10/6.2/feature/RELENG-001-plop")
+                                          "q/w/10/6.2/feature/RELENG-001-plop")
         self.assertEqual(type(qint_branch), gwfb.QueueIntegrationBranch)
         self.assertEqual(qint_branch.version_t, (6, 2))
         self.assertEqual(qint_branch.version, "6.2")
@@ -5079,25 +5079,25 @@ class TestQueueing(RepositoryTests):
             ((4, 3), {
                 gwfb.QueueBranch: self.queue_branch('q/4.3'),
                 gwfb.QueueIntegrationBranch: [
-                    self.qint_branch('q/7/4.3/improvement/bar2'),
-                    self.qint_branch('q/1/4.3/improvement/bar')
+                    self.qint_branch('q/w/7/4.3/improvement/bar2'),
+                    self.qint_branch('q/w/1/4.3/improvement/bar')
                 ]
             }),
             ((5, 1), {
                 gwfb.QueueBranch: self.queue_branch('q/5.1'),
                 gwfb.QueueIntegrationBranch: [
-                    self.qint_branch('q/7/5.1/improvement/bar2'),
-                    self.qint_branch('q/5/5.1/bugfix/bar'),
-                    self.qint_branch('q/1/5.1/improvement/bar')
+                    self.qint_branch('q/w/7/5.1/improvement/bar2'),
+                    self.qint_branch('q/w/5/5.1/bugfix/bar'),
+                    self.qint_branch('q/w/1/5.1/improvement/bar')
                 ]
             }),
             ((10, 0), {
                 gwfb.QueueBranch: self.queue_branch('q/10.0'),
                 gwfb.QueueIntegrationBranch: [
-                    self.qint_branch('q/7/10.0/improvement/bar2'),
-                    self.qint_branch('q/5/10.0/bugfix/bar'),
-                    self.qint_branch('q/4/10.0/feature/foo'),
-                    self.qint_branch('q/1/10.0/improvement/bar')
+                    self.qint_branch('q/w/7/10.0/improvement/bar2'),
+                    self.qint_branch('q/w/5/10.0/bugfix/bar'),
+                    self.qint_branch('q/w/4/10.0/feature/foo'),
+                    self.qint_branch('q/w/1/10.0/improvement/bar')
                 ]
             }),
         ])
@@ -5353,7 +5353,7 @@ class TestQueueing(RepositoryTests):
 
     def test_validation_vertical_inclusion(self):
         qbranches = self.submit_problem(self.standard_problem)
-        add_file_to_branch(self.gitrepo, 'q/7/5.1/improvement/bar2',
+        add_file_to_branch(self.gitrepo, 'q/w/7/5.1/improvement/bar2',
                            'file_pushed_without_bert-e.txt', do_push=True)
         qc = self.feed_queue_collection(qbranches)
         qc.finalize()
@@ -5365,7 +5365,7 @@ class TestQueueing(RepositoryTests):
     def test_validation_with_missing_first_intq(self):
         self.skipTest("skipping until completeness check is implemented")
         qbranches = self.submit_problem(self.standard_problem)
-        qbranches.remove('q/1/4.3/improvement/bar')
+        qbranches.remove('q/w/1/4.3/improvement/bar')
         qc = self.feed_queue_collection(qbranches)
         qc.finalize()
         with self.assertRaises(exns.IncoherentQueues) as excp:
@@ -5374,7 +5374,7 @@ class TestQueueing(RepositoryTests):
 
     def test_validation_with_missing_middle_intq(self):
         qbranches = self.submit_problem(self.standard_problem)
-        qbranches.remove('q/1/5.1/improvement/bar')
+        qbranches.remove('q/w/1/5.1/improvement/bar')
         qc = self.feed_queue_collection(qbranches)
         qc.finalize()
         with self.assertRaises(exns.IncoherentQueues) as excp:
@@ -5398,30 +5398,30 @@ class TestQueueing(RepositoryTests):
             ((4, 3), {
                 gwfb.QueueBranch: self.queue_branch('q/4.3'),
                 gwfb.QueueIntegrationBranch: [
-                    self.qint_branch('q/7/4.3/bugfix/last')
+                    self.qint_branch('q/w/7/4.3/bugfix/last')
                 ]
             }),
             ((5, 1, 4), {
                 gwfb.QueueBranch: self.queue_branch('q/5.1.4'),
                 gwfb.QueueIntegrationBranch: [
-                    self.qint_branch('q/4/5.1.4/bugfix/foo')
+                    self.qint_branch('q/w/4/5.1.4/bugfix/foo')
                 ]
             }),
             ((5, 1), {
                 gwfb.QueueBranch: self.queue_branch('q/5.1'),
                 gwfb.QueueIntegrationBranch: [
-                    self.qint_branch('q/7/5.1/bugfix/last'),
-                    self.qint_branch('q/4/5.1/bugfix/foo'),
-                    self.qint_branch('q/1/5.1/bugfix/bar')
+                    self.qint_branch('q/w/7/5.1/bugfix/last'),
+                    self.qint_branch('q/w/4/5.1/bugfix/foo'),
+                    self.qint_branch('q/w/1/5.1/bugfix/bar')
                 ]
             }),
             ((10, 0), {
                 gwfb.QueueBranch: self.queue_branch('q/10.0'),
                 gwfb.QueueIntegrationBranch: [
-                    self.qint_branch('q/7/10.0/bugfix/last'),
-                    self.qint_branch('q/4/10.0/bugfix/foo'),
-                    self.qint_branch('q/3/10.0/feature/foo'),
-                    self.qint_branch('q/1/10.0/bugfix/bar')
+                    self.qint_branch('q/w/7/10.0/bugfix/last'),
+                    self.qint_branch('q/w/4/10.0/bugfix/foo'),
+                    self.qint_branch('q/w/3/10.0/feature/foo'),
+                    self.qint_branch('q/w/1/10.0/bugfix/bar')
                 ]
             }),
         ])
@@ -5452,27 +5452,27 @@ class TestQueueing(RepositoryTests):
             ((4, 3), {
                 gwfb.QueueBranch: self.queue_branch('q/4.3'),
                 gwfb.QueueIntegrationBranch: [
-                    self.qint_branch('q/4/4.3/bugfix/targeting_old'),
+                    self.qint_branch('q/w/4/4.3/bugfix/targeting_old'),
                 ]
             }),
             ((5, 1, 4), {
                 gwfb.QueueBranch: self.queue_branch('q/5.1.4'),
                 gwfb.QueueIntegrationBranch: [
-                    self.qint_branch('q/1/5.1.4/bugfix/targeting_stab'),
+                    self.qint_branch('q/w/1/5.1.4/bugfix/targeting_stab'),
                 ]
             }),
             ((5, 1), {
                 gwfb.QueueBranch: self.queue_branch('q/5.1'),
                 gwfb.QueueIntegrationBranch: [
-                    self.qint_branch('q/4/5.1/bugfix/targeting_old'),
-                    self.qint_branch('q/1/5.1/bugfix/targeting_stab'),
+                    self.qint_branch('q/w/4/5.1/bugfix/targeting_old'),
+                    self.qint_branch('q/w/1/5.1/bugfix/targeting_stab'),
                 ]
             }),
             ((10, 0), {
                 gwfb.QueueBranch: self.queue_branch('q/10.0'),
                 gwfb.QueueIntegrationBranch: [
-                    self.qint_branch('q/4/10.0/bugfix/targeting_old'),
-                    self.qint_branch('q/1/10.0/bugfix/targeting_stab'),
+                    self.qint_branch('q/w/4/10.0/bugfix/targeting_old'),
+                    self.qint_branch('q/w/1/10.0/bugfix/targeting_stab'),
                 ]
             }),
         ])
@@ -5575,9 +5575,9 @@ class TestQueueing(RepositoryTests):
         # check expected branches exist
         self.gitrepo.cmd('git fetch --prune')
         expected_branches = [
-            'q/1/4.3/bugfix/TEST-00001',
-            'q/1/5.1/bugfix/TEST-00001',
-            'q/1/10.0/bugfix/TEST-00001',
+            'q/w/1/4.3/bugfix/TEST-00001',
+            'q/w/1/5.1/bugfix/TEST-00001',
+            'q/w/1/10.0/bugfix/TEST-00001',
             'w/5.1/bugfix/TEST-00001',
             'w/10.0/bugfix/TEST-00001'
         ]
@@ -5628,7 +5628,7 @@ class TestQueueing(RepositoryTests):
 
         pr2 = self.create_pr('bugfix/TEST-00002', 'development/4.3')
 
-        self.gitrepo.cmd('git push origin :q/1/5.1/bugfix/TEST-00001')
+        self.gitrepo.cmd('git push origin :q/w/1/5.1/bugfix/TEST-00001')
 
         with self.assertRaises(exns.QueueOutOfOrder):
             self.handle(pr2.id, options=self.bypass_all, backtrace=True)
@@ -5753,13 +5753,13 @@ class TestQueueing(RepositoryTests):
         self.gitrepo.cmd('git fetch')
         dev = gwfb.branch_factory(self.gitrepo, 'development/10.0')
         intq1 = gwfb.branch_factory(
-            self.gitrepo, 'q/1/10.0/bugfix/TEST-00001')
+            self.gitrepo, 'q/w/1/10.0/bugfix/TEST-00001')
         intq1.checkout()
         dev.checkout()
         intq1.remove(do_push=True)
 
         sha1 = self.set_build_status_on_branch_tip(
-            'q/3/10.0/bugfix/TEST-00002', 'SUCCESSFUL')
+            'q/w/3/10.0/bugfix/TEST-00002', 'SUCCESSFUL')
 
         with self.assertRaises(exns.IncoherentQueues):
             self.handle(sha1, options=self.bypass_all, backtrace=True)
@@ -6440,12 +6440,12 @@ class TaskQueueTests(RepositoryTests):
         # check expected branches exist
         self.gitrepo.cmd('git fetch --prune')
         expected_branches = [
-            'q/1/4.3/bugfix/TEST-00001',
-            'q/1/4/bugfix/TEST-00001',
-            'q/1/5.1/bugfix/TEST-00001',
-            'q/1/5/bugfix/TEST-00001',
-            'q/1/10.0/bugfix/TEST-00001',
-            'q/1/10/bugfix/TEST-00001',
+            'q/w/1/4.3/bugfix/TEST-00001',
+            'q/w/1/4/bugfix/TEST-00001',
+            'q/w/1/5.1/bugfix/TEST-00001',
+            'q/w/1/5/bugfix/TEST-00001',
+            'q/w/1/10.0/bugfix/TEST-00001',
+            'q/w/1/10/bugfix/TEST-00001',
             'w/4/bugfix/TEST-00001',
             'w/5.1/bugfix/TEST-00001',
             'w/5/bugfix/TEST-00001',
@@ -6486,12 +6486,12 @@ class TaskQueueTests(RepositoryTests):
             # check expected branches exist
             self.gitrepo.cmd('git fetch --prune')
             expected_branches = [
-                'q/1/4.3/bugfix/TEST-00001',
-                'q/1/4/bugfix/TEST-00001',
-                'q/1/5.1/bugfix/TEST-00001',
-                'q/1/5/bugfix/TEST-00001',
-                'q/1/10.0/bugfix/TEST-00001',
-                'q/1/10/bugfix/TEST-00001',
+                'q/w/1/4.3/bugfix/TEST-00001',
+                'q/w/1/4/bugfix/TEST-00001',
+                'q/w/1/5.1/bugfix/TEST-00001',
+                'q/w/1/5/bugfix/TEST-00001',
+                'q/w/1/10.0/bugfix/TEST-00001',
+                'q/w/1/10/bugfix/TEST-00001',
                 'w/4/bugfix/TEST-00001',
                 'w/5.1/bugfix/TEST-00001',
                 'w/5/bugfix/TEST-00001',
@@ -6837,10 +6837,10 @@ class TaskQueueTests(RepositoryTests):
             'q/4.3',
             'q/5.1',
             'q/10.0',
-            'q/1/2.9/feature/TEST-9999',
-            'q/1/4.3/feature/TEST-9999',
-            'q/1/5.1/feature/TEST-9999',
-            'q/1/10.0/feature/TEST-9999',
+            'q/w/1/2.9/feature/TEST-9999',
+            'q/w/1/4.3/feature/TEST-9999',
+            'q/w/1/5.1/feature/TEST-9999',
+            'q/w/1/10.0/feature/TEST-9999',
         ]
         self.gitrepo._get_remote_branches(force=True)
         for branch in expected_branches:
@@ -6878,9 +6878,9 @@ class TaskQueueTests(RepositoryTests):
             'q/5.1',
             'q/5.2',
             'q/10.0',
-            'q/1/5.1/feature/TEST-9999',
-            'q/1/5.2/feature/TEST-9999',
-            'q/1/10.0/feature/TEST-9999',
+            'q/w/1/5.1/feature/TEST-9999',
+            'q/w/1/5.2/feature/TEST-9999',
+            'q/w/1/10.0/feature/TEST-9999',
         ]
         self.gitrepo._get_remote_branches(force=True)
         for branch in expected_branches:
@@ -6939,36 +6939,36 @@ class TaskQueueTests(RepositoryTests):
             'q/4.3.18',
             'q/10.0',
             'q/11.3',
-            'q/1/4.3/feature/TEST-01',
-            'q/1/4/feature/TEST-01',
-            'q/1/5.1/feature/TEST-01',
-            'q/1/5/feature/TEST-01',
-            'q/1/10.0/feature/TEST-01',
-            'q/1/10/feature/TEST-01',
-            'q/1/11.3/feature/TEST-01',
-            'q/2/4.3/feature/TEST-02',
-            'q/2/4/feature/TEST-02',
-            'q/2/5.1/feature/TEST-02',
-            'q/2/5/feature/TEST-02',
-            'q/2/10.0/feature/TEST-02',
-            'q/2/10/feature/TEST-02',
-            'q/2/11.3/feature/TEST-02',
-            'q/3/4.3/feature/TEST-03',
-            'q/3/4/feature/TEST-03',
-            'q/3/5.1/feature/TEST-03',
-            'q/3/5/feature/TEST-03',
-            'q/3/10.0/feature/TEST-03',
-            'q/3/10/feature/TEST-03',
-            'q/3/11.3/feature/TEST-03',
-            'q/22/11.3/feature/TEST-9997',
-            'q/23/4.3.18/feature/TEST-9998',
-            'q/23/4.3/feature/TEST-9998',
-            'q/23/4/feature/TEST-9998',
-            'q/23/5.1/feature/TEST-9998',
-            'q/23/5/feature/TEST-9998',
-            'q/23/10.0/feature/TEST-9998',
-            'q/23/10/feature/TEST-9998',
-            'q/23/11.3/feature/TEST-9998',
+            'q/w/1/4.3/feature/TEST-01',
+            'q/w/1/4/feature/TEST-01',
+            'q/w/1/5.1/feature/TEST-01',
+            'q/w/1/5/feature/TEST-01',
+            'q/w/1/10.0/feature/TEST-01',
+            'q/w/1/10/feature/TEST-01',
+            'q/w/1/11.3/feature/TEST-01',
+            'q/w/2/4.3/feature/TEST-02',
+            'q/w/2/4/feature/TEST-02',
+            'q/w/2/5.1/feature/TEST-02',
+            'q/w/2/5/feature/TEST-02',
+            'q/w/2/10.0/feature/TEST-02',
+            'q/w/2/10/feature/TEST-02',
+            'q/w/2/11.3/feature/TEST-02',
+            'q/w/3/4.3/feature/TEST-03',
+            'q/w/3/4/feature/TEST-03',
+            'q/w/3/5.1/feature/TEST-03',
+            'q/w/3/5/feature/TEST-03',
+            'q/w/3/10.0/feature/TEST-03',
+            'q/w/3/10/feature/TEST-03',
+            'q/w/3/11.3/feature/TEST-03',
+            'q/w/22/11.3/feature/TEST-9997',
+            'q/w/23/4.3.18/feature/TEST-9998',
+            'q/w/23/4.3/feature/TEST-9998',
+            'q/w/23/4/feature/TEST-9998',
+            'q/w/23/5.1/feature/TEST-9998',
+            'q/w/23/5/feature/TEST-9998',
+            'q/w/23/10.0/feature/TEST-9998',
+            'q/w/23/10/feature/TEST-9998',
+            'q/w/23/11.3/feature/TEST-9998',
         ]
         self.gitrepo._get_remote_branches(force=True)
         for branch in expected_branches:
@@ -7059,22 +7059,22 @@ class TaskQueueTests(RepositoryTests):
             ('development/5.1', self.assertTrue),
             ('development/10.0', self.assertTrue),
             ('q/10.0', self.assertTrue),
-            ('q/1/5.1/feature/TEST-01', self.assertTrue),
-            ('q/1/5/feature/TEST-01', self.assertTrue),
-            ('q/1/10.0/feature/TEST-01', self.assertTrue),
-            ('q/1/10/feature/TEST-01', self.assertTrue),
-            ('q/2/5.1/feature/TEST-02', self.assertTrue),
-            ('q/2/5/feature/TEST-02', self.assertTrue),
-            ('q/2/10.0/feature/TEST-02', self.assertTrue),
-            ('q/2/10/feature/TEST-02', self.assertTrue),
-            ('q/3/5.1/feature/TEST-03', self.assertTrue),
-            ('q/3/5/feature/TEST-03', self.assertTrue),
-            ('q/3/10.0/feature/TEST-03', self.assertTrue),
-            ('q/3/10/feature/TEST-03', self.assertTrue),
-            ('q/13/5.1/feature/TEST-9998', self.assertTrue),
-            ('q/13/5/feature/TEST-9998', self.assertTrue),
-            ('q/13/10.0/feature/TEST-9998', self.assertTrue),
-            ('q/13/10/feature/TEST-9998', self.assertTrue),
+            ('q/w/1/5.1/feature/TEST-01', self.assertTrue),
+            ('q/w/1/5/feature/TEST-01', self.assertTrue),
+            ('q/w/1/10.0/feature/TEST-01', self.assertTrue),
+            ('q/w/1/10/feature/TEST-01', self.assertTrue),
+            ('q/w/2/5.1/feature/TEST-02', self.assertTrue),
+            ('q/w/2/5/feature/TEST-02', self.assertTrue),
+            ('q/w/2/10.0/feature/TEST-02', self.assertTrue),
+            ('q/w/2/10/feature/TEST-02', self.assertTrue),
+            ('q/w/3/5.1/feature/TEST-03', self.assertTrue),
+            ('q/w/3/5/feature/TEST-03', self.assertTrue),
+            ('q/w/3/10.0/feature/TEST-03', self.assertTrue),
+            ('q/w/3/10/feature/TEST-03', self.assertTrue),
+            ('q/w/13/5.1/feature/TEST-9998', self.assertTrue),
+            ('q/w/13/5/feature/TEST-9998', self.assertTrue),
+            ('q/w/13/10.0/feature/TEST-9998', self.assertTrue),
+            ('q/w/13/10/feature/TEST-9998', self.assertTrue),
         ]
         self.gitrepo._get_remote_branches(force=True)
         for branch, func in expected_branches:
@@ -7187,10 +7187,10 @@ class TaskQueueTests(RepositoryTests):
             'q/5',
             'q/10.0',
             'q/10',
-            'q/30/4.3.18/feature/TEST-9999',
-            'q/30/4.3/feature/TEST-9999',
-            'q/30/5.1/feature/TEST-9999',
-            'q/30/10.0/feature/TEST-9999',
+            'q/w/30/4.3.18/feature/TEST-9999',
+            'q/w/30/4.3/feature/TEST-9999',
+            'q/w/30/5.1/feature/TEST-9999',
+            'q/w/30/10.0/feature/TEST-9999',
         ]
         self.gitrepo._get_remote_branches(force=True)
         for branch in expected_branches:
@@ -7360,15 +7360,15 @@ class TaskQueueTests(RepositoryTests):
             'q/4.3',
             'q/5.1',
             'q/10.0',
-            'q/1/4.3/feature/TEST-01',
-            'q/1/5.1/feature/TEST-01',
-            'q/1/10.0/feature/TEST-01',
-            'q/2/4.3/feature/TEST-02',
-            'q/2/5.1/feature/TEST-02',
-            'q/2/10.0/feature/TEST-02',
-            'q/3/4.3/feature/TEST-03',
-            'q/3/5.1/feature/TEST-03',
-            'q/3/10.0/feature/TEST-03',
+            'q/w/1/4.3/feature/TEST-01',
+            'q/w/1/5.1/feature/TEST-01',
+            'q/w/1/10.0/feature/TEST-01',
+            'q/w/2/4.3/feature/TEST-02',
+            'q/w/2/5.1/feature/TEST-02',
+            'q/w/2/10.0/feature/TEST-02',
+            'q/w/3/4.3/feature/TEST-03',
+            'q/w/3/5.1/feature/TEST-03',
+            'q/w/3/10.0/feature/TEST-03',
         ]
         # Check that all PRs are queued
 
@@ -7458,15 +7458,15 @@ class TaskQueueTests(RepositoryTests):
             'q/4.3',
             'q/5.1',
             'q/10.0',
-            'q/1/4.3/feature/TEST-01',
-            'q/1/5.1/feature/TEST-01',
-            'q/1/10.0/feature/TEST-01',
-            'q/2/4.3/feature/TEST-02',
-            'q/2/5.1/feature/TEST-02',
-            'q/2/10.0/feature/TEST-02',
-            'q/3/4.3/feature/TEST-03',
-            'q/3/5.1/feature/TEST-03',
-            'q/3/10.0/feature/TEST-03',
+            'q/w/1/4.3/feature/TEST-01',
+            'q/w/1/5.1/feature/TEST-01',
+            'q/w/1/10.0/feature/TEST-01',
+            'q/w/2/4.3/feature/TEST-02',
+            'q/w/2/5.1/feature/TEST-02',
+            'q/w/2/10.0/feature/TEST-02',
+            'q/w/3/4.3/feature/TEST-03',
+            'q/w/3/5.1/feature/TEST-03',
+            'q/w/3/10.0/feature/TEST-03',
         ]
         # Check that all PRs are queued
 
@@ -7496,18 +7496,18 @@ class TaskQueueTests(RepositoryTests):
             'q/4.3',
             'q/5.1',
             'q/10.0',
-            'q/2/4.3/feature/TEST-02',
-            'q/2/5.1/feature/TEST-02',
-            'q/2/10.0/feature/TEST-02',
-            'q/3/4.3/feature/TEST-03',
-            'q/3/5.1/feature/TEST-03',
-            'q/3/10.0/feature/TEST-03',
+            'q/w/2/4.3/feature/TEST-02',
+            'q/w/2/5.1/feature/TEST-02',
+            'q/w/2/10.0/feature/TEST-02',
+            'q/w/3/4.3/feature/TEST-03',
+            'q/w/3/5.1/feature/TEST-03',
+            'q/w/3/10.0/feature/TEST-03',
         ]
 
         excluded_branches = [
-            'q/1/4.3/feature/TEST-01',
-            'q/1/5.1/feature/TEST-01',
-            'q/1/10.0/feature/TEST-01',
+            'q/w/1/4.3/feature/TEST-01',
+            'q/w/1/5.1/feature/TEST-01',
+            'q/w/1/10.0/feature/TEST-01',
         ]
 
         # Check that all 'requeued' PRs are queued again
@@ -7548,13 +7548,13 @@ class TaskQueueTests(RepositoryTests):
             'q/4.2.17.1',
             'q/10.0',
             'q/10',
-            'q/1/10.0/feature/TEST-01',
-            'q/1/10/feature/TEST-01',
-            'q/2/10.0/feature/TEST-02',
-            'q/2/10/feature/TEST-02',
-            'q/3/10.0/feature/TEST-03',
-            'q/3/10/feature/TEST-03',
-            'q/5/4.2.17.1/feature/TEST-666',
+            'q/w/1/10.0/feature/TEST-01',
+            'q/w/1/10/feature/TEST-01',
+            'q/w/2/10.0/feature/TEST-02',
+            'q/w/2/10/feature/TEST-02',
+            'q/w/3/10.0/feature/TEST-03',
+            'q/w/3/10/feature/TEST-03',
+            'q/w/5/4.2.17.1/feature/TEST-666',
 
         ]
         # Check that all PRs are queued
@@ -7585,16 +7585,16 @@ class TaskQueueTests(RepositoryTests):
             'q/4.2.17.1',
             'q/10.0',
             'q/10',
-            'q/2/10.0/feature/TEST-02',
-            'q/2/10/feature/TEST-02',
-            'q/3/10.0/feature/TEST-03',
-            'q/3/10/feature/TEST-03',
-            'q/5/4.2.17.1/feature/TEST-666',
+            'q/w/2/10.0/feature/TEST-02',
+            'q/w/2/10/feature/TEST-02',
+            'q/w/3/10.0/feature/TEST-03',
+            'q/w/3/10/feature/TEST-03',
+            'q/w/5/4.2.17.1/feature/TEST-666',
         ]
 
         excluded_branches = [
-            'q/1/10.0/feature/TEST-01',
-            'q/1/10/feature/TEST-01',
+            'q/w/1/10.0/feature/TEST-01',
+            'q/w/1/10/feature/TEST-01',
         ]
 
         # Check that all 'requeued' PRs are queued again
@@ -7639,19 +7639,19 @@ class TaskQueueTests(RepositoryTests):
             'q/5.1',
             'q/5',
             'q/10.0',
-            'q/1/5.1/feature/TEST-01',
-            'q/1/5/feature/TEST-01',
-            'q/1/10.0/feature/TEST-01',
-            'q/1/10/feature/TEST-01',
-            'q/2/5.1/feature/TEST-02',
-            'q/2/5/feature/TEST-02',
-            'q/2/10.0/feature/TEST-02',
-            'q/2/10/feature/TEST-02',
-            'q/3/5.1/feature/TEST-03',
-            'q/3/5/feature/TEST-03',
-            'q/3/10.0/feature/TEST-03',
-            'q/3/10/feature/TEST-03',
-            'q/4/5.0.3.1/feature/TEST-666',
+            'q/w/1/5.1/feature/TEST-01',
+            'q/w/1/5/feature/TEST-01',
+            'q/w/1/10.0/feature/TEST-01',
+            'q/w/1/10/feature/TEST-01',
+            'q/w/2/5.1/feature/TEST-02',
+            'q/w/2/5/feature/TEST-02',
+            'q/w/2/10.0/feature/TEST-02',
+            'q/w/2/10/feature/TEST-02',
+            'q/w/3/5.1/feature/TEST-03',
+            'q/w/3/5/feature/TEST-03',
+            'q/w/3/10.0/feature/TEST-03',
+            'q/w/3/10/feature/TEST-03',
+            'q/w/4/5.0.3.1/feature/TEST-666',
         ]
         # Check that all PRs are queued
 
@@ -7676,23 +7676,23 @@ class TaskQueueTests(RepositoryTests):
             'q/5.1',
             'q/5',
             'q/10.0',
-            'q/1/5.1/feature/TEST-01',
-            'q/1/5/feature/TEST-01',
-            'q/1/10.0/feature/TEST-01',
-            'q/1/10/feature/TEST-01',
-            'q/2/5.1/feature/TEST-02',
-            'q/2/5/feature/TEST-02',
-            'q/2/10.0/feature/TEST-02',
-            'q/2/10/feature/TEST-02',
-            'q/3/5.1/feature/TEST-03',
-            'q/3/5/feature/TEST-03',
-            'q/3/10.0/feature/TEST-03',
-            'q/3/10/feature/TEST-03',
+            'q/w/1/5.1/feature/TEST-01',
+            'q/w/1/5/feature/TEST-01',
+            'q/w/1/10.0/feature/TEST-01',
+            'q/w/1/10/feature/TEST-01',
+            'q/w/2/5.1/feature/TEST-02',
+            'q/w/2/5/feature/TEST-02',
+            'q/w/2/10.0/feature/TEST-02',
+            'q/w/2/10/feature/TEST-02',
+            'q/w/3/5.1/feature/TEST-03',
+            'q/w/3/5/feature/TEST-03',
+            'q/w/3/10.0/feature/TEST-03',
+            'q/w/3/10/feature/TEST-03',
         ]
 
         excluded_branches = [
             'q/5.0.3.1',
-            'q/4/5.0.3.1/feature/TEST-666',
+            'q/w/4/5.0.3.1/feature/TEST-666',
 
         ]
 
