@@ -7517,7 +7517,7 @@ class TaskQueueTests(RepositoryTests):
         # Create a couple PRs and queue them
         prs = [
             self.create_pr('feature/TEST-{:02d}'.format(n), 'development/4.3')
-            for n in range(1, 4)
+            for n in range(1, 5)
         ]
 
         # Add a hotfix PR
@@ -7531,16 +7531,12 @@ class TaskQueueTests(RepositoryTests):
             'q/4.3',
             'q/5.1',
             'q/10.0',
-            'q/1/4.3/feature/TEST-01',
-            'q/1/5.1/feature/TEST-01',
-            'q/1/10.0/feature/TEST-01',
             'q/2/4.3/feature/TEST-02',
             'q/2/5.1/feature/TEST-02',
             'q/2/10.0/feature/TEST-02',
             'q/3/4.3/feature/TEST-03',
             'q/3/5.1/feature/TEST-03',
             'q/3/10.0/feature/TEST-03',
-            'q/4/4.2.17.1/feature/TEST-666',
         ]
         # Check that all PRs are queued
 

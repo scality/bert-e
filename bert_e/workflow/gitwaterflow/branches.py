@@ -316,6 +316,8 @@ class QueueBranch(GWFBranch):
 
 @total_ordering
 class QueueIntegrationBranch(GWFBranch):
+    # TODO: review if pattern needs to be changed as having a
+    # pr id may conflict with the major branch pattern and result in a failure to create.
     pattern = r'^q/(?P<pr_id>\d+)/' + IntegrationBranch.pattern[3:]
 
     def __eq__(self, other):
