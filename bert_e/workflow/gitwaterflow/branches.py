@@ -920,7 +920,7 @@ class BranchCascade(object):
         branches = self._cascade.get((major, minor), {})
         major_branches = self._cascade.get((major, None), {})
 
-        if not branches and not major_branch:
+        if not branches and not major_branches:
             LOG.debug("Ignore tag: %s", tag)
             return
 
