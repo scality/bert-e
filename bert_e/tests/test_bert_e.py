@@ -5079,25 +5079,49 @@ class TestQueueing(RepositoryTests):
             ((4, 3), {
                 gwfb.QueueBranch: self.queue_branch('q/4.3'),
                 gwfb.QueueIntegrationBranch: [
-                    self.qint_branch('q/w/7/4.3/improvement/bar2'),
+                    self.qint_branch('q/w/13/4.3/improvement/bar2'),
                     self.qint_branch('q/w/1/4.3/improvement/bar')
+                ]
+            }),
+            ((4, None), {
+                gwfb.QueueBranch: self.queue_branch('q/4'),
+                gwfb.QueueIntegrationBranch: [
+                    self.qint_branch('q/w/13/4/improvement/bar2'),
+                    self.qint_branch('q/w/1/4/improvement/bar')
                 ]
             }),
             ((5, 1), {
                 gwfb.QueueBranch: self.queue_branch('q/5.1'),
                 gwfb.QueueIntegrationBranch: [
-                    self.qint_branch('q/w/7/5.1/improvement/bar2'),
-                    self.qint_branch('q/w/5/5.1/bugfix/bar'),
+                    self.qint_branch('q/w/13/5.1/improvement/bar2'),
+                    self.qint_branch('q/w/9/5.1/bugfix/bar'),
                     self.qint_branch('q/w/1/5.1/improvement/bar')
+                ]
+            }),
+            ((5, None), {
+                gwfb.QueueBranch: self.queue_branch('q/5'),
+                gwfb.QueueIntegrationBranch: [
+                    self.qint_branch('q/w/13/5/improvement/bar2'),
+                    self.qint_branch('q/w/9/5/bugfix/bar'),
+                    self.qint_branch('q/w/1/5/improvement/bar')
                 ]
             }),
             ((10, 0), {
                 gwfb.QueueBranch: self.queue_branch('q/10.0'),
                 gwfb.QueueIntegrationBranch: [
-                    self.qint_branch('q/w/7/10.0/improvement/bar2'),
-                    self.qint_branch('q/w/5/10.0/bugfix/bar'),
-                    self.qint_branch('q/w/4/10.0/feature/foo'),
+                    self.qint_branch('q/w/13/10.0/improvement/bar2'),
+                    self.qint_branch('q/w/9/10.0/bugfix/bar'),
+                    self.qint_branch('q/w/7/10.0/feature/foo'),
                     self.qint_branch('q/w/1/10.0/improvement/bar')
+                ]
+            }),
+            ((10, None), {
+                gwfb.QueueBranch: self.queue_branch('q/10'),
+                gwfb.QueueIntegrationBranch: [
+                    self.qint_branch('q/w/13/10/improvement/bar2'),
+                    self.qint_branch('q/w/9/10/bugfix/bar'),
+                    self.qint_branch('q/w/7/10/feature/foo'),
+                    self.qint_branch('q/w/1/10/improvement/bar')
                 ]
             }),
         ])
@@ -5108,8 +5132,8 @@ class TestQueueing(RepositoryTests):
         qc.finalize()
         qc.validate()
         self.assertEqual(qc._queues, self.standard_solution)
-        self.assertEqual(qc.queued_prs, [1, 4, 5, 7])
-        self.assertEqual(qc.mergeable_prs, [1, 4, 5, 7])
+        self.assertEqual(qc.queued_prs, [1, 7, 9, 13])
+        self.assertEqual(qc.mergeable_prs, [1, 7, 9, 13])
         self.assertEqual(qc.mergeable_queues, self.standard_solution)
 
     def test_queueing_standard_problem_reverse(self):
@@ -5118,8 +5142,8 @@ class TestQueueing(RepositoryTests):
         qc.finalize()
         qc.validate()
         self.assertEqual(qc._queues, self.standard_solution)
-        self.assertEqual(qc.queued_prs, [1, 4, 5, 7])
-        self.assertEqual(qc.mergeable_prs, [1, 4, 5, 7])
+        self.assertEqual(qc.queued_prs, [1, 7, 9, 13])
+        self.assertEqual(qc.mergeable_prs, [1, 7, 9, 13])
         self.assertEqual(qc.mergeable_queues, self.standard_solution)
 
     def test_queueing_standard_problem_without_octopus(self):
@@ -5133,8 +5157,8 @@ class TestQueueing(RepositoryTests):
             qc.finalize()
             qc.validate()
             self.assertEqual(qc._queues, self.standard_solution)
-            self.assertEqual(qc.queued_prs, [1, 4, 5, 7])
-            self.assertEqual(qc.mergeable_prs, [1, 4, 5, 7])
+            self.assertEqual(qc.queued_prs, [1, 7, 9, 13])
+            self.assertEqual(qc.mergeable_prs, [1, 7, 9, 13])
             self.assertEqual(qc.mergeable_queues, self.standard_solution)
         finally:
             gwfi.octopus_merge = git_utils.octopus_merge
@@ -5152,8 +5176,8 @@ class TestQueueing(RepositoryTests):
         qc.finalize()
         qc.validate()
         self.assertEqual(qc._queues, self.standard_solution)
-        self.assertEqual(qc.queued_prs, [1, 4, 5, 7])
-        self.assertEqual(qc.mergeable_prs, [1, 4, 5])
+        self.assertEqual(qc.queued_prs, [1, 7, 9, 13])
+        self.assertEqual(qc.mergeable_prs, [1, 7, 9])
         self.assertEqual(qc.mergeable_queues, solution)
 
     def test_queueing_last_pr_build_failed(self):
@@ -5168,24 +5192,28 @@ class TestQueueing(RepositoryTests):
         qc.finalize()
         qc.validate()
         self.assertEqual(qc._queues, self.standard_solution)
-        self.assertEqual(qc.queued_prs, [1, 4, 5, 7])
-        self.assertEqual(qc.mergeable_prs, [1, 4, 5])
+        self.assertEqual(qc.queued_prs, [1, 7, 9, 13])
+        self.assertEqual(qc.mergeable_prs, [1, 7, 9])
         self.assertEqual(qc.mergeable_queues, solution)
 
     def test_queueing_last_pr_other_key(self):
         problem = deepcopy(self.standard_problem)
         problem[4]['status'][2] = {'other': 'SUCCESSFUL'}
+        import pdb; pdb.set_trace()
         solution = deepcopy(self.standard_solution)
         solution[(4, 3)][gwfb.QueueIntegrationBranch].pop(0)
+        solution[(4, None)][gwfb.QueueIntegrationBranch].pop(0)
         solution[(5, 1)][gwfb.QueueIntegrationBranch].pop(0)
+        solution[(5, None)][gwfb.QueueIntegrationBranch].pop(0)
         solution[(10, 0)][gwfb.QueueIntegrationBranch].pop(0)
+        solution[(10, None)][gwfb.QueueIntegrationBranch].pop(0)
         qbranches = self.submit_problem(problem)
         qc = self.feed_queue_collection(qbranches)
         qc.finalize()
         qc.validate()
         self.assertEqual(qc._queues, self.standard_solution)
-        self.assertEqual(qc.queued_prs, [1, 4, 5, 7])
-        self.assertEqual(qc.mergeable_prs, [1, 4, 5])
+        self.assertEqual(qc.queued_prs, [1, 7, 9, 13])
+        self.assertEqual(qc.mergeable_prs, [1, 7, 9])
         self.assertEqual(qc.mergeable_queues, solution)
 
     def test_queueing_fail_masked_by_success(self):
@@ -5198,8 +5226,8 @@ class TestQueueing(RepositoryTests):
         qc.finalize()
         qc.validate()
         self.assertEqual(qc._queues, self.standard_solution)
-        self.assertEqual(qc.queued_prs, [1, 4, 5, 7])
-        self.assertEqual(qc.mergeable_prs, [1, 4, 5, 7])
+        self.assertEqual(qc.queued_prs, [1, 7, 9, 13])
+        self.assertEqual(qc.mergeable_prs, [1, 7, 9, 13])
         self.assertEqual(qc.mergeable_queues, self.standard_solution)
 
     def test_queueing_all_failed(self):
@@ -5212,7 +5240,7 @@ class TestQueueing(RepositoryTests):
         qc.finalize()
         qc.validate()
         self.assertEqual(qc._queues, self.standard_solution)
-        self.assertEqual(qc.queued_prs, [1, 4, 5, 7])
+        self.assertEqual(qc.queued_prs, [1, 7, 9, 13])
         self.assertEqual(qc.mergeable_prs, [])
         self.assertEqual(qc.mergeable_queues, self.empty_solution)
 
@@ -5226,7 +5254,7 @@ class TestQueueing(RepositoryTests):
         qc.finalize()
         qc.validate()
         self.assertEqual(qc._queues, self.standard_solution)
-        self.assertEqual(qc.queued_prs, [1, 4, 5, 7])
+        self.assertEqual(qc.queued_prs, [1, 7, 9, 13])
         self.assertEqual(qc.mergeable_prs, [])
         self.assertEqual(qc.mergeable_queues, self.empty_solution)
 
@@ -5240,7 +5268,7 @@ class TestQueueing(RepositoryTests):
         qc.finalize()
         qc.validate()
         self.assertEqual(qc._queues, self.standard_solution)
-        self.assertEqual(qc.queued_prs, [1, 4, 5, 7])
+        self.assertEqual(qc.queued_prs, [1, 7, 9, 13])
         self.assertEqual(qc.mergeable_prs, [])
         self.assertEqual(qc.mergeable_queues, self.empty_solution)
 
@@ -5269,7 +5297,7 @@ class TestQueueing(RepositoryTests):
         qc = self.feed_queue_collection(qbranches)
         qc.finalize()
         with self.assertRaises(exns.QueuesNotValidated):
-            qc.mergeable_prs == [1, 4, 5, 7]
+            qc.mergeable_prs == [1, 7, 9, 13]
 
     def assert_error_codes(self, excp, errors):
         msg = excp.exception.args[0]
