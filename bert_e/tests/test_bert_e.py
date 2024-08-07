@@ -6441,10 +6441,16 @@ class TaskQueueTests(RepositoryTests):
         self.gitrepo.cmd('git fetch --prune')
         expected_branches = [
             'q/1/4.3/bugfix/TEST-00001',
+            'q/1/4/bugfix/TEST-00001',
             'q/1/5.1/bugfix/TEST-00001',
+            'q/1/5/bugfix/TEST-00001',
             'q/1/10.0/bugfix/TEST-00001',
+            'q/1/10/bugfix/TEST-00001',
+            'w/4/bugfix/TEST-00001',
             'w/5.1/bugfix/TEST-00001',
-            'w/10.0/bugfix/TEST-00001'
+            'w/5/bugfix/TEST-00001',
+            'w/10.0/bugfix/TEST-00001',
+            'w/10/bugfix/TEST-00001'
         ]
         for branch in expected_branches:
             self.assertTrue(self.gitrepo.remote_branch_exists(branch),
@@ -6456,9 +6462,9 @@ class TaskQueueTests(RepositoryTests):
 
         status = self.berte.status.get('merge queue', OrderedDict())
         self.assertIn(1, status)
-        self.assertEqual(len(status[1]), 3)
+        self.assertEqual(len(status[1]), 6)
         versions = tuple(version for version, _ in status[1])
-        self.assertEqual(versions, ('10.0', '5.1', '4.3'))
+        self.assertEqual(versions, ('10', '10.0', '5', '5.1', '4', '4.3'))
         for _, sha1 in status[1]:
             self.set_build_status(sha1=sha1, state='SUCCESSFUL')
         self.process_sha1_job(sha1_q_10_0, 'Merged')
@@ -7528,7 +7534,7 @@ class TaskQueueTests(RepositoryTests):
 
         # Create a couple PRs and queue them
         prs = [
-            self.create_pr('feature/TEST-{:02d}'.format(n), 'development/4.3')
+            self.create_pr('feature/TEST-{:02d}'.format(n), 'development/10.0')
             for n in range(1, 5)
         ]
 
@@ -7540,15 +7546,16 @@ class TaskQueueTests(RepositoryTests):
 
         expected_branches = [
             'q/4.2.17.1',
-            'q/4.3',
-            'q/5.1',
             'q/10.0',
-            'q/2/4.3/feature/TEST-02',
-            'q/2/5.1/feature/TEST-02',
+            'q/10',
+            'q/1/10.0/feature/TEST-01',
+            'q/1/10/feature/TEST-01',
             'q/2/10.0/feature/TEST-02',
-            'q/3/4.3/feature/TEST-03',
-            'q/3/5.1/feature/TEST-03',
+            'q/2/10/feature/TEST-02',
             'q/3/10.0/feature/TEST-03',
+            'q/3/10/feature/TEST-03',
+            'q/5/4.2.17.1/feature/TEST-666',
+
         ]
         # Check that all PRs are queued
 
@@ -7576,22 +7583,18 @@ class TaskQueueTests(RepositoryTests):
 
         expected_branches = [
             'q/4.2.17.1',
-            'q/4.3',
-            'q/5.1',
             'q/10.0',
-            'q/2/4.3/feature/TEST-02',
-            'q/2/5.1/feature/TEST-02',
+            'q/10',
             'q/2/10.0/feature/TEST-02',
-            'q/3/4.3/feature/TEST-03',
-            'q/3/5.1/feature/TEST-03',
+            'q/2/10/feature/TEST-02',
             'q/3/10.0/feature/TEST-03',
-            'q/4/4.2.17.1/feature/TEST-666',
+            'q/3/10/feature/TEST-03',
+            'q/5/4.2.17.1/feature/TEST-666',
         ]
 
         excluded_branches = [
-            'q/1/4.3/feature/TEST-01',
-            'q/1/5.1/feature/TEST-01',
             'q/1/10.0/feature/TEST-01',
+            'q/1/10/feature/TEST-01',
         ]
 
         # Check that all 'requeued' PRs are queued again
@@ -7618,31 +7621,37 @@ class TaskQueueTests(RepositoryTests):
 
         # Create a couple PRs and queue them
         prs = [
-            self.create_pr('feature/TEST-{:02d}'.format(n), 'development/4.3')
+            self.create_pr('feature/TEST-{:02d}'.format(n), 'development/5.1')
             for n in range(1, 4)
         ]
 
+        # create a 5.0.3 tag on hotfix/5.0.3
+        self.gitrepo.cmd('git tag 5.0.3 origin/hotfix/5.0.3')
+        self.gitrepo.cmd('git push --tags')
         # Add a hotfix PR
-        prs.append(self.create_pr('feature/TEST-666', 'hotfix/4.2.17'))
+        prs.append(self.create_pr('feature/TEST-666', 'hotfix/5.0.3'))
 
         for pr in prs:
             self.process_pr_job(pr, 'Queued')
 
         expected_branches = [
-            'q/4.2.17.1',
-            'q/4.3',
+            'q/5.0.3.1',
             'q/5.1',
+            'q/5',
             'q/10.0',
-            'q/1/4.3/feature/TEST-01',
             'q/1/5.1/feature/TEST-01',
+            'q/1/5/feature/TEST-01',
             'q/1/10.0/feature/TEST-01',
-            'q/2/4.3/feature/TEST-02',
+            'q/1/10/feature/TEST-01',
             'q/2/5.1/feature/TEST-02',
+            'q/2/5/feature/TEST-02',
             'q/2/10.0/feature/TEST-02',
-            'q/3/4.3/feature/TEST-03',
+            'q/2/10/feature/TEST-02',
             'q/3/5.1/feature/TEST-03',
+            'q/3/5/feature/TEST-03',
             'q/3/10.0/feature/TEST-03',
-            'q/4/4.2.17.1/feature/TEST-666',
+            'q/3/10/feature/TEST-03',
+            'q/4/5.0.3.1/feature/TEST-666',
         ]
         # Check that all PRs are queued
 
@@ -7664,20 +7673,27 @@ class TaskQueueTests(RepositoryTests):
             self.berte.process_task()
 
         expected_branches = [
-            'q/4.3',
             'q/5.1',
+            'q/5',
             'q/10.0',
-            'q/2/4.3/feature/TEST-02',
+            'q/1/5.1/feature/TEST-01',
+            'q/1/5/feature/TEST-01',
+            'q/1/10.0/feature/TEST-01',
+            'q/1/10/feature/TEST-01',
             'q/2/5.1/feature/TEST-02',
+            'q/2/5/feature/TEST-02',
             'q/2/10.0/feature/TEST-02',
-            'q/3/4.3/feature/TEST-03',
+            'q/2/10/feature/TEST-02',
             'q/3/5.1/feature/TEST-03',
+            'q/3/5/feature/TEST-03',
             'q/3/10.0/feature/TEST-03',
+            'q/3/10/feature/TEST-03',
         ]
 
         excluded_branches = [
-            'q/4.2.17.1',
-            'q/4/4.2.17.1/feature/TEST-666',
+            'q/5.0.3.1',
+            'q/4/5.0.3.1/feature/TEST-666',
+
         ]
 
         # Check that all 'requeued' PRs are queued again
