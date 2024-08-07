@@ -26,6 +26,7 @@ from hashlib import md5
 from unittest.mock import Mock
 from unittest.mock import patch
 from urllib.parse import quote_plus
+from os import getenv
 
 import requests
 import requests_mock
@@ -88,6 +89,9 @@ admins:
 project_leaders:
   - {admin}
 """ # noqa
+
+
+log = logging.getLogger(__name__)
 
 
 def initialize_git_repo(repo, username, usermail):
@@ -825,6 +829,10 @@ class RepositoryTests(unittest.TestCase):
     def setUp(self):
         warnings.resetwarnings()
         warnings.simplefilter('ignore')
+        self.ci: bool = bool(getenv('CI', False))
+        if self.ci:
+            # print a group with the test name that is about to run
+            log.info(f"::group::{self._testMethodName}")
         self.admin_id = None
         self.contributor_id = None
         # repo creator and reviewer
@@ -889,6 +897,9 @@ class RepositoryTests(unittest.TestCase):
             self.admin_bb.delete()
 
         self.gitrepo.delete()
+        if self.ci:
+            # end the group with the test name that just ran
+            log.info("::endgroup::")
 
     def create_pr(
             self,
@@ -7743,7 +7754,8 @@ def main():
     jira_api.JiraIssue = jira_api_mock.JiraIssue
 
     if RepositoryTests.args.verbose:
-        logging.basicConfig(level=logging.DEBUG)
+        # only the message in the format string will be displayed
+        logging.basicConfig(level=logging.DEBUG, format="%(message)s")
     else:
         # it is expected that Bert-E issues some warning
         # during the tests, only report critical stuff
