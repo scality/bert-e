@@ -4969,7 +4969,7 @@ class TestQueueing(RepositoryTests):
 
     def get_qint_branches(self):
         return (self.gitrepo
-                    .cmd('git branch -r --list "origin/q/[0-9]*/*"')
+                    .cmd('git branch -r --list "origin/q/w/[0-9]*/*"')
                     .replace(" ", "")
                     .replace("origin/", "")
                     .split('\n')[:-1])
@@ -5438,30 +5438,53 @@ class TestQueueing(RepositoryTests):
             ((4, 3), {
                 gwfb.QueueBranch: self.queue_branch('q/4.3'),
                 gwfb.QueueIntegrationBranch: [
-                    self.qint_branch('q/w/7/4.3/bugfix/last')
+                    self.qint_branch('q/w/12/4.3/bugfix/last')
+                ]
+            }),
+            ((4, None), {
+                gwfb.QueueBranch: self.queue_branch('q/4'),
+                gwfb.QueueIntegrationBranch: [
+                    self.qint_branch('q/w/12/4/bugfix/last')
                 ]
             }),
             ((5, 1, 4), {
                 gwfb.QueueBranch: self.queue_branch('q/5.1.4'),
                 gwfb.QueueIntegrationBranch: [
-                    self.qint_branch('q/w/4/5.1.4/bugfix/foo')
+                    self.qint_branch('q/w/7/5.1.4/bugfix/foo')
                 ]
             }),
             ((5, 1), {
                 gwfb.QueueBranch: self.queue_branch('q/5.1'),
                 gwfb.QueueIntegrationBranch: [
-                    self.qint_branch('q/w/7/5.1/bugfix/last'),
-                    self.qint_branch('q/w/4/5.1/bugfix/foo'),
+                    self.qint_branch('q/w/12/5.1/bugfix/last'),
+                    self.qint_branch('q/w/7/5.1/bugfix/foo'),
                     self.qint_branch('q/w/1/5.1/bugfix/bar')
+                ]
+            }),
+            ((5, None), {
+                gwfb.QueueBranch: self.queue_branch('q/5'),
+                gwfb.QueueIntegrationBranch: [
+                    self.qint_branch('q/w/12/5/bugfix/last'),
+                    self.qint_branch('q/w/7/5/bugfix/foo'),
+                    self.qint_branch('q/w/1/5/bugfix/bar')
                 ]
             }),
             ((10, 0), {
                 gwfb.QueueBranch: self.queue_branch('q/10.0'),
                 gwfb.QueueIntegrationBranch: [
-                    self.qint_branch('q/w/7/10.0/bugfix/last'),
-                    self.qint_branch('q/w/4/10.0/bugfix/foo'),
-                    self.qint_branch('q/w/3/10.0/feature/foo'),
+                    self.qint_branch('q/w/12/10.0/bugfix/last'),
+                    self.qint_branch('q/w/7/10.0/bugfix/foo'),
+                    self.qint_branch('q/w/5/10.0/feature/foo'),
                     self.qint_branch('q/w/1/10.0/bugfix/bar')
+                ]
+            }),
+            ((10, None), {
+                gwfb.QueueBranch: self.queue_branch('q/10'),
+                gwfb.QueueIntegrationBranch: [
+                    self.qint_branch('q/w/12/10/bugfix/last'),
+                    self.qint_branch('q/w/7/10/bugfix/foo'),
+                    self.qint_branch('q/w/5/10/feature/foo'),
+                    self.qint_branch('q/w/1/10/bugfix/bar')
                 ]
             }),
         ])
@@ -5470,7 +5493,7 @@ class TestQueueing(RepositoryTests):
         qc.finalize()
         qc.validate()
         self.assertEqual(qc._queues, solution)
-        self.assertEqual(qc.mergeable_prs, [1, 3, 4, 7])
+        self.assertEqual(qc.mergeable_prs, [1, 5, 7, 12])
         self.assertEqual(qc.mergeable_queues, solution)
 
     def test_validation_with_failed_stabilization_branch(self):
@@ -5492,7 +5515,13 @@ class TestQueueing(RepositoryTests):
             ((4, 3), {
                 gwfb.QueueBranch: self.queue_branch('q/4.3'),
                 gwfb.QueueIntegrationBranch: [
-                    self.qint_branch('q/w/4/4.3/bugfix/targeting_old'),
+                    self.qint_branch('q/w/6/4.3/bugfix/targeting_old'),
+                ]
+            }),
+            ((4, None), {
+                gwfb.QueueBranch: self.queue_branch('q/4'),
+                gwfb.QueueIntegrationBranch: [
+                    self.qint_branch('q/w/6/4/bugfix/targeting_old'),
                 ]
             }),
             ((5, 1, 4), {
@@ -5504,15 +5533,29 @@ class TestQueueing(RepositoryTests):
             ((5, 1), {
                 gwfb.QueueBranch: self.queue_branch('q/5.1'),
                 gwfb.QueueIntegrationBranch: [
-                    self.qint_branch('q/w/4/5.1/bugfix/targeting_old'),
+                    self.qint_branch('q/w/6/5.1/bugfix/targeting_old'),
                     self.qint_branch('q/w/1/5.1/bugfix/targeting_stab'),
+                ]
+            }),
+            ((5, None), {
+                gwfb.QueueBranch: self.queue_branch('q/5'),
+                gwfb.QueueIntegrationBranch: [
+                    self.qint_branch('q/w/6/5/bugfix/targeting_old'),
+                    self.qint_branch('q/w/1/5/bugfix/targeting_stab'),
                 ]
             }),
             ((10, 0), {
                 gwfb.QueueBranch: self.queue_branch('q/10.0'),
                 gwfb.QueueIntegrationBranch: [
-                    self.qint_branch('q/w/4/10.0/bugfix/targeting_old'),
+                    self.qint_branch('q/w/6/10.0/bugfix/targeting_old'),
                     self.qint_branch('q/w/1/10.0/bugfix/targeting_stab'),
+                ]
+            }),
+            ((10, None), {
+                gwfb.QueueBranch: self.queue_branch('q/10'),
+                gwfb.QueueIntegrationBranch: [
+                    self.qint_branch('q/w/6/10/bugfix/targeting_old'),
+                    self.qint_branch('q/w/1/10/bugfix/targeting_stab'),
                 ]
             }),
         ])
@@ -5523,6 +5566,10 @@ class TestQueueing(RepositoryTests):
                 gwfb.QueueBranch: self.queue_branch('q/4.3'),
                 gwfb.QueueIntegrationBranch: []
             }),
+            ((4, None), {
+                gwfb.QueueBranch: self.queue_branch('q/4'),
+                gwfb.QueueIntegrationBranch: []
+            }),
             ((5, 1, 4), {
                 gwfb.QueueBranch: self.queue_branch('q/5.1.4'),
                 gwfb.QueueIntegrationBranch: []
@@ -5531,8 +5578,16 @@ class TestQueueing(RepositoryTests):
                 gwfb.QueueBranch: self.queue_branch('q/5.1'),
                 gwfb.QueueIntegrationBranch: []
             }),
+            ((5, None), {
+                gwfb.QueueBranch: self.queue_branch('q/5'),
+                gwfb.QueueIntegrationBranch: []
+            }),
             ((10, 0), {
                 gwfb.QueueBranch: self.queue_branch('q/10.0'),
+                gwfb.QueueIntegrationBranch: []
+            }),
+            ((10, None), {
+                gwfb.QueueBranch: self.queue_branch('q/10'),
                 gwfb.QueueIntegrationBranch: []
             }),
         ])
@@ -5573,7 +5628,7 @@ class TestQueueing(RepositoryTests):
         pr = self.create_pr('bugfix/TEST-01', 'development/4.3')
         with self.assertRaises(exns.Queued):
             self.handle(pr.id, options=self.bypass_all, backtrace=True)
-        branch = f"q/{pr.id}/4.3/{pr.src_branch}"
+        branch = f"q/w/{pr.id}/4.3/{pr.src_branch}"
         self.set_build_status_on_branch_tip(branch, 'INPROGRESS')
         with self.assertRaises(exns.NothingToDo):
             self.handle(pr.id, options=self.bypass_all, backtrace=True)
@@ -5585,19 +5640,19 @@ class TestQueueing(RepositoryTests):
         assert "Queue build failed" in comment
 
     def test_system_nominal_case(self):
-        pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
+        pr = self.create_pr('bugfix/TEST-00001', 'development/5')
         self.handle(pr.id,
                     options=self.bypass_all_but(['bypass_build_status']))
 
         # add a commit to w/5.1 branch
         self.gitrepo.cmd('git fetch')
-        self.gitrepo.cmd('git checkout w/5.1/bugfix/TEST-00001')
+        self.gitrepo.cmd('git checkout w/10.0/bugfix/TEST-00001')
         self.gitrepo.cmd('touch abc')
         self.gitrepo.cmd('git add abc')
         self.gitrepo.cmd('git commit -m "add new file"')
         self.gitrepo.cmd('git push origin')
-        sha1_w_5_1 = self.gitrepo \
-                         .cmd('git rev-parse w/5.1/bugfix/TEST-00001') \
+        sha1_w_10_0 = self.gitrepo \
+                         .cmd('git rev-parse w/10.0/bugfix/TEST-00001') \
                          .rstrip()
 
         with self.assertRaises(exns.Queued):
@@ -5606,56 +5661,56 @@ class TestQueueing(RepositoryTests):
         # get the new sha1 on w/10.0 (set_build_status_on_pr_id won't
         # detect the new commit in mocked mode)
         self.gitrepo.cmd('git fetch')
-        self.gitrepo.cmd('git checkout w/10.0/bugfix/TEST-00001')
+        self.gitrepo.cmd('git checkout w/10/bugfix/TEST-00001')
         self.gitrepo.cmd('git pull')
-        sha1_w_10_0 = self.gitrepo \
-                          .cmd('git rev-parse w/10.0/bugfix/TEST-00001') \
+        sha1_w_10 = self.gitrepo \
+                          .cmd('git rev-parse w/10/bugfix/TEST-00001') \
                           .rstrip()
 
         # check expected branches exist
         self.gitrepo.cmd('git fetch --prune')
         expected_branches = [
-            'q/w/1/4.3/bugfix/TEST-00001',
-            'q/w/1/5.1/bugfix/TEST-00001',
+            'q/w/1/5/bugfix/TEST-00001',
             'q/w/1/10.0/bugfix/TEST-00001',
-            'w/5.1/bugfix/TEST-00001',
-            'w/10.0/bugfix/TEST-00001'
+            'q/w/1/10/bugfix/TEST-00001',
+            'w/10.0/bugfix/TEST-00001',
+            'w/10/bugfix/TEST-00001'
         ]
         for branch in expected_branches:
             self.assertTrue(self.gitrepo.remote_branch_exists(branch))
 
         # set build status
         self.set_build_status_on_pr_id(pr.id, 'SUCCESSFUL')
-        self.set_build_status(sha1=sha1_w_5_1, state='SUCCESSFUL')
-        self.set_build_status(sha1=sha1_w_10_0, state='FAILED')
+        self.set_build_status(sha1=sha1_w_10_0, state='SUCCESSFUL')
+        self.set_build_status(sha1=sha1_w_10, state='FAILED')
         with self.assertRaises(exns.QueueBuildFailed):
             self.handle(pr.id, options=self.bypass_all, backtrace=True)
 
         with self.assertRaises(exns.QueueBuildFailed):
             self.handle(pr.src_commit, options=self.bypass_all, backtrace=True)
 
-        self.set_build_status(sha1=sha1_w_10_0, state='INPROGRESS')
+        self.set_build_status(sha1=sha1_w_10, state='INPROGRESS')
         with self.assertRaises(exns.NothingToDo):
             self.handle(pr.src_commit, options=self.bypass_all, backtrace=True)
 
-        self.set_build_status(sha1=sha1_w_10_0, state='SUCCESSFUL')
+        self.set_build_status(sha1=sha1_w_10, state='SUCCESSFUL')
         with self.assertRaises(exns.Merged):
             self.handle(pr.src_commit, options=self.bypass_all, backtrace=True)
 
         # check validity of repo and branches
-        for branch in ['q/4.3', 'q/5.1', 'q/10.0']:
+        for branch in ['q/5', 'q/10.0', 'q/10']:
             self.assertTrue(self.gitrepo.remote_branch_exists(branch))
         for branch in expected_branches:
             self.assertFalse(self.gitrepo.remote_branch_exists(branch, True))
-        for dev in ['development/4.3', 'development/5.1', 'development/10.0']:
+        for dev in ['development/5', 'development/10.0', 'development/10']:
             branch = gwfb.branch_factory(self.gitrepo, dev)
             branch.checkout()
             self.gitrepo.cmd('git pull origin %s', dev)
             self.assertTrue(branch.includes_commit(pr.src_commit))
-            if dev == 'development/4.3':
-                self.assertFalse(branch.includes_commit(sha1_w_5_1))
+            if dev == 'development/5':
+                self.assertFalse(branch.includes_commit(sha1_w_10_0))
             else:
-                self.assertTrue(branch.includes_commit(sha1_w_5_1))
+                self.assertTrue(branch.includes_commit(sha1_w_10_0))
                 self.gitrepo.cmd('cat abc')
 
         last_comment = pr.comments[-1].text
@@ -5714,7 +5769,7 @@ class TestQueueing(RepositoryTests):
             self.handle(pr2.id, options=self.bypass_all, backtrace=True)
 
     def test_decline_queued_pull_request(self):
-        pr = self.create_pr('bugfix/TEST-00001', 'development/5.1')
+        pr = self.create_pr('bugfix/TEST-00001', 'development/10.0')
         with self.assertRaises(exns.Queued):
             self.handle(pr.id, options=self.bypass_all, backtrace=True)
 
@@ -5730,7 +5785,7 @@ class TestQueueing(RepositoryTests):
             self.handle(pr.src_commit, options=self.bypass_all, backtrace=True)
 
     def test_lose_integration_branches_after_queued(self):
-        pr = self.create_pr('bugfix/TEST-00001', 'development/5.1')
+        pr = self.create_pr('bugfix/TEST-00001', 'development/10.0')
         with self.assertRaises(exns.Queued):
             self.handle(pr.id, options=self.bypass_all, backtrace=True)
 
@@ -5739,8 +5794,8 @@ class TestQueueing(RepositoryTests):
 
         # delete integration branch
         self.gitrepo.cmd('git fetch')
-        dev = gwfb.branch_factory(self.gitrepo, 'development/10.0')
-        intb = gwfb.branch_factory(self.gitrepo, 'w/10.0/bugfix/TEST-00001')
+        dev = gwfb.branch_factory(self.gitrepo, 'development/10')
+        intb = gwfb.branch_factory(self.gitrepo, 'w/10/bugfix/TEST-00001')
         intb.dst_branch = dev
         intb.checkout()
         intb.remove(do_push=True)
@@ -5759,14 +5814,16 @@ class TestQueueing(RepositoryTests):
             self.handle(pr.id, options=self.bypass_all, backtrace=True)
         self.set_build_status_on_pr_id(pr.id, 'SUCCESSFUL')
         self.set_build_status_on_pr_id(pr.id + 1, 'SUCCESSFUL')
+        self.set_build_status_on_pr_id(pr.id + 2, 'SUCCESSFUL')
         with self.assertRaises(exns.Merged):
             self.handle(pr.id, options=self.bypass_all, backtrace=True)
-        # Now let's try to merge a PR targetting development/5.1
-        pr_dev = self.create_pr('bugfix/TEST-002', 'development/5.1')
+        # Now let's try to merge a PR targetting development/5
+        pr_dev = self.create_pr('bugfix/TEST-002', 'development/5')
         with self.assertRaises(exns.Queued):
             self.handle(pr_dev.id, options=self.bypass_all, backtrace=True)
         self.set_build_status_on_pr_id(pr_dev.id, 'SUCCESSFUL')
         self.set_build_status_on_pr_id(pr_dev.id + 1, 'SUCCESSFUL')
+        self.set_build_status_on_pr_id(pr_dev.id + 2, 'SUCCESSFUL')
         # When merging the PR it will fail with KeyError
         with self.assertRaises(exns.Merged):
             self.handle(pr_dev.id, options=self.bypass_all, backtrace=True)
@@ -5826,7 +5883,7 @@ class TestQueueing(RepositoryTests):
             self.handle(pr.src_commit, options=self.bypass_all, backtrace=True)
 
     def test_feature_branch_augmented_after_queued(self):
-        pr = self.create_pr('bugfix/TEST-00001', 'development/10.0')
+        pr = self.create_pr('bugfix/TEST-00001', 'development/10')
         with self.assertRaises(exns.Queued):
             self.handle(pr.id, options=self.bypass_all, backtrace=True)
 
@@ -5861,12 +5918,12 @@ class TestQueueing(RepositoryTests):
         self.gitrepo.cmd('git checkout bugfix/TEST-00001')
         self.gitrepo.cmd('git pull')
         self.gitrepo.cmd('cat abc')
-        self.gitrepo.cmd('git checkout q/10.0')
+        self.gitrepo.cmd('git checkout q/10')
         self.gitrepo.cmd('git pull')
         self.gitrepo.cmd('cat abc')
 
     def test_feature_branch_rewritten_after_queued(self):
-        pr = self.create_pr('bugfix/TEST-00001', 'development/10.0')
+        pr = self.create_pr('bugfix/TEST-00001', 'development/10')
         with self.assertRaises(exns.Queued):
             self.handle(pr.id, options=self.bypass_all, backtrace=True)
 
@@ -5893,7 +5950,7 @@ class TestQueueing(RepositoryTests):
             self.handle(pr.id, options=self.bypass_all, backtrace=True)
 
     def test_integration_branch_augmented_after_queued(self):
-        pr = self.create_pr('bugfix/TEST-00001', 'development/5.1')
+        pr = self.create_pr('bugfix/TEST-00001', 'development/10.0')
         with self.assertRaises(exns.Queued):
             self.handle(pr.id, options=self.bypass_all, backtrace=True)
 
@@ -5902,12 +5959,12 @@ class TestQueueing(RepositoryTests):
 
         # Add a new commit
         self.gitrepo.cmd('git fetch')
-        self.gitrepo.cmd('git checkout w/10.0/bugfix/TEST-00001')
+        self.gitrepo.cmd('git checkout w/10/bugfix/TEST-00001')
         self.gitrepo.cmd('touch abc')
         self.gitrepo.cmd('git add abc')
         self.gitrepo.cmd('git commit -m "add new file"')
         sha1 = Branch(self.gitrepo,
-                      'w/10.0/bugfix/TEST-00001').get_latest_commit()
+                      'w/10/bugfix/TEST-00001').get_latest_commit()
         self.gitrepo.cmd('git push origin')
 
         with self.assertRaises(exns.Merged):
@@ -5919,10 +5976,10 @@ class TestQueueing(RepositoryTests):
         self.gitrepo.cmd('git fetch')
         # Check the additional commit was not merged
         self.assertFalse(
-            Branch(self.gitrepo, 'development/10.0').includes_commit(sha1))
+            Branch(self.gitrepo, 'development/10').includes_commit(sha1))
 
     def test_integration_branches_dont_follow_dev(self):
-        pr1 = self.create_pr('bugfix/TEST-00001', 'development/4.3')
+        pr1 = self.create_pr('bugfix/TEST-00001', 'development/5')
         # create integration branches but don't queue yet
         self.handle(pr1.id,
                     options=self.bypass_all_but(['bypass_build_status']))
@@ -5930,7 +5987,7 @@ class TestQueueing(RepositoryTests):
         # get the sha1's of integration branches
         self.gitrepo.cmd('git fetch')
         sha1s = dict()
-        for version in ['5.1', '10.0']:
+        for version in ['10.0', '10']:
             self.gitrepo.cmd('git checkout w/%s/bugfix/TEST-00001', version)
             self.gitrepo.cmd('git pull')
             sha1s[version] = self.gitrepo \
@@ -5938,7 +5995,7 @@ class TestQueueing(RepositoryTests):
                 .rstrip()
 
         # merge some other work
-        pr2 = self.create_pr('bugfix/TEST-00002', 'development/5.1')
+        pr2 = self.create_pr('bugfix/TEST-00002', 'development/10.0')
         with self.assertRaises(exns.Queued):
             self.handle(pr2.id, options=self.bypass_all, backtrace=True)
         self.set_build_status_on_pr_id(pr2.id, 'SUCCESSFUL')
@@ -5953,7 +6010,7 @@ class TestQueueing(RepositoryTests):
 
         # verify
         self.gitrepo.cmd('git fetch')
-        for version in ['5.1', '10.0']:
+        for version in ['10.0', '10']:
             self.gitrepo.cmd('git checkout w/%s/bugfix/TEST-00001', version)
             self.gitrepo.cmd('git pull')
             self.assertEqual(
@@ -6005,7 +6062,7 @@ class TestQueueing(RepositoryTests):
     def test_new_stab_branch_appears(self):
         # introduce a new version
         self.gitrepo.cmd('git fetch')
-        self.gitrepo.cmd('git checkout development/10.0')
+        self.gitrepo.cmd('git checkout development/5')
         self.gitrepo.cmd('git checkout -b development/5.2')
         self.gitrepo.cmd('git push -u origin development/5.2')
 
@@ -6015,10 +6072,12 @@ class TestQueueing(RepositoryTests):
 
         self.set_build_status_on_pr_id(pr1.id, 'SUCCESSFUL')
         self.set_build_status_on_pr_id(pr1.id + 1, 'SUCCESSFUL')
+        self.set_build_status_on_pr_id(pr1.id + 2, 'SUCCESSFUL')
+        self.set_build_status_on_pr_id(pr1.id + 3, 'SUCCESSFUL')
 
         # introduce a new stab, but not its queue branches
         self.gitrepo.cmd('git fetch')
-        self.gitrepo.cmd('git checkout development/10.0')
+        self.gitrepo.cmd('git checkout development/5')
         self.gitrepo.cmd('git checkout -b stabilization/5.2.0')
         self.gitrepo.cmd('git push -u origin stabilization/5.2.0')
 
@@ -6026,6 +6085,7 @@ class TestQueueing(RepositoryTests):
         with self.assertRaises(exns.Queued):
             self.handle(pr2.id, options=self.bypass_all, backtrace=True)
 
+        import pdb; pdb.set_trace()
         self.assertEqual(self.prs_in_queue(), {pr1.id, pr2.id})
 
         with self.assertRaises(exns.Merged):
@@ -6034,12 +6094,9 @@ class TestQueueing(RepositoryTests):
 
         self.assertEqual(self.prs_in_queue(), {pr2.id})
 
-        self.set_build_status_on_branch_tip(
-            'q/%d/5.2.0/bugfix/TEST-00002' % pr2.id, 'SUCCESSFUL')
-        self.set_build_status_on_branch_tip(
-            'q/%d/5.2/bugfix/TEST-00002' % pr2.id, 'SUCCESSFUL')
-        self.set_build_status_on_branch_tip(
-            'q/%d/10.0/bugfix/TEST-00002' % pr2.id, 'SUCCESSFUL')
+        for queue in ['5.2.0', '5.2', '5', '10.0', '10']:
+            self.set_build_status_on_branch_tip(
+                f'q/w/{pr2.id}/{queue}/bugfix/TEST-00002', 'SUCCESSFUL')
 
         with self.assertRaises(exns.Merged):
             self.handle(pr2.src_commit, options=self.bypass_all,
@@ -6052,10 +6109,10 @@ class TestQueueing(RepositoryTests):
         self.gitrepo.cmd('git push --tags')
         self.gitrepo.cmd('git push origin :stabilization/10.0.0')
 
-        pr0 = self.create_pr('bugfix/TEST-00000', 'development/5.1')
+        pr0 = self.create_pr('bugfix/TEST-00000', 'development/10.0')
         with self.assertRaises(exns.Queued):
             self.handle(pr0.id, options=self.bypass_all, backtrace=True)
-        pr1 = self.create_pr('bugfix/TEST-00001', 'development/10.0')
+        pr1 = self.create_pr('bugfix/TEST-00001', 'development/10')
         with self.assertRaises(exns.Queued):
             self.handle(pr1.id, options=self.bypass_all, backtrace=True)
         pr2 = self.create_pr('bugfix/TEST-00002', 'hotfix/10.0.0')
@@ -6065,29 +6122,30 @@ class TestQueueing(RepositoryTests):
         self.assertEqual(self.prs_in_queue(), {pr0.id, pr1.id, pr2.id})
 
         self.set_build_status_on_branch_tip(
-            'q/%d/5.1/bugfix/TEST-00000' % pr0.id, 'FAILED')
+            'q/w/%d/10.0/bugfix/TEST-00000' % pr0.id, 'FAILED')
         self.set_build_status_on_branch_tip(
-            'q/%d/10.0/bugfix/TEST-00000' % pr0.id, 'FAILED')
+            'q/w/%d/10/bugfix/TEST-00000' % pr0.id, 'FAILED')
         self.set_build_status_on_branch_tip(
-            'q/%d/10.0/bugfix/TEST-00001' % pr1.id, 'FAILED')
+            'q/w/%d/10/bugfix/TEST-00001' % pr1.id, 'FAILED')
         sha1 = self.set_build_status_on_branch_tip(
-            'q/%d/10.0.0.1/bugfix/TEST-00002' % pr2.id, 'SUCCESSFUL')
+            'q/w/%d/10.0.0.1/bugfix/TEST-00002' % pr2.id, 'SUCCESSFUL')
 
         with self.assertRaises(exns.Merged):
             self.handle(sha1, options=self.bypass_all, backtrace=True)
         self.assertEqual(self.prs_in_queue(), {pr0.id, pr1.id})
 
         sha1 = self.set_build_status_on_branch_tip(
-            'q/%d/10.0/bugfix/TEST-00001' % pr1.id, 'SUCCESSFUL')
+            'q/w/%d/10/bugfix/TEST-00001' % pr1.id, 'SUCCESSFUL')
 
         with self.assertRaises(exns.QueueBuildFailed):
             self.handle(sha1, options=self.bypass_all, backtrace=True)
         self.assertEqual(self.prs_in_queue(), {pr0.id, pr1.id})
 
         self.set_build_status_on_branch_tip(
-            'q/%d/5.1/bugfix/TEST-00000' % pr0.id, 'SUCCESSFUL')
+            'q/w/%d/10.0/bugfix/TEST-00000' % pr0.id, 'SUCCESSFUL')
+
         self.set_build_status_on_branch_tip(
-            'q/%d/10.0/bugfix/TEST-00000' % pr0.id, 'SUCCESSFUL')
+            'q/w/%d/10/bugfix/TEST-00000' % pr0.id, 'SUCCESSFUL')
 
         with self.assertRaises(exns.Merged):
             self.handle(sha1, options=self.bypass_all, backtrace=True)
@@ -6098,10 +6156,10 @@ class TestQueueing(RepositoryTests):
         self.gitrepo.cmd('git push --tags')
         self.gitrepo.cmd('git push origin :stabilization/10.0.0')
 
-        pr0 = self.create_pr('bugfix/TEST-00000', 'development/5.1')
+        pr0 = self.create_pr('bugfix/TEST-00000', 'development/10.0')
         with self.assertRaises(exns.Queued):
             self.handle(pr0.id, options=self.bypass_all, backtrace=True)
-        pr1 = self.create_pr('bugfix/TEST-00001', 'development/10.0')
+        pr1 = self.create_pr('bugfix/TEST-00001', 'development/10')
         with self.assertRaises(exns.Queued):
             self.handle(pr1.id, options=self.bypass_all, backtrace=True)
         pr2 = self.create_pr('bugfix/TEST-00002', 'hotfix/10.0.0')
@@ -6111,20 +6169,20 @@ class TestQueueing(RepositoryTests):
         self.assertEqual(self.prs_in_queue(), {pr0.id, pr1.id, pr2.id})
 
         self.set_build_status_on_branch_tip(
-            'q/%d/5.1/bugfix/TEST-00000' % pr0.id, 'SUCCESSFUL')
+            'q/w/%d/10.0/bugfix/TEST-00000' % pr0.id, 'SUCCESSFUL')
         self.set_build_status_on_branch_tip(
-            'q/%d/10.0/bugfix/TEST-00000' % pr0.id, 'SUCCESSFUL')
+            'q/w/%d/10/bugfix/TEST-00000' % pr0.id, 'SUCCESSFUL')
         self.set_build_status_on_branch_tip(
-            'q/%d/10.0/bugfix/TEST-00001' % pr1.id, 'SUCCESSFUL')
+            'q/w/%d/10/bugfix/TEST-00001' % pr1.id, 'SUCCESSFUL')
         sha1 = self.set_build_status_on_branch_tip(
-            'q/%d/10.0.0.1/bugfix/TEST-00002' % pr2.id, 'FAILED')
+            'q/w/%d/10.0.0.1/bugfix/TEST-00002' % pr2.id, 'FAILED')
 
         with self.assertRaises(exns.Merged):
             self.handle(sha1, options=self.bypass_all, backtrace=True)
         self.assertEqual(self.prs_in_queue(), {pr2.id})
 
         sha1 = self.set_build_status_on_branch_tip(
-            'q/%d/10.0.0.1/bugfix/TEST-00002' % pr2.id, 'SUCCESSFUL')
+            'q/w/%d/10.0.0.1/bugfix/TEST-00002' % pr2.id, 'SUCCESSFUL')
 
         with self.assertRaises(exns.Merged):
             self.handle(sha1, options=self.bypass_all, backtrace=True)
@@ -6145,16 +6203,12 @@ class TestQueueing(RepositoryTests):
 
         self.assertEqual(self.prs_in_queue(), {pr0.id, pr1.id})
 
-        self.set_build_status_on_branch_tip(
-            'q/%d/4.3.18/bugfix/TEST-00000' % pr0.id, 'SUCCESSFUL')
-        self.set_build_status_on_branch_tip(
-            'q/%d/4.3/bugfix/TEST-00000' % pr0.id, 'SUCCESSFUL')
-        self.set_build_status_on_branch_tip(
-            'q/%d/5.1/bugfix/TEST-00000' % pr0.id, 'SUCCESSFUL')
-        self.set_build_status_on_branch_tip(
-            'q/%d/10.0/bugfix/TEST-00000' % pr0.id, 'SUCCESSFUL')
+        for queue in ['4.3.18', '4.3', '4', '5.1', '5', '10.0', '10']:
+            self.set_build_status_on_branch_tip(
+                f'q/w/{pr0.id}/{queue}/bugfix/TEST-00000', 'SUCCESSFUL')
+
         sha1 = self.set_build_status_on_branch_tip(
-            'q/%d/4.3.17.3/bugfix/TEST-00001' % pr1.id, 'SUCCESSFUL')
+            'q/w/%d/4.3.17.3/bugfix/TEST-00001' % pr1.id, 'SUCCESSFUL')
 
         with self.assertRaises(exns.Merged):
             self.handle(sha1, options=self.bypass_all, backtrace=True)
@@ -6165,10 +6219,10 @@ class TestQueueing(RepositoryTests):
         self.gitrepo.cmd('git push --tags')
         self.gitrepo.cmd('git push origin :stabilization/10.0.0')
 
-        pr0 = self.create_pr('bugfix/TEST-00000', 'development/5.1')
+        pr0 = self.create_pr('bugfix/TEST-00000', 'development/10.0')
         with self.assertRaises(exns.Queued):
             self.handle(pr0.id, options=self.bypass_all, backtrace=True)
-        pr1 = self.create_pr('bugfix/TEST-00001', 'development/10.0')
+        pr1 = self.create_pr('bugfix/TEST-00001', 'development/10')
         with self.assertRaises(exns.Queued):
             self.handle(pr1.id, options=self.bypass_all, backtrace=True)
         pr2 = self.create_pr('bugfix/TEST-00002', 'hotfix/10.0.0')
@@ -6178,13 +6232,13 @@ class TestQueueing(RepositoryTests):
         self.assertEqual(self.prs_in_queue(), {pr0.id, pr1.id, pr2.id})
 
         self.set_build_status_on_branch_tip(
-            'q/%d/5.1/bugfix/TEST-00000' % pr0.id, 'SUCCESSFUL')
+            'q/w/%d/10.0/bugfix/TEST-00000' % pr0.id, 'SUCCESSFUL')
         self.set_build_status_on_branch_tip(
-            'q/%d/10.0/bugfix/TEST-00000' % pr0.id, 'SUCCESSFUL')
+            'q/w/%d/10/bugfix/TEST-00000' % pr0.id, 'SUCCESSFUL')
         self.set_build_status_on_branch_tip(
-            'q/%d/10.0/bugfix/TEST-00001' % pr1.id, 'SUCCESSFUL')
+            'q/w/%d/10/bugfix/TEST-00001' % pr1.id, 'SUCCESSFUL')
         sha1 = self.set_build_status_on_branch_tip(
-            'q/%d/10.0.0.1/bugfix/TEST-00002' % pr2.id, 'SUCCESSFUL')
+            'q/w/%d/10.0.0.1/bugfix/TEST-00002' % pr2.id, 'SUCCESSFUL')
 
         with self.assertRaises(exns.Merged):
             self.handle(sha1, options=self.bypass_all, backtrace=True)
@@ -6201,33 +6255,33 @@ class TestQueueing(RepositoryTests):
         self.assertEqual(self.prs_in_queue(), {pr0.id})
 
         sha1 = self.set_build_status_on_branch_tip(
-            'q/%d/10.0.0.1/bugfix/TEST-00000' % pr0.id, 'FAILED')
+            'q/w/%d/10.0.0.1/bugfix/TEST-00000' % pr0.id, 'FAILED')
         with self.assertRaises(exns.QueueBuildFailed):
             self.handle(sha1, options=self.bypass_all, backtrace=True)
         self.assertEqual(self.prs_in_queue(), {pr0.id})
 
         sha1 = self.set_build_status_on_branch_tip(
-            'q/%d/10.0.0.1/bugfix/TEST-00000' % pr0.id, 'INPROGRESS')
+            'q/w/%d/10.0.0.1/bugfix/TEST-00000' % pr0.id, 'INPROGRESS')
         with self.assertRaises(exns.NothingToDo):
             self.handle(sha1, options=self.bypass_all, backtrace=True)
         self.assertEqual(self.prs_in_queue(), {pr0.id})
 
         sha1 = self.set_build_status_on_branch_tip(
-            'q/%d/10.0.0.1/bugfix/TEST-00000' % pr0.id, 'SUCCESSFUL')
+            'q/w/%d/10.0.0.1/bugfix/TEST-00000' % pr0.id, 'SUCCESSFUL')
         with self.assertRaises(exns.Merged):
             self.handle(sha1, options=self.bypass_all, backtrace=True)
         self.assertEqual(self.prs_in_queue(), set())
 
     def test_multi_branch_queues(self):
-        pr1 = self.create_pr('bugfix/TEST-00001', 'development/4.3')
+        pr1 = self.create_pr('bugfix/TEST-00001', 'development/5')
         with self.assertRaises(exns.Queued):
             self.handle(pr1.id, options=self.bypass_all, backtrace=True)
 
-        pr2 = self.create_pr('bugfix/TEST-00002', 'stabilization/5.1.4')
+        pr2 = self.create_pr('bugfix/TEST-00002', 'stabilization/10.0.0')
         with self.assertRaises(exns.Queued):
             self.handle(pr2.id, options=self.bypass_all, backtrace=True)
 
-        pr3 = self.create_pr('bugfix/TEST-00003', 'development/4.3')
+        pr3 = self.create_pr('bugfix/TEST-00003', 'development/5')
         with self.assertRaises(exns.Queued):
             self.handle(pr3.id, options=self.bypass_all, backtrace=True)
 
@@ -6239,25 +6293,25 @@ class TestQueueing(RepositoryTests):
                          {pr1.id, pr2.id, pr3.id, pr4217.id})
 
         self.set_build_status_on_branch_tip(
-            'q/%d/4.3/bugfix/TEST-00001' % pr1.id, 'SUCCESSFUL')
+            'q/w/%d/5/bugfix/TEST-00001' % pr1.id, 'SUCCESSFUL')
         self.set_build_status_on_branch_tip(
-            'q/%d/5.1/bugfix/TEST-00001' % pr1.id, 'SUCCESSFUL')
+            'q/w/%d/10.0/bugfix/TEST-00001' % pr1.id, 'SUCCESSFUL')
         self.set_build_status_on_branch_tip(
-            'q/%d/10.0/bugfix/TEST-00001' % pr1.id, 'FAILED')
+            'q/w/%d/10/bugfix/TEST-00001' % pr1.id, 'FAILED')
         self.set_build_status_on_branch_tip(
-            'q/%d/5.1.4/bugfix/TEST-00002' % pr2.id, 'FAILED')
+            'q/w/%d/10.0.0/bugfix/TEST-00002' % pr2.id, 'FAILED')
         self.set_build_status_on_branch_tip(
-            'q/%d/5.1/bugfix/TEST-00002' % pr2.id, 'SUCCESSFUL')
+            'q/w/%d/10.0/bugfix/TEST-00002' % pr2.id, 'SUCCESSFUL')
         self.set_build_status_on_branch_tip(
-            'q/%d/10.0/bugfix/TEST-00002' % pr2.id, 'SUCCESSFUL')
+            'q/w/%d/10/bugfix/TEST-00002' % pr2.id, 'SUCCESSFUL')
         self.set_build_status_on_branch_tip(
-            'q/%d/4.3/bugfix/TEST-00003' % pr3.id, 'SUCCESSFUL')
+            'q/w/%d/5/bugfix/TEST-00003' % pr3.id, 'SUCCESSFUL')
         self.set_build_status_on_branch_tip(
-            'q/%d/5.1/bugfix/TEST-00003' % pr3.id, 'SUCCESSFUL')
+            'q/w/%d/10.0/bugfix/TEST-00003' % pr3.id, 'SUCCESSFUL')
         self.set_build_status_on_branch_tip(
-            'q/%d/4.2.17.1/bugfix/TEST-00004217' % pr4217.id, 'FAILED')
+            'q/w/%d/4.2.17.1/bugfix/TEST-00004217' % pr4217.id, 'FAILED')
         sha1 = self.set_build_status_on_branch_tip(
-            'q/%d/10.0/bugfix/TEST-00003' % pr3.id, 'SUCCESSFUL')
+            'q/w/%d/10/bugfix/TEST-00003' % pr3.id, 'SUCCESSFUL')
 
         with self.assertRaises(exns.QueueBuildFailed):
             self.handle(sha1, options=self.bypass_all, backtrace=True)
@@ -6265,18 +6319,18 @@ class TestQueueing(RepositoryTests):
                                                pr4217.id})
 
         self.set_build_status_on_branch_tip(
-            'q/%d/4.2.17.1/bugfix/TEST-00004217' % pr4217.id, 'SUCCESSFUL')
+            'q/w/%d/4.2.17.1/bugfix/TEST-00004217' % pr4217.id, 'SUCCESSFUL')
         with self.assertRaises(exns.Merged):
             self.handle(sha1, options=self.bypass_all, backtrace=True)
         self.assertEqual(self.prs_in_queue(), {pr1.id, pr2.id, pr3.id})
 
         self.set_build_status_on_branch_tip(
-            'q/%d/10.0/bugfix/TEST-00001' % pr1.id, 'SUCCESSFUL')
+            'q/w/%d/10/bugfix/TEST-00001' % pr1.id, 'SUCCESSFUL')
         with self.assertRaises(exns.Merged):
             self.handle(sha1, options=self.bypass_all, backtrace=True)
         self.assertEqual(self.prs_in_queue(), {pr2.id, pr3.id})
 
-        pr4 = self.create_pr('bugfix/TEST-00004', 'stabilization/5.1.4')
+        pr4 = self.create_pr('bugfix/TEST-00004', 'stabilization/10.0.0')
         with self.assertRaises(exns.Queued):
             self.handle(pr4.id, options=self.bypass_all, backtrace=True)
         with self.assertRaises(exns.NothingToDo):
@@ -6284,22 +6338,22 @@ class TestQueueing(RepositoryTests):
         self.assertEqual(self.prs_in_queue(), {pr2.id, pr3.id, pr4.id})
 
         self.set_build_status_on_branch_tip(
-            'q/%d/5.1.4/bugfix/TEST-00004' % pr4.id, 'SUCCESSFUL')
+            'q/w/%d/10.0.0/bugfix/TEST-00004' % pr4.id, 'SUCCESSFUL')
         self.set_build_status_on_branch_tip(
-            'q/%d/5.1/bugfix/TEST-00004' % pr4.id, 'SUCCESSFUL')
+            'q/w/%d/10.0/bugfix/TEST-00004' % pr4.id, 'SUCCESSFUL')
         sha1 = self.set_build_status_on_branch_tip(
-            'q/%d/10.0/bugfix/TEST-00004' % pr4.id, 'FAILED')
+            'q/w/%d/10/bugfix/TEST-00004' % pr4.id, 'FAILED')
         with self.assertRaises(exns.QueueBuildFailed):
             self.handle(sha1, options=self.bypass_all, backtrace=True)
         self.assertEqual(self.prs_in_queue(), {pr2.id, pr3.id, pr4.id})
 
-        pr5 = self.create_pr('bugfix/TEST-00005', 'development/10.0')
+        pr5 = self.create_pr('bugfix/TEST-00005', 'development/10')
         with self.assertRaises(exns.Queued):
             self.handle(pr5.id, options=self.bypass_all, backtrace=True)
         self.assertEqual(self.prs_in_queue(), {pr2.id, pr3.id, pr4.id, pr5.id})
 
         sha1 = self.set_build_status_on_branch_tip(
-            'q/%d/10.0/bugfix/TEST-00005' % pr5.id, 'SUCCESSFUL')
+            'q/w/%d/10/bugfix/TEST-00005' % pr5.id, 'SUCCESSFUL')
 
         with self.assertRaises(exns.Merged):
             self.handle(sha1, options=self.bypass_all, backtrace=True)
@@ -6311,36 +6365,36 @@ class TestQueueing(RepositoryTests):
 
         with self.assertRaises(exns.DeprecatedStabilizationBranch):
             self.handle(pr1000.id, options=self.bypass_all, backtrace=True)
-        self.gitrepo.cmd('git push origin :stabilization/10.0.0')
+        self.gitrepo.cmd('git push origin :stabilization/10.0.0 :q/10.0.0')
         with self.assertRaises(exns.Queued):
             self.handle(pr1000.id, options=self.bypass_all, backtrace=True)
         self.assertEqual(self.prs_in_queue(), {pr1000.id})
         sha1 = self.set_build_status_on_branch_tip(
-            'q/%d/10.0.0.1/bugfix/TEST-00001000' % pr1000.id, 'SUCCESSFUL')
+            'q/w/%d/10.0.0.1/bugfix/TEST-00001000' % pr1000.id, 'SUCCESSFUL')
         with self.assertRaises(exns.Merged):
             self.handle(sha1, options=self.bypass_all, backtrace=True)
 
         self.assertEqual(self.prs_in_queue(), set())
 
     def test_multi_branch_queues_2(self):
-        pr1 = self.create_pr('bugfix/TEST-00001', 'development/4.3')
+        pr1 = self.create_pr('bugfix/TEST-00001', 'development/5')
         with self.assertRaises(exns.Queued):
             self.handle(pr1.id, options=self.bypass_all, backtrace=True)
 
-        pr2 = self.create_pr('bugfix/TEST-00002', 'development/10.0')
+        pr2 = self.create_pr('bugfix/TEST-00002', 'development/10')
         with self.assertRaises(exns.Queued):
             self.handle(pr2.id, options=self.bypass_all, backtrace=True)
 
         self.assertEqual(self.prs_in_queue(), {pr1.id, pr2.id})
 
         self.set_build_status_on_branch_tip(
-            'q/%d/4.3/bugfix/TEST-00001' % pr1.id, 'SUCCESSFUL')
+            'q/w/%d/5/bugfix/TEST-00001' % pr1.id, 'SUCCESSFUL')
         self.set_build_status_on_branch_tip(
-            'q/%d/5.1/bugfix/TEST-00001' % pr1.id, 'SUCCESSFUL')
+            'q/w/%d/10.0/bugfix/TEST-00001' % pr1.id, 'SUCCESSFUL')
         self.set_build_status_on_branch_tip(
-            'q/%d/10.0/bugfix/TEST-00001' % pr1.id, 'SUCCESSFUL')
+            'q/w/%d/10/bugfix/TEST-00001' % pr1.id, 'SUCCESSFUL')
         sha1 = self.set_build_status_on_branch_tip(
-            'q/%d/10.0/bugfix/TEST-00002' % pr2.id, 'FAILED')
+            'q/w/%d/10/bugfix/TEST-00002' % pr2.id, 'FAILED')
         with self.assertRaises(exns.Merged):
             self.handle(sha1, options=self.bypass_all, backtrace=True)
         self.assertEqual(self.prs_in_queue(), {pr2.id})
