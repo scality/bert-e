@@ -5211,7 +5211,6 @@ class TestQueueing(RepositoryTests):
     def test_queueing_last_pr_other_key(self):
         problem = deepcopy(self.standard_problem)
         problem[4]['status'][2] = {'other': 'SUCCESSFUL'}
-        import pdb; pdb.set_trace()
         solution = deepcopy(self.standard_solution)
         solution[(4, 3)][gwfb.QueueIntegrationBranch].pop(0)
         solution[(4, None)][gwfb.QueueIntegrationBranch].pop(0)
@@ -6085,7 +6084,6 @@ class TestQueueing(RepositoryTests):
         with self.assertRaises(exns.Queued):
             self.handle(pr2.id, options=self.bypass_all, backtrace=True)
 
-        import pdb; pdb.set_trace()
         self.assertEqual(self.prs_in_queue(), {pr1.id, pr2.id})
 
         with self.assertRaises(exns.Merged):
