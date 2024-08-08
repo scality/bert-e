@@ -125,7 +125,8 @@ def initialize_git_repo(repo, username, usermail):
         create_branch(repo, 'development/' + major_minor,
                       'stabilization/' + full_version, file_=True,
                       do_push=False)
-        create_branch(repo, f'development/{major}', f'development/{major_minor}',
+        create_branch(repo, f'development/{major}',
+                      f'development/{major_minor}',
                       file_=True, do_push=False)
         if major != 6 and major != 10:
             repo.cmd('git tag %s.%s.%s', major, minor, micro - 1)
@@ -724,7 +725,6 @@ class QuickTest(unittest.TestCase):
             1: {'name': 'development/4', 'ignore': False}
         })
         self.finalize_cascade(branches, tags, destination, fixver)
-
 
     def test_retry_handler(self):
         class DummyError(Exception):
@@ -1530,7 +1530,8 @@ admins:
         for branch in integration_branches[:-1]:
             sha = self.gitrepo.cmd(f'git rev-parse origin/{branch}').rstrip()
             self.set_build_status(sha, 'SUCCESSFUL')
-        sha1_w_10 = self.gitrepo.cmd(f'git rev-parse origin/{integration_branches[-1]}').rstrip()
+        sha1_w_10 = self.gitrepo.cmd(
+            f'git rev-parse origin/{integration_branches[-1]}').rstrip()
         self.set_build_status(sha1=sha1_w_10, state='INPROGRESS')
         if self.args.git_host == 'github':
             pr.add_comment('@%s approve' % (self.args.robot_username))
@@ -4421,7 +4422,7 @@ project_leaders:
                          'development/5.1 stabilization/5.1.4')
 
         if not self.args.disable_queues:
-            self.gitrepo.cmd('git push origin :q/4.3 :q/4 :q/5 :q/10.0 :q/10 ')
+            self.gitrepo.cmd('git push origin :q/4.3 :q/4 :q/5 :q/10.0 :q/10')
 
         with self.assertRaises(exns.BranchHistoryMismatch):
             self.handle(pr.id, options=self.bypass_all, backtrace=True)
@@ -4877,12 +4878,13 @@ project_leaders:
         self.handle(pr.id, settings=settings, options=self.bypass_all)
 
     def test_dev_major_only(self):
-        """Test Bert-E's capability to handle a gitwaterflow with a development/x branch."""
+        """Test Bert-E's capability to handle a development/x branch."""
         # create a development/4 branch
         pr = self.create_pr('bugfix/TEST-01', 'development/4.3')
         self.handle(pr.id, options=self.bypass_all)
         pr = self.create_pr('bugfix/TEST-02', 'stabilization/4.3.18')
         self.handle(pr.id, options=self.bypass_all)
+
 
 class TestQueueing(RepositoryTests):
     """Tests which validate all things related to the merge queue.
@@ -5656,9 +5658,8 @@ class TestQueueing(RepositoryTests):
         self.gitrepo.cmd('git add abc')
         self.gitrepo.cmd('git commit -m "add new file"')
         self.gitrepo.cmd('git push origin')
-        sha1_w_10_0 = self.gitrepo \
-                         .cmd('git rev-parse w/10.0/bugfix/TEST-00001') \
-                         .rstrip()
+        sha1_w_10_0 = self.gitrepo.cmd(
+            'git rev-parse w/10.0/bugfix/TEST-00001').rstrip()
 
         with self.assertRaises(exns.Queued):
             self.handle(pr.id, options=self.bypass_all, backtrace=True)
@@ -5668,9 +5669,8 @@ class TestQueueing(RepositoryTests):
         self.gitrepo.cmd('git fetch')
         self.gitrepo.cmd('git checkout w/10/bugfix/TEST-00001')
         self.gitrepo.cmd('git pull')
-        sha1_w_10 = self.gitrepo \
-                          .cmd('git rev-parse w/10/bugfix/TEST-00001') \
-                          .rstrip()
+        sha1_w_10 = self.gitrepo.cmd(
+            'git rev-parse w/10/bugfix/TEST-00001').rstrip()
 
         # check expected branches exist
         self.gitrepo.cmd('git fetch --prune')
@@ -7390,7 +7390,7 @@ class TaskQueueTests(RepositoryTests):
         self.assertEqual(sha1_q_10_0, sha1_dev_10_0)
 
     def test_job_force_merge_queues_with_hotfix(self):
-        self.init_berte(options=self.bypass_all, skip_queue_when_not_needed=True)
+        self.init_berte(options=self.bypass_all)
 
         # When queues are disabled, Bert-E should respond with 'NotMyJob'
         self.process_job(
@@ -7485,7 +7485,7 @@ class TaskQueueTests(RepositoryTests):
         self.assertTrue(self.berte.task_queue.empty())
 
     def test_job_delete_queues_with_hotfix(self):
-        self.init_berte(options=self.bypass_all, skip_queue_when_not_needed=True)
+        self.init_berte(options=self.bypass_all)
 
         # When queues are disabled, Bert-E should respond with 'NotMyJob'
         self.process_job(

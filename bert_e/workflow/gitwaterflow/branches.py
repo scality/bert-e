@@ -28,14 +28,13 @@ from bert_e.lib.template_loader import render
 
 LOG = logging.getLogger(__name__)
 
-def compare_branches(branch1, branch2):
-    """This function will compare branches based on their major and minor version.
 
-    Important to note that when a branch has a minor version as None, it will be considered
-    as the latest version.
+def compare_branches(branch1, branch2):
+    """Compare GitWaterflow branches for sorting.
+
+    Important to note that when a branch has a minor version as None,
+    it will be considered as the latest version.
     """
-    # need to set the major and minor version
-    # branch1[0] and branch2[0] is a tuple which can be (major, minor) or (major, minor, micro)
 
     major1, minor1 = branch1[0][:2]
     major2, minor2 = branch2[0][:2]
@@ -187,9 +186,11 @@ class DevelopmentBranch(GWFBranch):
         if self.major != other.major:
             return self.major < other.major
         if self.minor is None:
-            return False  # development/<major> is greater than development/<major>.<minor>
+            # development/<major> is greater than development/<major>.<minor>
+            return False
         if other.minor is None:
-            return True  # development/<major>.<minor> is less than development/<major>
+            # development/<major>.<minor> is less than development/<major>
+            return True
         return self.minor < other.minor
 
     @property
@@ -317,7 +318,8 @@ class QueueBranch(GWFBranch):
 @total_ordering
 class QueueIntegrationBranch(GWFBranch):
     # TODO: review if pattern needs to be changed as having a
-    # pr id may conflict with the major branch pattern and result in a failure to create.
+    # pr id may conflict with the major branch pattern
+    # and result in a failure to create.
     pattern = r'^q/w/(?P<pr_id>\d+)/' + IntegrationBranch.pattern[3:]
 
     def __eq__(self, other):
@@ -884,7 +886,8 @@ class BranchCascade(object):
             else:
                 return
 
-        # TODO: ensure it's ok to have a -1 minor version included in the cascade
+        # TODO: ensure it's ok to have a -1 minor version
+        # included in the cascade
         (major, minor) = branch.major, branch.minor
         if (major, minor) not in self._cascade.keys():
             self._cascade[(major, minor)] = {
@@ -893,7 +896,9 @@ class BranchCascade(object):
                 HotfixBranch: None,
             }
             # Sort the cascade again
-            self._cascade = OrderedDict(sorted(self._cascade.items(), key=cmp_to_key(compare_branches)))
+            self._cascade = OrderedDict(
+                sorted(self._cascade.items(), key=cmp_to_key(compare_branches))
+            )
 
         cur_branch = self._cascade[(major, minor)][branch.__class__]
 
@@ -987,10 +992,14 @@ class BranchCascade(object):
 
             previous_dev_branch = dev_branch
 
-    # not used right now but might come useful to handle a case with dev/1 and stab/1.0.0
+    # not used right now but might come useful
+    # to handle a case with dev/1 and stab/1.0.0
     def _find_latest_minor(self, major) -> int | None:
         """For a given major version, find in the cascade the latest minor."""
-        minors = [minor for (m, minor) in self._cascade.keys() if m == major and minor is not None]
+        minors = [
+            minor for (m, minor) in self._cascade.keys()
+            if m == major and minor is not None
+        ]
         if not minors:
             return None
         return max(minors)
@@ -1020,10 +1029,16 @@ class BranchCascade(object):
                 self.target_versions.append('%d.%d.%d' % (
                     major, minor, dev_branch.micro + offset))
             elif dev_branch and dev_branch.has_minor is False:
-                # TODO: handle case with stab/x.y.z with no dev/x.y -> no need as stab/x.y.z cannot exist without a dev/x.y
-                # TODO: handle case where dev/1 and dev/1.0 exists (but no 1.0.0 tag) -> Should return 1.0.0 only
-                self.target_versions.append(f"{major}.{dev_branch.latest_minor + 1}.{dev_branch.micro + 1}")
-
+                # TODO: handle case with stab/x.y.z with no dev/x.y
+                # -> no need as stab/x.y.z cannot exist without a dev/x.y
+                # TODO: handle case where dev/1 and dev/1.0 exists
+                # but no 1.0.0 tag
+                # -> Should return 1.0.0 only
+                self.target_versions.append(
+                    f"{major}."
+                    f"{dev_branch.latest_minor + 1}."
+                    f"{dev_branch.micro + 1}"
+                )
 
     def finalize(self, dst_branch):
         """Finalize cascade considering given destination.

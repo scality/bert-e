@@ -1,7 +1,12 @@
 
 from functools import cmp_to_key
 from collections import OrderedDict
-from bert_e.workflow.gitwaterflow.branches import DevelopmentBranch, StabilizationBranch, HotfixBranch, compare_branches
+from bert_e.workflow.gitwaterflow.branches import (
+    DevelopmentBranch,
+    StabilizationBranch,
+    HotfixBranch,
+    compare_branches
+)
 
 
 def test_sorted_with_branches():
@@ -27,5 +32,6 @@ def test_sorted_with_branches():
         HotfixBranch: None,
     }
 
-    sorted_branches = OrderedDict(sorted(branches.items(), key=cmp_to_key(compare_branches)))
+    sorted_branches = OrderedDict(
+        sorted(branches.items(), key=cmp_to_key(compare_branches)))
     assert list(sorted_branches.keys()) == [(1, 0), (1, 1), (1, None), (2, 0)]
