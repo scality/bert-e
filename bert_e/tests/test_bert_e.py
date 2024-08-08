@@ -5181,8 +5181,11 @@ class TestQueueing(RepositoryTests):
         problem[4]['status'][2] = {}
         solution = deepcopy(self.standard_solution)
         solution[(4, 3)][gwfb.QueueIntegrationBranch].pop(0)
+        solution[(4, None)][gwfb.QueueIntegrationBranch].pop(0)
         solution[(5, 1)][gwfb.QueueIntegrationBranch].pop(0)
+        solution[(5, None)][gwfb.QueueIntegrationBranch].pop(0)
         solution[(10, 0)][gwfb.QueueIntegrationBranch].pop(0)
+        solution[(10, None)][gwfb.QueueIntegrationBranch].pop(0)
         qbranches = self.submit_problem(problem)
         qc = self.feed_queue_collection(qbranches)
         qc.finalize()
@@ -5197,8 +5200,11 @@ class TestQueueing(RepositoryTests):
         problem[4]['status'][2] = {'pipeline': 'FAILED'}
         solution = deepcopy(self.standard_solution)
         solution[(4, 3)][gwfb.QueueIntegrationBranch].pop(0)
+        solution[(4, None)][gwfb.QueueIntegrationBranch].pop(0)
         solution[(5, 1)][gwfb.QueueIntegrationBranch].pop(0)
+        solution[(5, None)][gwfb.QueueIntegrationBranch].pop(0)
         solution[(10, 0)][gwfb.QueueIntegrationBranch].pop(0)
+        solution[(10, None)][gwfb.QueueIntegrationBranch].pop(0)
         qbranches = self.submit_problem(problem)
         qc = self.feed_queue_collection(qbranches)
         qc.finalize()
@@ -5392,7 +5398,7 @@ class TestQueueing(RepositoryTests):
 
     def test_validation_vertical_inclusion(self):
         qbranches = self.submit_problem(self.standard_problem)
-        add_file_to_branch(self.gitrepo, 'q/w/7/5.1/improvement/bar2',
+        add_file_to_branch(self.gitrepo, 'q/w/13/5.1/improvement/bar2',
                            'file_pushed_without_bert-e.txt', do_push=True)
         qc = self.feed_queue_collection(qbranches)
         qc.finalize()
