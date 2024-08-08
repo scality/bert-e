@@ -971,7 +971,7 @@ class RepositoryTests(unittest.TestCase):
         except ValueError:
             # token is a sha1, use it to filter on content
             sha1 = token
-        command = 'git branch -r --contains %s --list origin/q/[0-9]*/*'
+        command = 'git branch -r --contains %s --list origin/q/w/[0-9]*/*'
         for qint in self.gitrepo.cmd(command, sha1) \
                         .replace(" ", "") \
                         .replace("origin/", "") \
