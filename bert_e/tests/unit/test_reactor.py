@@ -27,7 +27,8 @@ def reactor_cls():
 
     return ReactorTest
 
-@pytest.fixture()
+
+@pytest.fixture
 def job():
     return SimpleNamespace(settings={})
 
