@@ -7,9 +7,11 @@ from bert_e.workflow.gitwaterflow.branches import (
     HotfixBranch,
     compare_branches
 )
+from pytest import fixture
 
 
-def test_sorted_with_branches():
+@fixture(scope='function')
+def branches():
     branches = OrderedDict()
     branches[2, 0] = {
         DevelopmentBranch: None,
@@ -31,6 +33,10 @@ def test_sorted_with_branches():
         StabilizationBranch: None,
         HotfixBranch: None,
     }
+    return branches
+
+
+def test_sorted_with_branches(branches):
 
     sorted_branches = OrderedDict(
         sorted(branches.items(), key=cmp_to_key(compare_branches)))
