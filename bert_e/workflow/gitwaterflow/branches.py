@@ -29,6 +29,26 @@ from bert_e.lib.template_loader import render
 LOG = logging.getLogger(__name__)
 
 
+def compare_branches(branch1, branch2):
+    """Compare GitWaterflow branches for sorting.
+
+    Important to note that when a branch has a minor version as None,
+    it will be considered as the latest version.
+    """
+
+    major1, minor1 = branch1[0][:2]
+    major2, minor2 = branch2[0][:2]
+    if major1 == major2:
+        if minor1 == minor2:
+            return 0
+        if minor1 is None:
+            return 1
+        if minor2 is None:
+            return -1
+        return minor1 - minor2
+    return major1 - major2
+
+
 def compare_queues(version1, version2):
     # if we have a stab and its related dev, put the stab first.
     v1 = version1[0]
@@ -39,13 +59,7 @@ def compare_queues(version1, version2):
         elif len(v2) == 3 and len(v1) == 2:
             return 1
 
-    # normal sorting
-    if v1 < v2:
-        return -1
-    elif v1 > v2:
-        return 1
-    else:
-        return 0
+    return compare_branches(version1, version2)
 
 
 class GWFBranch(git.Branch):
@@ -149,14 +163,17 @@ class HotfixBranch(GWFBranch):
         return (self.major, self.minor, self.micro, self.hfrev)
 
 
+# TODO: consider creating a 4th element in the cascade with a
+# MajorDevlopment branch that will inherit from DevelopmentBranch
 @total_ordering
 class DevelopmentBranch(GWFBranch):
-    pattern = r'^development/(?P<version>(?P<major>\d+)\.(?P<minor>\d+))$'
+    pattern = r'^development/(?P<version>(?P<major>\d+)(\.(?P<minor>\d+))?)$'
     cascade_producer = True
     cascade_consumer = True
     can_be_destination = True
     allow_prefixes = FeatureBranch.all_prefixes
     has_stabilization = False
+    latest_minor = -1
 
     def __eq__(self, other):
         return (self.__class__ == other.__class__ and
@@ -164,10 +181,21 @@ class DevelopmentBranch(GWFBranch):
                 self.minor == other.minor)
 
     def __lt__(self, other):
-        return (self.__class__ == other.__class__ and
-                (self.major < other.major or
-                 (self.major == other.major and
-                  self.minor < other.minor)))
+        if self.__class__ != other.__class__:
+            return NotImplemented
+        if self.major != other.major:
+            return self.major < other.major
+        if self.minor is None:
+            # development/<major> is greater than development/<major>.<minor>
+            return False
+        if other.minor is None:
+            # development/<major>.<minor> is less than development/<major>
+            return True
+        return self.minor < other.minor
+
+    @property
+    def has_minor(self) -> bool:
+        return self.minor is not None
 
     @property
     def version_t(self):
@@ -201,7 +229,7 @@ class StabilizationBranch(DevelopmentBranch):
 
 
 class IntegrationBranch(GWFBranch):
-    pattern = r'^w/(?P<version>(?P<major>\d+)\.(?P<minor>\d+)' \
+    pattern = r'^w/(?P<version>(?P<major>\d+)(\.(?P<minor>\d+))?' \
               r'(\.(?P<micro>\d+)(\.(?P<hfrev>\d+))?)?)/' + \
               FeatureBranch.pattern[1:]
     dst_branch = ''
@@ -267,7 +295,7 @@ class GhostIntegrationBranch(IntegrationBranch):
 
 
 class QueueBranch(GWFBranch):
-    pattern = r'^q/(?P<version>(?P<major>\d+)\.(?P<minor>\d+)' \
+    pattern = r'^q/(?P<version>(?P<major>\d+)(\.(?P<minor>\d+))?' \
               r'(\.(?P<micro>\d+)(\.(?P<hfrev>\d+))?)?)$'
     dst_branch = ''
 
@@ -289,7 +317,10 @@ class QueueBranch(GWFBranch):
 
 @total_ordering
 class QueueIntegrationBranch(GWFBranch):
-    pattern = r'^q/(?P<pr_id>\d+)/' + IntegrationBranch.pattern[3:]
+    # TODO: review if pattern needs to be changed as having a
+    # pr id may conflict with the major branch pattern
+    # and result in a failure to create.
+    pattern = r'^q/w/(?P<pr_id>\d+)/' + IntegrationBranch.pattern[3:]
 
     def __eq__(self, other):
         return self.__class__ == other.__class__ and \
@@ -855,6 +886,8 @@ class BranchCascade(object):
             else:
                 return
 
+        # TODO: ensure it's ok to have a -1 minor version
+        # included in the cascade
         (major, minor) = branch.major, branch.minor
         if (major, minor) not in self._cascade.keys():
             self._cascade[(major, minor)] = {
@@ -863,7 +896,9 @@ class BranchCascade(object):
                 HotfixBranch: None,
             }
             # Sort the cascade again
-            self._cascade = OrderedDict(sorted(self._cascade.items()))
+            self._cascade = OrderedDict(
+                sorted(self._cascade.items(), key=cmp_to_key(compare_branches))
+            )
 
         cur_branch = self._cascade[(major, minor)][branch.__class__]
 
@@ -872,6 +907,7 @@ class BranchCascade(object):
 
         self._cascade[(major, minor)][branch.__class__] = branch
 
+    # TODO: rename method or split it in two
     def update_micro(self, tag):
         """Update development branch latest micro based on tag."""
         pattern = r"^v?(?P<major>\d+)\.(?P<minor>\d+)\.(?P<micro>\d+)" \
@@ -888,15 +924,17 @@ class BranchCascade(object):
         if match.groupdict()['hfrev'] is not None:
             hfrev = int(match.groupdict()['hfrev'])
 
-        try:
-            branches = self._cascade[(major, minor)]
-        except KeyError:
+        branches = self._cascade.get((major, minor), {})
+        major_branches = self._cascade.get((major, None), {})
+
+        if not branches and not major_branches:
             LOG.debug("Ignore tag: %s", tag)
             return
 
-        hf_branch = branches[HotfixBranch]
-        stb_branch = branches[StabilizationBranch]
-        dev_branch = branches[DevelopmentBranch]
+        hf_branch: HotfixBranch = branches.get(HotfixBranch)
+        stb_branch: StabilizationBranch = branches.get(StabilizationBranch)
+        dev_branch: DevelopmentBranch = branches.get(DevelopmentBranch)
+        major_branch: DevelopmentBranch = major_branches.get(DevelopmentBranch)
 
         if hf_branch:
             if hf_branch.micro == micro:
@@ -918,6 +956,9 @@ class BranchCascade(object):
 
         if dev_branch:
             dev_branch.micro = max(micro, dev_branch.micro)
+
+        if major_branch:
+            major_branch.latest_minor = max(minor, major_branch.latest_minor)
 
     def validate(self):
         previous_dev_branch = None
@@ -951,6 +992,18 @@ class BranchCascade(object):
 
             previous_dev_branch = dev_branch
 
+    # not used right now but might come useful
+    # to handle a case with dev/1 and stab/1.0.0
+    def _find_latest_minor(self, major) -> int | None:
+        """For a given major version, find in the cascade the latest minor."""
+        minors = [
+            minor for (m, minor) in self._cascade.keys()
+            if m == major and minor is not None
+        ]
+        if not minors:
+            return None
+        return max(minors)
+
     def _set_target_versions(self, dst_branch):
         """Compute list of expected Jira FixVersion/s.
 
@@ -958,9 +1011,9 @@ class BranchCascade(object):
 
         """
         for (major, minor), branch_set in self._cascade.items():
-            dev_branch = branch_set[DevelopmentBranch]
-            stb_branch = branch_set[StabilizationBranch]
-            hf_branch = branch_set[HotfixBranch]
+            dev_branch: DevelopmentBranch = branch_set[DevelopmentBranch]
+            stb_branch: StabilizationBranch = branch_set[StabilizationBranch]
+            hf_branch: HotfixBranch = branch_set[HotfixBranch]
 
             if hf_branch and dst_branch.name.startswith('hotfix/'):
                 self.target_versions.append('%d.%d.%d.%d' % (
@@ -970,10 +1023,22 @@ class BranchCascade(object):
             if stb_branch:
                 self.target_versions.append('%d.%d.%d' % (
                     major, minor, stb_branch.micro))
-            elif dev_branch:
+            elif dev_branch and dev_branch.has_minor is True:
                 offset = 2 if dev_branch.has_stabilization else 1
+
                 self.target_versions.append('%d.%d.%d' % (
                     major, minor, dev_branch.micro + offset))
+            elif dev_branch and dev_branch.has_minor is False:
+                # TODO: handle case with stab/x.y.z with no dev/x.y
+                # -> no need as stab/x.y.z cannot exist without a dev/x.y
+                # TODO: handle case where dev/1 and dev/1.0 exists
+                # but no 1.0.0 tag
+                # -> Should return 1.0.0 only
+                self.target_versions.append(
+                    f"{major}."
+                    f"{dev_branch.latest_minor + 1}."
+                    f"{dev_branch.micro + 1}"
+                )
 
     def finalize(self, dst_branch):
         """Finalize cascade considering given destination.

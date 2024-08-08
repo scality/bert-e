@@ -44,6 +44,7 @@ def display():
             for version, _ in queued_commits:
                 versions.add(version)
 
+        # TODO: check the display of the queue
         versions = sorted(versions, reverse=True)
 
         for pr_id, queued_commits in queue_data.items():
