@@ -4421,7 +4421,7 @@ project_leaders:
                          'development/5.1 stabilization/5.1.4')
 
         if not self.args.disable_queues:
-            self.gitrepo.cmd('git push origin :q/4.3 :q/4 :q/10 :q/10.0')
+            self.gitrepo.cmd('git push origin :q/4.3 :q/4 :q/5 :q/10.0 :q/10 ')
 
         with self.assertRaises(exns.BranchHistoryMismatch):
             self.handle(pr.id, options=self.bypass_all, backtrace=True)
