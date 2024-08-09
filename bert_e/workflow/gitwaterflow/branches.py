@@ -163,8 +163,6 @@ class HotfixBranch(GWFBranch):
         return (self.major, self.minor, self.micro, self.hfrev)
 
 
-# TODO: consider creating a 4th element in the cascade with a
-# MajorDevlopment branch that will inherit from DevelopmentBranch
 @total_ordering
 class DevelopmentBranch(GWFBranch):
     pattern = r'^development/(?P<version>(?P<major>\d+)(\.(?P<minor>\d+))?)$'
@@ -317,9 +315,6 @@ class QueueBranch(GWFBranch):
 
 @total_ordering
 class QueueIntegrationBranch(GWFBranch):
-    # TODO: review if pattern needs to be changed as having a
-    # pr id may conflict with the major branch pattern
-    # and result in a failure to create.
     pattern = r'^q/w/(?P<pr_id>\d+)/' + IntegrationBranch.pattern[3:]
 
     def __eq__(self, other):
@@ -832,8 +827,9 @@ class BranchCascade(object):
             self.add_branch(branch, dst_branch)
 
         for tag in repo.cmd('git tag').split('\n')[:-1]:
-            self.update_micro(tag)
+            self.update_versions(tag)
 
+        self._update_major_versions()
         if dst_branch:
             self.finalize(dst_branch)
 
@@ -886,8 +882,6 @@ class BranchCascade(object):
             else:
                 return
 
-        # TODO: ensure it's ok to have a -1 minor version
-        # included in the cascade
         (major, minor) = branch.major, branch.minor
         if (major, minor) not in self._cascade.keys():
             self._cascade[(major, minor)] = {
@@ -907,9 +901,8 @@ class BranchCascade(object):
 
         self._cascade[(major, minor)][branch.__class__] = branch
 
-    # TODO: rename method or split it in two
-    def update_micro(self, tag):
-        """Update development branch latest micro based on tag."""
+    def update_versions(self, tag):
+        """Update expected versions based on repository tags."""
         pattern = r"^v?(?P<major>\d+)\.(?P<minor>\d+)\.(?P<micro>\d+)" \
                   r"(\.(?P<hfrev>\d+)|)$"
         match = re.match(pattern, tag)
@@ -992,17 +985,26 @@ class BranchCascade(object):
 
             previous_dev_branch = dev_branch
 
-    # not used right now but might come useful
-    # to handle a case with dev/1 and stab/1.0.0
-    def _find_latest_minor(self, major) -> int | None:
-        """For a given major version, find in the cascade the latest minor."""
-        minors = [
-            minor for (m, minor) in self._cascade.keys()
-            if m == major and minor is not None
-        ]
-        if not minors:
-            return None
-        return max(minors)
+    def _update_major_versions(self):
+        """For every major dev branch, ensure the latest minor is set.
+
+        This function is used on the case where we have a
+        dev/1 and dev/1.0 branch but no 1.0.0 tag.
+        In this case, when expecting the next version for dev/1
+        we should return 1.1.0 instead of 1.0.0.
+
+        """
+        for (_, minor), branch_set in self._cascade.items():
+            if minor is not None:
+                continue
+            major_branch: DevelopmentBranch = branch_set[DevelopmentBranch]
+            minors = [
+                minor for (m, minor) in self._cascade.keys()
+                if m == major_branch.major and minor is not None
+            ]
+            minors.append(major_branch.latest_minor)
+
+            major_branch.latest_minor = max(minors)
 
     def _set_target_versions(self, dst_branch):
         """Compute list of expected Jira FixVersion/s.
@@ -1044,7 +1046,7 @@ class BranchCascade(object):
         """Finalize cascade considering given destination.
 
         Assumes the cascade has been populated by calls to add_branch
-        and update_micro. The local lists keeping track
+        and update_versions. The local lists keeping track
 
         Args:
             dst_branch: where the pull request wants to merge

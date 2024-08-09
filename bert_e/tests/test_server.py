@@ -236,45 +236,54 @@ class TestServer(unittest.TestCase):
     def test_merge_queue_print(self):
         server.BERTE.status['merge queue'] = OrderedDict([
             (4472, [
+                ('6', '4472/6'),
                 ('6.4', '4472/6.4'),
                 ('6.3', '4472/6.3'),
                 ('6.2', '4472/6.2')]),
             ('5773', [
+                ('6', '5773/6'),
                 ('6.4', '5773/6.4')]),
             ('6050', [
+                ('6', '6050/6'),
                 ('6.4', '6050/6.4')]),
             ('6086', [
+                ('6', '6086/6'),
                 ('6.4', '6086/6.4'),
                 ('6.3.0', '6086/6.3.0'),
                 ('6.3', '6086/6.3')]),
             ('5095', [
+                ('6', '5095/6'),
                 ('6.4', '5095/6.4')]),
         ])
 
+        self.set_status_cache('4472/6', 'SUCCESSFUL', '4472/6_url')
         self.set_status_cache('4472/6.4', 'SUCCESSFUL', '4472/6.4_url')
         self.set_status_cache('4472/6.3', 'SUCCESSFUL', '4472/6.3_url')
         self.set_status_cache('4472/6.2', 'INPROGRESS', '4472/6.2_url')
+        self.set_status_cache('5773/6', 'FAILED', '5773/6_url')
         self.set_status_cache('5773/6.4', 'FAILED', '5773/6.4_url')
+        self.set_status_cache('6050/6', 'SUCCESSFUL', '6050/6_url')
         self.set_status_cache('6050/6.4', 'SUCCESSFUL', '6050/6.4_url')
+        self.set_status_cache('6086/6', 'FAILED', '6086/6_url')
         self.set_status_cache('6086/6.4', 'FAILED', '6086/6.4_url')
         self.set_status_cache('6086/6.3.0', 'SUCCESSFUL', '6086/6.3.0_url')
         self.set_status_cache('6086/6.3', 'SUCCESSFUL', '6086/6.3_url')
+        self.set_status_cache('5095/6', 'SUCCESSFUL', '5095/6_urltoto')
         self.set_status_cache('5095/6.4', 'SUCCESSFUL', '5095/6.4_urltoto')
 
         expected = (
             'Merge queue status:',
-            '                6.4           6.3.0           6.3            6.2',
-            '  #4472      SUCCESSFUL                    SUCCESSFUL     INPROGRESS  \n', # noqa
-            '  #5773        FAILED                                                 \n', # noqa
-            '  #6050      SUCCESSFUL                                               \n', # noqa
-            '  #6086        FAILED       SUCCESSFUL     SUCCESSFUL                 \n', # noqa
-            '  #5095      SUCCESSFUL'  # noqa
+            '                 6             6.4            6.3           6.3.0           6.2      \n', # noqa
+            '  #4472      SUCCESSFUL     SUCCESSFUL     SUCCESSFUL                    INPROGRESS  \n', # noqa
+            '  #5773        FAILED         FAILED                                                 \n', # noqa
+            '  #6050      SUCCESSFUL     SUCCESSFUL                                               \n', # noqa
+            '  #6086        FAILED         FAILED       SUCCESSFUL     SUCCESSFUL                 \n', # noqa
+            '  #5095      SUCCESSFUL     SUCCESSFUL'  # noqa
         )
 
         client = self.test_client()
         res = client.get('/?output=txt')
         data = res.data.decode()
-
         for exp in expected:
             self.assertIn(exp, data)
 
@@ -287,17 +296,22 @@ class TestServer(unittest.TestCase):
             '            </a>\n'
             '          </th>\n'
             '          <td class="text-center">\n'
+            '            <a href="6086/6_url" target="_blank">\n'
+            '              <span class="text-danger"><img src="/static/failed.png" alt="FAILED"></span>\n'  # noqa
+            '            </a>\n'
+            '          </td>\n'
+            '          <td class="text-center">\n'
             '            <a href="6086/6.4_url" target="_blank">\n'
             '              <span class="text-danger"><img src="/static/failed.png" alt="FAILED"></span>\n'  # noqa
             '            </a>\n'
             '          </td>\n'
             '          <td class="text-center">\n'
-            '            <a href="6086/6.3.0_url" target="_blank">\n'
+            '            <a href="6086/6.3_url" target="_blank">\n'
             '              <span class="text-success"><img src="/static/successful.png" alt="SUCCESSFUL"></span>\n'  # noqa
             '            </a>\n'
             '          </td>\n'
             '          <td class="text-center">\n'
-            '            <a href="6086/6.3_url" target="_blank">\n'
+            '            <a href="6086/6.3.0_url" target="_blank">\n'
             '              <span class="text-success"><img src="/static/successful.png" alt="SUCCESSFUL"></span>\n'  # noqa
             '            </a>\n'
             '          </td>\n'

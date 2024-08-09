@@ -346,7 +346,9 @@ class QuickTest(unittest.TestCase):
             c.add_branch(branch, my_dst)
 
         for tag in tags:
-            c.update_micro(tag)
+            c.update_versions(tag)
+
+        c._update_major_versions()
 
         # check merge_paths now (finalize not required)
         if merge_paths:
@@ -724,6 +726,22 @@ class QuickTest(unittest.TestCase):
         branches = OrderedDict({
             1: {'name': 'development/4', 'ignore': False}
         })
+        self.finalize_cascade(branches, tags, destination, fixver)
+
+    def test_major_development_branch_no_tag_bump(self):
+        destination = 'development/4.3'
+        branches = OrderedDict({
+            1: {'name': 'stabilization/4.3.18', 'ignore': True},
+            2: {'name': 'development/4.3', 'ignore': False},
+            3: {'name': 'development/4', 'ignore': False},
+            4: {'name': 'stabilization/5.1.4', 'ignore': True},
+            5: {'name': 'development/5.1', 'ignore': False},
+            6: {'name': 'development/10.0', 'ignore': False},
+            7: {'name': 'development/10', 'ignore': False}
+        })
+        tags = ['4.3.16', '4.3.17', '4.3.18_rc1',
+                'v5.1.3', 'v5.1.4_rc1']
+        fixver = ['4.3.19', '4.4.0', '5.1.5', '10.0.0', '10.1.0']
         self.finalize_cascade(branches, tags, destination, fixver)
 
     def test_retry_handler(self):

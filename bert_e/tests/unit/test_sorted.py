@@ -8,6 +8,7 @@ from bert_e.workflow.gitwaterflow.branches import (
     compare_branches
 )
 from pytest import fixture
+from bert_e.lib.versions import version_key
 
 
 @fixture(scope='function')
@@ -41,3 +42,17 @@ def test_sorted_with_branches(branches):
     sorted_branches = OrderedDict(
         sorted(branches.items(), key=cmp_to_key(compare_branches)))
     assert list(sorted_branches.keys()) == [(1, 0), (1, 1), (1, None), (2, 0)]
+
+
+def test_sorted_versions():
+    versions = [
+        '1.0.0', '1.0.1', '1.1.0', '1.1.1',
+        '2.0.0', '2', '1.0', '3', '1.0.0.3'
+    ]
+    expected = [
+        '3', '2', '2.0.0', '1.1.1', '1.1.0',
+        '1.0', '1.0.1', '1.0.0', '1.0.0.3'
+    ]
+    sorted_versions = sorted(versions, key=version_key, reverse=True)
+
+    assert sorted_versions == expected
