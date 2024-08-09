@@ -1,11 +1,11 @@
 Authlib==0.8
 flask-session==0.8.0
 loginpass==0.1.1
-coverage==7.3.1
+coverage==7.6.1
 Flask==2.2.3
 Flask-Markdown==0.3
 Flask-WTF==1.0.1
-ItsDangerous==2.1.2
+ItsDangerous==2.2.0
 Jinja2==3.1.4
 jira==2.0.0
 Markdown==2.6.11
@@ -14,7 +14,7 @@ MarkupSafe==2.1.5
 py-gfm==0.1.4
 pytest==7.4.2
 PyYAML==6.0.1
-requests==2.32.0
+requests==2.32.3
 requests-mock==1.12.1
 werkzeug==2.2.3
 WTForms==3.0.1
