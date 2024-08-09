@@ -18,7 +18,6 @@ jobs:
         test:
           - utests
           - tests-api-mock
-          - coverage-report
           - tests-server
     steps:
       - name: Checkout
@@ -36,6 +35,7 @@ jobs:
       - name: Install tox
         run: pip install tox
       - run: tox -e ${{ matrix.test }}
+      - run: tox -e coverage-report
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v4.5.0
         with:
