@@ -11,8 +11,14 @@ on:
 permissions: write-all
 
 jobs:
-  tests:
-    runs-on: ubuntu-20.04
+  unit:
+    runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        test:
+          - utests
+          - tests-api-mock
+          - tests-server
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -28,19 +34,29 @@ jobs:
         working-directory: bert_e/tests/images
       - name: Install tox
         run: pip install tox
-      - run: tox -e utests
-      - run: tox -e tests-api-mock
+      - run: tox -e ${{ matrix.test }}
       - run: tox -e coverage-report
-      - run: tox -e tests-server
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v4.5.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           slug: ${{ github.repository }}
-          flags: unittests,server,api-mock
+          flags: unittests, ${{ matrix.test }}
 
-  tests-noqueue:
-    runs-on: ubuntu-20.04
+  integration:
+    strategy:
+      matrix:
+        test:
+          - tests-noqueue
+          - tests
+        class:
+          - QuickTest
+          - BuildFailedTest
+          - RepositoryTests
+          - TestBertE
+          - TestQueueing
+          - TaskQueueTests
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -53,38 +69,16 @@ jobs:
         run: pip install -r requirements.txt
       - name: Install tox
         run: pip install tox
-      - run: tox -e tests-noqueue
+      - run: tox -e ${{ matrix.test }} -- ${{ matrix.class }}
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v4.5.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           slug: ${{ github.repository }}
-          flags: tests-noqueue
-
-  all-tests:
-    runs-on: ubuntu-20.04
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.10'
-          cache: pip
-      - name: Install dependencies
-        run: pip install -r requirements.txt
-      - name: Install tox
-        run: pip install tox
-      - run: tox -e tests
-      - name: Upload coverage reports to Codecov
-        uses: codecov/codecov-action@v4.5.0
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          slug: ${{ github.repository }}
-          flags: all-tests
+          flags: integration, ${{ matrix.test }}, ${{ matrix.test }}-${{ matrix.class }}
 
   lint:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4
