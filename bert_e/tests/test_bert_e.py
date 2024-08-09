@@ -4955,7 +4955,8 @@ project_leaders:
         """Test Bert-E's handling of a lonely stabilization/x.y.z branch."""
         # create a stabilization 4.5.2 branch from development/4
         self.gitrepo.cmd('git fetch')
-        self.gitrepo.cmd('git checkout -b stabilization/4.5.2 origin/development/4')
+        self.gitrepo.cmd(
+            'git checkout -b stabilization/4.5.2 origin/development/4')
         self.gitrepo.cmd('git push -u origin stabilization/4.5.2')
         # create a PR from the stabilization branch
         pr = self.create_pr('bugfix/TEST-01', 'stabilization/4.5.2')
