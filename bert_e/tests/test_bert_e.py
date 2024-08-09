@@ -7941,6 +7941,25 @@ class TaskQueueTests(RepositoryTests):
         last_comment = pr.get_comments()[-1].text
         self.assertTrue(FLAKINESS_MESSAGE_TITLE in last_comment)
 
+    def test_delete_queue_no_major(self):
+        self.init_berte(options=self.bypass_all)
+        # delete the development/10 branch
+        self.gitrepo.cmd('git push origin :development/10')
+        expected_branches = [
+            'q/10.0',
+        ]
+        for i in range(3):
+            pr = self.create_pr('feature/TEST-000%d' % i, 'development/10.0')
+            self.process_pr_job(pr, 'Queued')
+            expected_branches.append(f'q/w/{pr.id}/10.0/feature/TEST-000{i}')
+        for branch in expected_branches:
+            self.assertTrue(self.gitrepo.remote_branch_exists(branch),
+                            'branch %s not found' % branch)
+        self.process_job(DeleteQueuesJob(bert_e=self.berte), 'JobSuccess')
+        for branch in expected_branches:
+            self.assertFalse(self.gitrepo.remote_branch_exists(branch, True),
+                             'branch %s still exists' % branch)
+
 
 def main():
     parser = argparse.ArgumentParser(description='Launches Bert-E tests.')
