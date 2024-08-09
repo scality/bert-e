@@ -744,6 +744,17 @@ class QuickTest(unittest.TestCase):
         fixver = ['4.3.19', '4.4.0', '5.1.5', '10.0.0', '10.1.0']
         self.finalize_cascade(branches, tags, destination, fixver)
 
+    def test_major_dev_branch_lonely_stab(self):
+        destination = 'stabilization/6.1.5'
+        branches = OrderedDict({
+            1: {'name': 'stabilization/6.1.5', 'ignore': False},
+            2: {'name': 'development/6', 'ignore': False}
+        })
+        tags = []
+        fixver = ['6.1.5', '6.2.0']
+        with self.assertRaises(exns.DevBranchDoesNotExist):
+            self.finalize_cascade(branches, tags, destination, fixver)
+
     def test_retry_handler(self):
         class DummyError(Exception):
             pass
