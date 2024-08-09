@@ -41,7 +41,7 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           slug: ${{ github.repository }}
-          flags: ${{ matrix.test }}
+          flags: unittests, ${{ matrix.test }}
 
   integration:
     strategy:
@@ -74,7 +74,7 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           slug: ${{ github.repository }}
-          flags: ${{ matrix.test }}-${{ matrix.class }}
+          flags: integration, ${{ matrix.test }}, ${{ matrix.test }}-${{ matrix.class }}
 
   lint:
     runs-on: ubuntu-22.04
