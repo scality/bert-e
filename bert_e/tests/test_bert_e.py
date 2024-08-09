@@ -4908,11 +4908,48 @@ project_leaders:
 
     def test_dev_major_only(self):
         """Test Bert-E's capability to handle a development/x branch."""
-        # create a development/4 branch
-        pr = self.create_pr('bugfix/TEST-01', 'development/4.3')
-        self.handle(pr.id, options=self.bypass_all)
-        pr = self.create_pr('bugfix/TEST-02', 'stabilization/4.3.18')
-        self.handle(pr.id, options=self.bypass_all)
+        # Can we merge a dev/4.3 with a dev/4
+        pr1 = self.create_pr('bugfix/TEST-01', 'development/4.3')
+        with self.assertRaises(exns.SuccessMessage):
+            self.handle(pr1.id, options=self.bypass_all, backtrace=True)
+        # Can we merge a stab/4.3.18 with a dev/4
+        pr2 = self.create_pr('bugfix/TEST-02', 'stabilization/4.3.18')
+        with self.assertRaises(exns.SuccessMessage):
+            self.handle(pr2.id, options=self.bypass_all, backtrace=True)
+        # Can we merge directly on a dev/4
+        pr3 = self.create_pr('bugfix/TEST-03', 'development/4')
+        with self.assertRaises(exns.SuccessMessage):
+            self.handle(pr3.id, options=self.bypass_all, backtrace=True)
+        # Ensure the gitwaterflow is set correctly between all the branches
+        self.gitrepo.cmd('git fetch')
+        self.gitrepo.cmd(
+            'git merge-base --is-ancestor '
+            'origin/stabilization/4.3.18 '
+            'origin/development/4.3'
+        )
+        self.gitrepo.cmd(
+            'git merge-base --is-ancestor '
+            'origin/development/4.3 '
+            'origin/development/4'
+        )
+        with self.assertRaises(CommandError):
+            self.gitrepo.cmd(
+                'git merge-base --is-ancestor '
+                'origin/development/4 '
+                'origin/development/4.3'
+            )
+        with self.assertRaises(CommandError):
+            self.gitrepo.cmd(
+                'git merge-base --is-ancestor '
+                'origin/development/4 '
+                'origin/stabilization/4.3.18'
+            )
+        with self.assertRaises(CommandError):
+            self.gitrepo.cmd(
+                'git merge-base --is-ancestor '
+                'origin/development/4.3 '
+                'origin/stabilization/4.3.18'
+            )
 
 
 class TestQueueing(RepositoryTests):
