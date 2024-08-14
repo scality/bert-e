@@ -1,12 +1,17 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
-## [4.0.0] - 2024-03-06
+## [4.0.0] - 2024-08-09
 # Removed
 - Support of tasks as it unused to due its incompatibility with GitHub.
 
 # Added
 - Bert-E's status notifications through a build status check.
+- Support of development branches with only major version: `development/x`.
+
+# Changed
+- Integration queue branches pattern is now `q/w/{pr.id}/{integration.branch}`
+  instead of `q/{pr.id}/{integration.branch}`.
 
 ## [3.12.0] - 2024-02-26
 # Added

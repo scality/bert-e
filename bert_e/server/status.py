@@ -15,6 +15,7 @@
 """This module defines the server status page."""
 import logging
 from flask import Blueprint, current_app, render_template, request
+from bert_e.lib.versions import version_key
 
 from ..git_host.cache import BUILD_STATUS_CACHE
 
@@ -44,8 +45,7 @@ def display():
             for version, _ in queued_commits:
                 versions.add(version)
 
-        versions = sorted(versions, reverse=True)
-
+        versions = sorted(versions, key=version_key, reverse=True)
         for pr_id, queued_commits in queue_data.items():
             if int(pr_id) in [i['id'] for i in merged_prs]:
                 continue

@@ -43,12 +43,11 @@ def test_add_option(reactor_cls):
                            default=False, privileged=True)
 
     options = reactor_cls.get_options()
-
     assert 'my_option' in options
     assert 'other_option' in options
     assert 'privileged_option' in options
 
-    assert len(options) == 3
+    assert len(options) == 4
 
     my_option = options['my_option']
     other_option = options['other_option']
@@ -99,7 +98,7 @@ def test_option_decorator(reactor_cls):
     assert 'privileged_option' in options
     assert 'custom_key' in options
 
-    assert len(options) == 5
+    assert len(options) == 6
 
     assert options['my_option'].handler == my_option
     assert options['my_option'].help == my_option.__doc__
@@ -131,9 +130,10 @@ def test_options_behavior(reactor_cls, job):
     reactor.init_settings(job)
 
     assert job.settings == {
+        'after_pull_request': set(),
         'my_option': None,
         'default_option': True,
-        'privileged_option': None
+        'privileged_option': None,
     }
 
     reactor.handle_options(job, '!set my_option', '!set')
