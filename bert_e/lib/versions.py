@@ -1,5 +1,3 @@
-
-
 def version_key(version):
     """Key function to sort versions in descending order."""
     parts = version.split('.')
