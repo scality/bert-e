@@ -37,7 +37,7 @@ jobs:
       - run: tox -e ${{ matrix.test }}
       - run: tox -e coverage-report
       - name: Upload coverage reports to Codecov
-        uses: codecov/codecov-action@v4.5.0
+        uses: codecov/codecov-action@v4.6.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           slug: ${{ github.repository }}
@@ -71,7 +71,7 @@ jobs:
         run: pip install tox
       - run: tox -e ${{ matrix.test }} -- ${{ matrix.class }}
       - name: Upload coverage reports to Codecov
-        uses: codecov/codecov-action@v4.5.0
+        uses: codecov/codecov-action@v4.6.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           slug: ${{ github.repository }}
