@@ -415,9 +415,13 @@ class Repository(base.AbstractGitHostObject, base.AbstractRepository):
             combined = AggregatedStatus.get(self.client,
                                             owner=self.owner,
                                             repo=self.slug, ref=ref)
-            actions = AggregatedCheckSuites.get(client=self.client,
-                                                owner=self.owner,
-                                                repo=self.slug, ref=ref)
+            actions = AggregatedWorkflowRuns.get(
+                client=self.client,
+                owner=self.owner,
+                repo=self.slug,
+                params={
+                    'head_sha': ref
+                })
             combined.status[actions.key] = actions
 
         except HTTPError as err:
@@ -581,71 +585,59 @@ class AggregatedWorkflowRuns(base.AbstractGitHostObject):
     GET_URL = "/repos/{owner}/{repo}/actions/runs"
     SCHEMA = schema.AggregateWorkflowRuns
 
-    @property
-    def total_count(self):
-        return self.data['total_count']
-
-    @property
-    def workflow_runs(self):
-        return self.data['workflow_runs']
-
-    @property
-    def check_suite_ids(self):
-        return [wf['check_suite_id'] for wf in self.workflow_runs]
-
-
-class AggregatedCheckSuites(base.AbstractGitHostObject,
-                            base.AbstractBuildStatus):
-    """
-    The Endpoint to have access infos about github actions runs
-    """
-    GET_URL = '/repos/{owner}/{repo}/commits/{ref}/check-suites'
-    SCHEMA = schema.AggregateCheckSuites
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._check_suites = [elem for elem in self.data['check_suites']]
+        self._workflow_runs = [elem for elem in self.data['workflow_runs']]
 
     @property
     def url(self):
+        if len(self._workflow_runs) == 0:
+            return None
         return f"https://github.com/{self.full_repo}/commit/{self.commit}"
 
-    def is_pending(self, check_suites=None):
-        if check_suites is None:
-            check_suites = self._check_suites
+    @property
+    def commit(self) -> str | None:
+        if len(self._workflow_runs) == 0:
+            return None
+        return self._workflow_runs[0]['head_sha']
+
+    @property
+    def full_repo(self) -> str | None:
+        if len(self._workflow_runs) == 0:
+            return None
+        return self._workflow_runs[0]['repository']['full_name']
+
+    def is_pending(self, workflow_runs=None):
+        if workflow_runs is None:
+            workflow_runs = self._workflow_runs
         return len([
-            elem for elem in check_suites if elem['status'] == 'pending'
+            elem for elem in workflow_runs if elem['status'] == 'pending'
         ]) > 0
 
-    def is_queued(self, check_suites=None):
-        if check_suites is None:
-            check_suites = self._check_suites
+    def is_queued(self, workflow_runs=None):
+        if workflow_runs is None:
+            workflow_runs = self._workflow_runs
         return len([
-            elem for elem in check_suites if elem['status'] == 'queued'
+            elem for elem in workflow_runs if elem['status'] == 'queued'
         ]) > 0
 
-    def _get_aggregate_workflow_dispatched(self, page, prev_dispatches=list()):
-        """Return a list of check-suite IDs for workflow_dispatch runs"""
+    @property
+    def owner(self) -> str | None:
+        if self._workflow_runs.__len__() > 0:
+            return self._workflow_runs[0]['repository']['owner']['login']
+        return None
 
-        response = AggregatedWorkflowRuns.get(
-            client=self.client,
-            owner=self.owner, repo=self.repo, ref=self.commit,
-            params={
-                'branch': self.branch,
-                'page': page,
-                'event': 'workflow_dispatch',
-                'per_page': 100
-            })
+    @property
+    def repo(self) -> str | None:
+        if self._workflow_runs.__len__() > 0:
+            return self._workflow_runs[0]['repository']['name']
+        return None
 
-        prev_dispatches.extend(response.check_suite_ids)
-        if len(prev_dispatches) < response.total_count:
-            page += 1
-            return self._get_aggregate_workflow_dispatched(
-                page,
-                prev_dispatches
-            )
-
-        return prev_dispatches
+    @property
+    def branch(self) -> str | None:
+        if self._workflow_runs.__len__() > 0:
+            return self._workflow_runs[0]['head_branch']
+        return None
 
     def remove_unwanted_workflows(self):
         """
@@ -654,42 +646,54 @@ class AggregatedCheckSuites(base.AbstractGitHostObject,
         - check-suites workflow triggerd by a `workflow_dispatch` event
         - Same workflow with different result
         """
-        if self._check_suites.__len__() == 0:
+        if self._workflow_runs.__len__() == 0:
             return
 
-        page = 1
-        workflow_dispatches = self._get_aggregate_workflow_dispatched(page)
-
-        self._check_suites = list(filter(
-            lambda elem: elem['id'] not in workflow_dispatches,
-            self._check_suites
+        self._workflow_runs = list(filter(
+            lambda elem: elem['event'] != 'workflow_dispatch',
+            self._workflow_runs
         ))
 
-        self._check_suites = list(filter(
+        self._workflow_runs = list(filter(
             lambda elem: elem['app']['slug'] == 'github-actions',
-            self._check_suites
+            self._workflow_runs
         ))
 
-    def branch_state(self, branch_check_suite):
+        # When two of the same workflow ran on the same branch,
+        # we only keep the best one.
+        conclusion_ranking = {
+            'success': 4, None: 3, 'failure': 2, 'cancelled': 1
+        }
+        best_runs = {}
+        for run in self._workflow_runs:
+            workflow_id = run['workflow_id']
+            conclusion = run['conclusion']
+            if (workflow_id not in best_runs or
+                    conclusion_ranking[conclusion] >
+                    conclusion_ranking[best_runs[workflow_id]['conclusion']]):
+                best_runs[workflow_id] = run
+        self._workflow_runs = list(best_runs.values())
+
+    def branch_state(self, branch_workflow_runs):
         all_complete = all(
-            elem['conclusion'] is not None for elem in branch_check_suite
+            elem['conclusion'] is not None for elem in branch_workflow_runs
         )
 
         all_success = all(
             elem['conclusion'] == 'success'
-            for elem in branch_check_suite
+            for elem in branch_workflow_runs
         )
         LOG.info(f'State on {self.branch}: '
                  f'complete: {all_complete} '
                  f'success: {all_success} '
-                 f'pending: {self.is_pending(branch_check_suite)} '
-                 f'queued: {self.is_queued(branch_check_suite)}')
-        LOG.info(f'branch check suites {branch_check_suite}')
+                 f'pending: {self.is_pending(branch_workflow_runs)} '
+                 f'queued: {self.is_queued(branch_workflow_runs)}')
+        LOG.info(f'branch check suites {branch_workflow_runs}')
 
-        if branch_check_suite.__len__() == 0:
+        if branch_workflow_runs.__len__() == 0:
             return 'NOTSTARTED'
-        elif (self.is_pending(branch_check_suite) or
-              self.is_queued(branch_check_suite) or not all_complete):
+        elif (self.is_pending(branch_workflow_runs) or
+              self.is_queued(branch_workflow_runs) or not all_complete):
             return 'INPROGRESS'
         elif all_complete and all_success:
             return 'SUCCESSFUL'
@@ -700,7 +704,7 @@ class AggregatedCheckSuites(base.AbstractGitHostObject,
     def state(self):
         self.remove_unwanted_workflows()
         res = [list(v) for i, v in groupby(
-            self._check_suites,
+            self._workflow_runs,
             lambda elem: elem['head_branch']
         )]
 
@@ -726,34 +730,12 @@ class AggregatedCheckSuites(base.AbstractGitHostObject,
         return 'github_actions'
 
     @property
-    def commit(self) -> str or None:
-        if self._check_suites.__len__() > 0:
-            return self._check_suites[0]["head_sha"]
-        return None
+    def total_count(self):
+        return self.data['total_count']
 
     @property
-    def branch(self) -> str or None:
-        if self._check_suites.__len__() > 0:
-            return self._check_suites[0]["head_branch"]
-        return None
-
-    @property
-    def full_repo(self) -> str or None:
-        if self._check_suites.__len__() > 0:
-            return self._check_suites[0]['repository']['full_name']
-        return None
-
-    @property
-    def repo(self) -> str or None:
-        if self._check_suites.__len__() > 0:
-            return self._check_suites[0]['repository']['name']
-        return None
-
-    @property
-    def owner(self) -> str or None:
-        if self._check_suites.__len__() > 0:
-            return self._check_suites[0]['repository']['owner']['login']
-        return None
+    def workflow_runs(self):
+        return self._workflow_runs
 
     def __str__(self) -> str:
         return self.state
@@ -1143,11 +1125,13 @@ class CheckSuiteEvent(base.AbstractGitHostObject):
 
     @property
     def status(self):
-        return AggregatedCheckSuites.get(
+        return AggregatedWorkflowRuns.get(
             client=self.client,
             owner=self.owner,
             repo=self.repo,
-            ref=self.commit
+            params={
+                'head_sha': self.commit,
+            }
         )
 
 
