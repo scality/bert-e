@@ -137,9 +137,11 @@ class WorkflowRun(GitHubSchema):
     head_sha = fields.Str()
     head_branch = fields.Str()
     status = fields.Str()
+    conclusion = fields.Str(allow_none=True)
     check_suite_id = fields.Integer()
     html_url = fields.Str()
     event = fields.Str()
+    workflow_id = fields.Integer()
 
 
 class AggregateWorkflowRuns(GitHubSchema):

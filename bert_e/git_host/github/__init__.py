@@ -654,11 +654,6 @@ class AggregatedWorkflowRuns(base.AbstractGitHostObject):
             self._workflow_runs
         ))
 
-        self._workflow_runs = list(filter(
-            lambda elem: elem['app']['slug'] == 'github-actions',
-            self._workflow_runs
-        ))
-
         # When two of the same workflow ran on the same branch,
         # we only keep the best one.
         conclusion_ranking = {

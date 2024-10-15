@@ -28,9 +28,6 @@ def workflow_run_json():
                 'workflow_id': 1,
                 'check_suite_id': 1,
                 'conclusion': 'success',
-                'app': {
-                    'slug': 'github-actions'
-                },
                 'pull_requests': [
                     {
                         'number': 1
@@ -53,9 +50,6 @@ def workflow_run_json():
                 'event': 'pull_request',
                 'status': 'completed',
                 'conclusion': 'cancelled',
-                'app': {
-                    'slug': 'github-actions'
-                },
                 'pull_requests': [
                     {
                         'number': 1
@@ -72,6 +66,19 @@ def workflow_run_json():
         ],
         'total_count': 2
     }
+
+
+def test_aggregated_workflow_run_api_client(client):
+    """Run the workflow run client with the GitHub mock server."""
+    workflow_runs = AggregatedWorkflowRuns.get(
+        client=client,
+        owner='octo-org',
+        repo='Hello-World',
+        params={
+            'head_sha': 'd6fde92930d4715a2b49857d24b940956b26d2d3'
+        }
+    )
+    assert workflow_runs.state == 'INPROGRESS'
 
 
 def test_aggregated_workflow_run(client, workflow_run_json):
