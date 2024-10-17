@@ -70,15 +70,23 @@ def workflow_run_json():
 
 def test_aggregated_workflow_run_api_client(client):
     """Run the workflow run client with the GitHub mock server."""
+    head_sha = 'acb5820ced9479c074f688cc328bf03f341a511d'
+    owner = 'octocat'
+    repo = 'Hello-World'
     workflow_runs = AggregatedWorkflowRuns.get(
         client=client,
-        owner='octo-org',
-        repo='Hello-World',
+        owner=owner,
+        repo=repo,
         params={
-            'head_sha': 'd6fde92930d4715a2b49857d24b940956b26d2d3'
+            'head_sha': head_sha
         }
     )
     assert workflow_runs.state == 'INPROGRESS'
+    assert workflow_runs.full_repo == f'{owner}/{repo}'
+    assert workflow_runs.commit == head_sha
+    assert workflow_runs.owner == owner
+    assert workflow_runs.repo == repo
+    assert workflow_runs.branch == 'master'
 
 
 def test_aggregated_workflow_run(client, workflow_run_json):
