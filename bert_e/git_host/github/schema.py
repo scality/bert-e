@@ -141,6 +141,7 @@ class WorkflowRun(GitHubSchema):
     check_suite_id = fields.Integer()
     html_url = fields.Str()
     event = fields.Str()
+    repository = fields.Nested(Repo)
     workflow_id = fields.Integer()
 
 
