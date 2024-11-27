@@ -822,16 +822,30 @@ class BuildFailedTest(unittest.TestCase):
     def test_build_fail_with_build_url(self):
         build_url = 'http://host/path/to/the?build=url'
         commit_url = 'http://host/path/to/the?commit=url'
-        build_fail = exns.BuildFailed(branch='spam', build_url=build_url,
-                                      commit_url=commit_url,
-                                      active_options=None)
+        branch = gwfb.IntegrationBranch(FakeGitRepo(), 'w/5.0/feature/TEST-01')
+
+        build_fail = exns.BuildFailed(
+            branch=branch,
+            build_url=build_url,
+            commit_url=commit_url,
+            githost="github",
+            active_options=None,
+            owner="owner",
+            slug="slug",
+        )
         self.assertIn('The [build]({}) for [commit]({})'
                       ' did not succeed'.format(build_url, commit_url),
                       build_fail.msg)
 
     def test_build_fail_with_url_to_none(self):
-        build_fail = exns.BuildFailed(branch='spam', build_url=None,
-                                      commit_url=None, active_options=None)
+        branch = gwfb.IntegrationBranch(FakeGitRepo(), 'w/5.0/feature/TEST-01')
+        build_fail = exns.BuildFailed(
+            branch=branch,
+            build_url=None,
+            githost="mock",
+            commit_url=None,
+            active_options=None
+        )
         self.assertIn('The build did not succeed', build_fail.msg)
 
 
@@ -3000,7 +3014,7 @@ pr_author_options:
                         backtrace=True)
         except exns.BuildFailed as excp:
             self.assertIn(
-                "did not succeed in branch w/10/bugfix/TEST-00081",
+                "did not succeed in branch `w/10/bugfix/TEST-00081`",
                 excp.msg,
             )
         else:
@@ -3420,7 +3434,7 @@ pr_author_options:
                         backtrace=True)
         except exns.BuildFailed as excp:
             self.assertIn(
-                "did not succeed in branch w/10/bugfix/TEST-00081",
+                "did not succeed in branch `w/10/bugfix/TEST-00081`",
                 excp.msg,
             )
         else:
