@@ -593,7 +593,8 @@ class AggregatedWorkflowRuns(base.AbstractGitHostObject):
     def url(self):
         if len(self._workflow_runs) == 0:
             return None
-        return f"https://github.com/{self.full_repo}/commit/{self.commit}"
+
+        return f"https://github.com/{self.full_repo}/actions?query=branch%3A{self.branch}" # noqa
 
     @property
     def commit(self) -> str | None:

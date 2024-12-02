@@ -653,12 +653,14 @@ def check_build_status(job, wbranches):
     if worst_status in ('FAILED', 'STOPPED'):
         raise messages.BuildFailed(
             active_options=job.active_options,
-            branch=worst.name,
+            branch=worst,
             build_url=job.project_repo.get_build_url(
-                worst.get_latest_commit,
-                key),
+                worst.get_latest_commit(), key),
             commit_url=job.project_repo.get_commit_url(
                 worst.get_latest_commit()),
+            githost=job.settings.repository_host,
+            owner=job.settings.repository_owner,
+            slug=job.settings.repository_slug,
         )
     elif worst_status == 'NOTSTARTED':
         raise messages.BuildNotStarted()

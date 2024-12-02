@@ -98,8 +98,8 @@ def test_aggregated_workflow_run(client, workflow_run_json):
     owner = \
         workflow_run_json['workflow_runs'][0]['repository']['owner']['login']
     repo = workflow_run_json['workflow_runs'][0]['repository']['name']
-    url = f"https://github.com/{full_name}/commit/{head_sha}"
     branch = workflow_run_json['workflow_runs'][0]['head_branch']
+    url = f"https://github.com/{full_name}/actions?query=branch%3A{branch}"
     assert url == workflow_runs.url
     assert head_sha == workflow_runs.commit
     assert owner == workflow_runs.owner
