@@ -12,6 +12,7 @@ All notable changes to this project will be documented in this file.
 # Changed
 - Integration queue branches pattern is now `q/w/{pr.id}/{integration.branch}`
   instead of `q/{pr.id}/{integration.branch}`.
+- Allow admins to self-bypass their own PRs.
 
 ## [3.12.0] - 2024-02-26
 # Added

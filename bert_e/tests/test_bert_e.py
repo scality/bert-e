@@ -4978,6 +4978,41 @@ project_leaders:
         with self.assertRaises(exns.DevBranchDoesNotExist):
             self.handle(pr.id, options=self.bypass_all, backtrace=True)
 
+    def test_admin_self_bypass(self):
+        """Test an admin can bypass its own PR."""
+        feature_branch = 'feature/TEST-00001'
+        from_branch = 'development/4.3'
+        create_branch(self.gitrepo, feature_branch,
+                      from_branch=from_branch, file_=True)
+        pr = self.admin_bb.create_pull_request(
+            title="title",
+            name="name",
+            src_branch=feature_branch,
+            dst_branch=from_branch,
+            description="",
+        )
+        # Expect a jira check
+        with self.assertRaises(exns.IncorrectFixVersion):
+            self.handle(pr.id, backtrace=True)
+        # Ensure peers cannot bypass the jira check without admin credentials
+        peer = self.contributor_bb.get_pull_request(pull_request_id=pr.id)
+        comment = peer.add_comment('/bypass_jira_check')
+        # Expect a lack of credentials
+        with self.assertRaises(exns.NotEnoughCredentials):
+            self.handle(pr.id, backtrace=True)
+        comment.delete()
+        # Ensure the admin can bypass its own PR
+        pr.add_comment('/bypass_jira_check')
+        with self.assertRaises(exns.ApprovalRequired):
+            self.handle(pr.id, backtrace=True)
+        pr.add_comment('/bypass_peer_approval')
+        pr.approve()
+        with self.assertRaises(exns.BuildNotStarted):
+            self.handle(pr.id, backtrace=True)
+        pr.add_comment('/bypass_build_status')
+        with self.assertRaises(exns.SuccessMessage):
+            self.handle(pr.id, backtrace=True)
+
 
 class TestQueueing(RepositoryTests):
     """Tests which validate all things related to the merge queue.
