@@ -480,7 +480,7 @@ to progress to the next step.  message code
 | 120   | After pull request | The after_pull_request option has been activated, and the target pull request is not merged yet work on merging the pending pull request or remove the option
 | 121   | Integration data created | __Bert-E__ notifies the owner that he succesfully created the integration branches and the related pull requests, and provides a link to them. No action required
 | 122   | Unknown command | One of the participants asked __Bert-E__ to activate an option, or execute a command he doesn't know. Edit the corresponding message if it contains a typo. Delete it otherwise
-| 123   | Not authorized | One of the participants asked __Bert-E__ to activate a privileged option, or execute a privileged  command, but doesn't have enough credentials to do so. Delete the corresponding command ask a __Bert-E__ administrator to run/set the desired command/option. Note that the even if the author of the pull request has administrator credentials, he cannot use privileged commands or options on his own pull requests.
+| 123   | Not authorized | One of the participants asked __Bert-E__ to activate a privileged option, or execute a privileged command, but doesn't have enough credentials to do so. Delete the corresponding command ask a __Bert-E__ administrator to run/set the desired command/option.
 | 134   | Not author | One of the participants asked __Bert-E__ to activate an authored option, but the participant is not the author of the pull request.
 
 Queues

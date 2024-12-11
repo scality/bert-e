@@ -305,7 +305,7 @@ def handle_comments(job):
     # Look for options in all of the pull request's comments.
     for comment in job.pull_request.comments:
         author = comment.author
-        privileged = author in admins and author != pr_author
+        privileged = author in admins
         authored = author == pr_author
         text = comment.text
         try:
@@ -318,7 +318,7 @@ def handle_comments(job):
         except NotPrivileged as err:
             raise messages.NotEnoughCredentials(
                 active_options=job.active_options, command=err.keyword,
-                author=author, self_pr=(author == pr_author), comment=text
+                author=author, comment=text
             ) from err
         except NotAuthored as err:
             raise messages.NotAuthor(
