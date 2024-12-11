@@ -7,7 +7,7 @@ Flask-Markdown==0.3
 Flask-WTF==1.2.2
 ItsDangerous==2.2.0
 Jinja2==3.1.4
-jira==2.0.0
+jira==3.8.0
 Markdown==2.6.11
 marshmallow==3.23.1
 MarkupSafe==3.0.2
