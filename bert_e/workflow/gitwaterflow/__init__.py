@@ -638,6 +638,14 @@ def check_build_status(job, wbranches):
     if not key:
         return
 
+    # Filter out ghost integration branches for build status checking
+    from bert_e.workflow.gitwaterflow.branches import GhostIntegrationBranch
+    real_branches = [b for b in wbranches
+                     if not isinstance(b, GhostIntegrationBranch)]
+
+    # If no real integration branches, fall back to checking all wbranches
+    branches_to_check = real_branches if real_branches else wbranches
+
     ordered_state = {
         status: idx for idx, status in enumerate(
             ('SUCCESSFUL', 'INPROGRESS', 'NOTSTARTED', 'STOPPED', 'FAILED'))
@@ -647,8 +655,9 @@ def check_build_status(job, wbranches):
         return job.project_repo.get_build_status(
             branch.get_latest_commit(), key)
 
-    statuses = {b.name: status(b) for b in wbranches}
-    worst = max(wbranches, key=lambda b: ordered_state[statuses[b.name]])
+    statuses = {b.name: status(b) for b in branches_to_check}
+    worst = max(branches_to_check,
+                key=lambda b: ordered_state[statuses[b.name]])
     worst_status = statuses[worst.name]
     if worst_status in ('FAILED', 'STOPPED'):
         raise messages.BuildFailed(

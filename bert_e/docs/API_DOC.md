@@ -245,16 +245,13 @@ $ bert-e_api_client --token $TOKEN \
 
     Create a job that will push a new GitWaterFlow destination branch
     to the repository. Supported destination branches are development
-    branches (development/x.y) and stabilization branches
-    (stabilization/x.y.z).
+    branches (development/x.y) and hotfix branches (hotfix/x.y.z).
 
     The branching source point may optionally be specified by providing
     the name of an existing development branch or a commit sha1 in POST
     json data **branch_from**. If not specified, the following rules
     apply:
 
-    * stabilization branches are branched off from the corresponding
-      development branch,
     * development branches are branched off from the preceeding
       development branch,
     * __unless__ the new branch becomes the first
@@ -269,9 +266,6 @@ $ bert-e_api_client --token $TOKEN \
     Creating a new destination branch has the following impact on
     existing queued data:
 
-    * creating a stabilization branch has no impact on queued pull
-      requests; the queues are left intact and will be merged when
-      build results are received,
     * creating a development branch at the end of the GWF branch
       cascade, will trigger a reboot of the queue; all PRs that were
       in the queue will be re-evaluated (this, in effect, will force the
@@ -289,10 +283,10 @@ $ bert-e_api_client --token $TOKEN \
 
     Create a job that will remove a GitWaterFlow destination branch from
     the repository. Supported destination branches are development branches
-    (development/x.y) and stabilization branches (stabilization/x.y.z).
+    (development/x.y) and hotfix branches (hotfix/x.y.z).
 
     A tag will be pushed in place of the branch: x.y for a deleted development
-    branch, and x.y.z for a deleted stabilization branch.
+    branch, and x.y.z.archived_hotfix_branch for a deleted hotfix branch.
 
     Deleting a destination branch has the following impact on existing queued
     data:
@@ -371,7 +365,7 @@ $ bert-e_api_client --token $TOKEN \
                     --base-url $URL \
                     --httpmethod POST \
                     --payload '{"branch_from": "123456abc"}'
-                    branches/stabilization/4.3.0
+                    branches/development/4.3
 
 <job details>
 ```

@@ -163,7 +163,15 @@ def add_to_queue(job, wbranches):
         raise exceptions.QueueConflict(
             active_options=job.active_options) from err
 
-    push(job.git.repo, to_push)
+    # Remove duplicates to avoid git push conflicts
+    unique_branches = []
+    seen_names = set()
+    for branch in to_push:
+        if branch.name not in seen_names:
+            unique_branches.append(branch)
+            seen_names.add(branch.name)
+
+    push(job.git.repo, unique_branches)
 
 
 def merge_queues(queues):

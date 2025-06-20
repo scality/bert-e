@@ -254,6 +254,16 @@ class Branch(object):
             source = source_branch.name
         else:
             source = source_branch
+
+        # Check if branch already exists to avoid conflicts
+        if self.exists():
+            # Branch already exists, checkout and update to match source
+            self.checkout()
+            # Reset to match the source branch to keep queues in sync
+            self.repo.cmd('git reset --hard %s', source)
+            self.newly_created = False
+            return
+
         try:
             self.repo.cmd('git checkout -b %s %s', self.name,
                           source)

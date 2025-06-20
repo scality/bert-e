@@ -43,18 +43,27 @@ def create_integration_branches(job):
     """Create integration branches if they do not exist."""
     build_branch_cascade(job)
     src = job.git.src_branch
-    branch = GhostIntegrationBranch(job.git.src_branch.repo,
-                                    job.git.src_branch.name,
-                                    job.git.dst_branch)
-    branch.src_branch, branch.dst_branch = src, job.git.cascade.dst_branches[0]
-    yield branch
-    for dst in job.git.cascade.dst_branches[1:]:
-        name = "w/{}/{}".format(dst.version, src)
-        branch = branch_factory(job.git.repo, name)
-        branch.src_branch, branch.dst_branch = src, dst
-        if not branch.exists():
-            branch.create(dst, do_push=False)
-        yield branch
+
+    # Create integration branches for all destination branches
+    for i, dst in enumerate(job.git.cascade.dst_branches):
+        if i == 0:
+            # First branch (target) - create a ghost branch for the main PR
+            branch = GhostIntegrationBranch(job.git.src_branch.repo,
+                                            job.git.src_branch.name,
+                                            job.git.dst_branch)
+            branch.src_branch, branch.dst_branch = src, dst
+            yield branch
+
+        # Also create a real integration branch for the target if it's a
+        # development branch (previously this was only done for non-target
+        # branches, but now we need it for the target too)
+        if dst.name.startswith('development/'):
+            name = "w/{}/{}".format(dst.version, src)
+            branch = branch_factory(job.git.repo, name)
+            branch.src_branch, branch.dst_branch = src, dst
+            if not branch.exists():
+                branch.create(dst, do_push=False)
+            yield branch
 
 
 def update_integration_branches(job, wbranches):

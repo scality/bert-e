@@ -290,36 +290,6 @@ class BranchNameInvalid(InternalException):
         super(BranchNameInvalid, self).__init__(msg)
 
 
-class UnsupportedMultipleStabBranches(InternalException):
-    code = 204
-
-    def __init__(self, branch, other_branch):
-        msg = 'Unsupported multiple stabilization branches ' \
-              'have been detected: %r, %r ' \
-              % (branch, other_branch)
-        super(UnsupportedMultipleStabBranches, self).__init__(msg)
-
-
-class DeprecatedStabilizationBranch(InternalException):
-    code = 205
-
-    def __init__(self, branch, tag):
-        msg = 'Branch %r must be deleted as %r has been created' % (
-            branch, tag)
-        super(DeprecatedStabilizationBranch, self).__init__(msg)
-
-
-class VersionMismatch(InternalException):
-    code = 206
-
-    def __init__(self, dev_branch, stabilization_branch):
-        msg = 'Branch %r (micro==%d) and %r do not match' % (
-            dev_branch.name,
-            dev_branch.micro,
-            stabilization_branch.name)
-        super(VersionMismatch, self).__init__(msg)
-
-
 class UnrecognizedBranchPattern(InternalException):
     code = 207
 

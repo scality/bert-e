@@ -3,7 +3,6 @@ from functools import cmp_to_key
 from collections import OrderedDict
 from bert_e.workflow.gitwaterflow.branches import (
     DevelopmentBranch,
-    StabilizationBranch,
     HotfixBranch,
     compare_branches
 )
@@ -16,22 +15,18 @@ def branches():
     branches = OrderedDict()
     branches[2, 0] = {
         DevelopmentBranch: None,
-        StabilizationBranch: None,
         HotfixBranch: None,
     }
     branches[1, None] = {
         DevelopmentBranch: None,
-        StabilizationBranch: None,
         HotfixBranch: None,
     }
     branches[1, 0] = {
         DevelopmentBranch: None,
-        StabilizationBranch: None,
         HotfixBranch: None,
     }
     branches[1, 1] = {
         DevelopmentBranch: None,
-        StabilizationBranch: None,
         HotfixBranch: None,
     }
     return branches
