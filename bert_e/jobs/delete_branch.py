@@ -19,7 +19,6 @@ from bert_e.lib.simplecmd import CommandError
 from bert_e.lib.git import RemoveFailedException
 from bert_e.workflow.git_utils import clone_git_repo
 from bert_e.workflow.gitwaterflow.branches import (DevelopmentBranch,
-                                                   StabilizationBranch,
                                                    HotfixBranch,
                                                    build_queue_collection,
                                                    QueueBranch,
@@ -61,7 +60,6 @@ def delete_branch(job: DeleteBranchJob):
                                     'GWF branch.' % job.settings.branch)
 
     if not (isinstance(del_branch, DevelopmentBranch) or
-            isinstance(del_branch, StabilizationBranch) or
             isinstance(del_branch, HotfixBranch)):
         raise exceptions.JobFailure('Requested branch %r is not a GWF '
                                     'destination branch.' % del_branch)
@@ -77,16 +75,6 @@ def delete_branch(job: DeleteBranchJob):
                                     'already an archive tag %r in the '
                                     'repository.' %
                                     (del_branch, del_branch.version))
-
-    # do not allow deleting a dev branch if there is a stab
-    if not isinstance(del_branch, StabilizationBranch) and \
-       not isinstance(del_branch, HotfixBranch):
-        stab_prefix = 'stabilization/%s' % del_branch.version
-        if any([b.startswith(stab_prefix) for b in repo.remote_branches]):
-            raise exceptions.JobFailure('Cannot delete branch %r because '
-                                        'there is an active stabilization '
-                                        'branch in the repository.' %
-                                        del_branch)
 
     if job.settings.use_queue:
         queue_collection = build_queue_collection(job)
