@@ -266,6 +266,10 @@ class QueueBranch(GWFBranch):
         if self.hfrev is not None:
             dest = branch_factory(repo, 'hotfix/%d.%d.%d' % (self.major,
                                   self.minor, self.micro))
+        elif self.micro is not None:
+            # This is a hotfix queue (has micro version), create hotfix branch
+            dest = branch_factory(repo, 'hotfix/%d.%d.%d' % (self.major,
+                                  self.minor, self.micro))
         else:
             dest = branch_factory(repo, 'development/%s' % self.version)
         self.dst_branch = dest
@@ -1052,6 +1056,10 @@ def branch_factory(repo: git.Repository, branch_name: str) -> GWFBranch:
         UnrecognizedBranchPattern if the branch name is invalid.
 
     """
+    # Explicitly reject stabilization branches as they are no longer supported
+    if branch_name.startswith('stabilization/'):
+        raise errors.UnsupportedBranchType(branch_name)
+    
     for cls in [DevelopmentBranch, ReleaseBranch,
                 QueueBranch, QueueIntegrationBranch,
                 FeatureBranch, HotfixBranch, LegacyHotfixBranch,

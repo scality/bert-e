@@ -4820,16 +4820,16 @@ class TestQueueing(RepositoryTests):
                  gwfb.branch_factory(FakeGitRepo(), 'development/5.1'),
                  gwfb.branch_factory(FakeGitRepo(), 'development/10.0')],
 
-                [gwfb.branch_factory(FakeGitRepo(), 'stabilization/4.3.18'),
+                [gwfb.branch_factory(FakeGitRepo(), 'hotfix/4.3.18'),
                  gwfb.branch_factory(FakeGitRepo(), 'development/4.3'),
                  gwfb.branch_factory(FakeGitRepo(), 'development/5.1'),
                  gwfb.branch_factory(FakeGitRepo(), 'development/10.0')],
 
-                [gwfb.branch_factory(FakeGitRepo(), 'stabilization/5.1.4'),
+                [gwfb.branch_factory(FakeGitRepo(), 'hotfix/5.1.4'),
                  gwfb.branch_factory(FakeGitRepo(), 'development/5.1'),
                  gwfb.branch_factory(FakeGitRepo(), 'development/10.0')],
 
-                [gwfb.branch_factory(FakeGitRepo(), 'stabilization/10.0.0'),
+                [gwfb.branch_factory(FakeGitRepo(), 'hotfix/10.0.1'),
                  gwfb.branch_factory(FakeGitRepo(), 'development/10.0')],
             ],
             force_merge=False)
@@ -5634,7 +5634,7 @@ class TestQueueing(RepositoryTests):
                     .rstrip())
 
     def test_new_dev_branch_appears(self):
-        pr = self.create_pr('bugfix/TEST-00001', 'stabilization/5.1.4')
+        pr = self.create_pr('bugfix/TEST-00001', 'development/5.1')
         with self.assertRaises(exns.Queued):
             self.handle(pr.id, options=self.bypass_all, backtrace=True)
 
@@ -5813,110 +5813,6 @@ class TestQueueing(RepositoryTests):
             'q/w/%d/10.0.0.1/bugfix/TEST-00000' % pr0.id, 'SUCCESSFUL')
         with self.assertRaises(exns.Merged):
             self.handle(sha1, options=self.bypass_all, backtrace=True)
-        self.assertEqual(self.prs_in_queue(), set())
-
-    def test_multi_branch_queues(self):
-        pr1 = self.create_pr('bugfix/TEST-00001', 'development/5')
-        with self.assertRaises(exns.Queued):
-            self.handle(pr1.id, options=self.bypass_all, backtrace=True)
-
-        pr2 = self.create_pr('bugfix/TEST-00002', 'stabilization/10.0.0')
-        with self.assertRaises(exns.Queued):
-            self.handle(pr2.id, options=self.bypass_all, backtrace=True)
-
-        pr3 = self.create_pr('bugfix/TEST-00003', 'development/5')
-        with self.assertRaises(exns.Queued):
-            self.handle(pr3.id, options=self.bypass_all, backtrace=True)
-
-        pr4217 = self.create_pr('bugfix/TEST-00004217', 'hotfix/4.2.17')
-        with self.assertRaises(exns.Queued):
-            self.handle(pr4217.id, options=self.bypass_all, backtrace=True)
-
-        self.assertEqual(self.prs_in_queue(),
-                         {pr1.id, pr2.id, pr3.id, pr4217.id})
-
-        self.set_build_status_on_branch_tip(
-            'q/w/%d/5/bugfix/TEST-00001' % pr1.id, 'SUCCESSFUL')
-        self.set_build_status_on_branch_tip(
-            'q/w/%d/10.0/bugfix/TEST-00001' % pr1.id, 'SUCCESSFUL')
-        self.set_build_status_on_branch_tip(
-            'q/w/%d/10/bugfix/TEST-00001' % pr1.id, 'FAILED')
-        self.set_build_status_on_branch_tip(
-            'q/w/%d/10.0.0/bugfix/TEST-00002' % pr2.id, 'FAILED')
-        self.set_build_status_on_branch_tip(
-            'q/w/%d/10.0/bugfix/TEST-00002' % pr2.id, 'SUCCESSFUL')
-        self.set_build_status_on_branch_tip(
-            'q/w/%d/10/bugfix/TEST-00002' % pr2.id, 'SUCCESSFUL')
-        self.set_build_status_on_branch_tip(
-            'q/w/%d/5/bugfix/TEST-00003' % pr3.id, 'SUCCESSFUL')
-        self.set_build_status_on_branch_tip(
-            'q/w/%d/10.0/bugfix/TEST-00003' % pr3.id, 'SUCCESSFUL')
-        self.set_build_status_on_branch_tip(
-            'q/w/%d/4.2.17.1/bugfix/TEST-00004217' % pr4217.id, 'FAILED')
-        sha1 = self.set_build_status_on_branch_tip(
-            'q/w/%d/10/bugfix/TEST-00003' % pr3.id, 'SUCCESSFUL')
-
-        with self.assertRaises(exns.QueueBuildFailed):
-            self.handle(sha1, options=self.bypass_all, backtrace=True)
-        self.assertEqual(self.prs_in_queue(), {pr1.id, pr2.id, pr3.id,
-                                               pr4217.id})
-
-        self.set_build_status_on_branch_tip(
-            'q/w/%d/4.2.17.1/bugfix/TEST-00004217' % pr4217.id, 'SUCCESSFUL')
-        with self.assertRaises(exns.Merged):
-            self.handle(sha1, options=self.bypass_all, backtrace=True)
-        self.assertEqual(self.prs_in_queue(), {pr1.id, pr2.id, pr3.id})
-
-        self.set_build_status_on_branch_tip(
-            'q/w/%d/10/bugfix/TEST-00001' % pr1.id, 'SUCCESSFUL')
-        with self.assertRaises(exns.Merged):
-            self.handle(sha1, options=self.bypass_all, backtrace=True)
-        self.assertEqual(self.prs_in_queue(), {pr2.id, pr3.id})
-
-        pr4 = self.create_pr('bugfix/TEST-00004', 'stabilization/10.0.0')
-        with self.assertRaises(exns.Queued):
-            self.handle(pr4.id, options=self.bypass_all, backtrace=True)
-        with self.assertRaises(exns.NothingToDo):
-            self.handle(sha1, options=self.bypass_all, backtrace=True)
-        self.assertEqual(self.prs_in_queue(), {pr2.id, pr3.id, pr4.id})
-
-        self.set_build_status_on_branch_tip(
-            'q/w/%d/10.0.0/bugfix/TEST-00004' % pr4.id, 'SUCCESSFUL')
-        self.set_build_status_on_branch_tip(
-            'q/w/%d/10.0/bugfix/TEST-00004' % pr4.id, 'SUCCESSFUL')
-        sha1 = self.set_build_status_on_branch_tip(
-            'q/w/%d/10/bugfix/TEST-00004' % pr4.id, 'FAILED')
-        with self.assertRaises(exns.QueueBuildFailed):
-            self.handle(sha1, options=self.bypass_all, backtrace=True)
-        self.assertEqual(self.prs_in_queue(), {pr2.id, pr3.id, pr4.id})
-
-        pr5 = self.create_pr('bugfix/TEST-00005', 'development/10')
-        with self.assertRaises(exns.Queued):
-            self.handle(pr5.id, options=self.bypass_all, backtrace=True)
-        self.assertEqual(self.prs_in_queue(), {pr2.id, pr3.id, pr4.id, pr5.id})
-
-        sha1 = self.set_build_status_on_branch_tip(
-            'q/w/%d/10/bugfix/TEST-00005' % pr5.id, 'SUCCESSFUL')
-
-        with self.assertRaises(exns.Merged):
-            self.handle(sha1, options=self.bypass_all, backtrace=True)
-        self.assertEqual(self.prs_in_queue(), set())
-
-        self.gitrepo.cmd('git tag 10.0.0.0')
-        self.gitrepo.cmd('git push --tags')
-        pr1000 = self.create_pr('bugfix/TEST-00001000', 'hotfix/10.0.0')
-
-        with self.assertRaises(exns.DeprecatedStabilizationBranch):
-            self.handle(pr1000.id, options=self.bypass_all, backtrace=True)
-        self.gitrepo.cmd('git push origin :stabilization/10.0.0 :q/10.0.0')
-        with self.assertRaises(exns.Queued):
-            self.handle(pr1000.id, options=self.bypass_all, backtrace=True)
-        self.assertEqual(self.prs_in_queue(), {pr1000.id})
-        sha1 = self.set_build_status_on_branch_tip(
-            'q/w/%d/10.0.0.1/bugfix/TEST-00001000' % pr1000.id, 'SUCCESSFUL')
-        with self.assertRaises(exns.Merged):
-            self.handle(sha1, options=self.bypass_all, backtrace=True)
-
         self.assertEqual(self.prs_in_queue(), set())
 
     def test_multi_branch_queues_2(self):
@@ -6200,12 +6096,6 @@ class TaskQueueTests(RepositoryTests):
         self.init_berte(options=self.bypass_all, disable_queues=True)
         self.process_job(
             DeleteBranchJob(
-                settings={'branch': 'stabilization/5.1.4'},
-                bert_e=self.berte),
-            'JobSuccess'
-        )
-        self.process_job(
-            DeleteBranchJob(
                 settings={'branch': 'development/5.1'},
                 bert_e=self.berte),
             'JobSuccess'
@@ -6214,8 +6104,6 @@ class TaskQueueTests(RepositoryTests):
             ('development/4.3', self.assertTrue),
             ('development/5.1', self.assertFalse),
             ('development/10.0', self.assertTrue),
-            ('stabilization/4.3.18', self.assertTrue),
-            ('stabilization/5.1.4', self.assertFalse),
         ]
         self.gitrepo._get_remote_branches(force=True)
         for branch, func in expected_branches:
@@ -6229,7 +6117,6 @@ class TaskQueueTests(RepositoryTests):
     def test_job_create_branch_dev_failure_cases(self):
         """Test creation of development branches."""
         self.init_berte(options=self.bypass_all)
-        self.gitrepo.cmd('git push origin :stabilization/5.1.4')
         pr = self.create_pr('feature/TEST-9999', 'development/10.0')
 
         # cannot branch when branch already exists
@@ -6255,14 +6142,6 @@ class TaskQueueTests(RepositoryTests):
         )
 
         # cannot branch when a tag archiving a branch already exists
-        self.gitrepo.cmd('git tag 7.0.0')
-        self.gitrepo.cmd('git push --tags')
-        self.process_job(
-            CreateBranchJob(
-                settings={'branch': 'stabilization/7.0.0'},
-                bert_e=self.berte),
-            'JobFailure'
-        )
         self.gitrepo.cmd('git tag 7.0')
         self.gitrepo.cmd('git push --tags')
         self.process_job(
@@ -6314,49 +6193,6 @@ class TaskQueueTests(RepositoryTests):
             'JobFailure'
         )
 
-        # check cannot create a stab if version is invalid
-        self.process_job(
-            CreateBranchJob(
-                settings={'branch': 'stabilization/5.1.3'},
-                bert_e=self.berte),
-            'JobFailure'
-        )
-        self.process_job(
-            CreateBranchJob(
-                settings={'branch': 'stabilization/5.1.5'},
-                bert_e=self.berte),
-            'JobFailure'
-        )
-
-        # cannot create a stab if no corresponding dev
-        self.process_job(
-            CreateBranchJob(
-                settings={'branch': 'stabilization/9.0.0'},
-                bert_e=self.berte),
-            'JobFailure'
-        )
-
-        # cannot create a stab from invalid sha1
-        self.gitrepo._get_remote_branches(force=True)
-        sha1_4_3 = self.gitrepo._remote_branches['development/4.3']
-        sha1_10_0 = self.gitrepo._remote_branches['development/10.0']
-        self.process_job(
-            CreateBranchJob(
-                settings={
-                    'branch': 'stabilization/5.1.5',
-                    'branch_from': sha1_4_3},  # inclusion error
-                bert_e=self.berte),
-            'JobFailure'
-        )
-        self.process_job(
-            CreateBranchJob(
-                settings={
-                    'branch': 'stabilization/5.1.5',
-                    'branch_from': sha1_10_0},  # inclusion error
-                bert_e=self.berte),
-            'JobFailure'
-        )
-
         # cannot add dev at begining or middle of cascade if queued data
         self.process_pr_job(pr, 'Queued')
         self.process_job(
@@ -6375,12 +6211,11 @@ class TaskQueueTests(RepositoryTests):
     def test_job_delete_branch_dev_failure_cases(self):
         """Test deletion of development branches."""
         self.init_berte(options=self.bypass_all)
-        self.gitrepo.cmd('git push origin :stabilization/5.1.4')
 
         # cannot del branch when branch does not exist
         self.process_job(
             DeleteBranchJob(
-                settings={'branch': 'stabilization/5.1.4'},
+                settings={'branch': 'development/9.9'},
                 bert_e=self.berte),
             'NothingToDo'
         )
@@ -6400,16 +6235,6 @@ class TaskQueueTests(RepositoryTests):
         )
 
         # cannot del branch when a tag archiving a branch already exists
-        self.gitrepo.cmd('git tag 4.3.18')
-        self.gitrepo.cmd('git push origin 4.3.18')
-        self.process_job(
-            DeleteBranchJob(
-                settings={'branch': 'stabilization/4.3.18'},
-                bert_e=self.berte),
-            'JobFailure'
-        )
-        self.gitrepo.cmd('git push origin :4.3.18')
-
         self.gitrepo.cmd('git tag 4.3')
         self.gitrepo.cmd('git push origin 4.3')
         self.process_job(
@@ -6419,14 +6244,6 @@ class TaskQueueTests(RepositoryTests):
             'JobFailure'
         )
         self.gitrepo.cmd('git push origin :4.3')
-
-        # cannot del a dev if there is a stab
-        self.process_job(
-            DeleteBranchJob(
-                settings={'branch': 'development/4.3'},
-                bert_e=self.berte),
-            'JobFailure'
-        )
 
         # cannot del branch if queued data
         pr = self.create_pr('feature/TEST-9999', 'development/5.1')
@@ -6564,16 +6381,12 @@ class TaskQueueTests(RepositoryTests):
         pr = self.create_pr('feature/TEST-9997', 'development/11.3')
         self.process_pr_job(pr, 'Queued')
 
-        pr = self.create_pr('feature/TEST-9998', 'stabilization/4.3.18')
-        self.process_pr_job(pr, 'Queued')
-
         expected_branches = [
             'development/4.3',
             'development/5.1',
             'development/10.0',
             'development/11.3',
             'q/4.3',
-            'q/4.3.18',
             'q/10.0',
             'q/11.3',
             'q/w/1/4.3/feature/TEST-01',
@@ -6598,14 +6411,6 @@ class TaskQueueTests(RepositoryTests):
             'q/w/3/10/feature/TEST-03',
             'q/w/3/11.3/feature/TEST-03',
             'q/w/22/11.3/feature/TEST-9997',
-            'q/w/23/4.3.18/feature/TEST-9998',
-            'q/w/23/4.3/feature/TEST-9998',
-            'q/w/23/4/feature/TEST-9998',
-            'q/w/23/5.1/feature/TEST-9998',
-            'q/w/23/5/feature/TEST-9998',
-            'q/w/23/10.0/feature/TEST-9998',
-            'q/w/23/10/feature/TEST-9998',
-            'q/w/23/11.3/feature/TEST-9998',
         ]
         self.gitrepo._get_remote_branches(force=True)
         for branch in expected_branches:
@@ -6649,7 +6454,7 @@ class TaskQueueTests(RepositoryTests):
         self.process_pr_job(pr, 'Queued')
 
     def test_job_delete_branch(self):
-        """Test deletion of development and stabilization branches."""
+        """Test deletion of development branches."""
         self.init_berte(options=self.bypass_all)
 
         # Create a couple PRs and queue them
@@ -6663,19 +6468,7 @@ class TaskQueueTests(RepositoryTests):
 
         self.process_job(
             DeleteBranchJob(
-                settings={'branch': 'stabilization/4.3.18'},
-                bert_e=self.berte),
-            'JobSuccess'
-        )
-        self.process_job(
-            DeleteBranchJob(
                 settings={'branch': 'development/4.3'},
-                bert_e=self.berte),
-            'JobSuccess'
-        )
-        self.process_job(
-            DeleteBranchJob(
-                settings={'branch': 'stabilization/5.1.4'},
                 bert_e=self.berte),
             'JobSuccess'
         )
@@ -6686,12 +6479,8 @@ class TaskQueueTests(RepositoryTests):
         self.process_pr_job(pr, 'Queued')
 
         expected_branches = [
-            ('stabilization/4.3.18', self.assertFalse),
             ('development/4.3', self.assertFalse),
-            ('stabilization/5.1.4', self.assertFalse),
             ('q/4.3', self.assertFalse),
-            ('q/4.3.18', self.assertFalse),
-            ('q/5.1.4', self.assertFalse),
 
             ('development/5.1', self.assertTrue),
             ('development/10.0', self.assertTrue),
@@ -6720,12 +6509,12 @@ class TaskQueueTests(RepositoryTests):
 
         self.gitrepo.cmd('git fetch')
         tags = self.gitrepo.cmd('git tag').split('\n')
-        expected_tags = ['4.3', '4.3.18', '5.1.4']
+        expected_tags = ['4.3']
         for tag in expected_tags:
             self.assertIn(tag, tags)
 
     def test_job_delete_hotfix_branch_with_pr_queued(self):
-        """Test deletion of development and stabilization branches."""
+        """Test deletion of development and hotfix branches."""
         self.init_berte(options=self.bypass_all)
 
         # Create a couple PRs and queue them
@@ -6740,7 +6529,7 @@ class TaskQueueTests(RepositoryTests):
         )
 
     def test_job_delete_hotfix_branch(self):
-        """Test deletion of development and stabilization branches."""
+        """Test deletion of development and hotfix branches."""
         self.init_berte(options=self.bypass_all)
 
         self.process_job(

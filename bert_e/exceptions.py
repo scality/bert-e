@@ -573,3 +573,12 @@ class JobFailure(SilentException):
 
 class QueueBuildFailed(SilentException):
     code = 309
+
+
+class UnsupportedBranchType(InternalException):
+    code = 205
+
+    def __init__(self, branch_name):
+        msg = 'Unsupported branch type: %r. Stabilization branches are no longer supported.' \
+              % (branch_name,)
+        super(UnsupportedBranchType, self).__init__(msg)
