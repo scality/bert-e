@@ -309,7 +309,6 @@ class QuickTest(unittest.TestCase):
         gwfb.DevelopmentBranch(repo=None, name='development/4.3')
         gwfb.DevelopmentBranch(repo=None, name='development/5.1')
         gwfb.DevelopmentBranch(repo=None, name='development/10.0')
-        gwfb.StabilizationBranch(repo=None, name='stabilization/6.6.6')
         gwfb.HotfixBranch(repo=None, name='hotfix/6.6.6')
 
     def finalize_cascade(self, branches, tags, destination,
@@ -395,197 +394,65 @@ class QuickTest(unittest.TestCase):
         with self.assertRaises(exns.UnrecognizedBranchPattern):
             self.finalize_cascade(branches, tags, destination, fixver)
 
-    def test_branch_cascade_target_first_stab(self):
-        destination = 'stabilization/4.3.18'
-        branches = OrderedDict({
-            1: {'name': 'stabilization/4.3.18', 'ignore': False},
-            2: {'name': 'development/4.3', 'ignore': False},
-            3: {'name': 'development/5.1', 'ignore': False},
-            4: {'name': 'stabilization/5.1.4', 'ignore': True},
-            5: {'name': 'development/10.0', 'ignore': False}
-        })
-        tags = ['4.3.16', '4.3.17', '4.3.18_rc1', '5.1.3', '5.1.4_rc1']
-        fixver = ['4.3.18', '5.1.5', '10.0.0']
-        merge_paths = [
-            ['development/4.3', 'development/5.1', 'development/10.0'],
-            ['stabilization/4.3.18', 'development/4.3',
-             'development/5.1', 'development/10.0'],
-            ['stabilization/5.1.4', 'development/5.1', 'development/10.0'],
-        ]
-        self.finalize_cascade(branches, tags, destination, fixver, merge_paths)
-
-    def test_branch_cascade_target_last_stab(self):
-        destination = 'stabilization/5.1.4'
-        branches = OrderedDict({
-            1: {'name': 'stabilization/4.3.18', 'ignore': True},
-            2: {'name': 'development/4.3', 'ignore': True},
-            3: {'name': 'stabilization/5.1.4', 'ignore': False},
-            4: {'name': 'development/5.1', 'ignore': False},
-            5: {'name': 'development/10.0', 'ignore': False}
-        })
-        tags = ['4.3.16', '4.3.17', '4.3.18_t', '5.1.3', '5.1.4_rc1', '10.0.0']
-        fixver = ['5.1.4', '10.0.1']
-        self.finalize_cascade(branches, tags, destination, fixver)
-
     def test_branch_cascade_target_first_dev(self):
         destination = 'development/4.3'
         branches = OrderedDict({
-            1: {'name': 'stabilization/4.3.18', 'ignore': True},
-            2: {'name': 'development/4.3', 'ignore': False},
-            3: {'name': 'stabilization/5.1.4', 'ignore': True},
-            4: {'name': 'development/5.1', 'ignore': False},
-            5: {'name': 'development/10.0', 'ignore': False}
+            1: {'name': 'development/4.3', 'ignore': False},
+            2: {'name': 'development/5.1', 'ignore': False},
+            3: {'name': 'development/10.0', 'ignore': False}
         })
-        tags = ['4.3.18_rc1', '5.1.3', '5.1.4_rc1', '4.3.16', '4.3.17']
-        fixver = ['4.3.19', '5.1.5', '10.0.0']
+        tags = ['4.3.16', '4.3.17', '5.1.3']
+        fixver = ['4.3.18', '5.1.4', '10.0.0']
         self.finalize_cascade(branches, tags, destination, fixver)
 
     def test_branch_cascade_target_middle_dev(self):
         destination = 'development/5.1'
         branches = OrderedDict({
-            1: {'name': 'stabilization/4.3.18', 'ignore': True},
-            2: {'name': 'development/4.3', 'ignore': True},
-            3: {'name': 'stabilization/5.1.4', 'ignore': True},
-            4: {'name': 'development/5.1', 'ignore': False},
-            5: {'name': 'development/10.0', 'ignore': False}
+            1: {'name': 'development/4.3', 'ignore': True},
+            2: {'name': 'development/5.1', 'ignore': False},
+            3: {'name': 'development/10.0', 'ignore': False}
         })
-        tags = ['4.3.16', '4.3.17', '4.3.18_rc1', '5.1.3', '5.1.4_rc1']
-        fixver = ['5.1.5', '10.0.0']
+        tags = ['4.3.16', '4.3.17', '5.1.3']
+        fixver = ['5.1.4', '10.0.0']
         self.finalize_cascade(branches, tags, destination, fixver)
 
     def test_branch_cascade_target_last_dev(self):
         destination = 'development/10.0'
         branches = OrderedDict({
-            1: {'name': 'stabilization/4.3.18', 'ignore': True},
-            2: {'name': 'development/4.3', 'ignore': True},
-            3: {'name': 'stabilization/5.1.4', 'ignore': True},
-            4: {'name': 'development/5.1', 'ignore': True},
-            5: {'name': 'development/10.0', 'ignore': False}
+            1: {'name': 'development/4.3', 'ignore': True},
+            2: {'name': 'development/5.1', 'ignore': True},
+            3: {'name': 'development/10.0', 'ignore': False}
         })
-        tags = ['4.3.16', '4.3.17', '4.3.18_rc1', '5.1.3', '5.1.4_rc1']
+        tags = ['4.3.16', '4.3.17', '5.1.3']
         fixver = ['10.0.0']
         self.finalize_cascade(branches, tags, destination, fixver)
 
     def test_branch_cascade_target_hotfix(self):
         destination = 'hotfix/6.6.6'
         branches = OrderedDict({
-            1: {'name': 'stabilization/4.3.18', 'ignore': True},
-            2: {'name': 'development/4.3', 'ignore': True},
-            3: {'name': 'stabilization/5.1.4', 'ignore': True},
-            4: {'name': 'development/5.1', 'ignore': True},
-            5: {'name': 'hotfix/6.6.5', 'ignore': True},
-            6: {'name': 'hotfix/6.6.6', 'ignore': False},
-            7: {'name': 'hotfix/6.6.7', 'ignore': True},
-            8: {'name': 'development/6.6', 'ignore': True},
-            9: {'name': 'hotfix/10.0.3', 'ignore': True},
-            10: {'name': 'hotfix/10.0.4', 'ignore': True},
-            11: {'name': 'development/10.0', 'ignore': True}
+            1: {'name': 'development/4.3', 'ignore': True},
+            2: {'name': 'development/5.1', 'ignore': True},
+            3: {'name': 'hotfix/6.6.5', 'ignore': True},
+            4: {'name': 'hotfix/6.6.6', 'ignore': False},
+            5: {'name': 'hotfix/6.6.7', 'ignore': True},
+            6: {'name': 'development/6.6', 'ignore': True},
+            7: {'name': 'hotfix/10.0.3', 'ignore': True},
+            8: {'name': 'hotfix/10.0.4', 'ignore': True},
+            9: {'name': 'development/10.0', 'ignore': True}
         })
-        tags = ['4.3.16', '4.3.17', '4.3.18_rc1', '5.1.3', '5.1.4_rc1',
-                '6.6.6', '10.0.3.1']
+        tags = ['4.3.16', '4.3.17', '5.1.3', '6.6.6', '10.0.3.1']
         fixver = ['6.6.6.1']
         self.finalize_cascade(branches, tags, destination, fixver)
         tags = ['4.3.16', '4.3.17', '4.3.18_rc1', '5.1.3', '5.1.4_rc1',
                 '6.6.6.0', '10.0.3.1']
         fixver = ['6.6.6.1']
         self.finalize_cascade(branches, tags, destination, fixver)
-        tags = ['4.3.16', '4.3.17', '4.3.18_rc1', '5.1.3', '5.1.4_rc1',
-                '6.6.6.1', '10.0.3.1']
+        tags = ['4.3.16', '4.3.17', '5.1.3', '6.6.6.1', '10.0.3.1']
         fixver = ['6.6.6.2']
         self.finalize_cascade(branches, tags, destination, fixver)
-        tags = ['4.3.16', '4.3.17', '4.3.18_rc1', '5.1.3', '5.1.4_rc1',
-                '6.6.6.1', '6.6.6.2', '10.0.3.1']
+        tags = ['4.3.16', '4.3.17', '5.1.3', '6.6.6.1', '6.6.6.2', '10.0.3.1']
         fixver = ['6.6.6.3']
         self.finalize_cascade(branches, tags, destination, fixver)
-
-    def test_branch_cascade_hotfix_and_stabilization(self):
-        destination = 'hotfix/4.3.18'
-        branches = OrderedDict({
-            1: {'name': 'stabilization/4.3.18', 'ignore': True},
-            2: {'name': 'development/4.3', 'ignore': True},
-            5: {'name': 'hotfix/4.3.18', 'ignore': False},
-        })
-        tags = ['4.3.16', '4.3.17', '4.3.18']
-        fixver = ['4.3.18.1']
-        with self.assertRaises(exns.DeprecatedStabilizationBranch):
-            self.finalize_cascade(branches, tags, destination, fixver)
-
-        destination = 'stabilization/4.3.18'
-        branches = OrderedDict({
-            1: {'name': 'stabilization/4.3.18', 'ignore': False},
-            2: {'name': 'development/4.3', 'ignore': False},
-            5: {'name': 'hotfix/4.3.18', 'ignore': True},
-        })
-        tags = ['4.3.16', '4.3.17', '4.3.18']
-        fixver = ['4.3.18']
-        with self.assertRaises(exns.DeprecatedStabilizationBranch):
-            self.finalize_cascade(branches, tags, destination, fixver)
-
-        destination = 'hotfix/4.3.18'
-        branches = OrderedDict({
-            1: {'name': 'stabilization/4.3.19', 'ignore': True},
-            2: {'name': 'development/4.3', 'ignore': True},
-            5: {'name': 'hotfix/4.3.18', 'ignore': False},
-        })
-        tags = ['4.3.18']
-        fixver = ['4.3.18.1']
-        self.finalize_cascade(branches, tags, destination, fixver)
-
-    def test_branch_incorrect_stab_name(self):
-        destination = 'development/10.0'
-        branches = OrderedDict({
-            1: {'name': 'stabilization/10.0', 'ignore': True},
-            2: {'name': 'development/10.0', 'ignore': False}
-        })
-        tags = ['10.0.0']
-        fixver = ['10.0.1']
-        with self.assertRaises(exns.UnrecognizedBranchPattern):
-            self.finalize_cascade(branches, tags, destination, fixver)
-
-    def test_branch_targetting_incorrect_stab_name(self):
-        destination = 'stabilization/10.0'
-        branches = OrderedDict({
-            1: {'name': 'stabilization/10.0', 'ignore': False},
-            2: {'name': 'development/10.0', 'ignore': False}
-        })
-        tags = ['10.0.0']
-        fixver = ['10.0.1']
-        with self.assertRaises(exns.UnrecognizedBranchPattern):
-            self.finalize_cascade(branches, tags, destination, fixver)
-
-    def test_branch_dangling_stab(self):
-        destination = 'development/5.1'
-        branches = OrderedDict({
-            1: {'name': 'stabilization/4.3.18', 'ignore': False},
-            2: {'name': 'development/5.1', 'ignore': False}
-        })
-        tags = ['4.3.17', '5.1.3']
-        fixver = ['5.1.4']
-        with self.assertRaises(exns.DevBranchDoesNotExist):
-            self.finalize_cascade(branches, tags, destination, fixver)
-
-    def test_branch_targetting_dangling_stab(self):
-        destination = 'stabilization/4.3.18'
-        branches = OrderedDict({
-            1: {'name': 'stabilization/4.3.18', 'ignore': False},
-            2: {'name': 'development/5.1', 'ignore': False}
-        })
-        tags = ['4.3.17', '5.1.3']
-        fixver = ['4.3.18', '5.1.4']
-        with self.assertRaises(exns.DevBranchDoesNotExist):
-            self.finalize_cascade(branches, tags, destination, fixver)
-
-    def test_branch_cascade_multi_stab_branches(self):
-        destination = 'stabilization/4.3.18'
-        branches = OrderedDict({
-            1: {'name': 'stabilization/4.3.17', 'ignore': True},
-            2: {'name': 'stabilization/4.3.18', 'ignore': False},
-            3: {'name': 'development/4.3', 'ignore': False}
-        })
-        tags = []
-        fixver = []
-        with self.assertRaises(exns.UnsupportedMultipleStabBranches):
-            self.finalize_cascade(branches, tags, destination, fixver)
 
     def test_branch_cascade_invalid_dev_branch(self):
         destination = 'development/4.3.17'
@@ -640,79 +507,36 @@ class QuickTest(unittest.TestCase):
         fixver = ['10.0.4001']
         self.finalize_cascade(branches, tags, destination, fixver)
 
-    def test_tags_with_stabilization(self):
-        destination = 'stabilization/6.1.5'
-        branches = OrderedDict({
-            1: {'name': 'stabilization/6.1.5', 'ignore': False},
-            2: {'name': 'development/6.1', 'ignore': False}
-        })
-        merge_paths = [
-            ['development/6.1'],
-            ['stabilization/6.1.5', 'development/6.1']
-        ]
-
-        tags = []
-        fixver = ['6.1.5']
-        c = self.finalize_cascade(branches, tags, destination,
-                                  fixver, merge_paths)
-        with self.assertRaises(exns.VersionMismatch):
-            c.validate()
-
-        tags = ['6.1.4']
-        fixver = ['6.1.5']
-        c = self.finalize_cascade(branches, tags, destination, fixver)
-        self.assertEqual(
-            c._cascade[(6, 1)][gwfb.DevelopmentBranch].micro, 4)
-        self.assertEqual(
-            c._cascade[(6, 1)][gwfb.StabilizationBranch].micro, 5)
-
-        tags = ['6.1.5']
-        fixver = []
-        with self.assertRaises(exns.DeprecatedStabilizationBranch):
-            self.finalize_cascade(branches, tags, destination, fixver)
-
-        tags = ['6.1.6']
-        fixver = []
-        with self.assertRaises(exns.DeprecatedStabilizationBranch):
-            self.finalize_cascade(branches, tags, destination, fixver)
-
     def test_with_v_prefix(self):
         destination = 'development/4.3'
         branches = OrderedDict({
-            1: {'name': 'stabilization/4.3.18', 'ignore': True},
-            2: {'name': 'development/4.3', 'ignore': False},
-            3: {'name': 'stabilization/5.1.4', 'ignore': True},
-            4: {'name': 'development/5.1', 'ignore': False},
-            5: {'name': 'development/10.0', 'ignore': False}
+            1: {'name': 'development/4.3', 'ignore': False},
+            2: {'name': 'development/5.1', 'ignore': False},
+            3: {'name': 'development/10.0', 'ignore': False}
         })
         # mix and match tags with v prefix and without
-        tags = ['4.3.16', '4.3.17', '4.3.18_rc1',
-                'v5.1.3', 'v5.1.4_rc1', 'v10.0.1']
-        fixver = ['4.3.19', '5.1.5', '10.0.2']
+        tags = ['4.3.16', '4.3.17', 'v5.1.3', 'v10.0.1']
+        fixver = ['4.3.18', '5.1.4', '10.0.2']
         self.finalize_cascade(branches, tags, destination, fixver)
         # only tags with v prefix
-        v_tags = ['v4.3.16', 'v4.3.17', 'v4.3.18_rc1', 'v5.1.3',
-                  'v5.1.4_rc1', 'v10.0.1']
+        v_tags = ['v4.3.16', 'v4.3.17', 'v5.1.3', 'v10.0.1']
         # expect the same result
         self.finalize_cascade(branches, v_tags, destination, fixver)
 
     def test_major_development_branch(self):
         destination = 'development/4.3'
         branches = OrderedDict({
-            1: {'name': 'stabilization/4.3.18', 'ignore': True},
-            2: {'name': 'development/4.3', 'ignore': False},
-            3: {'name': 'development/4', 'ignore': False},
-            4: {'name': 'stabilization/5.1.4', 'ignore': True},
-            5: {'name': 'development/5.1', 'ignore': False},
-            6: {'name': 'development/10.0', 'ignore': False},
-            7: {'name': 'development/10', 'ignore': False}
+            1: {'name': 'development/4.3', 'ignore': False},
+            2: {'name': 'development/4', 'ignore': False},
+            3: {'name': 'development/5.1', 'ignore': False},
+            4: {'name': 'development/10.0', 'ignore': False},
+            5: {'name': 'development/10', 'ignore': False}
         })
-        tags = ['4.3.16', '4.3.17', '4.3.18_rc1',
-                'v5.1.3', 'v5.1.4_rc1', 'v10.0.1']
+        tags = ['4.3.16', '4.3.17', 'v5.1.3', 'v10.0.1']
         fixver = []
         with self.assertRaises(AssertionError):
             self.finalize_cascade(branches, tags, destination, fixver)
-        fixver = ['4.3.19', '4.4.0', '5.1.5', '10.0.2', '10.1.0']
+        fixver = ['4.3.18', '4.4.0', '5.1.4', '10.0.2', '10.1.0']
         self.finalize_cascade(branches, tags, destination, fixver)
 
         destination = 'development/4'
@@ -731,29 +555,15 @@ class QuickTest(unittest.TestCase):
     def test_major_development_branch_no_tag_bump(self):
         destination = 'development/4.3'
         branches = OrderedDict({
-            1: {'name': 'stabilization/4.3.18', 'ignore': True},
-            2: {'name': 'development/4.3', 'ignore': False},
-            3: {'name': 'development/4', 'ignore': False},
-            4: {'name': 'stabilization/5.1.4', 'ignore': True},
-            5: {'name': 'development/5.1', 'ignore': False},
-            6: {'name': 'development/10.0', 'ignore': False},
-            7: {'name': 'development/10', 'ignore': False}
+            1: {'name': 'development/4.3', 'ignore': False},
+            2: {'name': 'development/4', 'ignore': False},
+            3: {'name': 'development/5.1', 'ignore': False},
+            4: {'name': 'development/10.0', 'ignore': False},
+            5: {'name': 'development/10', 'ignore': False}
         })
-        tags = ['4.3.16', '4.3.17', '4.3.18_rc1',
-                'v5.1.3', 'v5.1.4_rc1']
-        fixver = ['4.3.19', '4.4.0', '5.1.5', '10.0.0', '10.1.0']
+        tags = ['4.3.16', '4.3.17', 'v5.1.3']
+        fixver = ['4.3.18', '4.4.0', '5.1.4', '10.0.0', '10.1.0']
         self.finalize_cascade(branches, tags, destination, fixver)
-
-    def test_major_dev_branch_lonely_stab(self):
-        destination = 'stabilization/6.1.5'
-        branches = OrderedDict({
-            1: {'name': 'stabilization/6.1.5', 'ignore': False},
-            2: {'name': 'development/6', 'ignore': False}
-        })
-        tags = []
-        fixver = ['6.1.5', '6.2.0']
-        with self.assertRaises(exns.DevBranchDoesNotExist):
-            self.finalize_cascade(branches, tags, destination, fixver)
 
     def test_retry_handler(self):
         class DummyError(Exception):
@@ -4386,96 +4196,6 @@ project_leaders:
         self.gitrepo.cmd('git merge-base --is-ancestor origin/feature/foo '
                          'origin/development/10.0')
 
-    def test_stabilization_branch_addition(self):
-        """Check that Bert-E survives to the addition of a stab branch.
-
-        Steps:
-            Delete stabilization/10.0.0
-            Create a PR targetting development/4.3
-            Let the robot create the integration cascade
-            Add a stabilization/10.0.0 branch
-            Wake up the robot on the PR with bypass_all
-
-        Expected result:
-            The PR gets merged into development/4.3, development/5.1
-            and development/10.0.
-
-        """
-        self.gitrepo.cmd('git push origin :stabilization/10.0.0')
-        pr = self.create_pr('feature/foo', 'development/4.3')
-        self.handle(pr.id,
-                    options=self.bypass_all_but(['bypass_build_status']))
-
-        # Create a stabilization/10.0.0 branch on top of development/10.0
-        self.gitrepo.cmd('git fetch --prune')
-        self.gitrepo.cmd(
-            'git checkout -B stabilization/10.0.0 development/10.0')
-        self.gitrepo.cmd('git push -u origin stabilization/10.0.0')
-
-        with self.assertRaises(exns.SuccessMessage):
-            self.handle(pr.id, options=self.bypass_all, backtrace=True)
-
-        self.gitrepo.cmd('git fetch')
-        self.gitrepo.cmd('git merge-base --is-ancestor origin/feature/foo '
-                         'origin/development/4.3')
-        self.gitrepo.cmd('git merge-base --is-ancestor origin/feature/foo '
-                         'origin/development/5.1')
-        self.gitrepo.cmd('git merge-base --is-ancestor origin/feature/foo '
-                         'origin/development/10.0')
-
-    def test_stabilization_and_dev_branch_addition(self):
-        """Check that Bert-E survives to the addition of middle branches.
-
-        Steps:
-            Delete dev/5.1 and stab/5.1.4
-            Create a PR targetting dev/4.3 and fully merge it
-            Create a second PR targetting dev/4.3
-            Let the robot create the integration cascade
-            Add a dev/5.1 and stab/5.1.4 branch
-            Wake up the robot on the PR with bypass_all
-
-        Expected result:
-            - BranchHistoryMismatch
-            - When resetting the queues and adding a force_reset command,
-            the second PR gets merged
-
-        """
-        self.gitrepo.cmd('git push origin '
-                         ':stabilization/5.1.4 :development/5.1')
-        pr = self.create_pr('feature/foo', 'development/4.3')
-        with self.assertRaises(exns.SuccessMessage):
-            self.handle(pr.id, options=self.bypass_all, backtrace=True)
-
-        self.gitrepo.cmd('git fetch')
-        self.gitrepo.cmd('git merge-base --is-ancestor origin/feature/foo '
-                         'origin/development/4.3')
-        self.gitrepo.cmd('git merge-base --is-ancestor origin/feature/foo '
-                         'origin/development/10.0')
-
-        pr = self.create_pr('feature/bar', 'development/4.3')
-        self.handle(pr.id,
-                    options=self.bypass_all_but(['bypass_build_status']))
-
-        self.gitrepo.cmd('git fetch --prune')
-        self.gitrepo.cmd('git checkout -B development/5.1'
-                         ' origin/development/4')
-        self.gitrepo.cmd('git checkout -B stabilization/5.1.4'
-                         ' development/5.1')
-        self.gitrepo.cmd('git push -u origin '
-                         'development/5.1 stabilization/5.1.4')
-
-        if not self.args.disable_queues:
-            self.gitrepo.cmd('git push origin :q/4.3 :q/4 :q/5 :q/10.0 :q/10')
-
-        with self.assertRaises(exns.BranchHistoryMismatch):
-            self.handle(pr.id, options=self.bypass_all, backtrace=True)
-
-        pr.add_comment("@%s force_reset" % self.args.robot_username)
-        self.handle(pr.id, options=self.bypass_all)
-
-        with self.assertRaises(exns.SuccessMessage):
-            self.handle(pr.id, options=self.bypass_all, backtrace=True)
-
     def test_merge_again_in_earlier_dev_branch(self):
         """Check Bert-E can handle merging again in an earlier dev branch.
 
@@ -4964,19 +4684,6 @@ project_leaders:
                 'origin/development/4.3 '
                 'origin/stabilization/4.3.18'
             )
-
-    def test_dev_major_lonely_stab(self):
-        """Test Bert-E's handling of a lonely stabilization/x.y.z branch."""
-        # create a stabilization 4.5.2 branch from development/4
-        self.gitrepo.cmd('git fetch')
-        self.gitrepo.cmd(
-            'git checkout -b stabilization/4.5.2 origin/development/4')
-        self.gitrepo.cmd('git push -u origin stabilization/4.5.2')
-        # create a PR from the stabilization branch
-        pr = self.create_pr('bugfix/TEST-01', 'stabilization/4.5.2')
-        # expect a DevBranchDoesNotExist exception
-        with self.assertRaises(exns.DevBranchDoesNotExist):
-            self.handle(pr.id, options=self.bypass_all, backtrace=True)
 
     def test_admin_self_bypass(self):
         """Test an admin can bypass its own PR."""
@@ -5557,208 +5264,6 @@ class TestQueueing(RepositoryTests):
         self.assert_error_codes(excp,
                                 [exns.QueueInconsistentPullRequestsOrder])
 
-    def test_validation_with_stabilization_branch(self):
-        status = {'pipeline': 'SUCCESSFUL', 'other': 'FAILED'}
-        problem = OrderedDict({
-            1: {'dst': 'development/5.1', 'src': 'bugfix/bar',
-                'status': [status] * 2},
-            2: {'dst': 'development/10.0', 'src': 'feature/foo',
-                'status': [status]},
-            3: {'dst': 'stabilization/5.1.4', 'src': 'bugfix/foo',
-                'status': [status] * 3},
-            4: {'dst': 'development/4.3', 'src': 'bugfix/last',
-                'status': [status] * 3},
-        })
-        solution = OrderedDict([
-            ((4, 3), {
-                gwfb.QueueBranch: self.queue_branch('q/4.3'),
-                gwfb.QueueIntegrationBranch: [
-                    self.qint_branch('q/w/12/4.3/bugfix/last')
-                ]
-            }),
-            ((4, None), {
-                gwfb.QueueBranch: self.queue_branch('q/4'),
-                gwfb.QueueIntegrationBranch: [
-                    self.qint_branch('q/w/12/4/bugfix/last')
-                ]
-            }),
-            ((5, 1, 4), {
-                gwfb.QueueBranch: self.queue_branch('q/5.1.4'),
-                gwfb.QueueIntegrationBranch: [
-                    self.qint_branch('q/w/7/5.1.4/bugfix/foo')
-                ]
-            }),
-            ((5, 1), {
-                gwfb.QueueBranch: self.queue_branch('q/5.1'),
-                gwfb.QueueIntegrationBranch: [
-                    self.qint_branch('q/w/12/5.1/bugfix/last'),
-                    self.qint_branch('q/w/7/5.1/bugfix/foo'),
-                    self.qint_branch('q/w/1/5.1/bugfix/bar')
-                ]
-            }),
-            ((5, None), {
-                gwfb.QueueBranch: self.queue_branch('q/5'),
-                gwfb.QueueIntegrationBranch: [
-                    self.qint_branch('q/w/12/5/bugfix/last'),
-                    self.qint_branch('q/w/7/5/bugfix/foo'),
-                    self.qint_branch('q/w/1/5/bugfix/bar')
-                ]
-            }),
-            ((10, 0), {
-                gwfb.QueueBranch: self.queue_branch('q/10.0'),
-                gwfb.QueueIntegrationBranch: [
-                    self.qint_branch('q/w/12/10.0/bugfix/last'),
-                    self.qint_branch('q/w/7/10.0/bugfix/foo'),
-                    self.qint_branch('q/w/5/10.0/feature/foo'),
-                    self.qint_branch('q/w/1/10.0/bugfix/bar')
-                ]
-            }),
-            ((10, None), {
-                gwfb.QueueBranch: self.queue_branch('q/10'),
-                gwfb.QueueIntegrationBranch: [
-                    self.qint_branch('q/w/12/10/bugfix/last'),
-                    self.qint_branch('q/w/7/10/bugfix/foo'),
-                    self.qint_branch('q/w/5/10/feature/foo'),
-                    self.qint_branch('q/w/1/10/bugfix/bar')
-                ]
-            }),
-        ])
-        qbranches = self.submit_problem(problem)
-        qc = self.feed_queue_collection(qbranches)
-        qc.finalize()
-        qc.validate()
-        self.assertEqual(qc._queues, solution)
-        self.assertEqual(qc.mergeable_prs, [1, 5, 7, 12])
-        self.assertEqual(qc.mergeable_queues, solution)
-
-    def test_validation_with_failed_stabilization_branch(self):
-        """A problem where two PRs are on two different merge paths."""
-        problem = OrderedDict({
-            1: {'dst': 'stabilization/5.1.4', 'src': 'bugfix/targeting_stab',
-                'status': [{'pipeline': 'FAILED'},
-                           {'pipeline': 'SUCCESSFUL'},
-                           {'pipeline': 'SUCCESSFUL'}]},
-            2: {'dst': 'development/4.3', 'src': 'bugfix/targeting_old',
-                'status': [{'pipeline': 'SUCCESSFUL'},
-                           {'pipeline': 'INPROGRESS'}]},
-        })
-        qbranches = self.submit_problem(problem)
-        qc = self.feed_queue_collection(qbranches)
-        qc.finalize()
-        qc.validate()
-        queues = OrderedDict([
-            ((4, 3), {
-                gwfb.QueueBranch: self.queue_branch('q/4.3'),
-                gwfb.QueueIntegrationBranch: [
-                    self.qint_branch('q/w/6/4.3/bugfix/targeting_old'),
-                ]
-            }),
-            ((4, None), {
-                gwfb.QueueBranch: self.queue_branch('q/4'),
-                gwfb.QueueIntegrationBranch: [
-                    self.qint_branch('q/w/6/4/bugfix/targeting_old'),
-                ]
-            }),
-            ((5, 1, 4), {
-                gwfb.QueueBranch: self.queue_branch('q/5.1.4'),
-                gwfb.QueueIntegrationBranch: [
-                    self.qint_branch('q/w/1/5.1.4/bugfix/targeting_stab'),
-                ]
-            }),
-            ((5, 1), {
-                gwfb.QueueBranch: self.queue_branch('q/5.1'),
-                gwfb.QueueIntegrationBranch: [
-                    self.qint_branch('q/w/6/5.1/bugfix/targeting_old'),
-                    self.qint_branch('q/w/1/5.1/bugfix/targeting_stab'),
-                ]
-            }),
-            ((5, None), {
-                gwfb.QueueBranch: self.queue_branch('q/5'),
-                gwfb.QueueIntegrationBranch: [
-                    self.qint_branch('q/w/6/5/bugfix/targeting_old'),
-                    self.qint_branch('q/w/1/5/bugfix/targeting_stab'),
-                ]
-            }),
-            ((10, 0), {
-                gwfb.QueueBranch: self.queue_branch('q/10.0'),
-                gwfb.QueueIntegrationBranch: [
-                    self.qint_branch('q/w/6/10.0/bugfix/targeting_old'),
-                    self.qint_branch('q/w/1/10.0/bugfix/targeting_stab'),
-                ]
-            }),
-            ((10, None), {
-                gwfb.QueueBranch: self.queue_branch('q/10'),
-                gwfb.QueueIntegrationBranch: [
-                    self.qint_branch('q/w/6/10/bugfix/targeting_old'),
-                    self.qint_branch('q/w/1/10/bugfix/targeting_stab'),
-                ]
-            }),
-        ])
-        self.assertEqual(qc._queues, queues)
-        self.assertEqual(qc.mergeable_prs, [])
-        solution = OrderedDict([
-            ((4, 3), {
-                gwfb.QueueBranch: self.queue_branch('q/4.3'),
-                gwfb.QueueIntegrationBranch: []
-            }),
-            ((4, None), {
-                gwfb.QueueBranch: self.queue_branch('q/4'),
-                gwfb.QueueIntegrationBranch: []
-            }),
-            ((5, 1, 4), {
-                gwfb.QueueBranch: self.queue_branch('q/5.1.4'),
-                gwfb.QueueIntegrationBranch: []
-            }),
-            ((5, 1), {
-                gwfb.QueueBranch: self.queue_branch('q/5.1'),
-                gwfb.QueueIntegrationBranch: []
-            }),
-            ((5, None), {
-                gwfb.QueueBranch: self.queue_branch('q/5'),
-                gwfb.QueueIntegrationBranch: []
-            }),
-            ((10, 0), {
-                gwfb.QueueBranch: self.queue_branch('q/10.0'),
-                gwfb.QueueIntegrationBranch: []
-            }),
-            ((10, None), {
-                gwfb.QueueBranch: self.queue_branch('q/10'),
-                gwfb.QueueIntegrationBranch: []
-            }),
-        ])
-        self.assertEqual(qc.mergeable_queues, solution)
-
-    def test_validation_with_failed_stabilization_branch_stacked(self):
-        """A problem where a PR corrects a problem but is not mergeable yet.
-
-        This is a corner case, where an additional PR (3) on stabilization
-        branches fixes the first PR (1), but is not mergeable yet because
-        another PR (2) blocks the way on another merge path.
-
-        Currently waiving the fact that PR1 will be merged to avoid raising
-        the complexity of the decision algorithm.
-
-        """
-        problem = OrderedDict({
-            1: {'dst': 'stabilization/5.1.4', 'src': 'bugfix/targeting_stab',
-                'status': [{'pipeline': 'FAILED'},
-                           {'pipeline': 'SUCCESSFUL'},
-                           {'pipeline': 'SUCCESSFUL'}]},
-            2: {'dst': 'development/4.3', 'src': 'bugfix/targeting_old',
-                'status': [{'pipeline': 'FAILED'},
-                           {'pipeline': 'SUCCESSFUL'},
-                           {'pipeline': 'SUCCESSFUL'}]},
-            3: {'dst': 'stabilization/5.1.4', 'src': 'bugfix/targeting_stab2',
-                'status': [{'pipeline': 'SUCCESSFUL'},
-                           {'pipeline': 'SUCCESSFUL'},
-                           {'pipeline': 'SUCCESSFUL'}]},
-        })
-        qbranches = self.submit_problem(problem)
-        qc = self.feed_queue_collection(qbranches)
-        qc.finalize()
-        qc.validate()
-        self.assertEqual(qc.mergeable_prs, [1])
-
     def test_notify_pr_on_queue_fail(self):
         pr = self.create_pr('bugfix/TEST-01', 'development/4.3')
         with self.assertRaises(exns.Queued):
@@ -5936,30 +5441,6 @@ class TestQueueing(RepositoryTests):
         # and yet it will merge
         with self.assertRaises(exns.Merged):
             self.handle(pr.src_commit, options=self.bypass_all, backtrace=True)
-
-    def test_last_stab_branch(self):
-        """Support a stabilization branch attached to the latest branch."""
-
-        # First let's merge a PR in the stabilization branch
-        # to create queue branch data related to the stabilization branch
-        pr = self.create_pr('bugfix/TEST-001', 'stabilization/10.0.0')
-        with self.assertRaises(exns.Queued):
-            self.handle(pr.id, options=self.bypass_all, backtrace=True)
-        self.set_build_status_on_pr_id(pr.id, 'SUCCESSFUL')
-        self.set_build_status_on_pr_id(pr.id + 1, 'SUCCESSFUL')
-        self.set_build_status_on_pr_id(pr.id + 2, 'SUCCESSFUL')
-        with self.assertRaises(exns.Merged):
-            self.handle(pr.id, options=self.bypass_all, backtrace=True)
-        # Now let's try to merge a PR targetting development/5
-        pr_dev = self.create_pr('bugfix/TEST-002', 'development/5')
-        with self.assertRaises(exns.Queued):
-            self.handle(pr_dev.id, options=self.bypass_all, backtrace=True)
-        self.set_build_status_on_pr_id(pr_dev.id, 'SUCCESSFUL')
-        self.set_build_status_on_pr_id(pr_dev.id + 1, 'SUCCESSFUL')
-        self.set_build_status_on_pr_id(pr_dev.id + 2, 'SUCCESSFUL')
-        # When merging the PR it will fail with KeyError
-        with self.assertRaises(exns.Merged):
-            self.handle(pr_dev.id, options=self.bypass_all, backtrace=True)
 
     def set_build_status_on_branch_tip(self, branch_name, status):
         self.gitrepo.cmd('git fetch')
@@ -6192,50 +5673,6 @@ class TestQueueing(RepositoryTests):
             prs.append(branch.pr_id)
         return set(prs)
 
-    def test_new_stab_branch_appears(self):
-        # introduce a new version
-        self.gitrepo.cmd('git fetch')
-        self.gitrepo.cmd('git checkout development/5')
-        self.gitrepo.cmd('git checkout -b development/5.2')
-        self.gitrepo.cmd('git push -u origin development/5.2')
-
-        pr1 = self.create_pr('bugfix/TEST-00001', 'development/5.2')
-        with self.assertRaises(exns.Queued):
-            self.handle(pr1.id, options=self.bypass_all, backtrace=True)
-
-        self.set_build_status_on_pr_id(pr1.id, 'SUCCESSFUL')
-        self.set_build_status_on_pr_id(pr1.id + 1, 'SUCCESSFUL')
-        self.set_build_status_on_pr_id(pr1.id + 2, 'SUCCESSFUL')
-        self.set_build_status_on_pr_id(pr1.id + 3, 'SUCCESSFUL')
-
-        # introduce a new stab, but not its queue branches
-        self.gitrepo.cmd('git fetch')
-        self.gitrepo.cmd('git checkout development/5')
-        self.gitrepo.cmd('git checkout -b stabilization/5.2.0')
-        self.gitrepo.cmd('git push -u origin stabilization/5.2.0')
-
-        pr2 = self.create_pr('bugfix/TEST-00002', 'stabilization/5.2.0')
-        with self.assertRaises(exns.Queued):
-            self.handle(pr2.id, options=self.bypass_all, backtrace=True)
-
-        self.assertEqual(self.prs_in_queue(), {pr1.id, pr2.id})
-
-        with self.assertRaises(exns.Merged):
-            self.handle(pr1.src_commit, options=self.bypass_all,
-                        backtrace=True)
-
-        self.assertEqual(self.prs_in_queue(), {pr2.id})
-
-        for queue in ['5.2.0', '5.2', '5', '10.0', '10']:
-            self.set_build_status_on_branch_tip(
-                f'q/w/{pr2.id}/{queue}/bugfix/TEST-00002', 'SUCCESSFUL')
-
-        with self.assertRaises(exns.Merged):
-            self.handle(pr2.src_commit, options=self.bypass_all,
-                        backtrace=True)
-
-        self.assertEqual(self.prs_in_queue(), set())
-
     def test_pr_dev_and_hotfix_with_hotfix_merged_first(self):
         self.gitrepo.cmd('git tag 10.0.0.0')
         self.gitrepo.cmd('git push --tags')
@@ -6315,32 +5752,6 @@ class TestQueueing(RepositoryTests):
 
         sha1 = self.set_build_status_on_branch_tip(
             'q/w/%d/10.0.0.1/bugfix/TEST-00002' % pr2.id, 'SUCCESSFUL')
-
-        with self.assertRaises(exns.Merged):
-            self.handle(sha1, options=self.bypass_all, backtrace=True)
-        self.assertEqual(self.prs_in_queue(), set())
-
-    def test_pr_stab_and_hotfix_merged_in_the_same_time(self):
-        create_branch(self.gitrepo, 'hotfix/4.3.17', do_push=False)
-        self.gitrepo.cmd('git tag 4.3.17.2')
-        self.gitrepo.cmd("git push --all origin")
-        self.gitrepo.cmd('git push --tags')
-
-        pr0 = self.create_pr('bugfix/TEST-00000', 'stabilization/4.3.18')
-        with self.assertRaises(exns.Queued):
-            self.handle(pr0.id, options=self.bypass_all, backtrace=True)
-        pr1 = self.create_pr('bugfix/TEST-00001', 'hotfix/4.3.17')
-        with self.assertRaises(exns.Queued):
-            self.handle(pr1.id, options=self.bypass_all, backtrace=True)
-
-        self.assertEqual(self.prs_in_queue(), {pr0.id, pr1.id})
-
-        for queue in ['4.3.18', '4.3', '4', '5.1', '5', '10.0', '10']:
-            self.set_build_status_on_branch_tip(
-                f'q/w/{pr0.id}/{queue}/bugfix/TEST-00000', 'SUCCESSFUL')
-
-        sha1 = self.set_build_status_on_branch_tip(
-            'q/w/%d/4.3.17.3/bugfix/TEST-00001' % pr1.id, 'SUCCESSFUL')
 
         with self.assertRaises(exns.Merged):
             self.handle(sha1, options=self.bypass_all, backtrace=True)
@@ -7338,90 +6749,6 @@ class TaskQueueTests(RepositoryTests):
                 bert_e=self.berte),
             'JobSuccess'
         )
-
-    def test_job_create_branch_stab(self):
-        self.init_berte(options=self.bypass_all)
-        self.gitrepo.cmd('git push origin :stabilization/4.3.18')
-        self.gitrepo.cmd('git push origin :stabilization/5.1.4')
-
-        # Create a couple PRs and queue them
-        prs = [
-            self.create_pr('feature/TEST-{:02d}'.format(n), 'development/4.3')
-            for n in range(1, 4)
-        ]
-
-        for pr in prs:
-            self.process_pr_job(pr, 'Queued')
-
-        self.process_job(
-            CreateBranchJob(
-                settings={'branch': 'stabilization/5.1.4'},
-                bert_e=self.berte),
-            'JobSuccess'
-        )
-        # check where this branch points
-        self.gitrepo._get_remote_branches(force=True)
-        self.assertEqual(
-            self.gitrepo._remote_branches['stabilization/5.1.4'],
-            self.gitrepo._remote_branches['development/5.1']
-        )
-        sha1_4_3_old = self.gitrepo._remote_branches['development/4.3']
-
-        pr = self.create_pr('feature/TEST-9997', 'stabilization/5.1.4')
-        self.process_pr_job(pr, 'Queued')
-
-        pr = self.create_pr('feature/TEST-9998', 'development/4.3')
-        self.process_pr_job(pr, 'Queued')
-
-        # merge everything so that branches advance
-        self.process_job(ForceMergeQueuesJob(bert_e=self.berte), 'Merged')
-
-        # test a branch creation with source sha1 specified
-        self.process_job(
-            CreateBranchJob(
-                settings={
-                    'branch': 'stabilization/4.3.18',
-                    'branch_from': sha1_4_3_old},
-                bert_e=self.berte),
-            'JobSuccess'
-        )
-
-        self.gitrepo._get_remote_branches(force=True)
-        self.assertEqual(
-            self.gitrepo._remote_branches['stabilization/4.3.18'],
-            sha1_4_3_old
-        )
-        self.assertNotEqual(
-            self.gitrepo._remote_branches['stabilization/4.3.18'],
-            self.gitrepo._remote_branches['development/4.3']
-        )
-
-        pr = self.create_pr('feature/TEST-9999', 'stabilization/4.3.18')
-        self.process_pr_job(pr, 'Queued')
-
-        expected_branches = [
-            'stabilization/4.3.18',
-            'development/4.3',
-            'development/5.1',
-            'stabilization/5.1.4',
-            'development/10.0',
-            'q/4.3.18',
-            'q/4.3',
-            'q/4',
-            'q/5.1.4',
-            'q/5.1',
-            'q/5',
-            'q/10.0',
-            'q/10',
-            'q/w/30/4.3.18/feature/TEST-9999',
-            'q/w/30/4.3/feature/TEST-9999',
-            'q/w/30/5.1/feature/TEST-9999',
-            'q/w/30/10.0/feature/TEST-9999',
-        ]
-        self.gitrepo._get_remote_branches(force=True)
-        for branch in expected_branches:
-            self.assertTrue(self.gitrepo.remote_branch_exists(branch),
-                            'branch %s not found' % branch)
 
     def test_job_create_branch_hotfix(self):
         self.init_berte(options=self.bypass_all)
