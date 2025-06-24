@@ -525,7 +525,7 @@ class TestServer(unittest.TestCase):
             method='POST',
             user='test_admin'
         )
-        self.assertEqual(202, resp.status_code)
+        self.assertEqual(400, resp.status_code)
 
         resp = self.handle_api_call(
             'gwf/branches/development/7.4',
@@ -542,10 +542,7 @@ class TestServer(unittest.TestCase):
         )
         self.assertEqual(202, resp.status_code)
 
-        self.assertEqual(server.BERTE.task_queue.unfinished_tasks, 3)
-        job = server.BERTE.task_queue.get()
-        self.assertEqual(type(job), CreateBranchJob)
-        self.assertEqual(job.settings.branch, 'stabilization/7.4.0')
+        self.assertEqual(server.BERTE.task_queue.unfinished_tasks, 2)
         job = server.BERTE.task_queue.get()
         self.assertEqual(type(job), CreateBranchJob)
         self.assertEqual(job.settings.branch, 'development/7.4')
@@ -595,7 +592,7 @@ class TestServer(unittest.TestCase):
             method='DELETE',
             user='test_admin'
         )
-        self.assertEqual(202, resp.status_code)
+        self.assertEqual(400, resp.status_code)
 
         resp = self.handle_api_call(
             'gwf/branches/development/7.4',
@@ -604,10 +601,7 @@ class TestServer(unittest.TestCase):
         )
         self.assertEqual(202, resp.status_code)
 
-        self.assertEqual(server.BERTE.task_queue.unfinished_tasks, 2)
-        job = server.BERTE.task_queue.get()
-        self.assertEqual(type(job), DeleteBranchJob)
-        self.assertEqual(job.settings.branch, 'stabilization/7.4.0')
+        self.assertEqual(server.BERTE.task_queue.unfinished_tasks, 1)
         job = server.BERTE.task_queue.get()
         self.assertEqual(type(job), DeleteBranchJob)
         self.assertEqual(job.settings.branch, 'development/7.4')
