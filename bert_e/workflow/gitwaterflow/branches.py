@@ -1059,7 +1059,7 @@ def branch_factory(repo: git.Repository, branch_name: str) -> GWFBranch:
     # Explicitly reject stabilization branches as they are no longer supported
     if branch_name.startswith('stabilization/'):
         raise errors.UnsupportedBranchType(branch_name)
-    
+
     for cls in [DevelopmentBranch, ReleaseBranch,
                 QueueBranch, QueueIntegrationBranch,
                 FeatureBranch, HotfixBranch, LegacyHotfixBranch,

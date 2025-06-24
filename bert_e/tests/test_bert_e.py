@@ -106,7 +106,6 @@ def initialize_git_repo(repo, username, usermail):
     repo.cmd('git remote add origin ' + repo._url)
     for major, minor, micro in [(4, 3, 18), (5, 1, 4), (10, 0, 0)]:
         major_minor = "%s.%s" % (major, minor)
-        full_version = "%s.%s.%s" % (major, minor, micro)
         create_branch(repo, 'release/' + major_minor, do_push=False)
         if major != 10:
             create_branch(repo, 'hotfix/%s.%s.%s' %
@@ -121,8 +120,7 @@ def initialize_git_repo(repo, username, usermail):
         else:
             create_branch(repo, 'hotfix/10.0.0', do_push=False)
         create_branch(repo, 'development/' + major_minor,
-                      'release/' + major_minor, file_=True,
-                      do_push=False)
+                      file_=True, do_push=False)
         create_branch(repo, f'development/{major}',
                       f'development/{major_minor}',
                       file_=True, do_push=False)
@@ -3095,15 +3093,18 @@ pr_author_options:
         with self.assertRaises(exns.DevBranchesNotSelfContained):
             self.handle(pr.id, options=self.bypass_all)
 
-    # NOTE: test_missing_development_branch has been removed because it's no longer
-    # relevant with the current cascade behavior. After removing stabilization branches,
-    # the cascade logic has become highly resilient and simply skips missing versions
-    # rather than raising DevBranchDoesNotExist. The cascade algorithm now:
+    # NOTE: test_missing_development_branch has been removed
+    # because it's no longer relevant with the current cascade
+    # behavior. After removing stabilization branches,
+    # the cascade logic has become highly resilient and
+    # simply skips missing versions rather than raising
+    # DevBranchDoesNotExist. The cascade algorithm now:
     # 1. Only processes existing branches that it can find
     # 2. Gracefully skips any missing development/hotfix branches for a version
     # 3. Continues processing the remaining versions in the cascade
-    # This makes DevBranchDoesNotExist nearly impossible to trigger in normal operation,
-    # as the system will only work with branches that actually exist rather than
+    # This makes DevBranchDoesNotExist nearly impossible
+    # to trigger in normal operation, as the system will
+    # only work with branches that actually exist rather than
     # expecting specific branches to be present.
 
     def test_wrong_pr_destination(self):
@@ -5593,7 +5594,6 @@ class TestQueueing(RepositoryTests):
     def test_pr_dev_and_hotfix_with_hotfix_merged_first(self):
         self.gitrepo.cmd('git tag 10.0.0.0')
         self.gitrepo.cmd('git push --tags')
-        # NOTE: Removed stabilization branch deletion since stabilization branches no longer exist
 
         pr0 = self.create_pr('bugfix/TEST-00000', 'development/10.0')
         with self.assertRaises(exns.Queued):
@@ -5640,7 +5640,6 @@ class TestQueueing(RepositoryTests):
     def test_pr_dev_and_hotfix_with_dev_merged_first(self):
         self.gitrepo.cmd('git tag 10.0.0.0')
         self.gitrepo.cmd('git push --tags')
-        # NOTE: Removed stabilization branch deletion since stabilization branches no longer exist
 
         pr0 = self.create_pr('bugfix/TEST-00000', 'development/10.0')
         with self.assertRaises(exns.Queued):
@@ -5677,7 +5676,6 @@ class TestQueueing(RepositoryTests):
     def test_pr_dev_and_hotfix_merged_in_the_same_time(self):
         self.gitrepo.cmd('git tag 10.0.0.0')
         self.gitrepo.cmd('git push --tags')
-        # NOTE: Removed stabilization branch deletion since stabilization branches no longer exist
 
         pr0 = self.create_pr('bugfix/TEST-00000', 'development/10.0')
         with self.assertRaises(exns.Queued):
@@ -5707,7 +5705,6 @@ class TestQueueing(RepositoryTests):
     def test_pr_hotfix_alone(self):
         self.gitrepo.cmd('git tag 10.0.0.0')
         self.gitrepo.cmd('git push --tags')
-        # NOTE: Removed stabilization branch deletion since stabilization branches no longer exist
 
         pr0 = self.create_pr('bugfix/TEST-00000', 'hotfix/10.0.0')
         with self.assertRaises(exns.Queued):
