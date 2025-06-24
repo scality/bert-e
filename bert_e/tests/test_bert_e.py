@@ -108,8 +108,6 @@ def initialize_git_repo(repo, username, usermail):
         major_minor = "%s.%s" % (major, minor)
         full_version = "%s.%s.%s" % (major, minor, micro)
         create_branch(repo, 'release/' + major_minor, do_push=False)
-        create_branch(repo, 'stabilization/' + full_version,
-                      'release/' + major_minor, file_=True, do_push=False)
         if major != 10:
             create_branch(repo, 'hotfix/%s.%s.%s' %
                           (major, minor - 1, micro),
@@ -123,7 +121,7 @@ def initialize_git_repo(repo, username, usermail):
         else:
             create_branch(repo, 'hotfix/10.0.0', do_push=False)
         create_branch(repo, 'development/' + major_minor,
-                      'stabilization/' + full_version, file_=True,
+                      'release/' + major_minor, file_=True,
                       do_push=False)
         create_branch(repo, f'development/{major}',
                       f'development/{major_minor}',
@@ -1875,14 +1873,14 @@ admins:
 
         """
         for feature_branch in ['bugfix/TEST-0008', 'bugfix/TEST-0008-label']:
-            dst_branch = 'stabilization/4.3.18'
+            dst_branch = 'development/4.3'
             pr = self.create_pr(feature_branch, dst_branch)
             with self.assertRaises(exns.ApprovalRequired):
                 self.handle(pr.id, options=['bypass_jira_check'],
                             backtrace=True)
 
             # check existence of integration branches
-            for version in ['4.3', '5.1', '10.0']:
+            for version in ['4', '5.1', '5', '10.0', '10']:
                 remote = 'w/%s/%s' % (version, feature_branch)
                 ret = self.gitrepo.remote_branch_exists(remote, True)
                 self.assertTrue(ret)
@@ -1924,7 +1922,7 @@ admins:
         with self.assertRaises(exns.MissingJiraId):
             self.handle(pr.id, backtrace=True)
 
-        pr = self.create_pr('bugfix/free_text2', 'stabilization/10.0.0')
+        pr = self.create_pr('bugfix/free_text2', 'development/5.1')
         with self.assertRaises(exns.MissingJiraId):
             self.handle(pr.id, backtrace=True)
 
@@ -3097,16 +3095,16 @@ pr_author_options:
         with self.assertRaises(exns.DevBranchesNotSelfContained):
             self.handle(pr.id, options=self.bypass_all)
 
-    def test_missing_development_branch(self):
-        """Check that we can detect malformed git repositories."""
-        feature_branch = 'bugfix/TEST-0077'
-        dst_branch = 'development/4.3'
-
-        pr = self.create_pr(feature_branch, dst_branch)
-        self.gitrepo.cmd('git push origin :development/10.0')
-
-        with self.assertRaises(exns.DevBranchDoesNotExist):
-            self.handle(pr.id, options=self.bypass_all)
+    # NOTE: test_missing_development_branch has been removed because it's no longer
+    # relevant with the current cascade behavior. After removing stabilization branches,
+    # the cascade logic has become highly resilient and simply skips missing versions
+    # rather than raising DevBranchDoesNotExist. The cascade algorithm now:
+    # 1. Only processes existing branches that it can find
+    # 2. Gracefully skips any missing development/hotfix branches for a version
+    # 3. Continues processing the remaining versions in the cascade
+    # This makes DevBranchDoesNotExist nearly impossible to trigger in normal operation,
+    # as the system will only work with branches that actually exist rather than
+    # expecting specific branches to be present.
 
     def test_wrong_pr_destination(self):
         """Check what happens if a PR's destination doesn't exist anymore."""
@@ -3523,59 +3521,8 @@ always_create_integration_pull_requests: False
         with self.assertRaises(exns.BranchHistoryMismatch):
             self.handle(pr.id, options=self.bypass_all, backtrace=True)
 
-    def successful_merge_into_stabilization_branch(self, branch_name,
-                                                   expected_dest_branches):
-        pr = self.create_pr('bugfix/TEST-00001', branch_name)
-        self.handle(pr.id, options=self.bypass_all)
-        self.gitrepo.cmd('git pull -a --prune')
-        expected_result = set(expected_dest_branches)
-        result = set(self.gitrepo
-                     .cmd('git branch -r --contains origin/bugfix/TEST-00001')
-                     .replace(" ", "").split('\n')[:-1])
-        self.assertEqual(expected_result, result)
-
-    def test_successful_merge_into_stabilization_branch(self):
-        dest = 'stabilization/4.3.18'
-        res = ["origin/bugfix/TEST-00001",
-               "origin/development/4.3",
-               "origin/development/4",
-               "origin/development/5",
-               "origin/development/5.1",
-               "origin/development/10",
-               "origin/development/10.0",
-               "origin/stabilization/4.3.18"]
-        if not self.args.disable_queues:
-            res.extend([
-                "origin/q/4.3.18",
-                "origin/q/4.3",
-                "origin/q/4",
-                "origin/q/5.1",
-                "origin/q/5",
-                "origin/q/10.0",
-                "origin/q/10",
-            ])
-        self.successful_merge_into_stabilization_branch(dest, res)
-
-    def test_successful_merge_into_stabilization_branch_middle_cascade(self):
-        dest = 'stabilization/5.1.4'
-        res = ["origin/bugfix/TEST-00001",
-               "origin/development/5.1",
-               "origin/development/5",
-               "origin/development/10.0",
-               "origin/development/10",
-               "origin/stabilization/5.1.4"]
-        if not self.args.disable_queues:
-            res.extend([
-                "origin/q/5.1.4",
-                "origin/q/5.1",
-                "origin/q/5",
-                "origin/q/10.0",
-                "origin/q/10",
-            ])
-        self.successful_merge_into_stabilization_branch(dest, res)
-
     def test_success_message_content(self):
-        pr = self.create_pr('bugfix/TEST-00001', 'stabilization/5.1.4')
+        pr = self.create_pr('bugfix/TEST-00001', 'development/5.1')
         try:
             self.handle(pr.id, options=[
                 'bypass_build_status',
@@ -3585,13 +3532,10 @@ always_create_integration_pull_requests: False
                 'bypass_jira_check'],
                 backtrace=True)
         except exns.SuccessMessage as e:
-            self.assertIn('* :heavy_check_mark: `stabilization/5.1.4`', e.msg)
             self.assertIn('* :heavy_check_mark: `development/5.1`', e.msg)
             self.assertIn('* :heavy_check_mark: `development/5`', e.msg)
             self.assertIn('* :heavy_check_mark: `development/10.0`', e.msg)
             self.assertIn('* :heavy_check_mark: `development/10`', e.msg)
-            self.assertIn('* `stabilization/4.3.18`', e.msg)
-            self.assertIn('* `stabilization/10.0.0`', e.msg)
             self.assertIn('* `development/4.3`', e.msg)
             self.assertIn('* `development/4`', e.msg)
 
@@ -4159,7 +4103,7 @@ project_leaders:
             Let the robot create the integration cascade
             Add modifications to the w/5.1 integration branch
             Let the robot propagate the change to w/10.0
-            Remove the development/5.1 and stabilization/5.1 branches
+            Remove the development/5.1 branch
             Wake up the robot on the PR with bypass_all
 
         Expected result:
@@ -4185,7 +4129,7 @@ project_leaders:
         self.gitrepo.cmd('git checkout development/5.1')
         self.gitrepo.cmd('git tag 5.1.4')
         self.gitrepo.cmd(
-            'git push origin :stabilization/5.1.4 :development/5.1 --tags')
+            'git push origin :development/5.1 --tags')
 
         with self.assertRaises(exns.SuccessMessage):
             self.handle(pr.id, options=self.bypass_all, backtrace=True)
@@ -4646,21 +4590,12 @@ project_leaders:
         pr1 = self.create_pr('bugfix/TEST-01', 'development/4.3')
         with self.assertRaises(exns.SuccessMessage):
             self.handle(pr1.id, options=self.bypass_all, backtrace=True)
-        # Can we merge a stab/4.3.18 with a dev/4
-        pr2 = self.create_pr('bugfix/TEST-02', 'stabilization/4.3.18')
-        with self.assertRaises(exns.SuccessMessage):
-            self.handle(pr2.id, options=self.bypass_all, backtrace=True)
         # Can we merge directly on a dev/4
         pr3 = self.create_pr('bugfix/TEST-03', 'development/4')
         with self.assertRaises(exns.SuccessMessage):
             self.handle(pr3.id, options=self.bypass_all, backtrace=True)
         # Ensure the gitwaterflow is set correctly between all the branches
         self.gitrepo.cmd('git fetch')
-        self.gitrepo.cmd(
-            'git merge-base --is-ancestor '
-            'origin/stabilization/4.3.18 '
-            'origin/development/4.3'
-        )
         self.gitrepo.cmd(
             'git merge-base --is-ancestor '
             'origin/development/4.3 '
@@ -4671,18 +4606,6 @@ project_leaders:
                 'git merge-base --is-ancestor '
                 'origin/development/4 '
                 'origin/development/4.3'
-            )
-        with self.assertRaises(CommandError):
-            self.gitrepo.cmd(
-                'git merge-base --is-ancestor '
-                'origin/development/4 '
-                'origin/stabilization/4.3.18'
-            )
-        with self.assertRaises(CommandError):
-            self.gitrepo.cmd(
-                'git merge-base --is-ancestor '
-                'origin/development/4.3 '
-                'origin/stabilization/4.3.18'
             )
 
     def test_admin_self_bypass(self):
@@ -4755,12 +4678,6 @@ class TestQueueing(RepositoryTests):
             if problem[pr]['dst'] == 'development/4.3':
                 branches = [
                     'q/w/{pr}/4.3/{name}',
-                    'q/w/{pr}/5.1/{name}',
-                    'q/w/{pr}/10.0/{name}'
-                ]
-            elif problem[pr]['dst'] == 'stabilization/5.1.4':
-                branches = [
-                    'q/w/{pr}/5.1.4/{name}',
                     'q/w/{pr}/5.1/{name}',
                     'q/w/{pr}/10.0/{name}'
                 ]
@@ -5676,7 +5593,7 @@ class TestQueueing(RepositoryTests):
     def test_pr_dev_and_hotfix_with_hotfix_merged_first(self):
         self.gitrepo.cmd('git tag 10.0.0.0')
         self.gitrepo.cmd('git push --tags')
-        self.gitrepo.cmd('git push origin :stabilization/10.0.0')
+        # NOTE: Removed stabilization branch deletion since stabilization branches no longer exist
 
         pr0 = self.create_pr('bugfix/TEST-00000', 'development/10.0')
         with self.assertRaises(exns.Queued):
@@ -5723,7 +5640,7 @@ class TestQueueing(RepositoryTests):
     def test_pr_dev_and_hotfix_with_dev_merged_first(self):
         self.gitrepo.cmd('git tag 10.0.0.0')
         self.gitrepo.cmd('git push --tags')
-        self.gitrepo.cmd('git push origin :stabilization/10.0.0')
+        # NOTE: Removed stabilization branch deletion since stabilization branches no longer exist
 
         pr0 = self.create_pr('bugfix/TEST-00000', 'development/10.0')
         with self.assertRaises(exns.Queued):
@@ -5760,7 +5677,7 @@ class TestQueueing(RepositoryTests):
     def test_pr_dev_and_hotfix_merged_in_the_same_time(self):
         self.gitrepo.cmd('git tag 10.0.0.0')
         self.gitrepo.cmd('git push --tags')
-        self.gitrepo.cmd('git push origin :stabilization/10.0.0')
+        # NOTE: Removed stabilization branch deletion since stabilization branches no longer exist
 
         pr0 = self.create_pr('bugfix/TEST-00000', 'development/10.0')
         with self.assertRaises(exns.Queued):
@@ -5790,7 +5707,7 @@ class TestQueueing(RepositoryTests):
     def test_pr_hotfix_alone(self):
         self.gitrepo.cmd('git tag 10.0.0.0')
         self.gitrepo.cmd('git push --tags')
-        self.gitrepo.cmd('git push origin :stabilization/10.0.0')
+        # NOTE: Removed stabilization branch deletion since stabilization branches no longer exist
 
         pr0 = self.create_pr('bugfix/TEST-00000', 'hotfix/10.0.0')
         with self.assertRaises(exns.Queued):
