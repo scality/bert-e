@@ -290,16 +290,6 @@ class BranchNameInvalid(InternalException):
         super(BranchNameInvalid, self).__init__(msg)
 
 
-class UnsupportedMultipleBranches(InternalException):
-    code = 204
-
-    def __init__(self, branch, other_branch):
-        msg = 'Unsupported multiple branches of the same type and version ' \
-              'have been detected: %r, %r ' \
-              % (branch, other_branch)
-        super(UnsupportedMultipleBranches, self).__init__(msg)
-
-
 class UnrecognizedBranchPattern(InternalException):
     code = 207
 
@@ -573,12 +563,3 @@ class JobFailure(SilentException):
 
 class QueueBuildFailed(SilentException):
     code = 309
-
-
-class UnsupportedBranchType(InternalException):
-    code = 205
-
-    def __init__(self, branch_name):
-        msg = ('Unsupported branch type: %r. '
-               'Stabilization branches are no longer supported.' % branch_name)
-        super(UnsupportedBranchType, self).__init__(msg)

@@ -485,21 +485,7 @@ class TestServer(unittest.TestCase):
         self.assertEqual(401, resp.status_code)
 
         resp = self.handle_api_call(
-            'gwf/branches/stabilization/7.4.0',
-            method='POST',
-            user='test_user'
-        )
-        self.assertEqual(403, resp.status_code)
-
-        resp = self.handle_api_call(
             'gwf/branches/foo/7.4',
-            method='POST',
-            user='test_admin'
-        )
-        self.assertEqual(400, resp.status_code)
-
-        resp = self.handle_api_call(
-            'gwf/branches/stabilization/7.4',
             method='POST',
             user='test_admin'
         )
@@ -515,13 +501,6 @@ class TestServer(unittest.TestCase):
 
         resp = self.handle_api_call(
             'gwf/branches/development/7.4_',
-            method='POST',
-            user='test_admin'
-        )
-        self.assertEqual(400, resp.status_code)
-
-        resp = self.handle_api_call(
-            'gwf/branches/stabilization/7.4.0',
             method='POST',
             user='test_admin'
         )
@@ -560,13 +539,6 @@ class TestServer(unittest.TestCase):
         self.assertEqual(401, resp.status_code)
 
         resp = self.handle_api_call(
-            'gwf/branches/stabilization/7.4.0',
-            method='DELETE',
-            user='test_user'
-        )
-        self.assertEqual(403, resp.status_code)
-
-        resp = self.handle_api_call(
             'gwf/branches/foo/7.4',
             method='DELETE',
             user='test_admin'
@@ -574,21 +546,7 @@ class TestServer(unittest.TestCase):
         self.assertEqual(400, resp.status_code)
 
         resp = self.handle_api_call(
-            'gwf/branches/stabilization/7.4',
-            method='DELETE',
-            user='test_admin'
-        )
-        self.assertEqual(400, resp.status_code)
-
-        resp = self.handle_api_call(
             'gwf/branches/development/7.4_',
-            method='DELETE',
-            user='test_admin'
-        )
-        self.assertEqual(400, resp.status_code)
-
-        resp = self.handle_api_call(
-            'gwf/branches/stabilization/7.4.0',
             method='DELETE',
             user='test_admin'
         )

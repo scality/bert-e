@@ -854,11 +854,6 @@ class BranchCascade(object):
                 sorted(self._cascade.items(), key=cmp_to_key(compare_branches))
             )
 
-        cur_branch = self._cascade[(major, minor)][branch.__class__]
-
-        if cur_branch:
-            raise errors.UnsupportedMultipleBranches(cur_branch, branch)
-
         self._cascade[(major, minor)][branch.__class__] = branch
 
     def update_versions(self, tag):
@@ -960,7 +955,7 @@ class BranchCascade(object):
                     hf_branch.major, hf_branch.minor, hf_branch.micro,
                     hf_branch.hfrev))
 
-            elif dev_branch and dev_branch.has_minor is True:
+            if dev_branch and dev_branch.has_minor is True:
                 offset = 1
 
                 self.target_versions.append('%d.%d.%d' % (
@@ -1056,10 +1051,6 @@ def branch_factory(repo: git.Repository, branch_name: str) -> GWFBranch:
         UnrecognizedBranchPattern if the branch name is invalid.
 
     """
-    # Explicitly reject stabilization branches as they are no longer supported
-    if branch_name.startswith('stabilization/'):
-        raise errors.UnsupportedBranchType(branch_name)
-
     for cls in [DevelopmentBranch, ReleaseBranch,
                 QueueBranch, QueueIntegrationBranch,
                 FeatureBranch, HotfixBranch, LegacyHotfixBranch,
