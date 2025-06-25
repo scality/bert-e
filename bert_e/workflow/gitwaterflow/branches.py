@@ -50,15 +50,7 @@ def compare_branches(branch1, branch2):
 
 
 def compare_queues(version1, version2):
-    # if we have a stab and its related dev, put the stab first.
-    v1 = version1[0]
-    v2 = version2[0]
-    if v1[0] == v2[0] and v1[1] == v2[1]:
-        if len(v1) == 3 and len(v2) == 2:
-            return -1
-        elif len(v2) == 3 and len(v1) == 2:
-            return 1
-
+    # Compare queues using standard branch comparison
     return compare_branches(version1, version2)
 
 
@@ -136,7 +128,6 @@ class HotfixBranch(GWFBranch):
     cascade_consumer = True
     can_be_destination = True
     allow_prefixes = FeatureBranch.all_prefixes
-    # has_stabilization = False
 
     def __eq__(self, other):
         return (self.__class__ == other.__class__ and
@@ -170,7 +161,6 @@ class DevelopmentBranch(GWFBranch):
     cascade_consumer = True
     can_be_destination = True
     allow_prefixes = FeatureBranch.all_prefixes
-    has_stabilization = False
     latest_minor = -1
 
     def __eq__(self, other):
@@ -198,32 +188,6 @@ class DevelopmentBranch(GWFBranch):
     @property
     def version_t(self):
         return (self.major, self.minor)
-
-
-@total_ordering
-class StabilizationBranch(DevelopmentBranch):
-    pattern = r'^stabilization/' \
-              r'(?P<version>(?P<major>\d+)\.(?P<minor>\d+)\.(?P<micro>\d+))$'
-    allow_prefixes = FeatureBranch.all_prefixes
-
-    def __eq__(self, other):
-        return (self.__class__ == other.__class__ and
-                self.major == other.major and
-                self.minor == other.minor and
-                self.micro == other.micro)
-
-    def __lt__(self, other):
-        return (self.__class__ == other.__class__ and
-                (self.major < other.major or
-                 (self.major == other.major and
-                  self.minor < other.minor) or
-                 (self.major == other.major and
-                  self.minor == other.minor and
-                  self.micro < other.micro)))
-
-    @property
-    def version_t(self):
-        return (self.major, self.minor, self.micro)
 
 
 class IntegrationBranch(GWFBranch):
@@ -303,7 +267,9 @@ class QueueBranch(GWFBranch):
             dest = branch_factory(repo, 'hotfix/%d.%d.%d' % (self.major,
                                   self.minor, self.micro))
         elif self.micro is not None:
-            dest = branch_factory(repo, 'stabilization/%s' % self.version)
+            # This is a hotfix queue (has micro version), create hotfix branch
+            dest = branch_factory(repo, 'hotfix/%d.%d.%d' % (self.major,
+                                  self.minor, self.micro))
         else:
             dest = branch_factory(repo, 'development/%s' % self.version)
         self.dst_branch = dest
@@ -811,7 +777,7 @@ class BranchCascade(object):
 
     def build(self, repo, dst_branch=None):
         flat_branches = set()
-        for prefix in ['development', 'stabilization', 'hotfix']:
+        for prefix in ['development', 'hotfix']:
             cmd = 'git branch -a --list *%s/*' % prefix
             for branch in repo.cmd(cmd).split('\n')[:-1]:
                 match_ = re.match(r'\*?\s*(remotes/origin/)?(?P<name>.*)',
@@ -839,8 +805,6 @@ class BranchCascade(object):
         The items in the list correspond to:
         - the path (list of branches) from the oldest dev
             branch to the newest dev branch
-        - the path (list of branches) from each stabilization branch
-            to the newest dev branch
 
         This is used by QueueCollection to check the integrity of queues.
 
@@ -857,9 +821,6 @@ class BranchCascade(object):
                 if branches[HotfixBranch]:
                     # create a new path starting from this hotfix
                     ret.append([branches[HotfixBranch]])
-                if branches[StabilizationBranch]:
-                    # create a new path starting from this stab
-                    ret.append([branches[StabilizationBranch]])
                 # append this version to all paths
                 for path in ret:
                     path.append(branches[DevelopmentBranch])
@@ -886,18 +847,12 @@ class BranchCascade(object):
         if (major, minor) not in self._cascade.keys():
             self._cascade[(major, minor)] = {
                 DevelopmentBranch: None,
-                StabilizationBranch: None,
                 HotfixBranch: None,
             }
             # Sort the cascade again
             self._cascade = OrderedDict(
                 sorted(self._cascade.items(), key=cmp_to_key(compare_branches))
             )
-
-        cur_branch = self._cascade[(major, minor)][branch.__class__]
-
-        if cur_branch:
-            raise errors.UnsupportedMultipleStabBranches(cur_branch, branch)
 
         self._cascade[(major, minor)][branch.__class__] = branch
 
@@ -925,7 +880,6 @@ class BranchCascade(object):
             return
 
         hf_branch: HotfixBranch = branches.get(HotfixBranch)
-        stb_branch: StabilizationBranch = branches.get(StabilizationBranch)
         dev_branch: DevelopmentBranch = branches.get(DevelopmentBranch)
         major_branch: DevelopmentBranch = major_branches.get(DevelopmentBranch)
 
@@ -936,16 +890,6 @@ class BranchCascade(object):
                                                      hf_branch.minor,
                                                      hf_branch.micro,
                                                      hf_branch.hfrev)
-            if stb_branch is not None and \
-               stb_branch.micro == hf_branch.micro:
-                # We have a hotfix branch but we did not remove the
-                # stabilization branch.
-                raise errors.DeprecatedStabilizationBranch(stb_branch.name,
-                                                           hf_branch.name)
-
-        if stb_branch is not None and stb_branch.micro <= micro:
-            # We have a tag but we did not remove the stabilization branch.
-            raise errors.DeprecatedStabilizationBranch(stb_branch.name, tag)
 
         if dev_branch:
             dev_branch.micro = max(micro, dev_branch.micro)
@@ -957,11 +901,9 @@ class BranchCascade(object):
         previous_dev_branch = None
         for (major, minor), branch_set in self._cascade.items():
             dev_branch = branch_set[DevelopmentBranch]
-            stb_branch = branch_set[StabilizationBranch]
             hf_branch = branch_set[HotfixBranch]
 
             if dev_branch is None and \
-               stb_branch is None and \
                hf_branch is not None:
                 # skip cascade validation for hf
                 continue
@@ -969,14 +911,6 @@ class BranchCascade(object):
             if dev_branch is None:
                 raise errors.DevBranchDoesNotExist(
                     'development/%d.%d' % (major, minor))
-
-            if stb_branch:
-                if dev_branch.micro + 1 != stb_branch.micro:
-                    raise errors.VersionMismatch(dev_branch, stb_branch)
-
-                if not dev_branch.includes_commit(stb_branch):
-                    raise errors.DevBranchesNotSelfContained(stb_branch,
-                                                             dev_branch)
 
             if previous_dev_branch:
                 if not dev_branch.includes_commit(previous_dev_branch):
@@ -1014,7 +948,6 @@ class BranchCascade(object):
         """
         for (major, minor), branch_set in self._cascade.items():
             dev_branch: DevelopmentBranch = branch_set[DevelopmentBranch]
-            stb_branch: StabilizationBranch = branch_set[StabilizationBranch]
             hf_branch: HotfixBranch = branch_set[HotfixBranch]
 
             if hf_branch and dst_branch.name.startswith('hotfix/'):
@@ -1022,11 +955,8 @@ class BranchCascade(object):
                     hf_branch.major, hf_branch.minor, hf_branch.micro,
                     hf_branch.hfrev))
 
-            if stb_branch:
-                self.target_versions.append('%d.%d.%d' % (
-                    major, minor, stb_branch.micro))
-            elif dev_branch and dev_branch.has_minor is True:
-                offset = 2 if dev_branch.has_stabilization else 1
+            if dev_branch and dev_branch.has_minor is True:
+                offset = 1
 
                 self.target_versions.append('%d.%d.%d' % (
                     major, minor, dev_branch.micro + offset))
@@ -1054,7 +984,6 @@ class BranchCascade(object):
 
         """
         self.get_merge_paths()  # populate merge paths before removing data
-        ignore_stb_branches = False
         include_dev_branches = False
         dev_branch = None
 
@@ -1062,7 +991,6 @@ class BranchCascade(object):
 
         for (major, minor), branch_set in list(self._cascade.items()):
             dev_branch = branch_set[DevelopmentBranch]
-            stb_branch = branch_set[StabilizationBranch]
             hf_branch = branch_set[HotfixBranch]
 
             # we have to target at least a hf or a dev branch
@@ -1070,32 +998,14 @@ class BranchCascade(object):
                 raise errors.DevBranchDoesNotExist(
                     'development/%d.%d' % (major, minor))
 
-            # remember if a stab is attached before it is removed
-            # from path, for the correct target_version computation
-            if stb_branch:
-                dev_branch.has_stabilization = True
-
             # remove untargetted branches from cascade
             if dst_branch == dev_branch:
                 include_dev_branches = True
-                ignore_stb_branches = True
-
-            if stb_branch and (ignore_stb_branches or dst_hf):
-                branch_set[StabilizationBranch] = None
-                self.ignored_branches.append(stb_branch.name)
-
-            if dst_branch == stb_branch:
-                include_dev_branches = True
-                ignore_stb_branches = True
 
             if not include_dev_branches or dst_hf:
                 if branch_set[DevelopmentBranch]:
                     branch_set[DevelopmentBranch] = None
                     self.ignored_branches.append(dev_branch.name)
-
-                if branch_set[StabilizationBranch]:
-                    branch_set[StabilizationBranch] = None
-                    self.ignored_branches.append(stb_branch.name)
 
                 if not dst_hf:
                     del self._cascade[(major, minor)]
@@ -1109,8 +1019,6 @@ class BranchCascade(object):
 
             # add to dst_branches in the correct order
             if not dst_hf:
-                if branch_set[StabilizationBranch]:
-                    self.dst_branches.append(stb_branch)
                 if branch_set[DevelopmentBranch]:
                     self.dst_branches.append(dev_branch)
             else:
@@ -1143,7 +1051,7 @@ def branch_factory(repo: git.Repository, branch_name: str) -> GWFBranch:
         UnrecognizedBranchPattern if the branch name is invalid.
 
     """
-    for cls in [StabilizationBranch, DevelopmentBranch, ReleaseBranch,
+    for cls in [DevelopmentBranch, ReleaseBranch,
                 QueueBranch, QueueIntegrationBranch,
                 FeatureBranch, HotfixBranch, LegacyHotfixBranch,
                 IntegrationBranch, UserBranch]:

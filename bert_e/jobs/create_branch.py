@@ -19,7 +19,6 @@ from bert_e.lib.simplecmd import CommandError
 from bert_e.workflow.git_utils import clone_git_repo, push
 from bert_e.workflow.gitwaterflow.branches import (BranchCascade,
                                                    DevelopmentBranch,
-                                                   StabilizationBranch,
                                                    HotfixBranch,
                                                    build_queue_collection,
                                                    branch_factory)
@@ -57,7 +56,6 @@ def create_branch(job: CreateBranchJob):
                                     'GWF branch.' % job.settings.branch)
 
     if not (isinstance(new_branch, DevelopmentBranch) or
-            isinstance(new_branch, StabilizationBranch) or
             isinstance(new_branch, HotfixBranch)):
         raise exceptions.JobFailure('Requested new branch %r is not a GWF '
                                     'destination branch.' % new_branch)
@@ -82,17 +80,7 @@ def create_branch(job: CreateBranchJob):
                                         'branch.' % job.settings.branch_from)
     # ...or determine the branching point automatically
     else:
-        if isinstance(new_branch, StabilizationBranch):
-            job.settings.branch_from = DevelopmentBranch(
-                repo,
-                'development/%s.%s' % (new_branch.major, new_branch.minor))
-
-            if job.settings.branch_from not in dev_branches:
-                raise exceptions.JobFailure('Cannot create a stabilization '
-                                            'branch %r without a supporting '
-                                            'development branch.' %
-                                            new_branch)
-        elif isinstance(new_branch, HotfixBranch):
+        if isinstance(new_branch, HotfixBranch):
             # start from tag X.Y.Z.0
             job.settings.branch_from = new_branch.version + '.0'
         else:
@@ -110,10 +98,7 @@ def create_branch(job: CreateBranchJob):
     # any new conflict.
     #
     # older dev branches can be created if queues are disabled, or empty.
-    #
-    # there are no restrictions for stabilization branches.
     if (job.settings.use_queue and
-            not isinstance(new_branch, StabilizationBranch) and
             not isinstance(new_branch, HotfixBranch) and
             new_branch < dev_branches[-1]):
         queue_collection = build_queue_collection(job)
@@ -140,7 +125,6 @@ def create_branch(job: CreateBranchJob):
                                     'keep pushing.')
 
     if (not job.settings.use_queue or
-            isinstance(new_branch, StabilizationBranch) or
             isinstance(new_branch, HotfixBranch)):
         raise exceptions.JobSuccess()
 
