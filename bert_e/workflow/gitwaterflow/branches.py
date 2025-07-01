@@ -156,17 +156,24 @@ class HotfixBranch(GWFBranch):
 
 @total_ordering
 class DevelopmentBranch(GWFBranch):
-    pattern = r'^development/(?P<version>(?P<major>\d+)(\.(?P<minor>\d+))?)$'
+    pattern = r'^development/(?P<version>(?P<major>\d+)(\.(?P<minor>\d+))?(\.(?P<micro>\d+))?)$'
     cascade_producer = True
     cascade_consumer = True
     can_be_destination = True
     allow_prefixes = FeatureBranch.all_prefixes
     latest_minor = -1
 
+    def __init__(self, repo, name):
+        super().__init__(repo, name)
+        # Override version to use 3-digit format when micro is available
+        if self.micro is not None:
+            self.version = f"{self.major}.{self.minor}.{self.micro}"
+
     def __eq__(self, other):
         return (self.__class__ == other.__class__ and
                 self.major == other.major and
-                self.minor == other.minor)
+                self.minor == other.minor and
+                self.micro == other.micro)
 
     def __lt__(self, other):
         if self.__class__ != other.__class__:
@@ -179,14 +186,29 @@ class DevelopmentBranch(GWFBranch):
         if other.minor is None:
             # development/<major>.<minor> is less than development/<major>
             return True
-        return self.minor < other.minor
+        if self.minor != other.minor:
+            return self.minor < other.minor
+        # If major and minor are equal, compare micro versions
+        if self.micro is None:
+            # development/<major>.<minor> is greater than development/<major>.<minor>.<micro>
+            return False
+        if other.micro is None:
+            # development/<major>.<minor>.<micro> is less than development/<major>.<minor>
+            return True
+        return self.micro < other.micro
 
     @property
     def has_minor(self) -> bool:
         return self.minor is not None
 
     @property
+    def has_micro(self) -> bool:
+        return self.micro is not None
+
+    @property
     def version_t(self):
+        if self.has_micro:
+            return (self.major, self.minor, self.micro)
         return (self.major, self.minor)
 
 
@@ -264,12 +286,17 @@ class QueueBranch(GWFBranch):
     def __init__(self, repo, name):
         super(QueueBranch, self).__init__(repo, name)
         if self.hfrev is not None:
+            # This is a hotfix queue with hotfix revision
             dest = branch_factory(repo, 'hotfix/%d.%d.%d' % (self.major,
                                   self.minor, self.micro))
-        elif self.micro is not None:
-            # This is a hotfix queue (has micro version), create hotfix branch
-            dest = branch_factory(repo, 'hotfix/%d.%d.%d' % (self.major,
-                                  self.minor, self.micro))
+        elif self.micro is not None and self.minor is not None:
+            # Could be either hotfix or development branch - try development first
+            try:
+                dest = branch_factory(repo, f'development/{self.major}.{self.minor}.{self.micro}')
+            except errors.UnrecognizedBranchPattern:
+                # If 3-digit doesn't exist, try hotfix
+                dest = branch_factory(repo, 'hotfix/%d.%d.%d' % (self.major,
+                                      self.minor, self.micro))
         else:
             dest = branch_factory(repo, 'development/%s' % self.version)
         self.dst_branch = dest
@@ -621,7 +648,9 @@ class QueueCollection(object):
         # (i.e. ignore stab queues)
         greatest_dev = None
         for version in reversed(queues.keys()):
-            if len(version) == 2 and greatest_dev is None:
+            # Development branches can have 2 or 3 elements (major.minor or major.minor.micro)
+            # Hotfix branches have 4 elements (major.minor.micro.hfrev)
+            if len(version) <= 3 and greatest_dev is None:
                 greatest_dev = version
             if len(version) == 4:
                 # we may not catch the hf pr_id later from greatest_dev
@@ -672,8 +701,10 @@ class QueueCollection(object):
                 stack = deepcopy(self._queues)
                 # remove versions not on this merge_path from consideration
                 for version in list(stack.keys()):
-                    # exclude hf version from this pop process
-                    if version not in versions and len(version) < 4:
+                    # exclude hf version from this pop process (hf versions have 4 elements)
+                    if version not in versions and len(version) == 4:
+                        continue
+                    if version not in versions:
                         stack.pop(version)
 
                 # obtain list of mergeable prs on this merge_path
@@ -710,6 +741,7 @@ class QueueCollection(object):
         last_entry = None
         pr_ids = []
         for key in list(reversed(self._queues.keys())):
+            # Development branches can have 2 or 3 elements, hotfix branches have 4
             if len(key) < 4:
                 last_entry = self._queues[key]
                 break
@@ -892,7 +924,12 @@ class BranchCascade(object):
                                                      hf_branch.hfrev)
 
         if dev_branch:
-            dev_branch.micro = max(micro, dev_branch.micro)
+            if dev_branch.micro is None:
+                dev_branch.micro = micro
+            else:
+                dev_branch.micro = max(micro, dev_branch.micro)
+            # Update version property to reflect the micro version
+            dev_branch.version = f"{dev_branch.major}.{dev_branch.minor}.{dev_branch.micro}"
 
         if major_branch:
             major_branch.latest_minor = max(minor, major_branch.latest_minor)
@@ -956,15 +993,38 @@ class BranchCascade(object):
                     hf_branch.hfrev))
 
             if dev_branch and dev_branch.has_minor is True:
-                offset = 1
-
-                self.target_versions.append('%d.%d.%d' % (
-                    major, minor, dev_branch.micro + offset))
+                if dev_branch.has_micro:
+                    # If branch has micro version, increment it
+                    offset = 1
+                    self.target_versions.append('%d.%d.%d' % (
+                        major, minor, dev_branch.micro + offset))
+                else:
+                    # If branch doesn't have micro version in name, use micro from tags or start with .0
+                    if dev_branch.micro is None:
+                        # No tags found, start with .0
+                        micro_version = 0
+                    else:
+                        # Tags found, increment the micro version
+                        micro_version = dev_branch.micro + 1
+                    # Set the micro version on the branch and update version property
+                    dev_branch.micro = micro_version
+                    dev_branch.version = f"{major}.{minor}.{micro_version}"
+                    self.target_versions.append('%d.%d.%d' % (
+                        major, minor, micro_version))
             elif dev_branch and dev_branch.has_minor is False:
+                if dev_branch.micro is None:
+                    # No tags found, start with .0
+                    micro_version = 0
+                else:
+                    # Tags found, increment the micro version
+                    micro_version = dev_branch.micro + 1
+                # Set the micro version on the branch and update version property
+                dev_branch.micro = micro_version
+                dev_branch.version = f"{major}.{dev_branch.latest_minor + 1}.{micro_version}"
                 self.target_versions.append(
                     f"{major}."
                     f"{dev_branch.latest_minor + 1}."
-                    f"{dev_branch.micro + 1}"
+                    f"{micro_version}"
                 )
 
     def finalize(self, dst_branch):
@@ -989,6 +1049,15 @@ class BranchCascade(object):
 
         dst_hf = dst_branch.name.startswith('hotfix/')
 
+        # First pass: determine if we should include dev branches
+        for (major, minor), branch_set in self._cascade.items():
+            dev_branch = branch_set[DevelopmentBranch]
+            if dev_branch and dst_branch.name == dev_branch.name:
+                include_dev_branches = True
+                break
+
+        # Second pass: process branches based on inclusion logic
+        target_found = False
         for (major, minor), branch_set in list(self._cascade.items()):
             dev_branch = branch_set[DevelopmentBranch]
             hf_branch = branch_set[HotfixBranch]
@@ -998,33 +1067,49 @@ class BranchCascade(object):
                 raise errors.DevBranchDoesNotExist(
                     'development/%d.%d' % (major, minor))
 
-            # remove untargetted branches from cascade
-            if dst_branch == dev_branch:
-                include_dev_branches = True
-
-            if not include_dev_branches or dst_hf:
+            # For hotfix destinations, only include the specific hotfix branch
+            if dst_hf:
                 if branch_set[DevelopmentBranch]:
-                    branch_set[DevelopmentBranch] = None
                     self.ignored_branches.append(dev_branch.name)
-
-                if not dst_hf:
-                    del self._cascade[(major, minor)]
-                    continue
+                    branch_set[DevelopmentBranch] = None
 
                 if not hf_branch or hf_branch.name != dst_branch.name:
                     if branch_set[HotfixBranch]:
-                        branch_set[HotfixBranch] = None
                         self.ignored_branches.append(hf_branch.name)
+                        branch_set[HotfixBranch] = None
                     del self._cascade[(major, minor)]
-
-            # add to dst_branches in the correct order
-            if not dst_hf:
-                if branch_set[DevelopmentBranch]:
-                    self.dst_branches.append(dev_branch)
-            else:
+                    continue
+                
+                # Add the target hotfix branch
                 if branch_set[HotfixBranch]:
-                    if dst_branch.name == hf_branch.name:
-                        self.dst_branches.append(hf_branch)
+                    self.dst_branches.append(hf_branch)
+                    
+            # For development destinations, include from target branch onwards
+            elif include_dev_branches:
+                # Track whether we've found the target branch yet
+                if not target_found and dev_branch and dst_branch.name == dev_branch.name:
+                    target_found = True
+                
+                if target_found and dev_branch:
+                    # Include this branch (target and all following)
+                    self.dst_branches.append(dev_branch)
+                elif dev_branch:
+                    # We haven't reached the target yet - ignore this branch
+                    self.ignored_branches.append(dev_branch.name)
+                    branch_set[DevelopmentBranch] = None
+                    del self._cascade[(major, minor)]
+                    continue
+                else:
+                    # No development branch in this slot
+                    del self._cascade[(major, minor)]
+                    continue
+            else:
+                # Not targeting any development branch - remove all dev branches
+                if branch_set[DevelopmentBranch]:
+                    self.ignored_branches.append(dev_branch.name)
+                    branch_set[DevelopmentBranch] = None
+                del self._cascade[(major, minor)]
+                continue
 
         if not dev_branch and not dst_hf:
             raise errors.NotASingleDevBranch()

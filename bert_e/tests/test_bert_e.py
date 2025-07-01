@@ -363,6 +363,12 @@ class QuickTest(unittest.TestCase):
                     if c_branch.name == expected_dest[i].name:
                         expected_dest[i].hfrev = c_branch.hfrev
                         break
+            elif expected_dest[i].name.startswith('development/'):
+                # set micro version in development branches to match dst_branches
+                for c_branch in c.dst_branches:
+                    if c_branch.name == expected_dest[i].name:
+                        expected_dest[i].micro = c_branch.micro
+                        break
 
         self.assertEqual(c.dst_branches, expected_dest)
         self.assertEqual(c.ignored_branches, expected_ignored)
@@ -450,10 +456,21 @@ class QuickTest(unittest.TestCase):
         fixver = ['6.6.6.3']
         self.finalize_cascade(branches, tags, destination, fixver)
 
-    def test_branch_cascade_invalid_dev_branch(self):
+    def test_branch_cascade_three_digit_dev_branch(self):
         destination = 'development/4.3.17'
         branches = OrderedDict({
             1: {'name': 'development/4.3.17', 'ignore': False}
+        })
+        tags = []
+        fixver = ['4.3.18']
+        self.finalize_cascade(branches, tags, destination, fixver)
+
+    def test_branch_cascade_invalid_dev_branch(self):
+        destination = 'development/4.3.17.1'  # Invalid: four components not allowed
+        branches = OrderedDict({
+            1: {'name': 'development/4.3', 'ignore': False},
+            2: {'name': 'development/5.1', 'ignore': False},
+            3: {'name': 'development/10.0', 'ignore': False}
         })
         tags = []
         fixver = []

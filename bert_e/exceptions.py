@@ -436,8 +436,9 @@ class MasterQueueMissing(QueueValidationError):
     auto_recovery = False
 
     def __init__(self, version):
+        version_str = '.'.join(str(v) for v in version)
         msg = 'there are integration queues on this version ' \
-              'but q/%s.%s is missing' % version
+              'but q/%s is missing' % version_str
         super(MasterQueueMissing, self).__init__(msg)
 
 
