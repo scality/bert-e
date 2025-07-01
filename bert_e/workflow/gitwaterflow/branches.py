@@ -293,6 +293,17 @@ class QueueBranch(GWFBranch):
             # Could be either hotfix or development branch - try development first
             try:
                 dest = branch_factory(repo, f'development/{self.major}.{self.minor}.{self.micro}')
+                # Check if the 3-digit development branch actually exists
+                if not dest.exists():
+                    # Fall back to 2-digit development branch
+                    try:
+                        dest = branch_factory(repo, f'development/{self.major}.{self.minor}')
+                        if not dest.exists():
+                            # Fall back to 1-digit development branch if 2-digit doesn't exist
+                            dest = branch_factory(repo, f'development/{self.major}')
+                    except errors.UnrecognizedBranchPattern:
+                        # If 2-digit pattern doesn't work, try 1-digit
+                        dest = branch_factory(repo, f'development/{self.major}')
             except errors.UnrecognizedBranchPattern:
                 # If 3-digit doesn't exist, try hotfix
                 dest = branch_factory(repo, 'hotfix/%d.%d.%d' % (self.major,
