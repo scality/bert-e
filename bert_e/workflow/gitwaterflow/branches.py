@@ -377,7 +377,6 @@ class QueueCollection(object):
             except errors.UnrecognizedBranchPattern:
                 continue
             self._add_branch(branch)
-
         self.finalize()
 
     @property
@@ -858,7 +857,6 @@ class BranchCascade(object):
         self._cascade = OrderedDict(
             sorted(self._cascade.items(), key=cmp_to_key(compare_branches))
         )
-
         self._update_major_versions()
         if dst_branch:
             self.finalize(dst_branch)
@@ -979,6 +977,7 @@ class BranchCascade(object):
         if dev_branch:
             # Only update if tag matches X.Y
             # And is not a three-digit dev branch
+
             if dev_branch.major == major and dev_branch.minor == minor:
                 # Exclude tags whose micro is already
                 # A three-digit dev branch for this X.Y
@@ -989,7 +988,6 @@ class BranchCascade(object):
 
                 three_digit_micros = set(k[2] for k in three_digit_keys)
                 next_micro = micro + 1
-
                 while next_micro in three_digit_micros:
                     next_micro += 1
                 if (not hasattr(dev_branch, '_next_micro') or
@@ -1042,21 +1040,37 @@ class BranchCascade(object):
         """
         for version_tuple, branch_set in self._cascade.items():
             # Only process major-only branches (tuples where minor is None)
-            if len(version_tuple) < 2 or version_tuple[1] is not None:
+            if len(version_tuple) < 2:
                 continue
-            major_branch: DevelopmentBranch = branch_set[DevelopmentBranch]
-            major = version_tuple[0]
+            if len(version_tuple) == 2 and version_tuple[1] is None:
+                major_branch: DevelopmentBranch = branch_set[DevelopmentBranch]
+                major = version_tuple[0]
 
-            # Find all minor versions for this major
-            minors = [
-                version_tuple[1] for version_tuple in self._cascade.keys()
-                if (len(version_tuple) >= 2 and
-                    version_tuple[0] == major and
-                    version_tuple[1] is not None)
-            ]
-            minors.append(major_branch.latest_minor)
+                # Find all minor versions for this major
+                minors = [
+                    version_tuple[1] for version_tuple in self._cascade.keys()
+                    if (len(version_tuple) >= 2 and
+                        version_tuple[0] == major and
+                        version_tuple[1] is not None)
+                ]
+                minors.append(major_branch.latest_minor)
 
-            major_branch.latest_minor = max(minors)
+                major_branch.latest_minor = max(minors)
+            elif len(version_tuple) == 2 and version_tuple[1] is not None:
+                minor_branch: DevelopmentBranch = branch_set[DevelopmentBranch]
+                minor = version_tuple[1]
+                major = version_tuple[0]
+
+                # Find all micros versions for this minor
+                micros = [
+                    version_tuple[2] for version_tuple in self._cascade.keys()
+                    if (len(version_tuple) >= 3 and
+                        version_tuple[0] == major and
+                        version_tuple[1] == minor and
+                        version_tuple[2] is not None)
+                ]
+                if micros:
+                    minor_branch.latest_micro = max(micros)
 
     def _set_target_versions(self, dst_branch):
         """Compute list of expected Jira FixVersion/s.
@@ -1091,7 +1105,10 @@ class BranchCascade(object):
                         self.target_versions.append(version_current)
                         next_micro = dev_branch.micro
                     else:
-                        next_micro = 0
+                        if hasattr(dev_branch, 'latest_micro'):
+                            next_micro = dev_branch.latest_micro + 1
+                        else:
+                            next_micro = 0
                     version_str = '%d.%d.%d' % (
                         dev_branch.major, dev_branch.minor, next_micro
                     )
