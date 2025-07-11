@@ -290,6 +290,17 @@ class BranchNameInvalid(InternalException):
         super(BranchNameInvalid, self).__init__(msg)
 
 
+class ReleaseAlreadyExists(InternalException):
+    code = 204
+
+    def __init__(self, branch, tag):
+        msg = 'Branch %r must be deleted as %r has been created, ' \
+              'you must use a hotfix branch if you really intend ' \
+              'to target this version.' \
+              % (branch, tag)
+        super(ReleaseAlreadyExists, self).__init__(msg)
+
+
 class UnrecognizedBranchPattern(InternalException):
     code = 207
 
@@ -435,10 +446,21 @@ class MasterQueueMissing(QueueValidationError):
     code = 'Q001'
     auto_recovery = False
 
+    @staticmethod
+    def _format_version(version):
+        if not version:
+            return '[]'
+        if len(version) == 1 or (len(version) > 1 and version[1] is None):
+            return f"{version[0]}"
+        if len(version) == 2 or (len(version) > 2 and version[2] is None):
+            return f"{version[0]}.{version[1]}"
+        return f"{version[0]}.{version[1]}.{version[2]}"
+
     def __init__(self, version):
-        msg = 'there are integration queues on this version ' \
-              'but q/%s.%s is missing' % version
-        super(MasterQueueMissing, self).__init__(msg)
+        version_str = self._format_version(version)
+        msg = "there are integration queues on " \
+            f"this version but q/{version_str} is missing"
+        super().__init__(msg)
 
 
 class MasterQueueLateVsDev(QueueValidationError):

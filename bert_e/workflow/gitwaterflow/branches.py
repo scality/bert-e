@@ -30,23 +30,57 @@ LOG = logging.getLogger(__name__)
 
 
 def compare_branches(branch1, branch2):
-    """Compare GitWaterflow branches for sorting.
-
-    Important to note that when a branch has a minor version as None,
-    it will be considered as the latest version.
     """
+    Compare GitWaterflow branches for sorting.
+    For cascade ordering, we want: 4.3 < 4 < 5.1 < 10.0 < 10
+    Specific minor versions come before major-only branches within
+    the same major.
+    """
+    # Safely extract version components
+    version1 = branch1[0]
+    version2 = branch2[0]
+    # Extract major versions (always present)
+    major1 = version1[0] if len(version1) > 0 else 0
+    major2 = version2[0] if len(version2) > 0 else 0
 
-    major1, minor1 = branch1[0][:2]
-    major2, minor2 = branch2[0][:2]
-    if major1 == major2:
-        if minor1 == minor2:
-            return 0
-        if minor1 is None:
-            return 1
-        if minor2 is None:
-            return -1
+    # Compare major versions first
+    if major1 != major2:
+        return major1 - major2
+
+    # Same major version - check if one is major-only vs major.minor
+    # Major-only branches have None as minor version, e.g., (4, None)
+    # Major.minor branches have integer minor version, e.g., (4, 3)
+    is_major_only_1 = len(version1) >= 2 and version1[1] is None
+    is_major_only_2 = len(version2) >= 2 and version2[1] is None
+
+    if is_major_only_1 and not is_major_only_2:
+        # version1 is major-only, version2 is major.minor
+        # major-only comes after
+        return 1
+    elif not is_major_only_1 and is_major_only_2:
+        # version1 is major.minor, version2 is major-only
+        # major.minor comes before
+        return -1
+
+    # Both are major.minor or longer - compare normally
+    minor1 = version1[1] if len(version1) > 1 else 0
+    minor2 = version2[1] if len(version2) > 1 else 0
+
+    # Compare minor versions
+    if minor1 != minor2:
         return minor1 - minor2
-    return major1 - major2
+
+    # Same major.minor - extract micro versions
+    # Default to 0 if no micro
+    micro1 = version1[2] if len(version1) > 2 else 0
+    # Default to 0 if no micro
+    micro2 = version2[2] if len(version2) > 2 else 0
+
+    # Compare micro versions
+    if micro1 != micro2:
+        return micro2 - micro1
+    else:
+        return 0
 
 
 def compare_queues(version1, version2):
@@ -156,30 +190,55 @@ class HotfixBranch(GWFBranch):
 
 @total_ordering
 class DevelopmentBranch(GWFBranch):
-    pattern = r'^development/(?P<version>(?P<major>\d+)(\.(?P<minor>\d+))?)$'
+    pattern = (r'^development/(?P<version>(?P<major>\d+)'
+               r'(\.(?P<minor>\d+))?(\.(?P<micro>\d+))?)$')
     cascade_producer = True
     cascade_consumer = True
     can_be_destination = True
     allow_prefixes = FeatureBranch.all_prefixes
     latest_minor = -1
 
+    def __init__(self, repo, name):
+        super().__init__(repo, name)
+        # The regex match is already done in parent GWFBranch.__init__
+        # self.major, self.minor are already set by parent, add micro handling
+
+        # Handle micro version - it will be None if not present
+        if not hasattr(self, 'micro') or self.micro is None:
+            self.micro = None  # Keep as None for x.y format branches
+
+        # Update version property to include micro when present
+        if self.micro is not None:
+            self.version = f"{self.major}.{self.minor}.{self.micro}"
+        elif self.minor is not None:
+            self.version = f"{self.major}.{self.minor}"
+        else:
+            self.version = f"{self.major}"
+
     def __eq__(self, other):
         return (self.__class__ == other.__class__ and
                 self.major == other.major and
-                self.minor == other.minor)
+                self.minor == other.minor and
+                getattr(self, 'micro', None) == getattr(other, 'micro', None))
 
     def __lt__(self, other):
         if self.__class__ != other.__class__:
             return NotImplemented
+
+        # Major version comparison
         if self.major != other.major:
             return self.major < other.major
+
         if self.minor is None:
             # development/<major> is greater than development/<major>.<minor>
             return False
-        if other.minor is None:
-            # development/<major>.<minor> is less than development/<major>
+        # Same major version - apply cascade rules
+        if self.minor is not None and other.minor is None:
             return True
-        return self.minor < other.minor
+
+        # Both have minor versions
+        if self.minor != other.minor:
+            return self.minor < other.minor
 
     @property
     def has_minor(self) -> bool:
@@ -187,7 +246,12 @@ class DevelopmentBranch(GWFBranch):
 
     @property
     def version_t(self):
-        return (self.major, self.minor)
+        if getattr(self, 'micro', None) is not None:
+            return (self.major, self.minor, self.micro)
+        elif self.minor is not None:
+            return (self.major, self.minor)
+        else:
+            return (self.major, None)
 
 
 class IntegrationBranch(GWFBranch):
@@ -264,10 +328,6 @@ class QueueBranch(GWFBranch):
     def __init__(self, repo, name):
         super(QueueBranch, self).__init__(repo, name)
         if self.hfrev is not None:
-            dest = branch_factory(repo, 'hotfix/%d.%d.%d' % (self.major,
-                                  self.minor, self.micro))
-        elif self.micro is not None:
-            # This is a hotfix queue (has micro version), create hotfix branch
             dest = branch_factory(repo, 'hotfix/%d.%d.%d' % (self.major,
                                   self.minor, self.micro))
         else:
@@ -784,7 +844,6 @@ class BranchCascade(object):
                                   branch)
                 if match_:
                     flat_branches.add(match_.group('name'))
-
         for flat_branch in flat_branches:
             try:
                 branch = branch_factory(repo, flat_branch)
@@ -794,6 +853,11 @@ class BranchCascade(object):
 
         for tag in repo.cmd('git tag').split('\n')[:-1]:
             self.update_versions(tag)
+
+        # Re-sort the cascade after update_versions may have changed keys
+        self._cascade = OrderedDict(
+            sorted(self._cascade.items(), key=cmp_to_key(compare_branches))
+        )
 
         self._update_major_versions()
         if dst_branch:
@@ -843,18 +907,20 @@ class BranchCascade(object):
             else:
                 return
 
-        (major, minor) = branch.major, branch.minor
-        if (major, minor) not in self._cascade.keys():
-            self._cascade[(major, minor)] = {
+        # Create key based on full version tuple
+        key = branch.version_t
+
+        if key not in self._cascade.keys():
+            self._cascade[key] = {
                 DevelopmentBranch: None,
                 HotfixBranch: None,
             }
-            # Sort the cascade again
+            # Sort the cascade again using updated comparison
             self._cascade = OrderedDict(
                 sorted(self._cascade.items(), key=cmp_to_key(compare_branches))
             )
 
-        self._cascade[(major, minor)][branch.__class__] = branch
+        self._cascade[key][branch.__class__] = branch
 
     def update_versions(self, tag):
         """Update expected versions based on repository tags."""
@@ -872,16 +938,30 @@ class BranchCascade(object):
         if match.groupdict()['hfrev'] is not None:
             hfrev = int(match.groupdict()['hfrev'])
 
+        # Look for branches that match this version
+        # Check for exact (major, minor) match and major-only match
         branches = self._cascade.get((major, minor), {})
         major_branches = self._cascade.get((major, None), {})
+        micro_branches = self._cascade.get((major, minor, micro), {})
 
-        if not branches and not major_branches:
+        # Also look for hotfix branches with matching major.minor.micro
+        hf_branch = None
+        for key, branch_set in self._cascade.items():
+            if (len(key) >= 3 and key[0] == major and key[1] == minor and
+                    key[2] == micro and branch_set.get(HotfixBranch)):
+                hf_branch = branch_set[HotfixBranch]
+                break
+
+        if not branches and not major_branches and not hf_branch:
             LOG.debug("Ignore tag: %s", tag)
             return
 
-        hf_branch: HotfixBranch = branches.get(HotfixBranch)
+        # If we didn't find hf_branch above, check in branches
+        if not hf_branch:
+            hf_branch = branches.get(HotfixBranch)
         dev_branch: DevelopmentBranch = branches.get(DevelopmentBranch)
         major_branch: DevelopmentBranch = major_branches.get(DevelopmentBranch)
+        micro_branch: DevelopmentBranch = micro_branches.get(DevelopmentBranch)
 
         if hf_branch:
             if hf_branch.micro == micro:
@@ -891,15 +971,52 @@ class BranchCascade(object):
                                                      hf_branch.micro,
                                                      hf_branch.hfrev)
 
-        if dev_branch:
-            dev_branch.micro = max(micro, dev_branch.micro)
+        if micro_branch is not None and \
+           ([micro_branch.major, micro_branch.minor,
+             micro_branch.micro] == [major, minor, micro]):
+            raise errors.ReleaseAlreadyExists(micro_branch, tag)
 
+        if dev_branch:
+            # Only update if tag matches X.Y
+            # And is not a three-digit dev branch
+            if dev_branch.major == major and dev_branch.minor == minor:
+                # Exclude tags whose micro is already
+                # A three-digit dev branch for this X.Y
+                three_digit_keys = [
+                    k for k in self._cascade.keys()
+                    if len(k) == 3 and k[0] == major and k[1] == minor
+                ]
+
+                three_digit_micros = set(k[2] for k in three_digit_keys)
+                next_micro = micro + 1
+
+                while next_micro in three_digit_micros:
+                    next_micro += 1
+                if (not hasattr(dev_branch, '_next_micro') or
+                        dev_branch._next_micro is None):
+                    dev_branch._next_micro = next_micro
+                else:
+                    dev_branch._next_micro = max(
+                        next_micro,
+                        dev_branch._next_micro
+                    )
         if major_branch:
-            major_branch.latest_minor = max(minor, major_branch.latest_minor)
+            major_branch.latest_minor = max(
+                minor,
+                major_branch.latest_minor
+            )
+
+        # Re-sort the cascade after any key changes
+        self._cascade = OrderedDict(
+            sorted(
+                self._cascade.items(),
+                key=cmp_to_key(compare_branches)
+            )
+        )
 
     def validate(self):
         previous_dev_branch = None
-        for (major, minor), branch_set in self._cascade.items():
+        for key, branch_set in self._cascade.items():
             dev_branch = branch_set[DevelopmentBranch]
             hf_branch = branch_set[HotfixBranch]
 
@@ -907,10 +1024,6 @@ class BranchCascade(object):
                hf_branch is not None:
                 # skip cascade validation for hf
                 continue
-
-            if dev_branch is None:
-                raise errors.DevBranchDoesNotExist(
-                    'development/%d.%d' % (major, minor))
 
             if previous_dev_branch:
                 if not dev_branch.includes_commit(previous_dev_branch):
@@ -920,21 +1033,26 @@ class BranchCascade(object):
             previous_dev_branch = dev_branch
 
     def _update_major_versions(self):
-        """For every major dev branch, ensure the latest minor is set.
-
+        """
+        For every major dev branch, ensure the latest minor is set.
         This function is used on the case where we have a
         dev/1 and dev/1.0 branch but no 1.0.0 tag.
         In this case, when expecting the next version for dev/1
         we should return 1.1.0 instead of 1.0.0.
-
         """
-        for (_, minor), branch_set in self._cascade.items():
-            if minor is not None:
+        for version_tuple, branch_set in self._cascade.items():
+            # Only process major-only branches (tuples where minor is None)
+            if len(version_tuple) < 2 or version_tuple[1] is not None:
                 continue
             major_branch: DevelopmentBranch = branch_set[DevelopmentBranch]
+            major = version_tuple[0]
+
+            # Find all minor versions for this major
             minors = [
-                minor for (m, minor) in self._cascade.keys()
-                if m == major_branch.major and minor is not None
+                version_tuple[1] for version_tuple in self._cascade.keys()
+                if (len(version_tuple) >= 2 and
+                    version_tuple[0] == major and
+                    version_tuple[1] is not None)
             ]
             minors.append(major_branch.latest_minor)
 
@@ -944,35 +1062,58 @@ class BranchCascade(object):
         """Compute list of expected Jira FixVersion/s.
 
         Must be called after the cascade has been finalised.
-
         """
-        for (major, minor), branch_set in self._cascade.items():
+        # Clear any existing target versions to avoid duplicates
+        self.target_versions = []
+        for key, branch_set in self._cascade.items():
             dev_branch: DevelopmentBranch = branch_set[DevelopmentBranch]
             hf_branch: HotfixBranch = branch_set[HotfixBranch]
 
             if hf_branch and dst_branch.name.startswith('hotfix/'):
-                self.target_versions.append('%d.%d.%d.%d' % (
-                    hf_branch.major, hf_branch.minor, hf_branch.micro,
-                    hf_branch.hfrev))
-
-            if dev_branch and dev_branch.has_minor is True:
-                offset = 1
-
-                self.target_versions.append('%d.%d.%d' % (
-                    major, minor, dev_branch.micro + offset))
-            elif dev_branch and dev_branch.has_minor is False:
                 self.target_versions.append(
-                    f"{major}."
-                    f"{dev_branch.latest_minor + 1}."
-                    f"{dev_branch.micro + 1}"
+                    '%d.%d.%d.%d' % (
+                        hf_branch.major, hf_branch.minor, hf_branch.micro,
+                        hf_branch.hfrev
+                    )
                 )
+            if dev_branch:
+                # Development branches with major.minor naming
+                if dev_branch.has_minor:
+                    # Use the tracked next micro version if available,
+                    # otherwise use the micro+1 if this is a three-digit branch
+                    if (hasattr(dev_branch, '_next_micro') and
+                            dev_branch._next_micro is not None):
+                        next_micro = dev_branch._next_micro
+                    elif getattr(dev_branch, 'micro', None) is not None:
+                        version_current = '%d.%d.%d' % (
+                            dev_branch.major, dev_branch.minor,
+                            dev_branch.micro)
+                        self.target_versions.append(version_current)
+                        next_micro = dev_branch.micro
+                    else:
+                        next_micro = 0
+                    version_str = '%d.%d.%d' % (
+                        dev_branch.major, dev_branch.minor, next_micro
+                    )
+                    if version_str not in self.target_versions:
+                        self.target_versions.append(version_str)
+
+                else:
+                    # For development/x branches, use latest_minor logic
+                    # Target should be X.(latest_minor+1).0,
+                    # not X.(latest_minor+1).1
+                    self.target_versions.append(
+                        f"{dev_branch.major}."
+                        f"{dev_branch.latest_minor + 1}."
+                        f"0"
+                    )
 
     def finalize(self, dst_branch):
-        """Finalize cascade considering given destination.
+        """
+        Finalize cascade considering given destination.
 
         Assumes the cascade has been populated by calls to add_branch
         and update_versions. The local lists keeping track
-
         Args:
             dst_branch: where the pull request wants to merge
 
@@ -984,50 +1125,105 @@ class BranchCascade(object):
 
         """
         self.get_merge_paths()  # populate merge paths before removing data
-        include_dev_branches = False
-        dev_branch = None
-
         dst_hf = dst_branch.name.startswith('hotfix/')
 
-        for (major, minor), branch_set in list(self._cascade.items()):
+        # First: Find the destination branch key if it's a development branch
+        dst_branch_key = None
+        if not dst_hf:
+            for key, branch_set in self._cascade.items():
+                dev_branch = branch_set[DevelopmentBranch]
+                if dev_branch and dev_branch.name == dst_branch.name:
+                    dst_branch_key = key
+                    break
+
+        # Process all branches
+        for key, branch_set in list(self._cascade.items()):
             dev_branch = branch_set[DevelopmentBranch]
             hf_branch = branch_set[HotfixBranch]
 
-            # we have to target at least a hf or a dev branch
-            if dev_branch is None and hf_branch is None:
-                raise errors.DevBranchDoesNotExist(
-                    'development/%d.%d' % (major, minor))
-
-            # remove untargetted branches from cascade
-            if dst_branch == dev_branch:
-                include_dev_branches = True
-
-            if not include_dev_branches or dst_hf:
-                if branch_set[DevelopmentBranch]:
-                    branch_set[DevelopmentBranch] = None
-                    self.ignored_branches.append(dev_branch.name)
-
+            # Handle development branches
+            if dev_branch:
                 if not dst_hf:
-                    del self._cascade[(major, minor)]
-                    continue
+                    # For dev destinations, include branches
+                    # with version >= destination version
+                    # Special handling for major-only vs major.minor branches
+                    key_major = key[0]
+                    key_minor = key[1] if len(key) > 1 else None
+                    dst_major = dst_branch_key[0]
+                    dst_minor = (dst_branch_key[1] if len(dst_branch_key) > 1
+                                 else None)
 
-                if not hf_branch or hf_branch.name != dst_branch.name:
-                    if branch_set[HotfixBranch]:
-                        branch_set[HotfixBranch] = None
-                        self.ignored_branches.append(hf_branch.name)
-                    del self._cascade[(major, minor)]
+                    should_include = False
 
-            # add to dst_branches in the correct order
-            if not dst_hf:
-                if branch_set[DevelopmentBranch]:
-                    self.dst_branches.append(dev_branch)
-            else:
-                if branch_set[HotfixBranch]:
-                    if dst_branch.name == hf_branch.name:
-                        self.dst_branches.append(hf_branch)
+                    if key_major > dst_major:
+                        # Higher major version always included
+                        should_include = True
+                    elif key_major == dst_major:
+                        # Same major version
+                        if key_minor is None:
+                            # Major-only branch (e.g., development/4) -
+                            # always included for same major
+                            should_include = True
+                        elif dst_minor is None:
+                            # Destination is major-only, this is major.minor -
+                            # exclude specific minor versions
+                            should_include = False
+                        else:
+                            # Both have minor versions -
+                            # Compare micro if present
+                            if len(key) > 2 and len(dst_branch_key) > 2:
+                                # Both have micro versions
+                                should_include = key[2] >= dst_branch_key[2]
+                            elif len(key) > 2 and len(dst_branch_key) <= 2:
+                                # This branch has micro,
+                                # Destination does not
+                                should_include = False
+                            elif len(key) <= 2 and len(dst_branch_key) > 2:
+                                # This branch does not have micro,
+                                # Destination does
+                                should_include = True
+                            else:
+                                # Both have no micro
+                                should_include = key_minor >= dst_minor
 
-        if not dev_branch and not dst_hf:
-            raise errors.NotASingleDevBranch()
+                    if should_include:
+                        self.dst_branches.append(dev_branch)
+                    else:
+                        self.ignored_branches.append(dev_branch.name)
+                        branch_set[DevelopmentBranch] = None
+                else:
+                    # For hotfix destinations, ignore all dev branches
+                    self.ignored_branches.append(dev_branch.name)
+                    branch_set[DevelopmentBranch] = None
+            # Handle hotfix branches
+            if hf_branch:
+                self.dst_branches.append(hf_branch)
+
+        # Clean up the cascade by removing keys with no branches
+        keys_to_remove = []
+        for key, branch_set in self._cascade.items():
+            if (
+                not branch_set[DevelopmentBranch] and
+                not branch_set[HotfixBranch]
+            ):
+                keys_to_remove.append(key)
+
+        for key in keys_to_remove:
+            del self._cascade[key]
+
+        # Sort dst_branches according to cascade order
+        # (the cascade is already sorted)
+        # Extract development branches in cascade order
+        ordered_dst_branches = []
+        for key, branch_set in self._cascade.items():
+            dev_branch = branch_set[DevelopmentBranch]
+            hf_branch = branch_set[HotfixBranch]
+            if dev_branch and dev_branch in self.dst_branches:
+                ordered_dst_branches.append(dev_branch)
+            if hf_branch and hf_branch in self.dst_branches:
+                ordered_dst_branches.append(hf_branch)
+
+        self.dst_branches = ordered_dst_branches
 
         self._set_target_versions(dst_branch)
         self.ignored_branches.sort()

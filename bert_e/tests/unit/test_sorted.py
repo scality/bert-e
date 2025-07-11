@@ -51,3 +51,33 @@ def test_sorted_versions():
     sorted_versions = sorted(versions, key=version_key, reverse=True)
 
     assert sorted_versions == expected
+
+
+def test_compare_branches_major_minor_vs_major_only():
+    branch1 = ((4, 3),)
+    branch2 = ((4, None),)
+    assert compare_branches(branch1, branch2) == -1
+
+
+def test_compare_branches_major_only_vs_major_only_returns_0():
+    branch1 = ((4, None),)  # major-only
+    branch2 = ((4, None),)     # major.only
+    assert compare_branches(branch1, branch2) == 0
+
+
+def test_compare_branches_major_only_vs_major_minor():
+    branch1 = ((4, None),)
+    branch2 = ((4, 3),)
+    assert compare_branches(branch1, branch2) == 1
+
+
+def test_compare_branches_major_minor_micro_vs_major_minor():
+    branch1 = ((4, 3, 2),)
+    branch2 = ((4, 3),)
+    assert compare_branches(branch1, branch2) == -2
+
+
+def test_compare_branches_major_minor_vs_major_minor_micro():
+    branch1 = ((4, 3),)
+    branch2 = ((4, 3, 2),)
+    assert compare_branches(branch1, branch2) == 2
