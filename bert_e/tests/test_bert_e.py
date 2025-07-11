@@ -547,6 +547,20 @@ class QuickTest(unittest.TestCase):
         fixver = ['4.3.18.1']
         self.finalize_cascade(branches, tags, destination, fixver)
 
+    def test_branch_cascade_mixed_versions_0(self):
+        """Test cascade with mix of 2-digit and 3-digit development branches"""
+        destination = 'development/5.1'
+        branches = OrderedDict({
+            1: {'name': 'development/4.3.17', 'ignore': True},
+            2: {'name': 'development/4.3', 'ignore': True},
+            3: {'name': 'development/5.1.0', 'ignore': True},
+            4: {'name': 'development/5.1', 'ignore': False},
+            5: {'name': 'development/10', 'ignore': False}
+        })
+        tags = ['4.3.16', '4.3.18']
+        fixver = ['5.1.1', '10.0.0']
+        self.finalize_cascade(branches, tags, destination, fixver)
+
     def test_branch_cascade_mixed_versions(self):
         """Test cascade with mix of 2-digit and 3-digit development branches"""
         destination = 'development/5.1'
@@ -555,7 +569,7 @@ class QuickTest(unittest.TestCase):
             2: {'name': 'development/4.3', 'ignore': True},
             3: {'name': 'development/5.1.8', 'ignore': True},
             4: {'name': 'development/5.1', 'ignore': False},
-            5: {'name': 'development/10.0', 'ignore': False}
+            5: {'name': 'development/10', 'ignore': False}
         })
         tags = ['4.3.16', '4.3.18', '5.1.3', '5.1.7']
         fixver = ['5.1.9', '10.0.0']
