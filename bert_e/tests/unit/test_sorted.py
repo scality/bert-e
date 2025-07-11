@@ -74,10 +74,10 @@ def test_compare_branches_major_only_vs_major_minor():
 def test_compare_branches_major_minor_micro_vs_major_minor():
     branch1 = ((4, 3, 2),)
     branch2 = ((4, 3),)
-    assert compare_branches(branch1, branch2) == -2
+    assert compare_branches(branch1, branch2) == -997
 
 
 def test_compare_branches_major_minor_vs_major_minor_micro():
     branch1 = ((4, 3),)
     branch2 = ((4, 3, 2),)
-    assert compare_branches(branch1, branch2) == 2
+    assert compare_branches(branch1, branch2) == 997

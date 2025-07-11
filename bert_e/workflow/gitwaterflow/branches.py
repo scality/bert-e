@@ -63,8 +63,8 @@ def compare_branches(branch1, branch2):
         return -1
 
     # Both are major.minor or longer - compare normally
-    minor1 = version1[1] if len(version1) > 1 else 0
-    minor2 = version2[1] if len(version2) > 1 else 0
+    minor1 = version1[1] if len(version1) > 1 else 999
+    minor2 = version2[1] if len(version2) > 1 else 999
 
     # Compare minor versions
     if minor1 != minor2:
@@ -72,13 +72,13 @@ def compare_branches(branch1, branch2):
 
     # Same major.minor - extract micro versions
     # Default to 0 if no micro
-    micro1 = version1[2] if len(version1) > 2 else 0
+    micro1 = version1[2] if len(version1) > 2 else 999
     # Default to 0 if no micro
-    micro2 = version2[2] if len(version2) > 2 else 0
+    micro2 = version2[2] if len(version2) > 2 else 999
 
     # Compare micro versions
     if micro1 != micro2:
-        return micro2 - micro1
+        return micro1 - micro2
     else:
         return 0
 
