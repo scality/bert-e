@@ -569,7 +569,7 @@ class QuickTest(unittest.TestCase):
             2: {'name': 'development/4.3', 'ignore': True},
             3: {'name': 'development/5.1.8', 'ignore': True},
             4: {'name': 'development/5.1', 'ignore': False},
-            5: {'name': 'development/10', 'ignore': False}
+            5: {'name': 'development/10.0', 'ignore': False}
         })
         tags = ['4.3.16', '4.3.18', '5.1.3', '5.1.7']
         fixver = ['5.1.9', '10.0.0']
