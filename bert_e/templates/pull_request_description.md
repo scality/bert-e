@@ -7,10 +7,10 @@ If you need to amend/cancel the changeset on branch
 procedure:
 
 ```bash
- $ git fetch
- $ git checkout {{ branch }}
- $ # <amend or cancel the changeset by _adding_ new commits>
- $ git push origin {{ branch }}
+ git fetch
+ git checkout {{ branch }}
+ # <amend or cancel the changeset by _adding_ new commits>
+ git push origin {{ branch }}
 ```
 
 Please always comment pull request #{{ pr.id }} instead of this one.
