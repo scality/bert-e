@@ -63,24 +63,38 @@ def compare_branches(branch1, branch2):
         return -1
 
     # Both are major.minor or longer - compare normally
-    minor1 = version1[1] if len(version1) > 1 else 999
-    minor2 = version2[1] if len(version2) > 1 else 999
+    # Handle cases where one version has missing components
+    len1 = len(version1)
+    len2 = len(version2)
+    
+    # Compare minor versions if both exist
+    if len1 > 1 and len2 > 1:
+        minor1 = version1[1]
+        minor2 = version2[1]
+        if minor1 != minor2:
+            return minor1 - minor2
+    elif len1 > 1 and len2 == 1:
+        # version1 has minor, version2 doesn't -> version1 comes first
+        return -1
+    elif len1 == 1 and len2 > 1:
+        # version2 has minor, version1 doesn't -> version2 comes first
+        return 1
+    # Both have same length (1) -> major versions already compared above
 
-    # Compare minor versions
-    if minor1 != minor2:
-        return minor1 - minor2
-
-    # Same major.minor - extract micro versions
-    # Default to 0 if no micro
-    micro1 = version1[2] if len(version1) > 2 else 999
-    # Default to 0 if no micro
-    micro2 = version2[2] if len(version2) > 2 else 999
-
-    # Compare micro versions
-    if micro1 != micro2:
-        return micro1 - micro2
-    else:
-        return 0
+    # Same major.minor - compare micro versions if both exist
+    if len1 > 2 and len2 > 2:
+        micro1 = version1[2]
+        micro2 = version2[2]
+        if micro1 != micro2:
+            return micro1 - micro2
+    elif len1 > 2 and len2 <= 2:
+        # version1 has micro, version2 doesn't -> version1 comes first
+        return -1
+    elif len1 <= 2 and len2 > 2:
+        # version2 has micro, version1 doesn't -> version2 comes first
+        return 1
+    
+    return 0
 
 
 def compare_queues(version1, version2):
