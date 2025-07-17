@@ -55,7 +55,7 @@ def test_sorted_versions():
 
 def test_compare_branches_major_minor_vs_major_only():
     branch1 = ((4, 3),)
-    branch2 = ((4, None),)
+    branch2 = ((4, ),)
     assert compare_branches(branch1, branch2) == -1
 
 
@@ -66,7 +66,7 @@ def test_compare_branches_major_only_vs_major_only_returns_0():
 
 
 def test_compare_branches_major_only_vs_major_minor():
-    branch1 = ((4, None),)
+    branch1 = ((4, ),)
     branch2 = ((4, 3),)
     assert compare_branches(branch1, branch2) == 1
 
