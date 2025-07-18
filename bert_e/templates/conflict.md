@@ -47,20 +47,20 @@ Please resolve the conflict on **the integration branch** (`{{ wbranch.name }}`)
 Here are the steps to resolve this conflict:
 
 ```bash
- $ git fetch
+ git fetch
  {% if empty -%}
- $ git checkout -B {{ wbranch.name }} origin/{{ wbranch.dst_branch.name }}
+ git checkout -B {{ wbranch.name }} origin/{{ wbranch.dst_branch.name }}
 {%- else -%}
- $ git checkout {{ wbranch.name }}
- $ git pull  # or "git reset --hard origin/{{ wbranch.name }}"
- $ git merge origin/{{ wbranch.dst_branch.name }}
- $ # <intense conflict resolution>
- $ git commit
+ git checkout {{ wbranch.name }}
+ git pull  # or "git reset --hard origin/{{ wbranch.name }}"
+ git merge origin/{{ wbranch.dst_branch.name }}
+ # <intense conflict resolution>
+ git commit
 {%- endif %}
- $ git merge origin/{{ source.name }}
- $ # <intense conflict resolution>
- $ git commit
- $ git push -u origin {{ wbranch.name }}
+ git merge origin/{{ source.name }}
+ # <intense conflict resolution>
+ git commit
+ git push -u origin {{ wbranch.name }}
 ```
 {%endif%}
 {% endblock %}
