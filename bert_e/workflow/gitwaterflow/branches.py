@@ -29,6 +29,45 @@ from bert_e.lib.template_loader import render
 LOG = logging.getLogger(__name__)
 
 
+def _compare_version_component(version1, version2, component_index):
+    """
+    Helper method to compare version components at a specific level.
+
+    Args:
+        version1, version2: Version tuples to compare
+        component_index: Index of the component to compare
+        (0 for major, 1 for minor, 2 for micro)
+
+    Returns:
+        int: -1 if version1 < version2, 1 if version1 > version2,
+        0 if equal or both missing
+        None: if comparison should continue to next level
+    """
+    len1 = len(version1)
+    len2 = len(version2)
+
+    # Both have the component - compare them
+    if len1 > component_index and len2 > component_index:
+        comp1 = version1[component_index]
+        comp2 = version2[component_index]
+        if comp1 != comp2:
+            return comp1 - comp2
+        return None  # Equal, continue to next level
+
+    # Only one has the component
+    elif len1 > component_index and len2 <= component_index:
+        # version1 has component, version2 doesn't
+        # -> version1 comes first in the cascade
+        return -1
+    elif len1 <= component_index and len2 > component_index:
+        # version2 has component, version1 doesn't
+        # -> version2 comes first in the cascade
+        return 1
+
+    # Neither has the component at this level
+    return None
+
+
 def compare_branches(branch1, branch2):
     """
     Compare GitWaterflow branches for sorting.
@@ -39,13 +78,11 @@ def compare_branches(branch1, branch2):
     # Safely extract version components
     version1 = branch1[0]
     version2 = branch2[0]
-    # Extract major versions (always present)
-    major1 = version1[0] if len(version1) > 0 else 0
-    major2 = version2[0] if len(version2) > 0 else 0
 
-    # Compare major versions first
-    if major1 != major2:
-        return major1 - major2
+    # Compare major versions first using helper
+    major_result = _compare_version_component(version1, version2, 0)
+    if major_result is not None:
+        return major_result
 
     # Same major version - check if one is major-only vs major.minor
     # Major-only branches have None as minor version, e.g., (4, None)
@@ -62,25 +99,13 @@ def compare_branches(branch1, branch2):
         # major.minor comes before
         return -1
 
-    # Both are major.minor or longer - compare normally
-    minor1 = version1[1] if len(version1) > 1 else 999
-    minor2 = version2[1] if len(version2) > 1 else 999
+    # Compare remaining version components (minor, micro) using helper
+    for level in range(1, 3):  # 1=minor, 2=micro
+        result = _compare_version_component(version1, version2, level)
+        if result is not None:
+            return result
 
-    # Compare minor versions
-    if minor1 != minor2:
-        return minor1 - minor2
-
-    # Same major.minor - extract micro versions
-    # Default to 0 if no micro
-    micro1 = version1[2] if len(version1) > 2 else 999
-    # Default to 0 if no micro
-    micro2 = version2[2] if len(version2) > 2 else 999
-
-    # Compare micro versions
-    if micro1 != micro2:
-        return micro1 - micro2
-    else:
-        return 0
+    return 0
 
 
 def compare_queues(version1, version2):
