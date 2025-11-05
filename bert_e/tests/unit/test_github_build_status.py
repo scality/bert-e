@@ -62,9 +62,31 @@ def workflow_run_json():
                     },
                     'name': 'Hello-World'
                 }
+            },
+            {
+                'id': 3,
+                'head_sha': 'd6fde92930d4715a2b49857d24b940956b26d2d3',
+                'head_branch': 'q/1',
+                'workflow_id': 2,
+                'check_suite_id': 3,
+                'event': 'pull_request',
+                'status': 'completed',
+                'conclusion': 'skipped',
+                'pull_requests': [
+                    {
+                        'number': 1
+                    }
+                ],
+                'repository': {
+                    'full_name': 'octo-org/Hello-World',
+                    'owner': {
+                        'login': 'octo-org'
+                    },
+                    'name': 'Hello-World'
+                }
             }
         ],
-        'total_count': 2
+        'total_count': 3
     }
 
 
@@ -144,3 +166,64 @@ def test_cancelled_build_same_sha(client, monkeypatch, workflow_run_json):
         ref=workflow_run_json['workflow_runs'][0]['head_sha']
     )
     assert get_workflow_run.state == 'SUCCESSFUL'
+
+
+def test_skipped_workflow_treated_as_success(client):
+    """Test that a completed workflow with conclusion 'skipped' is
+    treated as successful.
+
+    This reproduces the real scenario where:
+    - Workflow 1: conclusion='success'
+    - Workflow 2: conclusion='skipped' (different workflow_id)
+
+    Both should be considered successful, not cause a KeyError.
+    """
+    workflow_run_json = {
+        'workflow_runs': [
+            {
+                'id': 1,
+                'head_sha': 'abc123',
+                'head_branch': 'feature-branch',
+                'status': 'completed',
+                'event': 'pull_request',
+                'workflow_id': 1,
+                'check_suite_id': 1,
+                'conclusion': 'success',
+                'pull_requests': [{'number': 1}],
+                'repository': {
+                    'full_name': 'octo-org/Hello-World',
+                    'owner': {'login': 'octo-org'},
+                    'name': 'Hello-World'
+                }
+            },
+            {
+                'id': 2,
+                'head_sha': 'abc123',
+                'head_branch': 'feature-branch',
+                'workflow_id': 2,
+                'check_suite_id': 2,
+                'event': 'pull_request',
+                'status': 'completed',
+                'conclusion': 'skipped',
+                'pull_requests': [{'number': 1}],
+                'repository': {
+                    'full_name': 'octo-org/Hello-World',
+                    'owner': {'login': 'octo-org'},
+                    'name': 'Hello-World'
+                }
+            }
+        ],
+        'total_count': 2
+    }
+
+    # This should not raise KeyError on 'skipped'
+    workflow_runs = AggregatedWorkflowRuns(client, **workflow_run_json)
+
+    # Both workflows should be kept (different workflow_ids)
+    assert len(workflow_runs._workflow_runs) == 2
+
+    # State should be SUCCESSFUL (both success and skipped are treated
+    # as success)
+    assert workflow_runs.state == 'SUCCESSFUL'
+    assert workflow_runs.is_pending() is False
+    assert workflow_runs.is_queued() is False
