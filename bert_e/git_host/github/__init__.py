@@ -658,7 +658,7 @@ class AggregatedWorkflowRuns(base.AbstractGitHostObject):
         # When two of the same workflow ran on the same branch,
         # we only keep the best one.
         conclusion_ranking = {
-            'success': 4, None: 3, 'failure': 2, 'cancelled': 1
+            'success': 4, 'skipped': 4, None: 3, 'failure': 2, 'cancelled': 1
         }
         best_runs = {}
         for run in self._workflow_runs:
@@ -676,7 +676,7 @@ class AggregatedWorkflowRuns(base.AbstractGitHostObject):
         )
 
         all_success = all(
-            elem['conclusion'] == 'success'
+            elem['conclusion'] in ('success', 'skipped')
             for elem in branch_workflow_runs
         )
         LOG.info(f'State on {self.branch}: '
