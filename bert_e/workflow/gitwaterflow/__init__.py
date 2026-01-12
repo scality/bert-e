@@ -628,6 +628,8 @@ def check_build_status(job, wbranches):
         BuildFailed: if a build failed or was stopped.
         BuildNotStarted: if a build hasn't started yet.
         BuildInProgress: if a build is still in progress.
+        BabysitRetry: if babysit mode is active and retrying failed jobs.
+        BabysitExhausted: if babysit mode exhausted all retries.
 
     """
 
@@ -651,6 +653,10 @@ def check_build_status(job, wbranches):
     worst = max(wbranches, key=lambda b: ordered_state[statuses[b.name]])
     worst_status = statuses[worst.name]
     if worst_status in ('FAILED', 'STOPPED'):
+        # Check if babysit mode should handle the failure
+        if _handle_babysit_retry(job, worst, key):
+            return  # Babysit handled the failure (raised an exception)
+
         raise messages.BuildFailed(
             active_options=job.active_options,
             branch=worst,
@@ -667,3 +673,7 @@ def check_build_status(job, wbranches):
     elif worst_status == 'INPROGRESS':
         raise messages.BuildInProgress()
     assert worst_status == 'SUCCESSFUL'
+
+
+# Import the shared babysit module
+from .babysit import handle_babysit_retry as _handle_babysit_retry
