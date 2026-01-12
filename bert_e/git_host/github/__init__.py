@@ -525,7 +525,8 @@ class Repository(base.AbstractGitHostObject, base.AbstractRepository):
             run_id: The ID of the workflow run to re-run failed jobs for.
 
         """
-        url = f'/repos/{self.owner}/{self.slug}/actions/runs/{run_id}/rerun-failed-jobs'
+        url = (f'/repos/{self.owner}/{self.slug}/actions/runs/'
+               f'{run_id}/rerun-failed-jobs')
         self.client.post(url, data='{}')
 
 

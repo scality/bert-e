@@ -52,8 +52,8 @@ COMMIT_SHA_PATTERN = re.compile(r'\(commit `([a-f0-9]{7,40})`\)')
 WORKFLOW_RETRY_PATTERN = re.compile(r'\| `([^`]+)` \| (\d+)/(\d+) \|')
 
 
-def count_babysit_retries_per_workflow(pull_request, robot_name, branch_name,
-                                        current_commit):
+def count_babysit_retries_per_workflow(pull_request, robot_name,
+                                       branch_name, current_commit):
     """Count how many babysit retries have been done for each workflow.
 
     This parses BabysitRetry comments posted by Bert-E for the specific branch
@@ -107,8 +107,8 @@ def count_babysit_retries_per_workflow(pull_request, robot_name, branch_name,
                 # Extract workflow retry counts from the table
                 for wf_match in WORKFLOW_RETRY_PATTERN.finditer(text):
                     workflow_name = wf_match.group(1)
-                    # The retry count in the message is the current retry number
-                    # We just need to track that this workflow was retried
+                    # The retry count in the message is the current number
+                    # We just track that this workflow was retried
                     workflow_retries[workflow_name] += 1
         else:
             # Check if user sent /babysit command - this resets all counts
@@ -276,7 +276,8 @@ def handle_babysit_retry(job, failed_branch, build_key, pull_request=None):
                         wf['id'], wf['name'], branch_name, err)
 
     if not rerun_triggered:
-        LOG.warning("Babysit: could not trigger any reruns for %s", branch_name)
+        LOG.warning("Babysit: could not trigger any reruns for %s",
+                    branch_name)
         return False
 
     # Raise BabysitRetry with per-workflow information

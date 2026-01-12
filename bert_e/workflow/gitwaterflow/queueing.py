@@ -30,7 +30,7 @@ from .branches import (BranchCascade, DevelopmentBranch, GWFBranch,
                        QueueIntegrationBranch, branch_factory,
                        build_queue_collection)
 from .integration import get_integration_branches
-from typing import List, Dict, Any
+from typing import List
 
 
 LOG = logging.getLogger(__name__)
@@ -61,7 +61,8 @@ def _check_pr_babysit_enabled(pull_request, settings) -> bool:
         authored = author == pull_request.author
         text = comment.text
         try:
-            reactor.handle_options(temp_job, text, prefix, privileged, authored)
+            reactor.handle_options(
+                temp_job, text, prefix, privileged, authored)
         except Exception:
             # Ignore errors, we just want to check for babysit
             pass
@@ -69,8 +70,9 @@ def _check_pr_babysit_enabled(pull_request, settings) -> bool:
     return temp_job.settings.get('babysit', False)
 
 
-def _handle_queue_babysit_retry(job: QueuesJob, queues: QueueCollection,
-                                 failed_prs: List[int]) -> bool:
+def _handle_queue_babysit_retry(job: QueuesJob,
+                                queues: QueueCollection,
+                                failed_prs: List[int]) -> bool:
     """Handle babysit retry logic for failed queue builds.
 
     For each failed PR in the queue that has babysit enabled, this function
@@ -131,8 +133,9 @@ def _handle_queue_babysit_retry(job: QueuesJob, queues: QueueCollection,
                 if status != 'FAILED':
                     continue
 
-                LOG.info("Queue babysit: checking failed build on %s for PR %d",
-                         qint.name, pr_id)
+                LOG.info(
+                    "Queue babysit: checking failed build on %s for PR %d",
+                    qint.name, pr_id)
 
                 # Create a temporary job-like object for the shared babysit logic
                 temp_job = SimpleNamespace(
@@ -155,11 +158,12 @@ def _handle_queue_babysit_retry(job: QueuesJob, queues: QueueCollection,
                 except exceptions.BabysitExhausted as exhausted_exc:
                     # Notify the PR about exhaustion
                     notify_user(job.settings, pull_request, exhausted_exc)
-                    retried_any = True  # We handled it, just not with a retry
+                    # We handled it, just not with a retry
+                    retried_any = True
                 except exceptions.BabysitCancelled as cancelled_exc:
-                    # Notify the PR that babysit was cancelled due to new commits
+                    # Babysit cancelled due to new commits
                     notify_user(job.settings, pull_request, cancelled_exc)
-                    # Don't set retried_any - let normal failure handling proceed
+                    # Don't set retried_any - normal failure handling
 
     return retried_any
 

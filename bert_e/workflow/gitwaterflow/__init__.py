@@ -42,6 +42,7 @@ from .integration import (check_integration_branches,
                           update_integration_branches)
 from .jira import jira_checks
 from . import queueing
+from .babysit import handle_babysit_retry as _handle_babysit_retry
 
 
 LOG = logging.getLogger(__name__)
@@ -675,5 +676,3 @@ def check_build_status(job, wbranches):
     assert worst_status == 'SUCCESSFUL'
 
 
-# Import the shared babysit module
-from .babysit import handle_babysit_retry as _handle_babysit_retry

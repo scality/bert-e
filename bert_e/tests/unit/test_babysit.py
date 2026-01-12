@@ -27,6 +27,11 @@ from bert_e.workflow.gitwaterflow.babysit import (
 from bert_e.workflow.gitwaterflow.queueing import (
     _check_pr_babysit_enabled, _handle_queue_babysit_retry
 )
+# Import setup to register reactor options
+from bert_e.workflow.gitwaterflow.commands import setup as gwf_setup
+
+# Call setup to register all options including babysit
+gwf_setup()
 
 
 @pytest.fixture
@@ -42,7 +47,7 @@ def client():
 
 @pytest.fixture
 def failed_workflow_run_json():
-    """Workflow run JSON with a failed run on an integration branch (w/)."""
+    """Workflow run JSON with failed run on an integration branch."""
     return {
         'workflow_runs': [
             {
@@ -56,7 +61,7 @@ def failed_workflow_run_json():
                 'conclusion': 'failure',
                 'run_attempt': 2,
                 'name': 'CI Build',
-                'html_url': 'https://github.com/octo-org/Hello-World/actions/runs/12345',
+                'html_url': 'https://github.com/org/repo/actions/runs/12345',
                 'repository': {
                     'full_name': 'octo-org/Hello-World',
                     'owner': {'login': 'octo-org'},
@@ -406,8 +411,8 @@ class TestHandleBabysitRetry:
             lines.append(f'| `{wf_name}` | {retry_count}/{max_retries} |')
         return '\n'.join(lines)
 
-    def _make_job(self, babysit=False, host='github', build_key='github_actions',
-                  max_retries=5, comments=None):
+    def _make_job(self, babysit=False, host='github',
+                  build_key='github_actions', max_retries=5, comments=None):
         """Create a mock job with settings."""
         settings = SimpleNamespace(
             babysit=babysit,
@@ -549,15 +554,19 @@ class TestHandleBabysitRetry:
             self._make_comment('user', '@bert-e babysit'),
         ]
         for i in range(5):
-            comments.append(self._make_comment('bert-e', self._make_retry_comment(
-                branch_name, commit,
-                [('CI Build', i + 1, 5)]
-            )))
+            comments.append(self._make_comment(
+                'bert-e',
+                self._make_retry_comment(
+                    branch_name, commit, [('CI Build', i + 1, 5)]
+                )
+            ))
         for i in range(2):
-            comments.append(self._make_comment('bert-e', self._make_retry_comment(
-                branch_name, commit,
-                [('Tests', i + 1, 5)]
-            )))
+            comments.append(self._make_comment(
+                'bert-e',
+                self._make_retry_comment(
+                    branch_name, commit, [('Tests', i + 1, 5)]
+                )
+            ))
 
         job = self._make_job(babysit=True, max_retries=5, comments=comments)
         branch = self._make_branch(commit=commit, name=branch_name)
@@ -610,7 +619,9 @@ class TestHandleBabysitRetry:
                 handle_babysit_retry(job, branch, 'github_actions')
 
         # Only Tests should be retried (CI Build is exhausted)
-        job.project_repo.rerun_failed_workflow_jobs.assert_called_once_with(22222)
+        job.project_repo.rerun_failed_workflow_jobs.assert_called_once_with(
+            22222
+        )
 
         # Check that only Tests is in the retry list
         workflows = exc_info.value.kwargs['workflows']
@@ -619,7 +630,7 @@ class TestHandleBabysitRetry:
         assert workflows[0]['retry_count'] == 3
 
     def test_all_workflows_exhausted(self, client):
-        """Test that BabysitExhausted is raised when all workflows exhausted."""
+        """Test BabysitExhausted raised when all workflows exhausted."""
         branch_name = 'w/5.0/feature/test'
         commit = 'abc1234567890'
 
@@ -628,10 +639,13 @@ class TestHandleBabysitRetry:
             self._make_comment('user', '@bert-e babysit'),
         ]
         for i in range(5):
-            comments.append(self._make_comment('bert-e', self._make_retry_comment(
-                branch_name, commit,
-                [('CI Build', i + 1, 5), ('Tests', i + 1, 5)]
-            )))
+            comments.append(self._make_comment(
+                'bert-e',
+                self._make_retry_comment(
+                    branch_name, commit,
+                    [('CI Build', i + 1, 5), ('Tests', i + 1, 5)]
+                )
+            ))
 
         job = self._make_job(babysit=True, max_retries=5, comments=comments)
         branch = self._make_branch(commit=commit, name=branch_name)
@@ -772,7 +786,7 @@ class TestQueueBabysitRetry:
         assert result is False
 
     def test_queue_babysit_skips_non_github_actions(self):
-        """Test queue babysit is skipped for non-github_actions build key."""
+        """Test queue babysit skipped for non-github_actions build key."""
         settings = SimpleNamespace(
             repository_host='github',
             max_babysit_retries=5,
