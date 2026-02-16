@@ -27,3 +27,8 @@ def bypass_build_status(job):
 def bypass_jira_check(job):
     return (job.settings.bypass_jira_check or
             job.author_bypass.get('bypass_jira_check', False))
+
+
+def bypass_fixup_check(job):
+    return (job.settings.bypass_fixup_check or
+            job.author_bypass.get('bypass_fixup_check', False))

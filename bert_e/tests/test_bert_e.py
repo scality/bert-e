@@ -784,6 +784,7 @@ class RepositoryTests(unittest.TestCase):
     bypass_all = [
         'bypass_author_approval',
         'bypass_build_status',
+        'bypass_fixup_check',
         'bypass_incompatible_branch',
         'bypass_jira_check',
         'bypass_peer_approval',
@@ -4778,6 +4779,91 @@ project_leaders:
         pr.add_comment('/bypass_build_status')
         with self.assertRaises(exns.SuccessMessage):
             self.handle(pr.id, backtrace=True)
+
+    def test_fixup_commit_detected(self):
+        pr = self.create_pr('bugfix/TEST-00501', 'development/4.3')
+        add_file_to_branch(
+            self.gitrepo, 'bugfix/TEST-00501', 'base_file')
+        self.gitrepo.cmd('git checkout bugfix/TEST-00501')
+        self.gitrepo.cmd('echo fixup > fixup_file')
+        self.gitrepo.cmd('git add fixup_file')
+        self.gitrepo.cmd(
+            'git commit -m "fixup! adds base_file file on '
+            'bugfix/TEST-00501"')
+        self.gitrepo.cmd('git push origin bugfix/TEST-00501')
+
+        with self.assertRaises(exns.FixupCommitDetected):
+            self.handle(pr.id,
+                        options=self.bypass_all_but(['bypass_fixup_check']),
+                        backtrace=True)
+
+    def test_squash_commit_detected(self):
+        pr = self.create_pr('bugfix/TEST-00502', 'development/4.3')
+        self.gitrepo.cmd('git checkout bugfix/TEST-00502')
+        self.gitrepo.cmd('echo squash > squash_file')
+        self.gitrepo.cmd('git add squash_file')
+        self.gitrepo.cmd(
+            'git commit -m "squash! initial commit"')
+        self.gitrepo.cmd('git push origin bugfix/TEST-00502')
+
+        with self.assertRaises(exns.FixupCommitDetected):
+            self.handle(pr.id,
+                        options=self.bypass_all_but(['bypass_fixup_check']),
+                        backtrace=True)
+
+    def test_amend_commit_detected(self):
+        pr = self.create_pr('bugfix/TEST-00503', 'development/4.3')
+        self.gitrepo.cmd('git checkout bugfix/TEST-00503')
+        self.gitrepo.cmd('echo amend > amend_file')
+        self.gitrepo.cmd('git add amend_file')
+        self.gitrepo.cmd(
+            'git commit -m "amend! initial commit"')
+        self.gitrepo.cmd('git push origin bugfix/TEST-00503')
+
+        with self.assertRaises(exns.FixupCommitDetected):
+            self.handle(pr.id,
+                        options=self.bypass_all_but(['bypass_fixup_check']),
+                        backtrace=True)
+
+    def test_fixup_commit_bypass(self):
+        pr = self.create_pr('bugfix/TEST-00504', 'development/4.3')
+        self.gitrepo.cmd('git checkout bugfix/TEST-00504')
+        self.gitrepo.cmd('echo fixup > fixup_file')
+        self.gitrepo.cmd('git add fixup_file')
+        self.gitrepo.cmd(
+            'git commit -m "fixup! initial commit"')
+        self.gitrepo.cmd('git push origin bugfix/TEST-00504')
+
+        with self.assertRaises(exns.SuccessMessage):
+            self.handle(pr.id,
+                        options=self.bypass_all,
+                        backtrace=True)
+
+    def test_fixup_commit_bypass_via_comment(self):
+        pr = self.create_pr('bugfix/TEST-00505', 'development/4.3')
+        self.gitrepo.cmd('git checkout bugfix/TEST-00505')
+        self.gitrepo.cmd('echo fixup > fixup_file')
+        self.gitrepo.cmd('git add fixup_file')
+        self.gitrepo.cmd(
+            'git commit -m "fixup! initial commit"')
+        self.gitrepo.cmd('git push origin bugfix/TEST-00505')
+
+        pr_admin = self.admin_bb.get_pull_request(pull_request_id=pr.id)
+        pr_admin.add_comment(
+            '@%s bypass_fixup_check' % self.args.robot_username)
+
+        with self.assertRaises(exns.SuccessMessage):
+            self.handle(pr.id,
+                        options=self.bypass_all_but(['bypass_fixup_check']),
+                        backtrace=True)
+
+    def test_no_fixup_commits_passes(self):
+        pr = self.create_pr('bugfix/TEST-00506', 'development/4.3')
+
+        with self.assertRaises(exns.SuccessMessage):
+            self.handle(pr.id,
+                        options=self.bypass_all,
+                        backtrace=True)
 
 
 class TestQueueing(RepositoryTests):

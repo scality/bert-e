@@ -196,6 +196,11 @@ def setup(defaults={}):
         "Bypass the pull request leaders' approval",
         privileged=True,
         default=defaults.get("bypass_leader_approval", False))
+    Reactor.add_option(
+        "bypass_fixup_check",
+        "Bypass the check for fixup/squash/amend commits",
+        privileged=True,
+        default=defaults.get("bypass_fixup_check", False))
 
     # Other options
     Reactor.add_option(

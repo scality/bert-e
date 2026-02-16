@@ -273,6 +273,12 @@ class QueueBuildFailedMessage(TemplateException):
     template = "queue_build_failed.md"
 
 
+class FixupCommitDetected(TemplateException):
+    code = 137
+    template = "fixup_commit_detected.md"
+    status = "failure"
+
+
 # internal exceptions
 class UnableToSendEmail(InternalException):
     code = 201

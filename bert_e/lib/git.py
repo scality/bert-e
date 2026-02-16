@@ -302,6 +302,7 @@ class Commit(object):
         self._repo = repo
         self.sha1 = sha1
         self._author = author
+        self._message = None
         try:
             self._parents = [Commit(repo, parent) for parent in parents]
         except TypeError:
@@ -320,6 +321,14 @@ class Commit(object):
                 .strip()
             )
         return self._author
+
+    @property
+    def message(self):
+        if self._message is None:
+            self._message = self._repo.cmd(
+                'git log -1 --pretty="%%s" %s', self.sha1
+            ).strip()
+        return self._message
 
     @property
     def is_merge(self):

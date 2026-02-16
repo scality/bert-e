@@ -31,7 +31,8 @@ from .branches import (
 )
 from .utils import (
     bypass_incompatible_branch, bypass_peer_approval,
-    bypass_author_approval, bypass_leader_approval, bypass_build_status
+    bypass_author_approval, bypass_leader_approval, bypass_build_status,
+    bypass_fixup_check
 )
 from .commands import setup  # noqa
 from .integration import (check_integration_branches,
@@ -196,6 +197,7 @@ def _handle_pull_request(job: PullRequestJob):
         notify_integration_data(job, wbranches, child_prs)
 
     check_approvals(job)
+    check_fixup_commits(job)
     check_build_status(job, wbranches)
 
     interactive = job.settings.interactive
@@ -618,6 +620,28 @@ def check_approvals(job):
             pr_author_options=job.settings.pr_author_options,
             active_options=job.active_options,
             change_requesters=list(change_requests)
+        )
+
+
+def check_fixup_commits(job):
+    if bypass_fixup_check(job):
+        return
+
+    FIXUP_PREFIXES = ('fixup! ', 'squash! ', 'amend! ')
+
+    commits = list(
+        job.git.src_branch.get_commit_diff(job.git.dst_branch)
+    )
+    fixup_commits = [
+        c for c in commits
+        if any(c.message.startswith(prefix) for prefix in FIXUP_PREFIXES)
+    ]
+
+    if fixup_commits:
+        raise messages.FixupCommitDetected(
+            src_branch=job.git.src_branch.name,
+            fixup_commits=fixup_commits,
+            active_options=job.active_options
         )
 
 
