@@ -474,6 +474,9 @@ class AbstractRepository(metaclass=ABCMeta):
             - pr_id: id of the pull request to get.
         """
 
+    def get_check_runs(self, ref):
+        return []
+
     def create_pull_request(self, title: str, src_branch: str, dst_branch: str,
                             description: str, **kwargs) -> AbstractPullRequest:
         """Create a new pull request

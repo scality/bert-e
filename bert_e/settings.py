@@ -92,6 +92,7 @@ class PrAuthorsOptions(fields.Dict):
         'bypass_incompatible_branch',
         'bypass_peer_approval',
         'bypass_leader_approval',
+        'bypass_github_checks',
     ]
 
     def serialize(self, value, attr=None, obj=None, **kwargs):

@@ -273,6 +273,12 @@ class QueueBuildFailedMessage(TemplateException):
     template = "queue_build_failed.md"
 
 
+class GitHubChecksFailed(TemplateException):
+    code = 137
+    template = "github_checks_failed.md"
+    status = "failure"
+
+
 # internal exceptions
 class UnableToSendEmail(InternalException):
     code = 201
@@ -585,3 +591,8 @@ class JobFailure(SilentException):
 
 class QueueBuildFailed(SilentException):
     code = 309
+
+
+class GitHubChecksInProgress(SilentException):
+    code = 310
+    status = "in_progress"

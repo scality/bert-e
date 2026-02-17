@@ -787,7 +787,8 @@ class RepositoryTests(unittest.TestCase):
         'bypass_incompatible_branch',
         'bypass_jira_check',
         'bypass_peer_approval',
-        'bypass_leader_approval'
+        'bypass_leader_approval',
+        'bypass_github_checks',
     ]
 
     def get_last_pr_comment(self, pr):
@@ -4778,6 +4779,150 @@ project_leaders:
         pr.add_comment('/bypass_build_status')
         with self.assertRaises(exns.SuccessMessage):
             self.handle(pr.id, backtrace=True)
+
+    def test_github_checks_pass(self):
+        pr = self.create_pr('bugfix/TEST-00090', 'development/4.3')
+        self.set_build_status_on_pr_id(pr.id, 'SUCCESSFUL')
+        self.gitrepo.cmd('git fetch --all')
+        wbranches = [
+            'w/5.1/bugfix/TEST-00090',
+            'w/10.0/bugfix/TEST-00090',
+        ]
+        for branch in wbranches:
+            sha = self.gitrepo.cmd(
+                f'git rev-parse origin/{branch}').rstrip()
+            self.set_build_status(sha, 'SUCCESSFUL')
+            self.robot_bb.set_check_runs(sha, [
+                {'name': 'policy-check', 'status': 'completed',
+                 'conclusion': 'success', 'html_url': ''},
+            ])
+        with self.assertRaises(exns.SuccessMessage):
+            self.handle(pr.id, options=self.bypass_all_but(
+                ['bypass_build_status', 'bypass_github_checks']),
+                backtrace=True)
+
+    def test_github_checks_failed(self):
+        pr = self.create_pr('bugfix/TEST-00091', 'development/4.3')
+        self.set_build_status_on_pr_id(pr.id, 'SUCCESSFUL')
+        self.gitrepo.cmd('git fetch --all')
+        wbranches = [
+            'w/5.1/bugfix/TEST-00091',
+            'w/10.0/bugfix/TEST-00091',
+        ]
+        for branch in wbranches:
+            sha = self.gitrepo.cmd(
+                f'git rev-parse origin/{branch}').rstrip()
+            self.set_build_status(sha, 'SUCCESSFUL')
+        sha_last = self.gitrepo.cmd(
+            f'git rev-parse origin/{wbranches[-1]}').rstrip()
+        self.robot_bb.set_check_runs(sha_last, [
+            {'name': 'commit-msg-check', 'status': 'completed',
+             'conclusion': 'failure', 'html_url': 'https://example.com/check'},
+        ])
+        with self.assertRaises(exns.GitHubChecksFailed):
+            self.handle(pr.id, options=self.bypass_all_but(
+                ['bypass_build_status', 'bypass_github_checks']),
+                backtrace=True)
+
+    def test_github_checks_in_progress(self):
+        pr = self.create_pr('bugfix/TEST-00092', 'development/4.3')
+        self.set_build_status_on_pr_id(pr.id, 'SUCCESSFUL')
+        self.gitrepo.cmd('git fetch --all')
+        wbranches = [
+            'w/5.1/bugfix/TEST-00092',
+            'w/10.0/bugfix/TEST-00092',
+        ]
+        for branch in wbranches:
+            sha = self.gitrepo.cmd(
+                f'git rev-parse origin/{branch}').rstrip()
+            self.set_build_status(sha, 'SUCCESSFUL')
+        sha_last = self.gitrepo.cmd(
+            f'git rev-parse origin/{wbranches[-1]}').rstrip()
+        self.robot_bb.set_check_runs(sha_last, [
+            {'name': 'policy-check', 'status': 'in_progress',
+             'conclusion': None, 'html_url': ''},
+        ])
+        with self.assertRaises(exns.GitHubChecksInProgress):
+            self.handle(pr.id, options=self.bypass_all_but(
+                ['bypass_build_status', 'bypass_github_checks']),
+                backtrace=True)
+
+    def test_github_checks_bert_e_excluded(self):
+        pr = self.create_pr('bugfix/TEST-00093', 'development/4.3')
+        self.set_build_status_on_pr_id(pr.id, 'SUCCESSFUL')
+        self.gitrepo.cmd('git fetch --all')
+        wbranches = [
+            'w/5.1/bugfix/TEST-00093',
+            'w/10.0/bugfix/TEST-00093',
+        ]
+        for branch in wbranches:
+            sha = self.gitrepo.cmd(
+                f'git rev-parse origin/{branch}').rstrip()
+            self.set_build_status(sha, 'SUCCESSFUL')
+            self.robot_bb.set_check_runs(sha, [
+                {'name': 'bert-e', 'status': 'completed',
+                 'conclusion': 'failure', 'html_url': ''},
+            ])
+        with self.assertRaises(exns.SuccessMessage):
+            self.handle(pr.id, options=self.bypass_all_but(
+                ['bypass_build_status', 'bypass_github_checks']),
+                backtrace=True)
+
+    def test_github_checks_bypass(self):
+        pr = self.create_pr('bugfix/TEST-00094', 'development/4.3')
+        self.set_build_status_on_pr_id(pr.id, 'SUCCESSFUL')
+        self.gitrepo.cmd('git fetch --all')
+        wbranches = [
+            'w/5.1/bugfix/TEST-00094',
+            'w/10.0/bugfix/TEST-00094',
+        ]
+        for branch in wbranches:
+            sha = self.gitrepo.cmd(
+                f'git rev-parse origin/{branch}').rstrip()
+            self.set_build_status(sha, 'SUCCESSFUL')
+            self.robot_bb.set_check_runs(sha, [
+                {'name': 'policy-check', 'status': 'completed',
+                 'conclusion': 'failure', 'html_url': ''},
+            ])
+        with self.assertRaises(exns.SuccessMessage):
+            self.handle(pr.id, options=self.bypass_all_but(
+                ['bypass_build_status']),
+                backtrace=True)
+
+    def test_github_checks_neutral_skipped(self):
+        pr = self.create_pr('bugfix/TEST-00095', 'development/4.3')
+        self.set_build_status_on_pr_id(pr.id, 'SUCCESSFUL')
+        self.gitrepo.cmd('git fetch --all')
+        wbranches = [
+            'w/5.1/bugfix/TEST-00095',
+            'w/10.0/bugfix/TEST-00095',
+        ]
+        for branch in wbranches:
+            sha = self.gitrepo.cmd(
+                f'git rev-parse origin/{branch}').rstrip()
+            self.set_build_status(sha, 'SUCCESSFUL')
+        sha_first = self.gitrepo.cmd(
+            f'git rev-parse origin/{wbranches[0]}').rstrip()
+        sha_last = self.gitrepo.cmd(
+            f'git rev-parse origin/{wbranches[-1]}').rstrip()
+        self.robot_bb.set_check_runs(sha_first, [
+            {'name': 'check-neutral', 'status': 'completed',
+             'conclusion': 'neutral', 'html_url': ''},
+        ])
+        self.robot_bb.set_check_runs(sha_last, [
+            {'name': 'check-skipped', 'status': 'completed',
+             'conclusion': 'skipped', 'html_url': ''},
+        ])
+        with self.assertRaises(exns.SuccessMessage):
+            self.handle(pr.id, options=self.bypass_all_but(
+                ['bypass_build_status', 'bypass_github_checks']),
+                backtrace=True)
+
+    def test_github_checks_no_check_runs(self):
+        pr = self.create_pr('bugfix/TEST-00096', 'development/4.3')
+        with self.assertRaises(exns.SuccessMessage):
+            self.handle(pr.id, options=self.bypass_all,
+                        backtrace=True)
 
 
 class TestQueueing(RepositoryTests):
