@@ -163,8 +163,8 @@ class ReleaseBranch(GWFBranch):
 
 class FeatureBranch(GWFBranch):
     all_prefixes = ('improvement', 'bugfix', 'feature', 'project',
-                    'documentation', 'design', 'dependabot', 'epic',
-                    'bug')
+                    'documentation', 'design', 'dependabot', 'copilot',
+                    'claude', 'epic', 'bug')
     jira_issue_pattern = '(?P<jira_project>[a-zA-Z0-9_]+)-[0-9]+'
     prefixes = '(?P<prefix>(%s))' % '|'.join(all_prefixes)
     pattern = "^(?P<feature_branch>%s/(?P<label>(?P<jira_issue_key>%s)?" \
