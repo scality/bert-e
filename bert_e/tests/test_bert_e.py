@@ -514,6 +514,32 @@ class QuickTest(unittest.TestCase):
         tags = ['9.5.0', '9.5.1', '10.0.0.0']
         self.finalize_cascade(branches, tags, destination, fixver)
 
+    def test_branch_cascade_2digit_with_pre_ga_hotfix(self):
+        """2-digit dev branches coexisting with pre-GA hotfix.
+
+        Scenario: dev/9.5, hotfix/10.0.0 (pre-GA), dev/10.0, dev/10.
+        Note: in the rename-based workflow hotfix/10.0.0 replaces dev/10.0;
+        but both can coexist when the hotfix is branched off before GA.
+        """
+        destination = 'development/9.5'
+        branches = OrderedDict({
+            1: {'name': 'development/9.5', 'ignore': False},
+            2: {'name': 'hotfix/10.0.0', 'ignore': True},
+            3: {'name': 'development/10.0', 'ignore': False},
+            4: {'name': 'development/10', 'ignore': False},
+        })
+        # Pre-GA: no tags for 10.x yet
+        # dev/10.0 targets 10.0.0, dev/10 targets 10.1.0 (latest_minor=0)
+        tags = ['9.5.2']
+        fixver = ['9.5.3', '10.0.0', '10.1.0']
+        self.finalize_cascade(branches, tags, destination, fixver)
+
+        # Post-GA: tag 10.0.0.0 advances dev/10.0 to target 10.0.1
+        # dev/10 still targets 10.1.0 (latest_minor=0 unchanged)
+        tags = ['9.5.2', '10.0.0.0']
+        fixver = ['9.5.3', '10.0.1', '10.1.0']
+        self.finalize_cascade(branches, tags, destination, fixver)
+
     def test_branch_cascade_target_three_digit_dev(self):
         """Test cascade targeting three-digit development branch"""
         destination = 'development/4.3.17'
