@@ -139,4 +139,5 @@ def clone_git_repo(job):
     repo.config('user.email', job.settings.robot_email)
     repo.config('user.name', job.settings.robot)
     repo.config('merge.renameLimit', '999999')
+    repo.config('merge.ff', 'true')
     return repo
