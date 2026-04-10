@@ -441,6 +441,10 @@ class QuickTest(unittest.TestCase):
             8: {'name': 'hotfix/10.0.4', 'ignore': True},
             9: {'name': 'development/10.0', 'ignore': True}
         })
+        # Pre-GA: no 6.6.6.X tag yet — target version must be 6.6.6.0
+        tags = ['4.3.16', '4.3.17', '5.1.3', '10.0.3.1']
+        fixver = ['6.6.6.0']
+        self.finalize_cascade(branches, tags, destination, fixver)
         tags = ['4.3.16', '4.3.17', '5.1.3', '6.6.6', '10.0.3.1']
         fixver = ['6.6.6.1']
         self.finalize_cascade(branches, tags, destination, fixver)
@@ -453,6 +457,27 @@ class QuickTest(unittest.TestCase):
         self.finalize_cascade(branches, tags, destination, fixver)
         tags = ['4.3.16', '4.3.17', '5.1.3', '6.6.6.1', '6.6.6.2', '10.0.3.1']
         fixver = ['6.6.6.3']
+        self.finalize_cascade(branches, tags, destination, fixver)
+
+    def test_branch_cascade_dev_with_pre_ga_hotfix(self):
+        """development/<major> must target <major>.<minor+1>.0 once
+        hotfix/<major>.<minor>.0 exists, even without the GA tag."""
+        # Use development/9.5 (2-digit) as source so tags on the 9.5 line
+        # don't conflict with the 3-digit dev branch path.
+        destination = 'development/9.5'
+        branches = OrderedDict({
+            1: {'name': 'development/9.5', 'ignore': False},
+            2: {'name': 'hotfix/10.0.0', 'ignore': True},
+            3: {'name': 'development/10', 'ignore': False},
+        })
+        # Pre-GA: hotfix/10.0.0 exists but no 10.0.0.X tag yet.
+        # development/10 must target 10.1.0, NOT 10.0.0.
+        tags = ['9.5.2']
+        fixver = ['9.5.3', '10.1.0']
+        self.finalize_cascade(branches, tags, destination, fixver)
+
+        # Post-GA: 10.0.0.0 tag present — development/10 still targets 10.1.0
+        tags = ['9.5.2', '10.0.0.0']
         self.finalize_cascade(branches, tags, destination, fixver)
 
     def test_branch_cascade_target_three_digit_dev(self):
@@ -5895,6 +5920,28 @@ class TestQueueing(RepositoryTests):
         sha1 = self.set_build_status_on_branch_tip(
             'q/w/%d/10.0.0.1/bugfix/TEST-00002' % pr2.id, 'SUCCESSFUL')
 
+        with self.assertRaises(exns.Merged):
+            self.handle(sha1, options=self.bypass_all, backtrace=True)
+        self.assertEqual(self.prs_in_queue(), set())
+
+    def test_pr_hotfix_pre_ga(self):
+        """PR targeting a hotfix branch before GA (no 10.0.0.X tag yet) must
+        use version 10.0.0.0 for the queue branch and Jira fix version."""
+        # No tag for 10.0.0 at all — pre-GA state
+        pr = self.create_pr('bugfix/TEST-00000', 'hotfix/10.0.0')
+        with self.assertRaises(exns.Queued):
+            self.handle(pr.id, options=self.bypass_all, backtrace=True)
+        self.assertEqual(self.prs_in_queue(), {pr.id})
+
+        # Queue branch must use 10.0.0.0 (not 10.0.0.1 or 10.0.0.-1)
+        sha1 = self.set_build_status_on_branch_tip(
+            'q/w/%d/10.0.0.0/bugfix/TEST-00000' % pr.id, 'FAILED')
+        with self.assertRaises(exns.QueueBuildFailed):
+            self.handle(sha1, options=self.bypass_all, backtrace=True)
+        self.assertEqual(self.prs_in_queue(), {pr.id})
+
+        sha1 = self.set_build_status_on_branch_tip(
+            'q/w/%d/10.0.0.0/bugfix/TEST-00000' % pr.id, 'SUCCESSFUL')
         with self.assertRaises(exns.Merged):
             self.handle(sha1, options=self.bypass_all, backtrace=True)
         self.assertEqual(self.prs_in_queue(), set())
