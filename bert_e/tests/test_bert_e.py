@@ -480,6 +480,40 @@ class QuickTest(unittest.TestCase):
         tags = ['9.5.2', '10.0.0.0']
         self.finalize_cascade(branches, tags, destination, fixver)
 
+    def test_branch_cascade_mixed_3digit_and_pre_ga_hotfix(self):
+        """Full mixed cascade: 3-digit dev branches, pre-GA hotfix, 2-digit
+        and 1-digit dev branches all coexist correctly.
+
+        Scenario: dev/9.5.3, hotfix/10.0.0 (pre-GA), dev/10.0.1, dev/10.1,
+        dev/10.  Verifies that:
+        - a PR from dev/9.5.3 cascades through 10.0.1 -> 10.1 -> 10
+        - dev/10.0.1 targets 10.0.2
+        - dev/10.1 targets 10.1.0
+        - dev/10 targets 10.2.0 (latest_minor comes from dev/10.1, not hotfix)
+        - hotfix/10.0.0 does not appear in the cascade destination list
+        """
+        destination = 'development/9.5.3'
+        branches = OrderedDict({
+            1: {'name': 'development/9.5.3', 'ignore': False},
+            2: {'name': 'hotfix/10.0.0', 'ignore': True},
+            3: {'name': 'development/10.0.1', 'ignore': False},
+            4: {'name': 'development/10.1', 'ignore': False},
+            5: {'name': 'development/10', 'ignore': False},
+        })
+        # Pre-GA: hotfix/10.0.0 exists but no 10.0.0.X tag yet.
+        # 3-digit branches (9.5.3, 10.0.1) target their own version because
+        # there are no ancestor 2-digit branches (dev/9.5, dev/10.0) in the
+        # cascade to drive _next_micro.
+        # dev/10.1 → 10.1.0, dev/10 → 10.2.0 (latest_minor=1 from dev/10.1).
+        tags = ['9.5.0', '9.5.1']
+        fixver = ['9.5.3', '10.0.1', '10.1.0', '10.2.0']
+        self.finalize_cascade(branches, tags, destination, fixver)
+
+        # Post-GA: 10.0.0.0 tag is ignored (no dev/10.0 or dev/10.0.0 in
+        # cascade), so targets are unchanged.
+        tags = ['9.5.0', '9.5.1', '10.0.0.0']
+        self.finalize_cascade(branches, tags, destination, fixver)
+
     def test_branch_cascade_target_three_digit_dev(self):
         """Test cascade targeting three-digit development branch"""
         destination = 'development/4.3.17'
