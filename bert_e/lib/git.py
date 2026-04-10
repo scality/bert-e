@@ -16,7 +16,7 @@ import logging
 import os
 import time
 from collections import defaultdict
-from pipes import quote
+from shlex import quote
 from shutil import rmtree
 from tempfile import mkdtemp
 
