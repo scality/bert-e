@@ -187,6 +187,12 @@ class HotfixBranch(GWFBranch):
     cascade_consumer = True
     can_be_destination = True
     allow_prefixes = FeatureBranch.all_prefixes
+    hfrev = 0  # pre-GA default: no tags yet (overrides GWFBranch.hfrev = -1)
+
+    def __init__(self, repo, name):
+        super().__init__(repo, name)
+        # Default version includes .0 until update_versions() sees a tag
+        self.version = '%d.%d.%d.%d' % (self.major, self.minor, self.micro, 0)
 
     def __eq__(self, other):
         return (self.__class__ == other.__class__ and
@@ -635,8 +641,9 @@ class QueueCollection(object):
             qint = self._queues[version][QueueIntegrationBranch]
             if qint:
                 qint = qint[0]
+                tip = qint.get_latest_commit()
                 status = self.bbrepo.get_build_status(
-                    qint.get_latest_commit(),
+                    tip,
                     self.build_key
                 )
                 if status == 'FAILED':
@@ -858,6 +865,7 @@ class BranchCascade(object):
         self.ignored_branches = []  # store branch names (easier sort)
         self.target_versions = []
         self._merge_paths = []
+        self._phantom_hotfixes = []  # hotfix branches stored outside cascade for version calc
 
     def build(self, repo, dst_branch=None):
         flat_branches = set()
@@ -927,7 +935,15 @@ class BranchCascade(object):
                    branch.micro != dst_branch.micro:
                     # this is not the hotfix branch we want to add
                     return
+            elif not dst_branch:
+                # No destination context (e.g. queue management) — skip
+                return
             else:
+                # Non-hotfix destination: store the hotfix as a phantom so
+                # _update_major_versions() can advance development/<major>'s
+                # latest_minor past the hotfix line (e.g. dev/10 → 10.1.0
+                # once hotfix/10.0.0 exists) without polluting the cascade.
+                self._phantom_hotfixes.append(branch)
                 return
 
         # Create key based on full version tuple
@@ -1071,14 +1087,21 @@ class BranchCascade(object):
                 major_branch: DevelopmentBranch = branch_set[DevelopmentBranch]
                 major = version_tuple[0]
 
-                # Find all minor versions for this major
+                # Find all minor versions for this major from the cascade
                 minors = [
-                    version_tuple[1] for version_tuple in self._cascade.keys()
-                    if (len(version_tuple) >= 2 and
-                        version_tuple[0] == major and
-                        version_tuple[1] is not None)
+                    vt[1] for vt in self._cascade.keys()
+                    if (len(vt) >= 2 and vt[0] == major and
+                        vt[1] is not None)
                 ]
                 minors.append(major_branch.latest_minor)
+
+                # Also include phantom hotfix branches (stored separately to
+                # avoid corrupting the cascade) so that e.g. hotfix/10.0.0
+                # advances dev/10's latest_minor to 0 even without a tag.
+                minors.extend(
+                    hf.minor for hf in self._phantom_hotfixes
+                    if hf.major == major
+                )
 
                 major_branch.latest_minor = max(minors)
             elif len(version_tuple) == 2 and version_tuple[1] is not None:
@@ -1237,8 +1260,9 @@ class BranchCascade(object):
                     # For hotfix destinations, ignore all dev branches
                     self.ignored_branches.append(dev_branch.name)
                     branch_set[DevelopmentBranch] = None
-            # Handle hotfix branches
-            if hf_branch:
+            # Handle hotfix branches — only a merge destination for hotfix PRs;
+            # for dev PRs they are phantom entries used only for version tracking
+            if hf_branch and dst_hf:
                 self.dst_branches.append(hf_branch)
 
         # Clean up the cascade by removing keys with no branches

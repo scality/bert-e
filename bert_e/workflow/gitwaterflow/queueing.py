@@ -107,7 +107,7 @@ def get_queue_integration_branch(job, pr_id, wbranch: IntegrationBranch
     """Get the q/w/pr_id/x.y/* branch corresponding to a w/x.y/* branch."""
     wbranch_version = None
     if len(job.git.cascade.dst_branches) == 1 and \
-       job.git.cascade.dst_branches[0].hfrev > 0:
+       job.git.cascade.dst_branches[0].hfrev >= 0:
         wbranch_version = job.git.cascade.dst_branches[0].version
     else:
         wbranch_version = wbranch.version
