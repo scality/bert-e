@@ -24,8 +24,8 @@ from bert_e.lib import git
 from ..git_utils import clone_git_repo, consecutive_merge, robust_merge, push
 from ..pr_utils import notify_user
 from .branches import (BranchCascade, DevelopmentBranch, GWFBranch,
-                       IntegrationBranch, QueueBranch, QueueCollection,
-                       QueueIntegrationBranch, branch_factory,
+                       HotfixBranch, IntegrationBranch, QueueBranch,
+                       QueueCollection, QueueIntegrationBranch, branch_factory,
                        build_queue_collection)
 from .integration import get_integration_branches
 from typing import List
@@ -107,7 +107,7 @@ def get_queue_integration_branch(job, pr_id, wbranch: IntegrationBranch
     """Get the q/w/pr_id/x.y/* branch corresponding to a w/x.y/* branch."""
     wbranch_version = None
     if len(job.git.cascade.dst_branches) == 1 and \
-       job.git.cascade.dst_branches[0].hfrev >= 0:
+       isinstance(job.git.cascade.dst_branches[0], HotfixBranch):
         wbranch_version = job.git.cascade.dst_branches[0].version
     else:
         wbranch_version = wbranch.version
