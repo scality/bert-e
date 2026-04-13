@@ -865,7 +865,8 @@ class BranchCascade(object):
         self.ignored_branches = []  # store branch names (easier sort)
         self.target_versions = []
         self._merge_paths = []
-        self._phantom_hotfixes = []  # hotfix branches stored outside cascade for version calc
+        # hotfix branches stored outside cascade for version calc only
+        self._phantom_hotfixes = []
 
     def build(self, repo, dst_branch=None):
         flat_branches = set()
@@ -1260,8 +1261,9 @@ class BranchCascade(object):
                     # For hotfix destinations, ignore all dev branches
                     self.ignored_branches.append(dev_branch.name)
                     branch_set[DevelopmentBranch] = None
-            # Handle hotfix branches — only a merge destination for hotfix PRs;
-            # for dev PRs they are phantom entries used only for version tracking
+            # Handle hotfix branches — only a merge destination for
+            # hotfix PRs; for dev PRs they are phantom entries used
+            # only for version tracking
             if hf_branch and dst_hf:
                 self.dst_branches.append(hf_branch)
 
