@@ -540,6 +540,33 @@ class QuickTest(unittest.TestCase):
         fixver = ['9.5.3', '10.0.1', '10.1.0']
         self.finalize_cascade(branches, tags, destination, fixver)
 
+    def test_phantom_hotfix_hfrev_updated_by_ga_tag(self):
+        """Phantom hotfix hfrev and version must be updated by update_versions.
+
+        When hotfix/10.0.0 is stored as a phantom (non-hotfix PR destination),
+        update_versions() must still advance its hfrev when GA tags arrive.
+        Without the fix the phantom's hfrev stays at 0 forever, exposing
+        stale data to any future caller that reads .hfrev or .version.
+        """
+        my_dst = gwfb.branch_factory(FakeGitRepo(), 'development/10')
+        cascade = gwfb.BranchCascade()
+        for name in ('development/9.5', 'hotfix/10.0.0', 'development/10'):
+            cascade.add_branch(gwfb.branch_factory(FakeGitRepo(), name),
+                               my_dst)
+
+        self.assertEqual(len(cascade._phantom_hotfixes), 1)
+        phantom = cascade._phantom_hotfixes[0]
+
+        # Pre-GA: no 10.0.0.X tags — hfrev must remain 0
+        cascade.update_versions('9.5.2')
+        self.assertEqual(phantom.hfrev, 0)
+        self.assertEqual(phantom.version, '10.0.0.0')
+
+        # GA tag 10.0.0.0 lands — phantom hfrev must advance to 1
+        cascade.update_versions('10.0.0.0')
+        self.assertEqual(phantom.hfrev, 1)        # fails without the fix
+        self.assertEqual(phantom.version, '10.0.0.1')
+
     def test_branch_cascade_target_three_digit_dev(self):
         """Test cascade targeting three-digit development branch"""
         destination = 'development/4.3.17'

@@ -1018,6 +1018,17 @@ class BranchCascade(object):
                                                      hf_branch.micro,
                                                      hf_branch.hfrev)
 
+        # Also update phantom hotfixes (stored outside _cascade for dev PRs).
+        # They are only consumed for their .minor today, but keeping .hfrev
+        # and .version current prevents stale data surprises in future callers.
+        for phantom in self._phantom_hotfixes:
+            if (phantom.major == major and phantom.minor == minor and
+                    phantom.micro == micro):
+                phantom.hfrev = max(hfrev + 1, phantom.hfrev)
+                phantom.version = '%d.%d.%d.%d' % (
+                    phantom.major, phantom.minor,
+                    phantom.micro, phantom.hfrev)
+
         if micro_branch is not None and \
            ([micro_branch.major, micro_branch.minor,
              micro_branch.micro] == [major, minor, micro]):
