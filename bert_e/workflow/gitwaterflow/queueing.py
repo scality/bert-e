@@ -126,9 +126,22 @@ def already_in_queue(job, wbranches):
 
     """
     pr_id = job.pull_request.id
-    return any(
-        get_queue_integration_branch(job, pr_id, w).exists() for w in wbranches
-    )
+    if any(get_queue_integration_branch(job, pr_id, w).exists()
+           for w in wbranches):
+        return True
+    # Fallback for hotfix branches: the hfrev embedded in the queue branch
+    # name may have changed since the PR was queued (pre-GA → post-GA
+    # transition).  Scan by major.minor.micro prefix to detect the existing
+    # queue branch regardless of which hfrev was in effect when first queued.
+    if (len(job.git.cascade.dst_branches) == 1 and
+            isinstance(job.git.cascade.dst_branches[0], HotfixBranch)):
+        dst = job.git.cascade.dst_branches[0]
+        prefix = 'origin/q/w/%d/%d.%d.%d.' % (
+            pr_id, dst.major, dst.minor, dst.micro)
+        if job.git.repo.cmd(
+                'git branch -r --list %s*' % prefix).strip():
+            return True
+    return False
 
 
 def add_to_queue(job, wbranches):

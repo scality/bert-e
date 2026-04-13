@@ -6033,6 +6033,42 @@ class TestQueueing(RepositoryTests):
             self.handle(sha1, options=self.bypass_all, backtrace=True)
         self.assertEqual(self.prs_in_queue(), set())
 
+    def test_pr_hotfix_no_requeue_after_ga(self):
+        """PR queued pre-GA must not be re-queued after the GA tag is pushed.
+
+        Without the already_in_queue prefix-scan fix, pushing 10.0.0.0 causes
+        already_in_queue to look for q/w/{id}/10.0.0.1/... (hfrev now 1) which
+        does not exist, so the PR is incorrectly re-queued and a new orphaned
+        q/10.0.0.1 branch is created.
+        """
+        # Step 1 — queue PR before GA tag exists.
+        pr = self.create_pr('bugfix/TEST-00000', 'hotfix/10.0.0')
+        with self.assertRaises(exns.Queued):
+            self.handle(pr.id, options=self.bypass_all, backtrace=True)
+        self.assertEqual(self.prs_in_queue(), {pr.id})
+
+        # Step 2 — push the GA tag, advancing hfrev from 0 to 1.
+        self.gitrepo.cmd('git tag 10.0.0.0')
+        self.gitrepo.cmd('git push --tags')
+
+        # Step 3 — re-handle the PR; must be NothingToDo, not Queued again.
+        with self.assertRaises(exns.NothingToDo):
+            self.handle(pr.id, options=self.bypass_all, backtrace=True)
+
+        # No second q/w branch should have been created (would appear if
+        # the PR was incorrectly re-queued with 10.0.0.1).
+        qbranches = self.get_qint_branches()
+        self.assertFalse(
+            any('10.0.0.1' in b for b in qbranches),
+            'orphaned 10.0.0.1 queue branch found: %s' % qbranches)
+
+        # Step 4 — original pre-GA queue branch still builds and merges fine.
+        sha1 = self.set_build_status_on_branch_tip(
+            'q/w/%d/10.0.0.0/bugfix/TEST-00000' % pr.id, 'SUCCESSFUL')
+        with self.assertRaises(exns.Merged):
+            self.handle(sha1, options=self.bypass_all, backtrace=True)
+        self.assertEqual(self.prs_in_queue(), set())
+
     def test_pr_hotfix_alone(self):
         self.gitrepo.cmd('git tag 10.0.0.0')
         self.gitrepo.cmd('git push --tags')
