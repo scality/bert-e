@@ -829,12 +829,19 @@ class QueueCollection(object):
         return pr_hf_ids + pr_non_hf_ids
 
     def has_version_queued_prs(self, version):
-        # delete_branch() may call this property with a four numbers version
-        # finished by -1, so we can not rely on this last number to match.
-        if len(version) == 4 and version[3] == -1:
+        # delete_branch() may call this with a version whose hfrev has not
+        # been resolved by update_versions (hfrev == -1 legacy, or hfrev == 0
+        # when branch_factory is called without a cascade).  In that case we
+        # must not rely on the last number to match.
+        if len(version) == 4 and version[3] in (-1, 0):
+            # Try exact match first (covers true pre-GA queues where hfrev=0)
+            exact = self._queues.get(version, {}).get(QueueIntegrationBranch)
+            if exact is not None:
+                return True
+            # Fallback: prefix match (covers post-GA where update_versions
+            # advanced hfrev but branch_factory still returned hfrev=0)
             for queue_version in self._queues.keys():
                 if len(queue_version) == 4 and \
-                   len(version) == 4 and \
                    queue_version[:3] == version[:3]:
                     queued_pr = self._queues.get(queue_version)
                     if queued_pr is not None and \
