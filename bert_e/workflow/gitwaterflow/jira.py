@@ -165,11 +165,19 @@ def check_fix_versions(job, issue):
             hf_target = target_version
 
     if hf_target:
-        if hf_target not in issue_versions:
+        # Pre-GA: the hotfix branch has no tag yet (hfrev == 0 → target ends
+        # in ".0").  The Jira project may not have a ".0" release entry yet,
+        # so also accept the 3-digit base version (e.g. "10.0.0" for "10.0.0.0").
+        # Once the GA tag is pushed hfrev advances to 1, the target becomes
+        # "10.0.0.1", and only that exact version is accepted again.
+        accepted = {hf_target}
+        if hf_target.endswith('.0'):
+            accepted.add(hf_target[:-2])
+        if not (accepted & issue_versions):
             raise exceptions.IncorrectFixVersion(
                 issue=issue,
                 issue_versions=sorted(issue_versions),
-                expect_versions=sorted(expected_versions),
+                expect_versions=sorted(accepted),
                 active_options=job.active_options
             )
     elif checked_versions != expected_versions:

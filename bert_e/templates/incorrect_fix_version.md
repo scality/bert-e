@@ -13,8 +13,8 @@ The `Fix Version/s` in issue {{ issue.key }} contains:
 * *None*
 {% endfor %}
 
-{% if expect_versions|length == 1 and expect_versions[0].split('.')|length == 4 %}
-Considering where you are trying to merge, I expected to find at least:
+{% if expect_versions and expect_versions[-1].split('.')|length == 4 %}
+Considering where you are trying to merge, I expected to find at least one of:
 {% else %}
 Considering where you are trying to merge, I ignored possible hotfix versions and I expected to find:
 {% endif %}
