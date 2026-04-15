@@ -25,7 +25,7 @@ from jira.exceptions import JIRAError
 
 from bert_e import exceptions
 from bert_e.lib import jira as jira_api
-from ..pr_utils import notify_user
+from ..pr_utils import find_comment, notify_user
 from .utils import bypass_jira_check
 
 
@@ -193,13 +193,23 @@ def check_fix_versions(job, issue):
             )
 
 
+_PENDING_HOTFIX_TITLE = '# Pending hotfix branch'
+
+
 def _notify_pending_hotfix_if_needed(job, issue):
     """Post a one-time reminder when the ticket carries a pre-GA hotfix
     fix version (X.Y.Z.0) so the developer knows to open a cherry-pick PR
     to the corresponding hotfix branch.
 
     This is an informational message: it is posted at most once per PR
-    (dont_repeat_if_in_history = NEVER_REPEAT) and never blocks the flow.
+    and never blocks the flow.
+
+    The standard dont_repeat_if_in_history dedup uses the full rendered
+    message as the match key, which includes the active_options footer.
+    Because active_options can change between runs (e.g. when
+    create_integration_branches is added), the footer-sensitive match would
+    miss a comment posted in an earlier run and post again. We guard with
+    an explicit title-prefix check first, which is stable across runs.
     """
     phantom_versions = job.git.cascade.phantom_hotfix_versions
     if not phantom_versions:
@@ -207,6 +217,10 @@ def _notify_pending_hotfix_if_needed(job, issue):
     issue_versions = {v.name for v in issue.fields.fixVersions}
     matching = sorted(phantom_versions & issue_versions)
     if not matching:
+        return
+    # Stable dedup: any previous comment with this title means skip.
+    if find_comment(job.pull_request, job.settings.robot,
+                    startswith=_PENDING_HOTFIX_TITLE):
         return
     reminder = exceptions.PendingHotfixVersionReminder(
         issue=issue,

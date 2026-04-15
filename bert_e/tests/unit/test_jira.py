@@ -1,4 +1,4 @@
-"""Unit tests for check_fix_versions in jira.py.
+"""Unit tests for check_fix_versions and _notify_pending_hotfix_if_needed.
 
 Rules:
 - Hotfix branch PRs require the exact 4-digit fix version in Jira
@@ -11,9 +11,13 @@ Rules:
 """
 import pytest
 from types import SimpleNamespace
+from unittest.mock import MagicMock, patch
 
 from bert_e import exceptions
-from bert_e.workflow.gitwaterflow.jira import check_fix_versions
+from bert_e.workflow.gitwaterflow.jira import (
+    check_fix_versions,
+    _notify_pending_hotfix_if_needed,
+)
 
 
 def _make_issue(*version_names):
@@ -143,3 +147,47 @@ def test_dev_branch_rejects_mismatch():
             _make_job('4.3.19', '5.1.4'),
             _make_issue('4.3.18', '5.1.4'),
         )
+
+
+# ---------------------------------------------------------------------------
+# _notify_pending_hotfix_if_needed — dedup behaviour
+# ---------------------------------------------------------------------------
+
+def _make_notify_job(phantom_hotfix_versions=None):
+    """Build a minimal job for _notify_pending_hotfix_if_needed tests."""
+    cascade = SimpleNamespace(
+        phantom_hotfix_versions=phantom_hotfix_versions or set(),
+    )
+    settings = SimpleNamespace(robot='bert-e')
+    return SimpleNamespace(
+        git=SimpleNamespace(cascade=cascade),
+        settings=settings,
+        pull_request=MagicMock(),
+        active_options=[],
+    )
+
+
+@patch('bert_e.workflow.gitwaterflow.jira.notify_user')
+@patch('bert_e.workflow.gitwaterflow.jira.find_comment', return_value=None)
+def test_pending_hotfix_posts_when_not_yet_in_history(mock_find, mock_notify):
+    """Reminder is posted when no previous comment with that title exists."""
+    job = _make_notify_job(phantom_hotfix_versions={'10.0.0.0'})
+    issue = _make_issue('9.5.3', '10.0.0.0', '10.1.0')
+    _notify_pending_hotfix_if_needed(job, issue)
+    mock_notify.assert_called_once()
+
+
+@patch('bert_e.workflow.gitwaterflow.jira.notify_user')
+@patch('bert_e.workflow.gitwaterflow.jira.find_comment',
+       return_value=MagicMock())
+def test_pending_hotfix_skips_when_already_in_history(mock_find, mock_notify):
+    """Reminder is NOT posted when a previous comment with that title exists.
+
+    This covers the active_options footer dedup fix: even if active_options
+    changed between runs (making the full text differ), the title-prefix
+    check prevents a second post.
+    """
+    job = _make_notify_job(phantom_hotfix_versions={'10.0.0.0'})
+    issue = _make_issue('9.5.3', '10.0.0.0', '10.1.0')
+    _notify_pending_hotfix_if_needed(job, issue)
+    mock_notify.assert_not_called()
