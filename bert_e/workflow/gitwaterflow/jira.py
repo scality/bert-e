@@ -25,6 +25,7 @@ from jira.exceptions import JIRAError
 
 from bert_e import exceptions
 from bert_e.lib import jira as jira_api
+from ..pr_utils import notify_user
 from .utils import bypass_jira_check
 
 
@@ -55,6 +56,7 @@ def jira_checks(job):
 
     if not job.settings.disable_version_checks:
         check_fix_versions(job, issue)
+        _notify_pending_hotfix_if_needed(job, issue)
 
 
 def get_jira_issue(job):
@@ -165,6 +167,10 @@ def check_fix_versions(job, issue):
             hf_target = target_version
 
     if hf_target:
+        # Hotfix PR: the ticket must carry the exact 4-digit target version
+        # (e.g. "10.0.0.0" pre-GA, "10.0.0.1" post-GA first hotfix, …).
+        # 3-digit aliases are no longer accepted — a 4-digit entry makes it
+        # unambiguous whether the branch is still pre-GA or an actual hotfix.
         if hf_target not in issue_versions:
             raise exceptions.IncorrectFixVersion(
                 issue=issue,
@@ -172,10 +178,39 @@ def check_fix_versions(job, issue):
                 expect_versions=sorted(expected_versions),
                 active_options=job.active_options
             )
-    elif checked_versions != expected_versions:
-        raise exceptions.IncorrectFixVersion(
-            issue=issue,
-            issue_versions=sorted(issue_versions),
-            expect_versions=sorted(expected_versions),
-            active_options=job.active_options
-        )
+    else:
+        # Development-branch PR: versions that belong to a phantom hotfix
+        # branch (pre-GA hotfix/X.Y.Z stored outside the cascade) will be
+        # consumed by the separate cherry-pick PR to that hotfix branch.
+        # Strip them so they don't cause a spurious mismatch here.
+        checked_versions -= job.git.cascade.phantom_hotfix_versions
+        if checked_versions != expected_versions:
+            raise exceptions.IncorrectFixVersion(
+                issue=issue,
+                issue_versions=sorted(issue_versions),
+                expect_versions=sorted(expected_versions),
+                active_options=job.active_options
+            )
+
+
+def _notify_pending_hotfix_if_needed(job, issue):
+    """Post a one-time reminder when the ticket carries a pre-GA hotfix
+    fix version (X.Y.Z.0) so the developer knows to open a cherry-pick PR
+    to the corresponding hotfix branch.
+
+    This is an informational message: it is posted at most once per PR
+    (dont_repeat_if_in_history = NEVER_REPEAT) and never blocks the flow.
+    """
+    phantom_versions = job.git.cascade.phantom_hotfix_versions
+    if not phantom_versions:
+        return
+    issue_versions = {v.name for v in issue.fields.fixVersions}
+    matching = sorted(phantom_versions & issue_versions)
+    if not matching:
+        return
+    reminder = exceptions.PendingHotfixVersionReminder(
+        issue=issue,
+        hotfix_versions=matching,
+        active_options=job.active_options,
+    )
+    notify_user(job.settings, job.pull_request, reminder)

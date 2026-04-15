@@ -62,7 +62,10 @@ def create_branch(job: CreateBranchJob):
 
     # do not allow recreating a previously existing identical branch
     # (unless archive tag is manually removed)
-    if new_branch.version in repo.cmd('git tag').split('\n')[:-1]:
+    # Hotfix archive tags use format 'X.Y.Z.hfrev.archived_hotfix_branch',
+    # not just 'X.Y.Z.hfrev', so skip this check for hotfix branches.
+    if not isinstance(new_branch, HotfixBranch) and \
+            new_branch.version in repo.cmd('git tag').split('\n')[:-1]:
         raise exceptions.JobFailure('Cannot create branch %r because there is '
                                     'already an archive tag %r in the '
                                     'repository.' %
@@ -81,8 +84,10 @@ def create_branch(job: CreateBranchJob):
     # ...or determine the branching point automatically
     else:
         if isinstance(new_branch, HotfixBranch):
-            # start from tag X.Y.Z.0
-            job.settings.branch_from = new_branch.version + '.0'
+            # start from tag X.Y.Z.0 (use 3-digit base to avoid double .0)
+            base_ver = '%d.%d.%d' % (new_branch.major,
+                                     new_branch.minor, new_branch.micro)
+            job.settings.branch_from = base_ver + '.0'
         else:
             job.settings.branch_from = dev_branches[0]
             for dev_branch in dev_branches:

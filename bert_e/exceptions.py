@@ -191,16 +191,19 @@ class Queued(TemplateException):
     template = 'queued.md'
     status = "in_progress"
 
-    def __init__(self, branches, ignored, issue, author, active_options):
+    def __init__(self, branches, ignored, issue, author, active_options,
+                 pending_hotfixes=None):
         """Save args for later use by tests."""
         self.branches = branches
         self.ignored = ignored
         self.issue = issue
         self.author = author
         self.active_options = active_options
+        self.pending_hotfixes = pending_hotfixes or []
         super(Queued, self).__init__(
             branches=branches,
             ignored=ignored,
+            pending_hotfixes=pending_hotfixes or [],
             issue=issue,
             author=author,
             active_options=active_options
@@ -430,6 +433,11 @@ class TaskAPIError(InternalException):
 class WrongDestination(TemplateException):
     code = 222
     template = 'incorrect_destination.md'
+
+
+class PendingHotfixVersionReminder(InformationException):
+    code = 223
+    template = 'pending_hotfix_version_reminder.md'
 
 
 class QueueValidationError(Exception):

@@ -441,6 +441,10 @@ class QuickTest(unittest.TestCase):
             8: {'name': 'hotfix/10.0.4', 'ignore': True},
             9: {'name': 'development/10.0', 'ignore': True}
         })
+        # Pre-GA: no 6.6.6.X tag yet — target version must be 6.6.6.0
+        tags = ['4.3.16', '4.3.17', '5.1.3', '10.0.3.1']
+        fixver = ['6.6.6.0']
+        self.finalize_cascade(branches, tags, destination, fixver)
         tags = ['4.3.16', '4.3.17', '5.1.3', '6.6.6', '10.0.3.1']
         fixver = ['6.6.6.1']
         self.finalize_cascade(branches, tags, destination, fixver)
@@ -454,6 +458,114 @@ class QuickTest(unittest.TestCase):
         tags = ['4.3.16', '4.3.17', '5.1.3', '6.6.6.1', '6.6.6.2', '10.0.3.1']
         fixver = ['6.6.6.3']
         self.finalize_cascade(branches, tags, destination, fixver)
+
+    def test_branch_cascade_dev_with_pre_ga_hotfix(self):
+        """development/<major> must target <major>.<minor+1>.0 once
+        hotfix/<major>.<minor>.0 exists, even without the GA tag."""
+        # Use development/9.5 (2-digit) as source so tags on the 9.5 line
+        # don't conflict with the 3-digit dev branch path.
+        destination = 'development/9.5'
+        branches = OrderedDict({
+            1: {'name': 'development/9.5', 'ignore': False},
+            2: {'name': 'hotfix/10.0.0', 'ignore': True},
+            3: {'name': 'development/10', 'ignore': False},
+        })
+        # Pre-GA: hotfix/10.0.0 exists but no 10.0.0.X tag yet.
+        # development/10 must target 10.1.0, NOT 10.0.0.
+        tags = ['9.5.2']
+        fixver = ['9.5.3', '10.1.0']
+        self.finalize_cascade(branches, tags, destination, fixver)
+
+        # Post-GA: 10.0.0.0 tag present — development/10 still targets 10.1.0
+        tags = ['9.5.2', '10.0.0.0']
+        self.finalize_cascade(branches, tags, destination, fixver)
+
+    def test_branch_cascade_mixed_3digit_and_pre_ga_hotfix(self):
+        """Full mixed cascade: 3-digit dev branches, pre-GA hotfix, 2-digit
+        and 1-digit dev branches all coexist correctly.
+
+        Scenario: dev/9.5.3, hotfix/10.0.0 (pre-GA), dev/10.0.1, dev/10.1,
+        dev/10.  Verifies that:
+        - a PR from dev/9.5.3 cascades through 10.0.1 -> 10.1 -> 10
+        - dev/10.0.1 targets 10.0.2
+        - dev/10.1 targets 10.1.0
+        - dev/10 targets 10.2.0 (latest_minor comes from dev/10.1, not hotfix)
+        - hotfix/10.0.0 does not appear in the cascade destination list
+        """
+        destination = 'development/9.5.3'
+        branches = OrderedDict({
+            1: {'name': 'development/9.5.3', 'ignore': False},
+            2: {'name': 'hotfix/10.0.0', 'ignore': True},
+            3: {'name': 'development/10.0.1', 'ignore': False},
+            4: {'name': 'development/10.1', 'ignore': False},
+            5: {'name': 'development/10', 'ignore': False},
+        })
+        # Pre-GA: hotfix/10.0.0 exists but no 10.0.0.X tag yet.
+        # 3-digit branches (9.5.3, 10.0.1) target their own version because
+        # there are no ancestor 2-digit branches (dev/9.5, dev/10.0) in the
+        # cascade to drive _next_micro.
+        # dev/10.1 → 10.1.0, dev/10 → 10.2.0 (latest_minor=1 from dev/10.1).
+        tags = ['9.5.0', '9.5.1']
+        fixver = ['9.5.3', '10.0.1', '10.1.0', '10.2.0']
+        self.finalize_cascade(branches, tags, destination, fixver)
+
+        # Post-GA: 10.0.0.0 tag is ignored (no dev/10.0 or dev/10.0.0 in
+        # cascade), so targets are unchanged.
+        tags = ['9.5.0', '9.5.1', '10.0.0.0']
+        self.finalize_cascade(branches, tags, destination, fixver)
+
+    def test_branch_cascade_2digit_with_pre_ga_hotfix(self):
+        """2-digit dev branches coexisting with pre-GA hotfix.
+
+        Scenario: dev/9.5, hotfix/10.0.0 (pre-GA), dev/10.0, dev/10.
+        Note: in the rename-based workflow hotfix/10.0.0 replaces dev/10.0;
+        but both can coexist when the hotfix is branched off before GA.
+        """
+        destination = 'development/9.5'
+        branches = OrderedDict({
+            1: {'name': 'development/9.5', 'ignore': False},
+            2: {'name': 'hotfix/10.0.0', 'ignore': True},
+            3: {'name': 'development/10.0', 'ignore': False},
+            4: {'name': 'development/10', 'ignore': False},
+        })
+        # Pre-GA: no tags for 10.x yet
+        # dev/10.0 targets 10.0.0, dev/10 targets 10.1.0 (latest_minor=0)
+        tags = ['9.5.2']
+        fixver = ['9.5.3', '10.0.0', '10.1.0']
+        self.finalize_cascade(branches, tags, destination, fixver)
+
+        # Post-GA: tag 10.0.0.0 advances dev/10.0 to target 10.0.1
+        # dev/10 still targets 10.1.0 (latest_minor=0 unchanged)
+        tags = ['9.5.2', '10.0.0.0']
+        fixver = ['9.5.3', '10.0.1', '10.1.0']
+        self.finalize_cascade(branches, tags, destination, fixver)
+
+    def test_phantom_hotfix_hfrev_updated_by_ga_tag(self):
+        """Phantom hotfix hfrev and version must be updated by update_versions.
+
+        When hotfix/10.0.0 is stored as a phantom (non-hotfix PR destination),
+        update_versions() must still advance its hfrev when GA tags arrive.
+        Without the fix the phantom's hfrev stays at 0 forever, exposing
+        stale data to any future caller that reads .hfrev or .version.
+        """
+        my_dst = gwfb.branch_factory(FakeGitRepo(), 'development/10')
+        cascade = gwfb.BranchCascade()
+        for name in ('development/9.5', 'hotfix/10.0.0', 'development/10'):
+            cascade.add_branch(gwfb.branch_factory(FakeGitRepo(), name),
+                               my_dst)
+
+        self.assertEqual(len(cascade._phantom_hotfixes), 1)
+        phantom = cascade._phantom_hotfixes[0]
+
+        # Pre-GA: no 10.0.0.X tags — hfrev must remain 0
+        cascade.update_versions('9.5.2')
+        self.assertEqual(phantom.hfrev, 0)
+        self.assertEqual(phantom.version, '10.0.0.0')
+
+        # GA tag 10.0.0.0 lands — phantom hfrev must advance to 1
+        cascade.update_versions('10.0.0.0')
+        self.assertEqual(phantom.hfrev, 1)        # fails without the fix
+        self.assertEqual(phantom.version, '10.0.0.1')
 
     def test_branch_cascade_target_three_digit_dev(self):
         """Test cascade targeting three-digit development branch"""
@@ -967,6 +1079,7 @@ class RepositoryTests(unittest.TestCase):
                 raise exns.SuccessMessage(
                     branches=queued_excp.branches,
                     ignored=queued_excp.ignored,
+                    pending_hotfixes=queued_excp.pending_hotfixes,
                     issue=queued_excp.issue,
                     author=queued_excp.author,
                     active_options=queued_excp.active_options)
@@ -5895,6 +6008,76 @@ class TestQueueing(RepositoryTests):
         sha1 = self.set_build_status_on_branch_tip(
             'q/w/%d/10.0.0.1/bugfix/TEST-00002' % pr2.id, 'SUCCESSFUL')
 
+        with self.assertRaises(exns.Merged):
+            self.handle(sha1, options=self.bypass_all, backtrace=True)
+        self.assertEqual(self.prs_in_queue(), set())
+
+    def test_pr_hotfix_pre_ga(self):
+        """PR targeting a hotfix branch before GA (no 10.0.0.X tag yet) must
+        use version 10.0.0.0 for the queue branch and Jira fix version."""
+        # No tag for 10.0.0 at all — pre-GA state
+        pr = self.create_pr('bugfix/TEST-00000', 'hotfix/10.0.0')
+        with self.assertRaises(exns.Queued):
+            self.handle(pr.id, options=self.bypass_all, backtrace=True)
+        self.assertEqual(self.prs_in_queue(), {pr.id})
+
+        # Queue branch must use 10.0.0.0 (not 10.0.0.1 or 10.0.0.-1)
+        sha1 = self.set_build_status_on_branch_tip(
+            'q/w/%d/10.0.0.0/bugfix/TEST-00000' % pr.id, 'FAILED')
+        with self.assertRaises(exns.QueueBuildFailed):
+            self.handle(sha1, options=self.bypass_all, backtrace=True)
+        self.assertEqual(self.prs_in_queue(), {pr.id})
+
+        sha1 = self.set_build_status_on_branch_tip(
+            'q/w/%d/10.0.0.0/bugfix/TEST-00000' % pr.id, 'SUCCESSFUL')
+        with self.assertRaises(exns.Merged):
+            self.handle(sha1, options=self.bypass_all, backtrace=True)
+        self.assertEqual(self.prs_in_queue(), set())
+
+    def test_dev_pr_reminder_about_pre_ga_hotfix(self):
+        """A PR to development/10 must mention hotfix/10.0.0 in the Queued
+        message (pending_hotfixes reminder) when hotfix/10.0.0 is pre-GA."""
+        # No GA tag — hotfix/10.0.0 is a phantom for the dev/10 cascade.
+        pr = self.create_pr('bugfix/TEST-00001', 'development/10')
+        try:
+            self.handle(pr.id, options=self.bypass_all, backtrace=True)
+            self.fail('Expected Queued or SuccessMessage exception')
+        except (exns.Queued, exns.SuccessMessage) as e:
+            self.assertIn('hotfix/10.0.0', e.msg,
+                          'Reminder about hotfix/10.0.0 missing from message')
+
+    def test_pr_hotfix_no_requeue_after_ga(self):
+        """PR queued pre-GA must not be re-queued after the GA tag is pushed.
+
+        Without the already_in_queue prefix-scan fix, pushing 10.0.0.0 causes
+        already_in_queue to look for q/w/{id}/10.0.0.1/... (hfrev now 1) which
+        does not exist, so the PR is incorrectly re-queued and a new orphaned
+        q/10.0.0.1 branch is created.
+        """
+        # Step 1 — queue PR before GA tag exists.
+        pr = self.create_pr('bugfix/TEST-00000', 'hotfix/10.0.0')
+        with self.assertRaises(exns.Queued):
+            self.handle(pr.id, options=self.bypass_all, backtrace=True)
+        self.assertEqual(self.prs_in_queue(), {pr.id})
+
+        # Step 2 — push the GA tag, advancing hfrev from 0 to 1.
+        self.gitrepo.cmd('git tag 10.0.0.0')
+        self.gitrepo.cmd('git push --tags')
+
+        # Step 3 — re-handle the PR; must be NothingToDo, not Queued again.
+        with self.assertRaises(exns.NothingToDo):
+            self.handle(pr.id, options=self.bypass_all, backtrace=True)
+
+        # No second q/w branch should have been created (would appear if
+        # the PR was incorrectly re-queued with 10.0.0.1).
+        qbranches = self.get_qint_branches()
+        self.assertFalse(
+            any('10.0.0.1' in b for b in qbranches),
+            'orphaned 10.0.0.1 queue branch found: %s' % qbranches)
+
+        # Step 4 — original pre-GA queue branch still builds and merges fine.
+        sha1 = self.set_build_status_on_branch_tip(
+            'q/w/%d/10.0.0.0/bugfix/TEST-00000' % pr.id, 'SUCCESSFUL')
         with self.assertRaises(exns.Merged):
             self.handle(sha1, options=self.bypass_all, backtrace=True)
         self.assertEqual(self.prs_in_queue(), set())

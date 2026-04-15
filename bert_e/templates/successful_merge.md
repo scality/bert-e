@@ -16,6 +16,15 @@ The following branches have **NOT** changed:
 {% endfor %}
 {% endif %}
 
+{% if pending_hotfixes %}
+:warning: This pull request did **not** target the following hotfix
+branch(es). Please open a separate cherry-pick pull request to each:
+
+{% for branch in pending_hotfixes -%}
+* `{{ branch.name }}`
+{% endfor %}
+{% endif %}
+
 Please check the status of the associated issue {{ issue }}.
 
 Goodbye {{ author }}.

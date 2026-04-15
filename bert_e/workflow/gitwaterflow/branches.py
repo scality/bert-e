@@ -187,6 +187,12 @@ class HotfixBranch(GWFBranch):
     cascade_consumer = True
     can_be_destination = True
     allow_prefixes = FeatureBranch.all_prefixes
+    hfrev = 0  # pre-GA default: no tags yet (overrides GWFBranch.hfrev = -1)
+
+    def __init__(self, repo, name):
+        super().__init__(repo, name)
+        # Default version includes .0 until update_versions() sees a tag
+        self.version = '%d.%d.%d.%d' % (self.major, self.minor, self.micro, 0)
 
     def __eq__(self, other):
         return (self.__class__ == other.__class__ and
@@ -635,8 +641,9 @@ class QueueCollection(object):
             qint = self._queues[version][QueueIntegrationBranch]
             if qint:
                 qint = qint[0]
+                tip = qint.get_latest_commit()
                 status = self.bbrepo.get_build_status(
-                    qint.get_latest_commit(),
+                    tip,
                     self.build_key
                 )
                 if status == 'FAILED':
@@ -822,12 +829,19 @@ class QueueCollection(object):
         return pr_hf_ids + pr_non_hf_ids
 
     def has_version_queued_prs(self, version):
-        # delete_branch() may call this property with a four numbers version
-        # finished by -1, so we can not rely on this last number to match.
-        if len(version) == 4 and version[3] == -1:
+        # delete_branch() may call this with a version whose hfrev has not
+        # been resolved by update_versions (hfrev == -1 legacy, or hfrev == 0
+        # when branch_factory is called without a cascade).  In that case we
+        # must not rely on the last number to match.
+        if len(version) == 4 and version[3] in (-1, 0):
+            # Try exact match first (covers true pre-GA queues where hfrev=0)
+            exact = self._queues.get(version, {}).get(QueueIntegrationBranch)
+            if exact is not None:
+                return True
+            # Fallback: prefix match (covers post-GA where update_versions
+            # advanced hfrev but branch_factory still returned hfrev=0)
             for queue_version in self._queues.keys():
                 if len(queue_version) == 4 and \
-                   len(version) == 4 and \
                    queue_version[:3] == version[:3]:
                     queued_pr = self._queues.get(queue_version)
                     if queued_pr is not None and \
@@ -858,6 +872,36 @@ class BranchCascade(object):
         self.ignored_branches = []  # store branch names (easier sort)
         self.target_versions = []
         self._merge_paths = []
+        # hotfix branches stored outside cascade for version calc only
+        self._phantom_hotfixes = []
+
+    @property
+    def pending_hotfix_branches(self):
+        """Hotfix branches stored as phantoms that require a separate PR.
+
+        When a PR targets a development branch and a hotfix branch exists
+        for the same major version (pre-GA), the hotfix is kept outside the
+        cascade so version calculations stay correct without making it an
+        implicit merge target.  The author should open a separate PR to
+        each of these hotfix branches.
+        """
+        return list(self._phantom_hotfixes)
+
+    @property
+    def phantom_hotfix_versions(self):
+        """4-digit version strings of pre-GA phantom hotfix branches.
+
+        Pre-GA hotfix branches (hfrev == 0) produce an X.Y.Z.0 version that
+        matches the vfilter used in check_fix_versions.  When such a version
+        appears in a Jira ticket alongside the dev-branch versions, it must
+        not be counted against the dev-branch PR — it is consumed by the
+        separate cherry-pick PR to the hotfix branch.
+        Post-GA hotfix versions (X.Y.Z.1, X.Y.Z.2, …) don't match vfilter
+        so they never interfere with the dev-branch check.
+        """
+        return {hf.version
+                for hf in self._phantom_hotfixes
+                if hf.hfrev == 0}
 
     def build(self, repo, dst_branch=None):
         flat_branches = set()
@@ -927,7 +971,15 @@ class BranchCascade(object):
                    branch.micro != dst_branch.micro:
                     # this is not the hotfix branch we want to add
                     return
+            elif not dst_branch:
+                # No destination context (e.g. queue management) — skip
+                return
             else:
+                # Non-hotfix destination: store the hotfix as a phantom so
+                # _update_major_versions() can advance development/<major>'s
+                # latest_minor past the hotfix line (e.g. dev/10 → 10.1.0
+                # once hotfix/10.0.0 exists) without polluting the cascade.
+                self._phantom_hotfixes.append(branch)
                 return
 
         # Create key based on full version tuple
@@ -993,6 +1045,17 @@ class BranchCascade(object):
                                                      hf_branch.minor,
                                                      hf_branch.micro,
                                                      hf_branch.hfrev)
+
+        # Also update phantom hotfixes (stored outside _cascade for dev PRs).
+        # They are only consumed for their .minor today, but keeping .hfrev
+        # and .version current prevents stale data surprises in future callers.
+        for phantom in self._phantom_hotfixes:
+            if (phantom.major == major and phantom.minor == minor and
+                    phantom.micro == micro):
+                phantom.hfrev = max(hfrev + 1, phantom.hfrev)
+                phantom.version = '%d.%d.%d.%d' % (
+                    phantom.major, phantom.minor,
+                    phantom.micro, phantom.hfrev)
 
         if micro_branch is not None and \
            ([micro_branch.major, micro_branch.minor,
@@ -1071,14 +1134,21 @@ class BranchCascade(object):
                 major_branch: DevelopmentBranch = branch_set[DevelopmentBranch]
                 major = version_tuple[0]
 
-                # Find all minor versions for this major
+                # Find all minor versions for this major from the cascade
                 minors = [
-                    version_tuple[1] for version_tuple in self._cascade.keys()
-                    if (len(version_tuple) >= 2 and
-                        version_tuple[0] == major and
-                        version_tuple[1] is not None)
+                    vt[1] for vt in self._cascade.keys()
+                    if (len(vt) >= 2 and vt[0] == major and
+                        vt[1] is not None)
                 ]
                 minors.append(major_branch.latest_minor)
+
+                # Also include phantom hotfix branches (stored separately to
+                # avoid corrupting the cascade) so that e.g. hotfix/10.0.0
+                # advances dev/10's latest_minor to 0 even without a tag.
+                minors.extend(
+                    hf.minor for hf in self._phantom_hotfixes
+                    if hf.major == major
+                )
 
                 major_branch.latest_minor = max(minors)
             elif len(version_tuple) == 2 and version_tuple[1] is not None:
@@ -1237,8 +1307,10 @@ class BranchCascade(object):
                     # For hotfix destinations, ignore all dev branches
                     self.ignored_branches.append(dev_branch.name)
                     branch_set[DevelopmentBranch] = None
-            # Handle hotfix branches
-            if hf_branch:
+            # Handle hotfix branches — only a merge destination for
+            # hotfix PRs; for dev PRs they are phantom entries used
+            # only for version tracking
+            if hf_branch and dst_hf:
                 self.dst_branches.append(hf_branch)
 
         # Clean up the cascade by removing keys with no branches

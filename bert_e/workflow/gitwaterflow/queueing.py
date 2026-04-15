@@ -24,8 +24,8 @@ from bert_e.lib import git
 from ..git_utils import clone_git_repo, consecutive_merge, robust_merge, push
 from ..pr_utils import notify_user
 from .branches import (BranchCascade, DevelopmentBranch, GWFBranch,
-                       IntegrationBranch, QueueBranch, QueueCollection,
-                       QueueIntegrationBranch, branch_factory,
+                       HotfixBranch, IntegrationBranch, QueueBranch,
+                       QueueCollection, QueueIntegrationBranch, branch_factory,
                        build_queue_collection)
 from .integration import get_integration_branches
 from typing import List
@@ -107,7 +107,7 @@ def get_queue_integration_branch(job, pr_id, wbranch: IntegrationBranch
     """Get the q/w/pr_id/x.y/* branch corresponding to a w/x.y/* branch."""
     wbranch_version = None
     if len(job.git.cascade.dst_branches) == 1 and \
-       job.git.cascade.dst_branches[0].hfrev > 0:
+       isinstance(job.git.cascade.dst_branches[0], HotfixBranch):
         wbranch_version = job.git.cascade.dst_branches[0].version
     else:
         wbranch_version = wbranch.version
@@ -126,9 +126,22 @@ def already_in_queue(job, wbranches):
 
     """
     pr_id = job.pull_request.id
-    return any(
-        get_queue_integration_branch(job, pr_id, w).exists() for w in wbranches
-    )
+    if any(get_queue_integration_branch(job, pr_id, w).exists()
+           for w in wbranches):
+        return True
+    # Fallback for hotfix branches: the hfrev embedded in the queue branch
+    # name may have changed since the PR was queued (pre-GA → post-GA
+    # transition).  Scan by major.minor.micro prefix to detect the existing
+    # queue branch regardless of which hfrev was in effect when first queued.
+    if (len(job.git.cascade.dst_branches) == 1 and
+            isinstance(job.git.cascade.dst_branches[0], HotfixBranch)):
+        dst = job.git.cascade.dst_branches[0]
+        prefix = 'origin/q/w/%d/%d.%d.%d.' % (
+            pr_id, dst.major, dst.minor, dst.micro)
+        if job.git.repo.cmd(
+                'git branch -r --list %s*' % prefix).strip():
+            return True
+    return False
 
 
 def add_to_queue(job, wbranches):
@@ -204,6 +217,7 @@ def close_queued_pull_request(job, pr_id, cascade):
             job.settings, pull_request, exceptions.SuccessMessage(
                 branches=target_branches,
                 ignored=job.git.cascade.ignored_branches,
+                pending_hotfixes=job.git.cascade.pending_hotfix_branches,
                 issue=src.jira_issue_key,
                 author=pull_request.author_display_name,
                 active_options=[])

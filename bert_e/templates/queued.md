@@ -23,6 +23,15 @@ The following branches will **NOT** be impacted:
 {% endfor %}
 {% endif %}
 
+{% if pending_hotfixes %}
+:warning: This pull request does **not** target the following hotfix
+branch(es). Please open a separate cherry-pick pull request to each:
+
+{% for branch in pending_hotfixes -%}
+* `{{ branch.name }}`
+{% endfor %}
+{% endif %}
+
 There is no action required on your side. You will be notified here once
 the changeset has been merged. In the unlikely event that the changeset
 fails permanently on the queue, a member of the admin team will
