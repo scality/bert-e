@@ -1079,6 +1079,7 @@ class RepositoryTests(unittest.TestCase):
                 raise exns.SuccessMessage(
                     branches=queued_excp.branches,
                     ignored=queued_excp.ignored,
+                    pending_hotfixes=queued_excp.pending_hotfixes,
                     issue=queued_excp.issue,
                     author=queued_excp.author,
                     active_options=queued_excp.active_options)
