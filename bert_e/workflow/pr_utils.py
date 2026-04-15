@@ -68,7 +68,7 @@ def _send_comment(settings, pull_request: AbstractPullRequest, msg: str,
         LOG.debug('Not sending message (no_comment==True).')
         return
 
-    if dont_repeat_if_in_history:
+    if dont_repeat_if_in_history != 0:
         if find_comment(pull_request, settings.robot, msg,
                         dont_repeat_if_in_history):
             raise exceptions.CommentAlreadyExists(
