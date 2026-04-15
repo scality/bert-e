@@ -6033,6 +6033,18 @@ class TestQueueing(RepositoryTests):
             self.handle(sha1, options=self.bypass_all, backtrace=True)
         self.assertEqual(self.prs_in_queue(), set())
 
+    def test_dev_pr_reminder_about_pre_ga_hotfix(self):
+        """A PR to development/10 must mention hotfix/10.0.0 in the Queued
+        message (pending_hotfixes reminder) when hotfix/10.0.0 is pre-GA."""
+        # No GA tag — hotfix/10.0.0 is a phantom for the dev/10 cascade.
+        pr = self.create_pr('bugfix/TEST-00001', 'development/10')
+        try:
+            self.handle(pr.id, options=self.bypass_all, backtrace=True)
+            self.fail('Expected Queued or SuccessMessage exception')
+        except (exns.Queued, exns.SuccessMessage) as e:
+            self.assertIn('hotfix/10.0.0', e.msg,
+                          'Reminder about hotfix/10.0.0 missing from message')
+
     def test_pr_hotfix_no_requeue_after_ga(self):
         """PR queued pre-GA must not be re-queued after the GA tag is pushed.
 

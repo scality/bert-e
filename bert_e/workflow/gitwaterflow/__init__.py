@@ -225,6 +225,7 @@ def _handle_pull_request(job: PullRequestJob):
         raise messages.Queued(
             branches=job.git.cascade.dst_branches,
             ignored=job.git.cascade.ignored_branches,
+            pending_hotfixes=job.git.cascade.pending_hotfix_branches,
             issue=job.git.src_branch.jira_issue_key,
             author=job.pull_request.author_display_name,
             active_options=job.active_options)
@@ -242,6 +243,7 @@ def _handle_pull_request(job: PullRequestJob):
         raise messages.SuccessMessage(
             branches=job.git.cascade.dst_branches,
             ignored=job.git.cascade.ignored_branches,
+            pending_hotfixes=job.git.cascade.pending_hotfix_branches,
             issue=job.git.src_branch.jira_issue_key,
             author=job.pull_request.author_display_name,
             active_options=job.active_options)

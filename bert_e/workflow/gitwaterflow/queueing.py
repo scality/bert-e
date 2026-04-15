@@ -217,6 +217,7 @@ def close_queued_pull_request(job, pr_id, cascade):
             job.settings, pull_request, exceptions.SuccessMessage(
                 branches=target_branches,
                 ignored=job.git.cascade.ignored_branches,
+                pending_hotfixes=job.git.cascade.pending_hotfix_branches,
                 issue=src.jira_issue_key,
                 author=pull_request.author_display_name,
                 active_options=[])

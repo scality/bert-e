@@ -875,6 +875,34 @@ class BranchCascade(object):
         # hotfix branches stored outside cascade for version calc only
         self._phantom_hotfixes = []
 
+    @property
+    def pending_hotfix_branches(self):
+        """Hotfix branches stored as phantoms that require a separate PR.
+
+        When a PR targets a development branch and a hotfix branch exists
+        for the same major version (pre-GA), the hotfix is kept outside the
+        cascade so version calculations stay correct without making it an
+        implicit merge target.  The author should open a separate PR to
+        each of these hotfix branches.
+        """
+        return list(self._phantom_hotfixes)
+
+    @property
+    def phantom_hotfix_versions(self):
+        """4-digit version strings of pre-GA phantom hotfix branches.
+
+        Pre-GA hotfix branches (hfrev == 0) produce an X.Y.Z.0 version that
+        matches the vfilter used in check_fix_versions.  When such a version
+        appears in a Jira ticket alongside the dev-branch versions, it must
+        not be counted against the dev-branch PR — it is consumed by the
+        separate cherry-pick PR to the hotfix branch.
+        Post-GA hotfix versions (X.Y.Z.1, X.Y.Z.2, …) don't match vfilter
+        so they never interfere with the dev-branch check.
+        """
+        return {hf.version
+                for hf in self._phantom_hotfixes
+                if hf.hfrev == 0}
+
     def build(self, repo, dst_branch=None):
         flat_branches = set()
         for prefix in ['development', 'hotfix']:

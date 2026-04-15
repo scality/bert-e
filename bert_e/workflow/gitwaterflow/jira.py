@@ -165,25 +165,27 @@ def check_fix_versions(job, issue):
             hf_target = target_version
 
     if hf_target:
-        # Pre-GA: the hotfix branch has no tag yet (hfrev == 0, target ends
-        # in ".0").  The Jira project may not have a ".0" release entry yet,
-        # so also accept the 3-digit base (e.g. "10.0.0" for "10.0.0.0").
-        # Once GA tag is pushed hfrev advances to 1, target becomes
-        # "10.0.0.1", and only that exact version is accepted again.
-        accepted = {hf_target}
-        if hf_target.endswith('.0'):
-            accepted.add(hf_target[:-2])
-        if not (accepted & issue_versions):
+        # Hotfix PR: the ticket must carry the exact 4-digit target version
+        # (e.g. "10.0.0.0" pre-GA, "10.0.0.1" post-GA first hotfix, …).
+        # 3-digit aliases are no longer accepted — a 4-digit entry makes it
+        # unambiguous whether the branch is still pre-GA or an actual hotfix.
+        if hf_target not in issue_versions:
             raise exceptions.IncorrectFixVersion(
                 issue=issue,
                 issue_versions=sorted(issue_versions),
-                expect_versions=sorted(accepted),
+                expect_versions=sorted(expected_versions),
                 active_options=job.active_options
             )
-    elif checked_versions != expected_versions:
-        raise exceptions.IncorrectFixVersion(
-            issue=issue,
-            issue_versions=sorted(issue_versions),
-            expect_versions=sorted(expected_versions),
-            active_options=job.active_options
-        )
+    else:
+        # Development-branch PR: versions that belong to a phantom hotfix
+        # branch (pre-GA hotfix/X.Y.Z stored outside the cascade) will be
+        # consumed by the separate cherry-pick PR to that hotfix branch.
+        # Strip them so they don't cause a spurious mismatch here.
+        checked_versions -= job.git.cascade.phantom_hotfix_versions
+        if checked_versions != expected_versions:
+            raise exceptions.IncorrectFixVersion(
+                issue=issue,
+                issue_versions=sorted(issue_versions),
+                expect_versions=sorted(expected_versions),
+                active_options=job.active_options
+            )
