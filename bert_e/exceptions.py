@@ -435,6 +435,11 @@ class WrongDestination(TemplateException):
     template = 'incorrect_destination.md'
 
 
+class PendingHotfixVersionReminder(InformationException):
+    code = 223
+    template = 'pending_hotfix_version_reminder.md'
+
+
 class QueueValidationError(Exception):
     """Extend simple string class with an error code and recovery potential."""
     code = 'Q000'

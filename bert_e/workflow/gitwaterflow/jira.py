@@ -25,6 +25,7 @@ from jira.exceptions import JIRAError
 
 from bert_e import exceptions
 from bert_e.lib import jira as jira_api
+from ..pr_utils import notify_user
 from .utils import bypass_jira_check
 
 
@@ -55,6 +56,7 @@ def jira_checks(job):
 
     if not job.settings.disable_version_checks:
         check_fix_versions(job, issue)
+        _notify_pending_hotfix_if_needed(job, issue)
 
 
 def get_jira_issue(job):
@@ -189,3 +191,26 @@ def check_fix_versions(job, issue):
                 expect_versions=sorted(expected_versions),
                 active_options=job.active_options
             )
+
+
+def _notify_pending_hotfix_if_needed(job, issue):
+    """Post a one-time reminder when the ticket carries a pre-GA hotfix
+    fix version (X.Y.Z.0) so the developer knows to open a cherry-pick PR
+    to the corresponding hotfix branch.
+
+    This is an informational message: it is posted at most once per PR
+    (dont_repeat_if_in_history = NEVER_REPEAT) and never blocks the flow.
+    """
+    phantom_versions = job.git.cascade.phantom_hotfix_versions
+    if not phantom_versions:
+        return
+    issue_versions = {v.name for v in issue.fields.fixVersions}
+    matching = sorted(phantom_versions & issue_versions)
+    if not matching:
+        return
+    reminder = exceptions.PendingHotfixVersionReminder(
+        issue=issue,
+        hotfix_versions=matching,
+        active_options=job.active_options,
+    )
+    notify_user(job.settings, job.pull_request, reminder)
