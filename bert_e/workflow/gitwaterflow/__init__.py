@@ -31,7 +31,8 @@ from .branches import (
 )
 from .utils import (
     bypass_incompatible_branch, bypass_peer_approval,
-    bypass_author_approval, bypass_leader_approval, bypass_build_status
+    bypass_author_approval, bypass_leader_approval, bypass_build_status,
+    bypass_github_checks
 )
 from .commands import setup  # noqa
 from .integration import (check_integration_branches,
@@ -197,6 +198,7 @@ def _handle_pull_request(job: PullRequestJob):
 
     check_approvals(job)
     check_build_status(job, wbranches)
+    check_github_checks(job, wbranches)
 
     interactive = job.settings.interactive
     if interactive and not confirm('Do you want to merge/queue?'):
@@ -669,3 +671,47 @@ def check_build_status(job, wbranches):
     elif worst_status == 'INPROGRESS':
         raise messages.BuildInProgress()
     assert worst_status == 'SUCCESSFUL'
+
+
+def check_github_checks(job, wbranches):
+    if bypass_github_checks(job):
+        return
+
+    failed_checks = []
+    in_progress = False
+
+    for wbranch in wbranches:
+        sha = wbranch.get_latest_commit()
+        check_runs = job.project_repo.get_check_runs(sha)
+
+        for cr in check_runs:
+            if cr.get('name') == 'bert-e':
+                continue
+
+            if cr.get('status') != 'completed':
+                in_progress = True
+                continue
+
+            conclusion = cr.get('conclusion')
+            if conclusion not in ('success', 'neutral', 'skipped'):
+                failed_checks.append({
+                    'name': cr.get('name', 'unknown'),
+                    'conclusion': conclusion,
+                    'html_url': cr.get('html_url', ''),
+                    'branch': wbranch.name,
+                })
+
+    if failed_checks:
+        first = failed_checks[0]
+        raise messages.GitHubChecksFailed(
+            branch=first['branch'],
+            dst_branch=wbranches[0].dst_branch.name,
+            failed_checks=failed_checks,
+            githost=job.settings.repository_host,
+            owner=job.settings.repository_owner,
+            slug=job.settings.repository_slug,
+            active_options=job.active_options,
+        )
+
+    if in_progress:
+        raise messages.GitHubChecksInProgress()

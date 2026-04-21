@@ -254,6 +254,12 @@ class Repository(BitBucketObject, base.AbstractRepository):
         self.get_git_url()
         self.revisions[(revision, key)] = state
 
+    def get_check_runs(self, ref):
+        return self.revisions.get((ref, '_check_runs'), [])
+
+    def set_check_runs(self, ref, check_runs):
+        self.revisions[(ref, '_check_runs')] = check_runs
+
     @property
     def owner(self):
         return self.repo_owner
