@@ -518,6 +518,17 @@ class Repository(base.AbstractGitHostObject, base.AbstractRepository):
         return PullRequest.create(self.client, data=kwargs, owner=self.owner,
                                   repo=self.slug)
 
+    def rerun_failed_workflow_jobs(self, run_id: int) -> None:
+        """Re-run only the failed jobs of a workflow run.
+
+        Args:
+            run_id: The ID of the workflow run to re-run failed jobs for.
+
+        """
+        url = (f'/repos/{self.owner}/{self.slug}/actions/runs/'
+               f'{run_id}/rerun-failed-jobs')
+        self.client.post(url, data='{}')
+
 
 class AggregatedStatus(base.AbstractGitHostObject):
     GET_URL = '/repos/{owner}/{repo}/commits/{ref}/status'
@@ -639,6 +650,34 @@ class AggregatedWorkflowRuns(base.AbstractGitHostObject):
         if self._workflow_runs.__len__() > 0:
             return self._workflow_runs[0]['head_branch']
         return None
+
+    def get_failed_runs(self):
+        """Get workflow runs that have failed.
+
+        This method filters workflow runs to keep only the most relevant run
+        per workflow (same logic as remove_unwanted_workflows), then returns
+        those that have failed.
+
+        Returns:
+            List of dicts with 'id' and 'run_attempt' for each failed run.
+        """
+        # First, filter to get the best run per workflow (same as state check)
+        self.remove_unwanted_workflows()
+
+        failed_runs = []
+        for run in self._workflow_runs:
+            if run.get('conclusion') == 'failure':
+                failed_runs.append({
+                    'id': run['id'],
+                    'run_attempt': run.get('run_attempt', 1),
+                    'workflow_id': run.get('workflow_id'),
+                    'name': run.get('name', 'unknown'),
+                    'html_url': run.get('html_url', ''),
+                })
+                LOG.debug(
+                    "Babysit: found failed run id=%d, run_attempt=%d, name=%s",
+                    run['id'], run.get('run_attempt', 1), run.get('name', ''))
+        return failed_runs
 
     def remove_unwanted_workflows(self):
         """
