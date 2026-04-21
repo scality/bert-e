@@ -17,8 +17,8 @@ The following branches have **NOT** changed:
 {% endif %}
 
 {% if pending_hotfixes %}
-:warning: This pull request did **not** target the following hotfix
-branch(es). Please open a separate cherry-pick pull request to each:
+This pull request did not target the following hotfix branch(es) so they
+were left untouched:
 
 {% for branch in pending_hotfixes -%}
 * `{{ branch.name }}`

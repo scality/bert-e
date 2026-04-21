@@ -24,8 +24,8 @@ The following branches will **NOT** be impacted:
 {% endif %}
 
 {% if pending_hotfixes %}
-:warning: This pull request does **not** target the following hotfix
-branch(es). Please open a separate cherry-pick pull request to each:
+This pull request does not target the following hotfix branch(es) so they
+will be left untouched:
 
 {% for branch in pending_hotfixes -%}
 * `{{ branch.name }}`
