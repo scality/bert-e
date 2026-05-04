@@ -152,6 +152,14 @@ class NotAuthored(Error):
         self.keyword = keyword
 
 
+class NotAssigned(Error):
+    """A user tried to use an option reserved for the PR's author or
+    assignees."""
+    def __init__(self, keyword: str):
+        super().__init__()
+        self.keyword = keyword
+
+
 class NotFound(Error):
     """The requested command or option doesn't exist."""
     def __init__(self, keyword: str):
@@ -163,7 +171,7 @@ LOG = logging.getLogger(__name__)
 
 Command = namedtuple('Command', ['handler', 'help', 'privileged', 'authored'])
 Option = namedtuple('Option', ['handler', 'default', 'help', 'privileged',
-                               'authored'])
+                               'authored', 'assigned'])
 
 
 def normalize_whitespace(msg):
@@ -218,7 +226,7 @@ class Reactor(Dispatcher):
 
     @classmethod
     def add_option(cls, key, help_=None, privileged=False, default=None,
-                   authored=False):
+                   authored=False, assigned=False):
         """Add a basic option to the reactor."""
 
         def set_option(job, arg=True):
@@ -226,11 +234,11 @@ class Reactor(Dispatcher):
 
         help_ = normalize_whitespace(help_)
         cls.set_callback(key, Option(set_option, default, help_, privileged,
-                                     authored))
+                                     authored, assigned))
 
     @classmethod
     def option(cls, key=None, default=None, help_=None, privileged=False,
-               authored=False):
+               authored=False, assigned=False):
         """Decorator to register an option handler.
 
         Args:
@@ -246,7 +254,7 @@ class Reactor(Dispatcher):
             help_ = normalize_whitespace(help_ or func.__doc__)
             cls.set_callback(
                 func.__name__, Option(func, default, help_, privileged,
-                                      authored)
+                                      authored, assigned)
             )
             return func
 
@@ -255,7 +263,7 @@ class Reactor(Dispatcher):
             _key = key or func.__name__
             _help = normalize_whitespace(help_ or func.__doc__)
             cls.set_callback(_key, Option(func, default, _help, privileged,
-                                          authored))
+                                          authored, assigned))
             return func
         return decorator
 
@@ -280,7 +288,7 @@ class Reactor(Dispatcher):
             job.settings[key] = copy(option.default)
 
     def handle_options(self, job, text, prefix, privileged=False,
-                       authored=False):
+                       authored=False, assigned=False):
         """Find option calls in given text string, and execute the
         corresponding option handlers if any is found.
 
@@ -300,14 +308,19 @@ class Reactor(Dispatcher):
             prefix: the prefix of commands.
             privileged: run the option handler in privileged mode. Defaults to
                         False.
+            authored: True if the comment was posted by the PR's author.
+            assigned: True if the comment was posted by one of the PR's
+                      assignees.
 
         Raises:
             NotFound: if the option declaration has the right syntax but calls
                       an unknown option.
             NotPrivileged: when a privileged option declaration is found
                            and the method is called with privileged=False.
-            NotAuthored: when an authored option declaration is found and the
-                         method is called with authored=False.
+            NotAuthored: when an authored-only option declaration is found and
+                         the method is called by a user who is neither the
+                         author (when option.authored is set) nor an assignee
+                         (when option.assigned is also set).
 
         """
         raw = text.strip()
@@ -348,7 +361,16 @@ class Reactor(Dispatcher):
             if option.privileged and not privileged:
                 raise NotPrivileged(key)
 
-            if option.authored and not authored:
+            # An option may be reserved to the PR author and/or its
+            # assignees. The comment author satisfies the requirement when
+            # they match any of the roles flagged on the option.
+            allowed = True
+            if option.authored or option.assigned:
+                allowed = (
+                    (option.authored and authored) or
+                    (option.assigned and assigned)
+                )
+            if not allowed:
                 raise NotAuthored(key)
 
             # Everything is okay, apply the option

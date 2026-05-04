@@ -297,8 +297,15 @@ def handle_comments(job):
     reactor = Reactor()
     admins = job.settings.admins
     pr_author = job.pull_request.author
+    assignees = set(job.pull_request.assignees)
 
     reactor.init_settings(job)
+
+    # Track which user(s) successfully invoked the `/approve` option, so the
+    # approval check can credit the right person (author vs assignee on bot
+    # PRs). Populated by the `approve` option handler via the per-comment
+    # author stashed below.
+    job.approving_users = set()
 
     prefix = '@{}'.format(job.settings.robot)
     LOG.debug('looking for prefix: %s', prefix)
@@ -309,9 +316,12 @@ def handle_comments(job):
         author = comment.author
         privileged = author in admins
         authored = author == pr_author
+        assigned = author in assignees
         text = comment.text
+        job._current_comment_author = author
         try:
-            reactor.handle_options(job, text, prefix, privileged, authored)
+            reactor.handle_options(job, text, prefix, privileged, authored,
+                                   assigned)
         except NotFound as err:
             raise messages.UnknownCommand(
                 active_options=job.active_options, command=err.keyword,
@@ -331,6 +341,7 @@ def handle_comments(job):
             raise messages.IncorrectCommandSyntax(
                 extra_message=str(err), active_options=job.active_options
             ) from err
+    job._current_comment_author = None
 
     # Handle commands
     # Look for commands in comments posted after BertE's last message.
@@ -547,6 +558,17 @@ def check_approvals(job):
     Raises:
         - ApprovalRequired
     """
+    pr_author = job.pull_request.author
+    bot_authors = {a.lower() for a in job.settings.bot_authors}
+    is_bot_author = (
+        pr_author in bot_authors or job.pull_request.author_is_bot
+    )
+    assignees = (
+        {a.lower() for a in job.pull_request.assignees}
+        if is_bot_author else set()
+    )
+    approving_users = getattr(job, 'approving_users', set()) or set()
+
     required_peer_approvals = job.settings.required_peer_approvals
     current_peer_approvals = 0
     if bypass_peer_approval(job):
@@ -557,15 +579,25 @@ def check_approvals(job):
     if bypass_leader_approval(job):
         current_leader_approvals = required_leader_approvals
 
-    approved_by_author = (
-        not job.settings.need_author_approval or
-        bypass_author_approval(job) or
-        job.settings.approve
-    )
+    if is_bot_author:
+        # The bot author cannot approve its own PR. Require an assignee to
+        # `/approve` instead. Author approval is otherwise considered
+        # satisfied (the bot is implicitly opening the PR with intent).
+        approved_by_proxy = (
+            not job.settings.need_author_approval or
+            bypass_author_approval(job) or
+            bool(assignees & approving_users)
+        )
+    else:
+        approved_by_proxy = (
+            not job.settings.need_author_approval or
+            bypass_author_approval(job) or
+            job.settings.approve
+        )
     requires_unanimity = job.settings.unanimity
     is_unanimous = True
 
-    if (approved_by_author and
+    if (approved_by_proxy and
             (current_peer_approvals >= required_peer_approvals) and
             (current_leader_approvals >= required_leader_approvals) and
             not requires_unanimity):
@@ -577,8 +609,12 @@ def check_approvals(job):
 
     participants = set(job.pull_request.get_participants())
     approvals = set(job.pull_request.get_approvals())
-    if job.settings.approve:
-        approvals.add(job.pull_request.author)
+    if is_bot_author:
+        # Promote each assignee that explicitly used `/approve` into the
+        # approvals set so they satisfy the author/assignee requirement.
+        approvals |= (assignees & approving_users)
+    elif job.settings.approve:
+        approvals.add(pr_author)
 
     # Exclude Bert-E from consideration
     participants -= {username}
@@ -586,17 +622,30 @@ def check_approvals(job):
     leaders = set(job.settings.project_leaders)
 
     is_unanimous = approvals - {username} == participants
-    approved_by_author |= job.pull_request.author in approvals
+    if is_bot_author:
+        # The assignee must have explicitly used `/approve` — a native review
+        # approval is intentionally insufficient (their role is shepherd, not
+        # reviewer).
+        approved_by_proxy |= bool(assignees & approving_users)
+    else:
+        approved_by_proxy |= pr_author in approvals
     current_leader_approvals += len(approvals.intersection(leaders))
-    if (job.pull_request.author in leaders and
-            job.pull_request.author not in approvals):
+    if (pr_author in leaders and pr_author not in approvals):
         # if a project leader creates a PR and has not approved it
         # (which is not possible on Github for example), always count
         # one additional mandatory approval
         current_leader_approvals += 1
     missing_leader_approvals = (
         required_leader_approvals - current_leader_approvals)
-    peer_approvals = approvals - {job.pull_request.author}
+    if is_bot_author:
+        # Assignees own the PR's "author/assignee approval" slot. Their
+        # native review approvals must NOT also count toward the peer
+        # approval requirement, so a single person cannot fulfil both
+        # roles. The bot author itself is excluded as well (it never
+        # approves anyway).
+        peer_approvals = approvals - {pr_author} - assignees
+    else:
+        peer_approvals = approvals - {pr_author}
     current_peer_approvals += len(peer_approvals)
     missing_peer_approvals = (
         required_peer_approvals - current_peer_approvals)
@@ -605,7 +654,7 @@ def check_approvals(job):
 
     LOG.info('approvals: %s' % locals())
 
-    if not approved_by_author or \
+    if not approved_by_proxy or \
             missing_leader_approvals > 0 or \
             missing_peer_approvals > 0 or \
             (requires_unanimity and not is_unanimous) or \
@@ -616,7 +665,14 @@ def check_approvals(job):
             leaders=list(leaders),
             required_peer_approvals=required_peer_approvals,
             requires_unanimity=requires_unanimity,
-            requires_author_approval=job.settings.need_author_approval,
+            requires_author_approval=(
+                job.settings.need_author_approval and not is_bot_author
+            ),
+            requires_assignee_approval=(
+                is_bot_author and job.settings.need_author_approval
+            ),
+            is_bot_author=is_bot_author,
+            assignees=sorted(assignees),
             pr_author_options=job.settings.pr_author_options,
             active_options=job.active_options,
             change_requesters=list(change_requests)

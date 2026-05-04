@@ -766,6 +766,14 @@ class PullRequest(base.AbstractGitHostObject, base.AbstractPullRequest):
         return self.data['user'].get('name', self.author)
 
     @property
+    def assignees(self):
+        return [a['login'].lower() for a in (self.data.get('assignees') or [])]
+
+    @property
+    def author_is_bot(self) -> bool:
+        return (self.data.get('user') or {}).get('type') == 'Bot'
+
+    @property
     def description(self) -> str:
         return self.data.get('body', '')
 
