@@ -151,6 +151,7 @@ class SettingsSchema(Schema):
     required_leader_approvals = fields.Int(required=False, load_default=0)
     required_peer_approvals = fields.Int(required=False, load_default=2)
     pr_author_options = PrAuthorsOptions(load_default={})
+    bot_authors = fields.List(fields.Str(), required=False, load_default=[])
 
     jira_account_url = fields.Str(required=False, load_default='')
     jira_email = fields.Str(required=False, load_default='')

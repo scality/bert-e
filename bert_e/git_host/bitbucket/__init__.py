@@ -440,6 +440,15 @@ class PullRequest(BitBucketObject, base.AbstractPullRequest):
         return self['author']['display_name']
 
     @property
+    def assignees(self):
+        # Bitbucket has no native assignee concept that maps to GitHub's.
+        return []
+
+    @property
+    def author_is_bot(self) -> bool:
+        return False
+
+    @property
     def src_branch(self):
         return self['source']['branch']['name']
 
