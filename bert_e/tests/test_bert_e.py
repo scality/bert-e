@@ -301,6 +301,14 @@ class QuickTest(unittest.TestCase):
         self.assertIsNone(src.jira_issue_key)
         self.assertIsNone(src.jira_project)
 
+        src = self.feature_branch('copilot/fix-authentication-bug')
+        self.assertIsNone(src.jira_issue_key)
+        self.assertIsNone(src.jira_project)
+
+        src = self.feature_branch('claude/fix-authentication-bug')
+        self.assertIsNone(src.jira_issue_key)
+        self.assertIsNone(src.jira_project)
+
     def test_destination_branch_names(self):
 
         with self.assertRaises(exns.BranchNameInvalid):
@@ -1671,7 +1679,9 @@ admins:
                             'feature/invalid',
                             'hotfix/customer',
                             'hotfix/6.6.6.1',
-                            'dependabot/npm_and_yarn/ui/lodash-4.17.13']:
+                            'dependabot/npm_and_yarn/ui/lodash-4.17.13',
+                            'copilot/add-new-feature',
+                            'claude/add-new-feature']:
             create_branch(self.gitrepo, destination, file_=True,
                           from_branch='development/4.3')
             pr = self.contributor_bb.create_pull_request(
@@ -4792,6 +4802,50 @@ project_leaders:
             automatically bypass author approval.
         """
         pr = self.create_pr('dependabot/npm_and_yarn/ui/lodash-4.17.13',
+                            'development/4.3')
+        with self.assertRaises(exns.SuccessMessage):
+            self.handle(
+                pr.id,
+                options=[
+                    # bypass_author to be removed once we support it properly
+                    'bypass_author_approval',
+                    'bypass_jira_check',
+                    'bypass_leader_approval',
+                    'bypass_build_status',
+                    'bypass_peer_approval',
+                ],
+                backtrace=True
+            )
+
+    def test_copilot_pr(self):
+        """Test a simple copilot PR.
+
+            Similar to dependabot, copilot branches should work without
+            a Jira ticket when properly configured.
+        """
+        pr = self.create_pr('copilot/fix-authentication-bug',
+                            'development/4.3')
+        with self.assertRaises(exns.SuccessMessage):
+            self.handle(
+                pr.id,
+                options=[
+                    # bypass_author to be removed once we support it properly
+                    'bypass_author_approval',
+                    'bypass_jira_check',
+                    'bypass_leader_approval',
+                    'bypass_build_status',
+                    'bypass_peer_approval',
+                ],
+                backtrace=True
+            )
+
+    def test_claude_pr(self):
+        """Test a simple claude PR.
+
+            Similar to dependabot and copilot, claude branches should work
+            without a Jira ticket when properly configured.
+        """
+        pr = self.create_pr('claude/fix-authentication-bug',
                             'development/4.3')
         with self.assertRaises(exns.SuccessMessage):
             self.handle(
