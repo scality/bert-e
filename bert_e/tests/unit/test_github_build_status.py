@@ -227,3 +227,130 @@ def test_skipped_workflow_treated_as_success(client):
     assert workflow_runs.state == 'SUCCESSFUL'
     assert workflow_runs.is_pending() is False
     assert workflow_runs.is_queued() is False
+
+
+def _make_run(*, run_id, sha, branch, status, conclusion, event='push',
+              workflow_id):
+    return {
+        'id': run_id,
+        'head_sha': sha,
+        'head_branch': branch,
+        'status': status,
+        'event': event,
+        'workflow_id': workflow_id,
+        'check_suite_id': run_id,
+        'conclusion': conclusion,
+        'pull_requests': [],
+        'repository': {
+            'full_name': 'org/repo',
+            'owner': {'login': 'org'},
+            'name': 'repo',
+        },
+    }
+
+
+SHARED_SHA = 'aabb' * 10
+W_BRANCH = 'w/4.3/bugfix/BERTE-602'
+
+
+def test_cross_branch_sha_poisoning_state_property(client):
+    """Document the existing .state bug: a sibling branch's SUCCESSFUL run
+    on the same SHA causes .state to return SUCCESSFUL even though the
+    w-branch is still in_progress (the PR 5155 hollow-success shape).
+    """
+    data = {
+        'total_count': 2,
+        'workflow_runs': [
+            _make_run(
+                run_id=1, sha=SHARED_SHA, branch=W_BRANCH,
+                status='in_progress', conclusion=None, workflow_id=10),
+            _make_run(
+                run_id=2, sha=SHARED_SHA, branch='development/4.3',
+                status='completed', conclusion='success', workflow_id=20),
+        ],
+    }
+    runs = AggregatedWorkflowRuns(client, **data)
+    # The existing .state property returns SUCCESSFUL because development/4.3
+    # succeeded — this is the source of the stale-cache poisoning.
+    assert runs.state == 'SUCCESSFUL'
+
+
+def test_state_for_branch_catches_inprogress(client):
+    """state_for_branch filters strictly to the requested branch so an
+    in-progress run is not masked by a sibling branch's success.
+    """
+    data = {
+        'total_count': 2,
+        'workflow_runs': [
+            _make_run(
+                run_id=1, sha=SHARED_SHA, branch=W_BRANCH,
+                status='in_progress', conclusion=None, workflow_id=10),
+            _make_run(
+                run_id=2, sha=SHARED_SHA, branch='development/4.3',
+                status='completed', conclusion='success', workflow_id=20),
+        ],
+    }
+    runs = AggregatedWorkflowRuns(client, **data)
+    assert runs.state_for_branch(W_BRANCH) == 'INPROGRESS'
+    assert runs.state_for_branch('development/4.3') == 'SUCCESSFUL'
+
+
+def test_state_for_branch_no_runs_returns_notstarted(client):
+    data = {
+        'total_count': 1,
+        'workflow_runs': [
+            _make_run(
+                run_id=1, sha=SHARED_SHA, branch='development/4.3',
+                status='completed', conclusion='success', workflow_id=20),
+        ],
+    }
+    runs = AggregatedWorkflowRuns(client, **data)
+    assert runs.state_for_branch(W_BRANCH) == 'NOTSTARTED'
+
+
+def test_state_for_branch_workflow_dispatch_excluded(client):
+    data = {
+        'total_count': 1,
+        'workflow_runs': [
+            _make_run(
+                run_id=1, sha=SHARED_SHA, branch=W_BRANCH,
+                status='completed', conclusion='success',
+                event='workflow_dispatch', workflow_id=10),
+        ],
+    }
+    runs = AggregatedWorkflowRuns(client, **data)
+    assert runs.state_for_branch(W_BRANCH) == 'NOTSTARTED'
+
+
+def test_state_for_branch_deduplicates_within_branch(client):
+    """Same workflow_id on the same branch: keep the best conclusion."""
+    data = {
+        'total_count': 2,
+        'workflow_runs': [
+            _make_run(
+                run_id=1, sha=SHARED_SHA, branch=W_BRANCH,
+                status='completed', conclusion='cancelled', workflow_id=10),
+            _make_run(
+                run_id=2, sha=SHARED_SHA, branch=W_BRANCH,
+                status='completed', conclusion='success', workflow_id=10),
+        ],
+    }
+    runs = AggregatedWorkflowRuns(client, **data)
+    assert runs.state_for_branch(W_BRANCH) == 'SUCCESSFUL'
+
+
+def test_state_for_branch_clean_pr_passes(client):
+    """A PR where the w-branch completed successfully passes revalidation."""
+    data = {
+        'total_count': 2,
+        'workflow_runs': [
+            _make_run(
+                run_id=1, sha=SHARED_SHA, branch=W_BRANCH,
+                status='completed', conclusion='success', workflow_id=10),
+            _make_run(
+                run_id=2, sha=SHARED_SHA, branch=W_BRANCH,
+                status='completed', conclusion='skipped', workflow_id=20),
+        ],
+    }
+    runs = AggregatedWorkflowRuns(client, **data)
+    assert runs.state_for_branch(W_BRANCH) == 'SUCCESSFUL'

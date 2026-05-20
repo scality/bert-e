@@ -717,6 +717,39 @@ class AggregatedWorkflowRuns(base.AbstractGitHostObject):
         else:
             return 'NOTSTARTED'
 
+    def state_for_branch(self, branch_name: str) -> str:
+        """Return aggregated state for runs on a specific branch only.
+
+        Filters to branch_name before deduplicating, so a sibling branch
+        that shares the same SHA cannot cause a false SUCCESSFUL result.
+        Unlike .state, this never returns SUCCESSFUL for a different branch.
+        """
+        conclusion_ranking = {
+            'success': 4, 'skipped': 4, None: 3, 'failure': 2, 'cancelled': 1
+        }
+        runs = [
+            r for r in self._workflow_runs
+            if r['head_branch'] == branch_name and
+            r.get('event') != 'workflow_dispatch'
+        ]
+        best: dict = {}
+        for run in runs:
+            wid = run['workflow_id']
+            conclusion = run['conclusion']
+            if (wid not in best or
+                    conclusion_ranking[conclusion] >
+                    conclusion_ranking[best[wid]['conclusion']]):
+                best[wid] = run
+        branch_runs = list(best.values())
+        LOG.info(
+            "state_for_branch: branch=%s runs=%s",
+            branch_name,
+            [{'id': r['id'], 'status': r['status'],
+              'conclusion': r['conclusion']}
+             for r in branch_runs],
+        )
+        return self.branch_state(branch_runs)
+
     @property
     def description(self) -> str:
         return 'github actions CI'
