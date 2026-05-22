@@ -10,9 +10,6 @@ class _FakeRepo:
         self._url = ''
         self._remote_branches = {}
 
-    def cmd(self, *args, **kwargs):
-        return ''
-
 
 def _make_job(author, src_branch):
     """Return a minimal PullRequestJob stub."""
@@ -33,25 +30,20 @@ def _make_job(author, src_branch):
 
 
 def test_robot_authored_integration_branch_routes_to_parent():
-    """A PR authored by the robot on a w/... branch must be routed to
-    handle_parent_pull_request — it's an integration PR."""
+    """Robot PR on w/... branch routes to handle_parent_pull_request."""
     job = _make_job(author='bert-e',
                     src_branch='w/4.2/improvement/ARTESCA-17563-something')
 
     parent_path = 'bert_e.workflow.gitwaterflow.handle_parent_pull_request'
-    with patch(parent_path) as mock_parent:
+    handle_path = 'bert_e.workflow.gitwaterflow._handle_pull_request'
+    with patch(parent_path) as mock_parent, patch(handle_path) as mock_handle:
         handle_pull_request(job)
         mock_parent.assert_called_once_with(job, job.pull_request)
+        mock_handle.assert_not_called()
 
 
 def test_robot_authored_feature_branch_does_not_route_to_parent():
-    """A PR authored by the robot on a feature/... branch (e.g. a CID bump)
-    must NOT be routed to handle_parent_pull_request.
-
-    Regression: bert-e was crashing with 404 on bump PRs because it extracted
-    the first number in the description (a Jira ticket ID) and tried to fetch
-    a non-existent parent PR.
-    """
+    """Robot PR on feature/... branch (CID bump) is not an integration PR."""
     job = _make_job(
         author='bert-e',
         src_branch='feature/ARTESCA-17576-bump-identity-ui-0.41.0',
