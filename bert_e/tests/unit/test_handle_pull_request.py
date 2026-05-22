@@ -38,7 +38,8 @@ def test_robot_authored_integration_branch_routes_to_parent():
     job = _make_job(author='bert-e',
                     src_branch='w/4.2/improvement/ARTESCA-17563-something')
 
-    with patch('bert_e.workflow.gitwaterflow.handle_parent_pull_request') as mock_parent:
+    parent_path = 'bert_e.workflow.gitwaterflow.handle_parent_pull_request'
+    with patch(parent_path) as mock_parent:
         handle_pull_request(job)
         mock_parent.assert_called_once_with(job, job.pull_request)
 
@@ -51,11 +52,14 @@ def test_robot_authored_feature_branch_does_not_route_to_parent():
     the first number in the description (a Jira ticket ID) and tried to fetch
     a non-existent parent PR.
     """
-    job = _make_job(author='bert-e',
-                    src_branch='feature/ARTESCA-17576-bump-identity-ui-0.41.0')
+    job = _make_job(
+        author='bert-e',
+        src_branch='feature/ARTESCA-17576-bump-identity-ui-0.41.0',
+    )
 
-    with patch('bert_e.workflow.gitwaterflow.handle_parent_pull_request') as mock_parent, \
-         patch('bert_e.workflow.gitwaterflow._handle_pull_request') as mock_handle:
+    parent_path = 'bert_e.workflow.gitwaterflow.handle_parent_pull_request'
+    handle_path = 'bert_e.workflow.gitwaterflow._handle_pull_request'
+    with patch(parent_path) as mock_parent, patch(handle_path) as mock_handle:
         handle_pull_request(job)
         mock_parent.assert_not_called()
         mock_handle.assert_called_once_with(job)
