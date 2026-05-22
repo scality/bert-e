@@ -451,6 +451,16 @@ class Repository(base.AbstractGitHostObject, base.AbstractRepository):
         if status:
             return status.url
 
+    def get_check_runs(self, ref):
+        try:
+            result = AggregatedCheckRuns.get(
+                self.client, owner=self.owner, repo=self.slug, ref=ref)
+            return result.data.get('check_runs', [])
+        except HTTPError as err:
+            if err.response.status_code == 404:
+                return []
+            raise
+
     def get_build_description(self, revision: str, key: str) -> str:
         status = cache.BUILD_STATUS_CACHE[key].get(revision, None)
         if status:
@@ -735,6 +745,11 @@ class AggregatedWorkflowRuns(base.AbstractGitHostObject):
 
     def __str__(self) -> str:
         return self.state
+
+
+class AggregatedCheckRuns(base.AbstractGitHostObject):
+    GET_URL = "/repos/{owner}/{repo}/commits/{ref}/check-runs"
+    SCHEMA = schema.AggregateCheckRuns
 
 
 class PullRequest(base.AbstractGitHostObject, base.AbstractPullRequest):

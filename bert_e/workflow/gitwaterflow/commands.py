@@ -196,6 +196,11 @@ def setup(defaults={}):
         "Bypass the pull request leaders' approval",
         privileged=True,
         default=defaults.get("bypass_leader_approval", False))
+    Reactor.add_option(
+        "bypass_github_checks",
+        "Bypass the GitHub check runs validation",
+        privileged=True,
+        default=defaults.get("bypass_github_checks", False))
 
     # Other options
     Reactor.add_option(
