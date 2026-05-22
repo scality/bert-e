@@ -228,3 +228,8 @@ def setup(defaults={}):
         "wait",
         "Instruct Bert-E not to run until further notice.",
         default=defaults.get("wait", False))
+    Reactor.add_option(
+        "babysit",
+        "Automatically retry failed GitHub Actions builds.",
+        privileged=False,
+        default=defaults.get("babysit", False))

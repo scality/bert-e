@@ -112,6 +112,7 @@ __Bert-E__.
 | options name              | description              | requires admin rights? | requires pull request author? |
 |:------------------------- |:------------------------ |:----------------------:|:-----------------------------:|
 | after_pull_request        | Wait for the given pull request id to be merged before continuing with the current one. May be used like this: @bert-e after_pull_request=< pr_id_1 > ... | no | no
+| babysit                   | Automatically retry failed GitHub Actions builds (see [Babysit](#babysit) section for details) | no | no
 | bypass_author_approval    | Bypass the pull request author's approval   | yes | no
 | bypass_build_status       | Bypass the build and test status| yes | no
 | bypass_incompatible_branch | Bypass the check on the source branch prefix | yes | no
@@ -482,6 +483,9 @@ to progress to the next step.  message code
 | 122   | Unknown command | One of the participants asked __Bert-E__ to activate an option, or execute a command he doesn't know. Edit the corresponding message if it contains a typo. Delete it otherwise
 | 123   | Not authorized | One of the participants asked __Bert-E__ to activate a privileged option, or execute a privileged command, but doesn't have enough credentials to do so. Delete the corresponding command ask a __Bert-E__ administrator to run/set the desired command/option.
 | 134   | Not author | One of the participants asked __Bert-E__ to activate an authored option, but the participant is not the author of the pull request.
+| 140   | Babysit: Retrying build | __Bert-E__ is automatically retrying failed GitHub Actions jobs because the babysit option is enabled. No action required - wait for the new build to complete.
+| 141   | Babysit: Maximum retries reached | __Bert-E__ has exhausted all automatic retry attempts. Investigate the build failure. To get more retries, comment `@bert-e babysit` again.
+| 142   | Babysit: Cancelled | __Bert-E__ cancelled the babysit option because new commits were pushed. To re-enable automatic retries, comment `@bert-e babysit` again.
 
 Queues
 ------
@@ -561,6 +565,96 @@ All those states can be found on Bert-E's UI.
 
 > Note: Bert-E will not notify the user if a build
 fails inside the queue.
+
+Babysit
+-------
+
+__The babysit option enables automatic retry of failed GitHub Actions builds.__
+
+When working with GitHub Actions, builds can sometimes fail due to flaky tests,
+transient infrastructure issues, or other temporary problems. The `babysit`
+option allows __Bert-E__ to automatically retry failed workflow runs, reducing
+the need for manual intervention.
+
+### Enabling Babysit
+
+To enable babysit on a pull request, comment:
+
+    @bert-e babysit
+
+### How It Works
+
+When babysit is enabled and a build fails:
+
+1. __Bert-E__ detects the failed GitHub Actions workflow runs
+2. For each failed workflow, __Bert-E__ triggers GitHub's "Re-run failed jobs"
+3. __Bert-E__ posts a comment indicating the retry attempt
+4. This process repeats until the build succeeds or the maximum retry limit
+   is reached
+
+### Scope of Babysit
+
+The babysit behavior applies to:
+
+* **Integration branches** (`w/x.y/...`): Failed builds on integration branches
+  are automatically retried
+* **Queue branches** (`q/...`): Failed builds in the merge queue are also
+  retried if babysit was enabled on the corresponding pull request
+* **All workflow runs individually**: Each GitHub Actions workflow is tracked
+  and retried independently. If you have multiple workflows (e.g., CI, Tests,
+  Lint), each one has its own retry counter. This means:
+  - If CI fails 5 times but Tests only fails twice, CI is exhausted while
+    Tests can still be retried 3 more times
+  - Only workflows that haven't reached their retry limit are retried
+  - __Bert-E__ shows a table with each workflow's retry count in the comments
+
+### Maximum Retries
+
+By default, __Bert-E__ will retry failed builds up to **5 times**. After the
+maximum number of retries is reached, __Bert-E__ posts a `BabysitExhausted`
+message indicating that automatic retries have been exhausted.
+
+This limit can be configured per repository by setting the
+`max_babysit_retries` parameter in the repository's __Bert-E__ configuration:
+
+```yaml
+max_babysit_retries: 10  # Allow up to 10 retries instead of the default 5
+```
+
+### Re-enabling Babysit After Exhaustion
+
+If the maximum retries have been exhausted but you want to continue with
+automatic retries, simply comment `@bert-e babysit` again. This resets the
+retry counter and allows for another round of automatic retries.
+
+### Babysit Cancellation on New Commits
+
+**Important:** If you push new commits to your branch after enabling babysit,
+the babysit option is automatically cancelled. This prevents stale retry
+attempts from continuing on outdated code.
+
+When this happens, __Bert-E__ will post a `BabysitCancelled` message explaining
+that new commits were detected. To re-enable automatic retries for the new
+commits, you must comment `@bert-e babysit` again.
+
+> **Example workflow:**
+>
+> 1. You comment `@bert-e babysit`
+> 2. Build fails, __Bert-E__ retries (attempt 1/5)
+> 3. Build fails again, __Bert-E__ retries (attempt 2/5)
+> 4. You push a fix to address the build failure
+> 5. __Bert-E__ detects the new commit and cancels babysit
+> 6. Build fails on the new commit
+> 7. You comment `@bert-e babysit` again to enable retries for the new code
+> 8. __Bert-E__ retries (attempt 1/5 - counter is reset)
+
+### Limitations
+
+* Babysit only works with **GitHub Actions** (`build_key: github_actions`)
+* Babysit is not available for other CI systems (Bitbucket Pipelines, Jenkins,
+  etc.)
+* Babysit does not bypass build failures - if the issue is not transient, the
+  build will continue to fail after all retries are exhausted
 
 Going further with __Bert-E__
 -----------------------------

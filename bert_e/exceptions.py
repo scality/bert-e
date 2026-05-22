@@ -593,3 +593,25 @@ class JobFailure(SilentException):
 
 class QueueBuildFailed(SilentException):
     code = 309
+
+
+class BabysitRetry(TemplateException):
+    """Raised when babysit mode triggers a retry of failed GitHub Actions."""
+    code = 140
+    template = 'babysit_retry.md'
+    dont_repeat_if_in_history = 0  # allow repeating for each retry
+    status = "in_progress"
+
+
+class BabysitExhausted(TemplateException):
+    """Raised when babysit mode has exhausted all retry attempts."""
+    code = 141
+    template = 'babysit_exhausted.md'
+    status = "failure"
+
+
+class BabysitCancelled(TemplateException):
+    """Raised when babysit mode is cancelled due to new commits."""
+    code = 142
+    template = 'babysit_cancelled.md'
+    status = "in_progress"

@@ -195,6 +195,9 @@ class SettingsSchema(Schema):
 
     send_bot_status = fields.Bool(required=False, load_default=False)
 
+    # Babysit feature: automatic retry of failed GitHub Actions
+    max_babysit_retries = fields.Int(required=False, load_default=5)
+
     @pre_load(pass_many=True)
     def load_env(self, data, **kwargs):
         """Load environment variables"""

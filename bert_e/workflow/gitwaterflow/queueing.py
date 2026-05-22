@@ -15,11 +15,13 @@
 
 import logging
 from copy import deepcopy
+from types import SimpleNamespace
 
 from bert_e import exceptions
 from bert_e.job import handler as job_handler
 from bert_e.job import QueuesJob, PullRequestJob
 from bert_e.lib import git
+from bert_e.reactor import Reactor
 
 from ..git_utils import clone_git_repo, consecutive_merge, robust_merge, push
 from ..pr_utils import notify_user
@@ -32,6 +34,138 @@ from typing import List
 
 
 LOG = logging.getLogger(__name__)
+
+
+def _check_pr_babysit_enabled(pull_request, settings) -> bool:
+    """Check if the babysit option is enabled for a pull request.
+
+    Args:
+        pull_request: The pull request to check.
+        settings: The bot settings.
+
+    Returns:
+        True if babysit is enabled, False otherwise.
+    """
+    # Create a temporary job-like object to parse options
+    temp_job = SimpleNamespace(settings={})
+    reactor = Reactor()
+    reactor.init_settings(temp_job)
+
+    prefix = '@{}'.format(settings.robot)
+    admins = settings.admins
+
+    # Parse options from comments (ignore errors, just check for babysit)
+    for comment in pull_request.comments:
+        author = comment.author
+        privileged = author in admins
+        authored = author == pull_request.author
+        text = comment.text
+        try:
+            reactor.handle_options(
+                temp_job, text, prefix, privileged, authored)
+        except Exception:
+            # Ignore errors, we just want to check for babysit
+            pass
+
+    return temp_job.settings.get('babysit', False)
+
+
+def _handle_queue_babysit_retry(job: QueuesJob,
+                                queues: QueueCollection,
+                                failed_prs: List[int]) -> bool:
+    """Handle babysit retry logic for failed queue builds.
+
+    For each failed PR in the queue that has babysit enabled, this function
+    will use the shared babysit logic to retry the failed GitHub Actions jobs
+    on the queue branch.
+
+    The retry counting is done by counting Bert-E's BabysitRetry comments
+    for each specific branch since the last /babysit command from the user.
+    This allows users to comment /babysit again to get additional retries.
+
+    Args:
+        job: The queue job.
+        queues: The queue collection with build status info.
+        failed_prs: List of PR IDs with failed builds.
+
+    Returns:
+        True if any retries were triggered.
+        False if no babysit retries were applicable.
+    """
+    from .babysit import handle_babysit_retry
+    from ..pr_utils import notify_user
+
+    # Babysit only works for GitHub with github_actions build key
+    if job.settings.repository_host != 'github':
+        LOG.debug("Queue babysit: skipping, not GitHub host")
+        return False
+
+    if queues.build_key != 'github_actions':
+        LOG.debug("Queue babysit: skipping, build_key is not github_actions")
+        return False
+
+    retried_any = False
+
+    for pr_id in failed_prs:
+        try:
+            pull_request = job.project_repo.get_pull_request(pr_id)
+        except Exception as err:
+            LOG.warning("Queue babysit: failed to get PR %d: %s", pr_id, err)
+            continue
+
+        # Check if this PR has babysit enabled
+        if not _check_pr_babysit_enabled(pull_request, job.settings):
+            LOG.debug("Queue babysit: PR %d does not have babysit enabled",
+                      pr_id)
+            continue
+
+        # Find the queue integration branches for this PR
+        for version in queues._queues.keys():
+            qints = queues._queues[version][QueueIntegrationBranch]
+            for qint in qints:
+                if qint.pr_id != pr_id:
+                    continue
+
+                # Check build status on this queue branch
+                commit_sha = qint.get_latest_commit()
+                status = queues.bbrepo.get_build_status(commit_sha,
+                                                        queues.build_key)
+                if status != 'FAILED':
+                    continue
+
+                LOG.info(
+                    "Queue babysit: checking failed build on %s for PR %d",
+                    qint.name, pr_id)
+
+                # Create a temporary job-like object for the shared babysit logic
+                temp_job = SimpleNamespace(
+                    settings=job.settings,
+                    project_repo=job.project_repo,
+                    active_options=['babysit'],
+                    pull_request=pull_request,
+                )
+
+                try:
+                    # Use the shared babysit logic
+                    handle_babysit_retry(
+                        temp_job, qint, queues.build_key,
+                        pull_request=pull_request
+                    )
+                except exceptions.BabysitRetry as retry_exc:
+                    # Notify the PR about the retry
+                    notify_user(job.settings, pull_request, retry_exc)
+                    retried_any = True
+                except exceptions.BabysitExhausted as exhausted_exc:
+                    # Notify the PR about exhaustion
+                    notify_user(job.settings, pull_request, exhausted_exc)
+                    # We handled it, just not with a retry
+                    retried_any = True
+                except exceptions.BabysitCancelled as cancelled_exc:
+                    # Babysit cancelled due to new commits
+                    notify_user(job.settings, pull_request, cancelled_exc)
+                    # Don't set retried_any - normal failure handling
+
+    return retried_any
 
 
 def notify_queue_build_failed(failed_prs: List[int], job: QueuesJob):
@@ -73,6 +207,11 @@ def handle_merge_queues(job):
         if not failed_prs:
             raise exceptions.NothingToDo()
         else:
+            # Check if babysit should handle the failed queue builds
+            if _handle_queue_babysit_retry(job, queues, failed_prs):
+                # Babysit triggered retries, raise BuildInProgress to wait
+                raise exceptions.BuildInProgress()
+
             notify_queue_build_failed(failed_prs, job)
             raise exceptions.QueueBuildFailed()
 

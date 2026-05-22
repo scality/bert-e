@@ -143,6 +143,9 @@ class WorkflowRun(GitHubSchema):
     event = fields.Str()
     repository = fields.Nested(Repo)
     workflow_id = fields.Integer()
+    # run_attempt indicates the number of times this workflow has been run
+    # Defaults to 1 for first run, increments with each rerun
+    run_attempt = fields.Integer(load_default=1)
 
 
 class AggregateWorkflowRuns(GitHubSchema):
