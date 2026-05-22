@@ -50,7 +50,8 @@ LOG = logging.getLogger(__name__)
 @handler(PullRequestJob)
 def handle_pull_request(job: PullRequestJob):
     """Analyse and handle a pull request that has just been updated."""
-    if job.pull_request.author == job.settings.robot:
+    if job.pull_request.author == job.settings.robot and re.match(
+            IntegrationBranch.pattern, job.pull_request.src_branch):
         return handle_parent_pull_request(job, job.pull_request)
     try:
         _handle_pull_request(job)
