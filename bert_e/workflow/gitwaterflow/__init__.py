@@ -203,6 +203,8 @@ def _handle_pull_request(job: PullRequestJob):
     if interactive and not confirm('Do you want to merge/queue?'):
         return
 
+    revalidate_build_status(job, wbranches)
+
     # If the integration pull requests were already in sync with the
     # feature branch before our last update (which serves as a final
     # check for conflicts), and all builds were green, and we reached
@@ -670,3 +672,70 @@ def check_build_status(job, wbranches):
     elif worst_status == 'INPROGRESS':
         raise messages.BuildInProgress()
     assert worst_status == 'SUCCESSFUL'
+
+
+def revalidate_build_status(job, wbranches):
+    """Live, cache-bypassing build-status revalidation before merge.
+
+    Calls get_commit_status() directly (bypassing BUILD_STATUS_CACHE reads)
+    and, for GitHub Actions, filters workflow runs to the specific wbranch
+    so that a sibling branch sharing the same SHA cannot produce a false
+    SUCCESSFUL.
+
+    Raises:
+        BuildFailed: if a build failed.
+        BuildNotStarted: if no build has started.
+        BuildInProgress: if a build is still running.
+    """
+    if bypass_build_status(job):
+        return
+
+    key = job.settings.build_key
+    if not key:
+        return
+
+    get_commit_status = getattr(job.project_repo, 'get_commit_status', None)
+    if get_commit_status is None:
+        return
+
+    for branch in wbranches:
+        sha = branch.get_latest_commit()
+        combined = get_commit_status(sha)
+        if combined is None:
+            LOG.warning(
+                "revalidate_build_status: no commit status for %s @ %s",
+                branch.name, sha,
+            )
+            raise messages.BuildNotStarted()
+
+        raw_status = combined.status.get(key)
+        if raw_status is None:
+            LOG.warning(
+                "revalidate_build_status: key %r absent for %s @ %s",
+                key, branch.name, sha,
+            )
+            raise messages.BuildNotStarted()
+
+        if hasattr(raw_status, 'state_for_branch'):
+            branch_status = raw_status.state_for_branch(branch.name)
+            LOG.info(
+                "revalidate_build_status: branch=%s sha=%s state=%s",
+                branch.name, sha, branch_status,
+            )
+        else:
+            branch_status = raw_status.state
+
+        if branch_status in ('FAILED', 'STOPPED'):
+            raise messages.BuildFailed(
+                active_options=job.active_options,
+                branch=branch,
+                build_url=job.project_repo.get_build_url(sha, key),
+                commit_url=job.project_repo.get_commit_url(sha),
+                githost=job.settings.repository_host,
+                owner=job.settings.repository_owner,
+                slug=job.settings.repository_slug,
+            )
+        elif branch_status == 'NOTSTARTED':
+            raise messages.BuildNotStarted()
+        elif branch_status == 'INPROGRESS':
+            raise messages.BuildInProgress()
