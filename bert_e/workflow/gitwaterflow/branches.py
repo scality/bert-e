@@ -303,9 +303,15 @@ class IntegrationBranch(GWFBranch):
             return pr
 
     def get_or_create_pull_request(self, parent_pr, open_prs, bitbucket_repo):
-        title = 'INTEGRATION [PR#%s > %s] %s' % (
-            parent_pr.id, self.dst_branch.name, parent_pr.title
-        )
+        # Strip newlines: GitHub API returns 422 when a PR title contains \n or
+        # \r (e.g. from a multi-line commit message). re is already imported.
+        safe_title = re.sub(r'[\r\n]+', ' ', parent_pr.title).strip()
+        # The outer strip handles the edge case where safe_title is empty
+        # (e.g. parent title was all newlines), which would otherwise leave a
+        # trailing space in the formatted string.
+        title = ('INTEGRATION [PR#%s > %s] %s' % (
+            parent_pr.id, self.dst_branch.name, safe_title
+        )).strip()
 
         # WARNING potential infinite loop:
         # creating a child pr will trigger a 'pr update' webhook
