@@ -376,6 +376,22 @@ class PullRequestController(Controller, base.AbstractPullRequest):
         return self['author']['display_name']
 
     @property
+    def assignees(self):
+        return [a['username'].lower() for a in self.controlled.assignees]
+
+    def set_assignees(self, usernames):
+        self.controlled.assignees = [
+            fake_user_dict(username) for username in usernames
+        ]
+
+    @property
+    def author_is_bot(self) -> bool:
+        return self.controlled.author_is_bot
+
+    def set_author_is_bot(self, value: bool):
+        self.controlled.author_is_bot = bool(value)
+
+    @property
     def src_branch(self):
         return self['source']['branch']['name']
 
@@ -474,6 +490,8 @@ class PullRequest(BitBucketObject):
         self.type = "pullrequest"
         self.updated_on = "2016-01-12T19:31:23.673329+00:00"
         self._state = "OPEN"
+        self.assignees = []
+        self.author_is_bot = False
 
     @property
     def state(self):

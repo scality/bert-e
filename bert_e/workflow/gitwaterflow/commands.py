@@ -22,7 +22,7 @@ from bert_e.exceptions import (
     CommandNotImplemented, LossyResetWarning, ResetComplete, HelpMessage,
     StatusReport, IncorrectCommandSyntax
 )
-from bert_e.reactor import Reactor
+from bert_e.reactor import Reactor, Option, normalize_whitespace
 from .integration import get_integration_branches
 from ..git_utils import clone_git_repo, push
 
@@ -159,6 +159,20 @@ def reset(job, *args):
     _reset(job, force=False)
 
 
+def _approve_handler(job, arg=True):
+    """Instruct Bert-E that the author or an assignee has approved the
+    pull request.
+    """
+    job.settings['approve'] = arg
+    if arg:
+        comment_author = getattr(job, '_current_comment_author', None)
+        if comment_author is not None:
+            approving = getattr(job, 'approving_users', None)
+            if approving is None:
+                job.approving_users = approving = set()
+            approving.add(comment_author)
+
+
 def setup(defaults={}):
     # Bypasses
     Reactor.add_option(
@@ -198,12 +212,14 @@ def setup(defaults={}):
         default=defaults.get("bypass_leader_approval", False))
 
     # Other options
-    Reactor.add_option(
-        "approve",
-        "Instruct Bert-E that the author has approved the pull request.",
-        authored=True,
-        default=defaults.get("approve", False)
-    )
+    Reactor.set_callback("approve", Option(
+        _approve_handler,
+        defaults.get("approve", False),
+        normalize_whitespace(_approve_handler.__doc__),
+        False,  # privileged
+        True,   # authored
+        True,   # assigned
+    ))
     Reactor.add_option(
         "create_pull_requests",
         "Allow the creation of integration pull requests.",

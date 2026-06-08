@@ -165,6 +165,7 @@ class PullRequest(GitHubSchema):
     title = fields.Str()
     body = fields.Str(allow_none=True)
     user = fields.Nested(User, allow_none=True)
+    assignees = fields.List(fields.Nested(User), load_default=[])
     head = fields.Nested(Branch)  # source branch
     base = fields.Nested(Branch)  # destination branch
     created_at = fields.DateTime()
