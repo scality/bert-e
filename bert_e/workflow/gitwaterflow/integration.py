@@ -101,9 +101,18 @@ def update_integration_branches(job, wbranches):
         # * the wbranch,
         # * the previous integration branch,
         # * the target development branch.
+        #
+        # A `<dev>..<branch>` diff excludes the boundary commit, so when the
+        # destination development branch has not diverged from its parent (it
+        # points at the same commit), the shared tip is in none of the sets
+        # above even though it legitimately belongs to the target development
+        # branch. Accept any parent that is an ancestor of the destination
+        # development branch to cover that case.
         acceptable_parents = prev_set | dst_set | wbranch_set
         for rev in wbranch_set:
-            if not all(p in acceptable_parents for p in rev.parents):
+            if not all(p in acceptable_parents or
+                       wbranch.dst_branch.includes_commit(p)
+                       for p in rev.parents):
                 raise exceptions.BranchHistoryMismatch(
                     integration_branch=wbranch, feature_branch=feature_branch,
                     development_branch=wbranch.dst_branch, commit=rev,
