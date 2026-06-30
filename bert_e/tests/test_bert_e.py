@@ -1011,6 +1011,15 @@ class RepositoryTests(unittest.TestCase):
         )
         return pr
 
+    def branch_nondiverged_dev(self, base, new):
+        """Create development/<new> off development/<base> with no commit of
+        its own, so both development branches point at the exact same commit.
+
+        """
+        self.gitrepo.cmd('git checkout development/%s' % base)
+        self.gitrepo.cmd('git checkout -b development/%s' % new)
+        self.gitrepo.cmd('git push -u origin development/%s' % new)
+
     def handle_legacy(self, token, backtrace):
         """Allow the legacy tests (tests dating back before
         the queueing system) to continue working without modification.
@@ -3766,6 +3775,84 @@ always_create_integration_pull_requests: False
         self.gitrepo.cmd(
             'git push -u -f origin bugfix/TEST-00002:bugfix/TEST-00001')
         with self.assertRaises(exns.BranchHistoryMismatch):
+            self.handle(pr.id, options=self.bypass_all, backtrace=True)
+
+    def test_history_mismatch_nondiverged_dev_branch(self):
+        """A manually-resolved integration branch on a development branch that
+        has not diverged from its parent must not trigger a false
+        BranchHistoryMismatch.
+
+        development/4.4 is branched off development/4.3 with no commit of its
+        own, so both point at the exact same commit ``D``. A PR targeting
+        development/4.3 cascades into development/4.4. When the w/4.4
+        integration branch is manually resolved with a forced merge commit (as
+        an operator does when the higher development branch must ignore the
+        cascaded change, e.g. a `merge -s ours`), that merge commit's first
+        parent is ``D`` -- the commit shared with development/4.3. ``D`` is
+        part of the destination development branch and must be accepted.
+
+        """
+        # development/4.4 == development/4.3 (no commit of its own)
+        self.branch_nondiverged_dev('4.3', '4.4')
+
+        pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
+        # First evaluation creates and pushes the integration branches.
+        with self.assertRaises(exns.BuildNotStarted):
+            self.handle(pr.id,
+                        options=self.bypass_all_but(['bypass_build_status']),
+                        backtrace=True)
+
+        # Manually resolve w/4.4 with a forced merge commit whose first parent
+        # is development/4.4's tip (== development/4.3's tip == D).
+        self.gitrepo.cmd('git fetch --all')
+        self.gitrepo.cmd('git checkout w/4.4/bugfix/TEST-00001')
+        self.gitrepo.cmd('git reset --hard development/4.4')
+        self.gitrepo.cmd('git merge --no-ff origin/bugfix/TEST-00001 '
+                         '-m "manual resolution of w/4.4"')
+        self.gitrepo.cmd('git push -f origin w/4.4/bugfix/TEST-00001')
+
+        # Re-evaluation runs the history check on the manual merge commit. It
+        # must not raise a false BranchHistoryMismatch.
+        with self.assertRaises(exns.SuccessMessage):
+            self.handle(pr.id, options=self.bypass_all, backtrace=True)
+
+    def test_history_mismatch_nondiverged_dev_auto_integration(self):
+        """When development/x.y+1 has not diverged from development/x.y (same
+        tip D) and the PR's feature branch was branched one commit before D,
+        bert-e auto-creates a w/x.y+1 integration branch via a real merge
+        commit (feature and D are siblings, not fast-forwardable). The merge
+        commit's first parent is D, which the git-log boundary excludes from
+        acceptable_parents. On re-evaluation the history check must accept D
+        as an ancestor of development/x.y+1 and not raise a false
+        BranchHistoryMismatch.
+
+        This exercises the same fix as
+        test_history_mismatch_nondiverged_dev_branch but via the auto-created
+        path rather than manual operator intervention.
+
+        """
+        # development/4.4 == development/4.3 (no commit of its own)
+        self.branch_nondiverged_dev('4.3', '4.4')
+
+        # Feature branch created one commit behind development/4.3's tip so
+        # that the merge for w/4.4 cannot fast-forward and produces a real
+        # merge commit whose first parent is development/4.4's tip (==
+        # development/4.3's tip).
+        parent_sha = self.gitrepo.cmd('git rev-parse development/4.3^').strip()
+        create_branch(self.gitrepo, 'bugfix/TEST-00001',
+                      from_branch=parent_sha, file_=True)
+        pr = self.create_pr('bugfix/TEST-00001', 'development/4.3',
+                            reuse_branch=True)
+
+        # First evaluation creates and pushes the integration branches.
+        with self.assertRaises(exns.BuildNotStarted):
+            self.handle(pr.id,
+                        options=self.bypass_all_but(['bypass_build_status']),
+                        backtrace=True)
+
+        # Re-evaluation runs the history check on the auto-created merge
+        # commit. It must not raise a false BranchHistoryMismatch.
+        with self.assertRaises(exns.SuccessMessage):
             self.handle(pr.id, options=self.bypass_all, backtrace=True)
 
     def test_success_message_content(self):
