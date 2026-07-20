@@ -196,6 +196,27 @@ bertE:
     ##
     projectLeaders: []
 
+    ## botAuthors is the list of git host accounts that should be treated
+    ## as bot authors.
+    ##
+    ##   When a pull request is opened by one of these accounts (or by an
+    ##   account that GitHub reports with `type: Bot`), the author cannot
+    ##   `/approve` their own pull request. Bert-E will instead require
+    ##   one of the pull request's Assignees to issue `/approve`. The
+    ##   assignee's native review approval is NOT counted toward
+    ##   requiredPeerApprovals, so a single person cannot fulfil both
+    ##   the shepherd and peer-reviewer roles.
+    ##
+    ##   default value: []
+    ##     The rule still activates automatically if GitHub reports the
+    ##     author as a Bot (e.g. dependabot[bot]).
+    ##
+    ##   example:
+    ##     botAuthors:
+    ##       - eve-scality
+    ##
+    botAuthors: []
+
 
     ## maxCommitDiff specifies the maximum authorized divergence from target branches.
     ##

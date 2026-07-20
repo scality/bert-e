@@ -359,6 +359,22 @@ class AbstractPullRequest(metaclass=ABCMeta):
         """The display name of the pull request's author."""
 
     @property
+    def assignees(self) -> Iterable[str]:
+        """The usernames of the pull request's assignees (lowercased).
+
+        Defaults to an empty iterable for hosts without an assignee concept.
+        """
+        return ()
+
+    @property
+    def author_is_bot(self) -> bool:
+        """Whether the author of the pull request is reported as a bot.
+
+        Defaults to False for hosts without a bot type indicator.
+        """
+        return False
+
+    @property
     @abstractmethod
     def description(self) -> str:
         """The description of the Pull Request."""

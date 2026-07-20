@@ -144,6 +144,24 @@ pr_author_options:
     - bypass_leader_approval
 
 
+# bot_authors [OPTIONAL]:
+#   List of git host accounts that should be treated as bot authors.
+#
+#   When a pull request is opened by one of these accounts (or by an
+#   account that GitHub reports with `type: Bot`), the author cannot
+#   `/approve` their own pull request. Bert-E will instead require one
+#   of the pull request's Assignees to issue `/approve`. The Assignee's
+#   native review approval is intentionally NOT counted toward
+#   `required_peer_approvals`, so a single person cannot fulfil both
+#   the shepherd and peer-reviewer roles.
+#
+#   default value: empty (the rule still activates if GitHub reports
+#                  the author as a Bot, e.g. dependabot[bot])
+#
+bot_authors:
+  - eve-scality
+
+
 # admins [OPTIONAL]:
 #   The list of githost accounts allowed to post privileged messages
 #   to the bot

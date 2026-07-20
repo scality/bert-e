@@ -10,6 +10,23 @@ The following approvals are needed before I can proceed with the merge:
 {% if requires_author_approval %}
 * the author
 {% endif %}
+{% if requires_assignee_approval %}
+{% if assignees|length == 0 %}
+* an assignee (this pull request was opened by a bot account, so an
+  assignee must be set on the pull request and `/approve` it)
+{% elif assignees|length == 1 %}
+* the assignee (@{{ assignees[0] }} must `/approve`; this pull request was
+  opened by a bot account)
+{% else %}
+* an assignee (one of the following must `/approve`; this pull request was
+  opened by a bot account):
+{% for assignee in assignees %}
+  * @{{ assignee }}
+{% endfor %}
+{% endif %}
+Note: the assignee's approval will not count toward the peer approval
+requirement; a different reviewer must still approve.
+{% endif %}
 {% if required_peer_approvals == 1 %}
 * one peer
 {% elif required_peer_approvals > 1 %}
