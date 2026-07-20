@@ -4,9 +4,13 @@ on:
   pull_request:
     branches:
       - main
+    paths-ignore:
+      - "openwiki/**"
   push:
     branches:
       - main
+    paths-ignore:
+      - "openwiki/**"
 
 permissions: write-all
 

@@ -1,0 +1,115 @@
+name: OpenWiki Update
+
+on:
+  workflow_dispatch:
+  schedule:
+    # GitHub schedules use UTC; 02:00 UTC is nightly, off peak hours.
+    - cron: "0 2 * * *"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  check-for-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.check.outputs.changed }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Check for commits since the last OpenWiki update
+        id: check
+        run: |
+          last_head=$(jq -r '.gitHead // empty' openwiki/.last-update.json 2>/dev/null || true)
+          current_head=$(git rev-parse HEAD)
+
+          if [ -z "$last_head" ] || [ "$last_head" != "$current_head" ]; then
+            echo "Repository changed since last OpenWiki update ($last_head -> $current_head)."
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "No commits since last OpenWiki update ($current_head); skipping."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  update:
+    needs: check-for-changes
+    if: needs.check-for-changes.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: true
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+
+      - name: Install OpenWiki
+        # Pinned: unpinned install would run with contents:write and
+        # ANTHROPIC_API_KEY access, so a compromised future release could
+        # exfiltrate the key or push arbitrary code. Bump deliberately.
+        run: npm install --global openwiki@0.2.0
+
+      - name: Run OpenWiki
+        run: openwiki --update --print | tee "$RUNNER_TEMP/openwiki-run-summary.txt"
+        env:
+          OPENWIKI_PROVIDER: anthropic
+          OPENWIKI_MODEL_ID: claude-sonnet-5
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+      - name: Push OpenWiki update and open pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if git diff --quiet -- openwiki; then
+            echo "No OpenWiki changes to commit; skipping."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          summary_file="$RUNNER_TEMP/openwiki-run-summary.txt"
+          commit_message_file="$RUNNER_TEMP/openwiki-commit-message.txt"
+          pr_body_file="$RUNNER_TEMP/openwiki-pr-body.txt"
+
+          {
+            echo "docs: update OpenWiki"
+            echo
+            cat "$summary_file"
+          } > "$commit_message_file"
+
+          {
+            echo "Automated OpenWiki documentation update, opened by the nightly OpenWiki workflow after finding commits since the last recorded update. \`openwiki --update\` also runs its own no-op check internally, so this can still be a no-op if those commits didn't affect anything OpenWiki documents."
+            echo
+            echo "### What changed and why"
+            echo
+            echo "OpenWiki's own summary of this run:"
+            echo
+            cat "$summary_file"
+          } > "$pr_body_file"
+
+          git checkout -B openwiki/update
+          git add openwiki
+          git commit -F "$commit_message_file"
+          git push --force origin openwiki/update
+
+          open_pr_number=$(gh pr list --state open --head openwiki/update --json number --jq '.[0].number // empty')
+
+          if [ -z "$open_pr_number" ]; then
+            gh pr create \
+              --base main \
+              --head openwiki/update \
+              --title "docs: update OpenWiki" \
+              --body-file "$pr_body_file"
+          else
+            # gh pr edit hits a known GraphQL error on repos with legacy
+            # Projects (classic) enabled; go through the REST API instead.
+            jq -n --rawfile body "$pr_body_file" '{body: $body}' |
+              gh api "repos/${GITHUB_REPOSITORY}/pulls/${open_pr_number}" -X PATCH --input - > /dev/null
+            echo "PR #$open_pr_number already open on openwiki/update; pushed the update to it and refreshed its description."
+          fi
