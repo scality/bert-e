@@ -161,6 +161,14 @@ __Bert-E__:
 | reset                 | Let __Bert-E__ reset the integration branches associated to the current pull request with a warning if the developer manually modified one of the the integration branches | no
 | force_reset           | Let __Bert-E__ reset the integration branches associated to the current pull request **without warning**. | no
 
+Commands can also be triggered with the ``/<command>`` shorthand at the start
+of a comment (e.g. ``/help``). Unknown ``/<keyword>`` comments are silently
+ignored when the keyword doesn't look like a typo of a known command or
+option -- that way, comments addressed to other bots (e.g.
+``/coderabbit review``) don't trigger an "unknown command" reply. Comments
+that explicitly address __Bert-E__ via its ``@<robot>`` mention are always
+dispatched normally and will still report unknown commands.
+
 Integration branches...
 -----------------------
 __*Bert-E* creates temporary branches during the merge process. These are

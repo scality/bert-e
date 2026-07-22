@@ -283,3 +283,111 @@ def test_command_behavior(reactor_cls, job):
                                 privileged=True)
 
     assert call.value.args == ('arg',)
+
+
+def test_handle_commands_slash_shorthand(reactor_cls, job):
+    """Test the ``/keyword`` shorthand supported by handle_commands."""
+
+    class CommandCalled(Exception):
+        def __init__(self, args):
+            self.args = args
+
+    @reactor_cls.command
+    def help(job, *args):
+        raise CommandCalled(args)
+
+    reactor = reactor_cls()
+
+    with pytest.raises(CommandCalled):
+        reactor.handle_commands(job, '/help', '@bert-e')
+
+
+def test_handle_commands_slash_shorthand_unknown_dropped(reactor_cls, job):
+    """Unknown ``/keyword`` comments that aren't close to any registered
+    command or option are dropped silently so foreign-bot mentions don't
+    produce noisy "unknown command" replies."""
+
+    @reactor_cls.command
+    def help(job, *args):
+        pass
+
+    reactor = reactor_cls()
+
+    # Comments addressed to other bots don't resemble any bert-e command
+    # and are silently ignored.
+    reactor.handle_commands(job, '/coderabbit review', '@bert-e')
+    reactor.handle_commands(job, '/gemini review this PR', '@bert-e')
+    reactor.handle_commands(job, '/copilot summary', '@bert-e')
+
+    # Same on the options path: the strict options regex matches a bare
+    # ``/coderabbit`` and previously raised NotFound. With the fuzzy-match
+    # guard, unknown foreign keywords are dropped silently.
+    reactor.handle_options(job, '/coderabbit', '@bert-e')
+
+
+def test_handle_commands_slash_shorthand_typo_raises(reactor_cls, job):
+    """``/keyword`` typos of a registered command still raise NotFound so
+    the caller can post a "did you mean?" reply."""
+
+    @reactor_cls.command
+    def help(job, *args):
+        pass
+
+    reactor = reactor_cls()
+
+    # ``hlep`` is a close difflib match to ``help`` -> still surfaces as
+    # an unknown command.
+    with pytest.raises(NotFound):
+        reactor.handle_commands(job, '/hlep', '@bert-e')
+
+
+def test_handle_options_slash_shorthand_typo_raises(reactor_cls, job):
+    """Typos of a registered option on the ``/`` path still raise NotFound."""
+
+    reactor_cls.add_option('approve', authored=True)
+
+    reactor = reactor_cls()
+    reactor.init_settings(job)
+
+    with pytest.raises(NotFound):
+        reactor.handle_options(job, '/apporve', '@bert-e', authored=True)
+
+
+def test_at_prefix_unknown_still_raises(reactor_cls, job):
+    """Comments that explicitly address the bot with ``@<robot>`` never
+    silently drop unknown commands, even when the keyword isn't close to
+    any registered one."""
+
+    @reactor_cls.command
+    def help(job, *args):
+        pass
+
+    reactor = reactor_cls()
+
+    # ``@bert-e coderabbit`` is not close to any bert-e command, but because
+    # the user is explicitly addressing the bot, we still raise NotFound.
+    with pytest.raises(NotFound):
+        reactor.handle_commands(job, '@bert-e coderabbit', '@bert-e')
+
+
+def test_reactor_has_close_match(reactor_cls, job):
+    """Directly exercise the fuzzy-match helper on a controlled registry."""
+
+    reactor_cls.add_option('approve', authored=True)
+
+    @reactor_cls.command
+    def help(job, *args):
+        pass
+
+    reactor = reactor_cls()
+
+    # Typos of registered keywords are recognised (case-insensitive).
+    assert reactor._has_close_match('apporve') is True
+    assert reactor._has_close_match('APPORVE') is True
+    assert reactor._has_close_match('hlep') is True
+
+    # Foreign-bot names bear no resemblance to registered keywords.
+    assert reactor._has_close_match('coderabbit') is False
+    assert reactor._has_close_match('gemini') is False
+    assert reactor._has_close_match('copilot') is False
+    assert reactor._has_close_match('other-bot-name') is False

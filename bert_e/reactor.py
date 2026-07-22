@@ -125,6 +125,7 @@ Examples:
 # Its only non-standard dependencies are the Dispatcher utility mixin,
 # and the fact that a 'job' must have a 'settings' dictionary-like attribute.
 
+import difflib
 import logging
 import re
 from collections import namedtuple
@@ -176,6 +177,9 @@ def normalize_whitespace(msg):
     if msg is None:
         return msg
     return ' '.join(msg.strip().split())
+
+
+_CLOSE_MATCH_CUTOFF = 0.6
 
 
 class Reactor(Dispatcher):
@@ -279,6 +283,19 @@ class Reactor(Dispatcher):
         for key, option in self.get_options().items():
             job.settings[key] = copy(option.default)
 
+    def _has_close_match(self, key):
+        """Return True if ``key`` (case-insensitive) is close enough to any
+        registered command or option name to plausibly be a typo of it.
+
+        Used on the ``/`` shorthand path to distinguish a plausible typo
+        (``/apporve`` -> ``/approve``) from a comment addressed to another
+        bot (``/coderabbit review``): the former should still surface an
+        "unknown command" reply, the latter should be dropped silently.
+        """
+        known = [k.lower() for k in self.__callbacks__.keys()]
+        return bool(difflib.get_close_matches(
+            key.lower(), known, n=1, cutoff=_CLOSE_MATCH_CUTOFF))
+
     def handle_options(self, job, text, prefix, privileged=False,
                        authored=False):
         """Find option calls in given text string, and execute the
@@ -292,7 +309,10 @@ class Reactor(Dispatcher):
 
         The text is ignored if:
             * the option declaration is actually a command call,
-            * there is no option declaration in it.
+            * there is no option declaration in it,
+            * it uses the ``/`` shorthand with an unknown keyword that isn't
+              a close match to any registered option (e.g. comments addressed
+              to another bot such as ``/coderabbit``).
 
         Args:
             job: the job to run the handlers on.
@@ -303,7 +323,9 @@ class Reactor(Dispatcher):
 
         Raises:
             NotFound: if the option declaration has the right syntax but calls
-                      an unknown option.
+                      an unknown option (via the ``@<robot>`` prefix, or via
+                      the ``/`` shorthand with a keyword close enough to a
+                      registered option to be considered a typo).
             NotPrivileged: when a privileged option declaration is found
                            and the method is called with privileged=False.
             NotAuthored: when an authored option declaration is found and the
@@ -313,10 +335,12 @@ class Reactor(Dispatcher):
         raw = text.strip()
         canonical_raw = None
         canonical_prefix = None
+        slash_shorthand = False
         if raw.startswith(prefix):
             canonical_raw = raw
             canonical_prefix = prefix
         elif re.match(r'^/[\w=]+([\s,.\-:;|+]+/[\w=]+)*\s*$', raw):
+            slash_shorthand = True
             canonical_raw = " " + raw
             canonical_prefix = ""
         if not canonical_raw:
@@ -337,6 +361,11 @@ class Reactor(Dispatcher):
             key, *args = kwd.split('=')
             option = self.dispatch(key)
             if option is None:
+                if slash_shorthand and not self._has_close_match(key):
+                    LOG.debug(
+                        'Ignoring unknown /-shorthand option %r '
+                        '(not close to any registered option)', key)
+                    return
                 raise NotFound(key)
             if not isinstance(option, Option):
                 if idx == 0:
@@ -363,19 +392,24 @@ class Reactor(Dispatcher):
             {prefix} command arg1 arg2 ...
 
         The text is ignored if:
-            * the command call is actually an opotion declaration,
-            * there is no command call in it.
+            * the command call is actually an option declaration,
+            * there is no command call in it,
+            * it uses the ``/`` shorthand with an unknown keyword that isn't
+              a close match to any registered command (e.g. comments
+              addressed to another bot such as ``/coderabbit review``).
 
         Args:
             job: the job to run the handlers on.
             text: the text to look for command calls in.
             prefix: the prefix of commands.
-            privileged: run the command handler in privileged mode. Defaults to
-                        False.
+            privileged: run the command handler in privileged mode. Defaults
+                        to False.
 
         Raises:
             NotFound: if the command call has the right syntax but calls
-                      an unknown command.
+                      an unknown command (via the ``@<robot>`` prefix, or via
+                      the ``/`` shorthand with a keyword close enough to a
+                      registered command to be considered a typo).
             NotPrivileged: when a privileged command call is found
                            and the method is called with privileged=False.
 
@@ -383,10 +417,12 @@ class Reactor(Dispatcher):
         raw = text.strip()
         canonical_raw = None
         canonical_prefix = None
+        slash_shorthand = False
         if raw.startswith(prefix):
             canonical_raw = raw
             canonical_prefix = prefix
         elif re.match(r'^/\w', raw):
+            slash_shorthand = True
             canonical_raw = raw.replace("/", "/ ", 1)
             canonical_prefix = "/"
         if not canonical_raw:
@@ -402,6 +438,11 @@ class Reactor(Dispatcher):
         key, args = match.group('command'), match.group('args').split()
         command = self.dispatch(key)
         if command is None:
+            if slash_shorthand and not self._has_close_match(key):
+                LOG.debug(
+                    'Ignoring unknown /-shorthand command %r '
+                    '(not close to any registered command)', key)
+                return
             raise NotFound(key)
         if not isinstance(command, Command):
             return
