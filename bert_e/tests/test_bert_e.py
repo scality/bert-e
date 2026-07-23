@@ -520,6 +520,12 @@ class QuickTest(unittest.TestCase):
         Scenario: dev/9.5, hotfix/10.0.0 (pre-GA), dev/10.0, dev/10.
         Note: in the rename-based workflow hotfix/10.0.0 replaces dev/10.0;
         but both can coexist when the hotfix is branched off before GA.
+
+        hotfix/10.0.0 permanently reserves version 10.0.0(.X) the moment
+        it is branched, GA or not: any later "10.0.0" tag on dev/10.0 would
+        collide with the hotfix line, since they are different commits.
+        So dev/10.0 must target 10.0.1, not 10.0.0, whether or not the
+        hotfix has GA'd yet.
         """
         destination = 'development/9.5'
         branches = OrderedDict({
@@ -528,17 +534,22 @@ class QuickTest(unittest.TestCase):
             3: {'name': 'development/10.0', 'ignore': False},
             4: {'name': 'development/10', 'ignore': False},
         })
-        # Pre-GA: no tags for 10.x yet
-        # dev/10.0 targets 10.0.0, dev/10 targets 10.1.0 (latest_minor=0)
+        # Pre-GA: no tags for 10.x yet.
+        # hotfix/10.0.0 (still 10.0.0.0 pre-GA) reserves 10.0.0, so
+        # dev/10.0 targets 10.0.1; dev/10 targets 10.1.0 (latest_minor=0).
         tags = ['9.5.2']
-        fixver = ['9.5.3', '10.0.0', '10.1.0']
-        self.finalize_cascade(branches, tags, destination, fixver)
+        fixver = ['9.5.3', '10.0.1', '10.1.0']
+        c = self.finalize_cascade(branches, tags, destination, fixver)
+        self.assertEqual(c._phantom_hotfixes[0].version, '10.0.0.0')
 
-        # Post-GA: tag 10.0.0.0 advances dev/10.0 to target 10.0.1
-        # dev/10 still targets 10.1.0 (latest_minor=0 unchanged)
+        # Post-GA: tag 10.0.0.0 lands — dev/10.0 still targets 10.0.1
+        # (already reserved pre-GA); dev/10 still targets 10.1.0
+        # (latest_minor=0 unchanged). The hotfix's own version advances
+        # to 10.0.0.1.
         tags = ['9.5.2', '10.0.0.0']
         fixver = ['9.5.3', '10.0.1', '10.1.0']
-        self.finalize_cascade(branches, tags, destination, fixver)
+        c = self.finalize_cascade(branches, tags, destination, fixver)
+        self.assertEqual(c._phantom_hotfixes[0].version, '10.0.0.1')
 
     def test_phantom_hotfix_hfrev_updated_by_ga_tag(self):
         """Phantom hotfix hfrev and version must be updated by update_versions.
