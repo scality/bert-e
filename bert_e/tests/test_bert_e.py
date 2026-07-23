@@ -551,6 +551,31 @@ class QuickTest(unittest.TestCase):
         c = self.finalize_cascade(branches, tags, destination, fixver)
         self.assertEqual(c._phantom_hotfixes[0].version, '10.0.0.1')
 
+    def test_branch_cascade_pre_ga_hotfix_after_prior_releases(self):
+        """Pre-GA hotfix cut *after* prior micro releases were already
+        tagged on the same line.
+
+        Scenario: dev/9.5 already has 9.5.0, 9.5.1, 9.5.2 tagged (so its
+        tag-driven `_next_micro` is already resolved to 3), and only then
+        is hotfix/9.5.3 branched off it, pre-GA. This is the common,
+        realistic hotfix scenario (patching an already-released line)
+        as opposed to test_branch_cascade_2digit_with_pre_ga_hotfix's
+        edge case where no prior tag exists at all.
+
+        dev/9.5 must still skip past the now-reserved 9.5.3 and target
+        9.5.4, even though _next_micro was already computed to 3 by the
+        tags before the hotfix branch ever existed.
+        """
+        destination = 'development/9.5'
+        branches = OrderedDict({
+            1: {'name': 'development/9.5', 'ignore': False},
+            2: {'name': 'hotfix/9.5.3', 'ignore': True},
+        })
+        tags = ['9.5.0', '9.5.1', '9.5.2']
+        fixver = ['9.5.4']
+        c = self.finalize_cascade(branches, tags, destination, fixver)
+        self.assertEqual(c._phantom_hotfixes[0].version, '9.5.3.0')
+
     def test_phantom_hotfix_hfrev_updated_by_ga_tag(self):
         """Phantom hotfix hfrev and version must be updated by update_versions.
 
