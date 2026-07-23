@@ -520,6 +520,12 @@ class QuickTest(unittest.TestCase):
         Scenario: dev/9.5, hotfix/10.0.0 (pre-GA), dev/10.0, dev/10.
         Note: in the rename-based workflow hotfix/10.0.0 replaces dev/10.0;
         but both can coexist when the hotfix is branched off before GA.
+
+        hotfix/10.0.0 permanently reserves version 10.0.0(.X) the moment
+        it is branched, GA or not: any later "10.0.0" tag on dev/10.0 would
+        collide with the hotfix line, since they are different commits.
+        So dev/10.0 must target 10.0.1, not 10.0.0, whether or not the
+        hotfix has GA'd yet.
         """
         destination = 'development/9.5'
         branches = OrderedDict({
@@ -528,17 +534,47 @@ class QuickTest(unittest.TestCase):
             3: {'name': 'development/10.0', 'ignore': False},
             4: {'name': 'development/10', 'ignore': False},
         })
-        # Pre-GA: no tags for 10.x yet
-        # dev/10.0 targets 10.0.0, dev/10 targets 10.1.0 (latest_minor=0)
+        # Pre-GA: no tags for 10.x yet.
+        # hotfix/10.0.0 (still 10.0.0.0 pre-GA) reserves 10.0.0, so
+        # dev/10.0 targets 10.0.1; dev/10 targets 10.1.0 (latest_minor=0).
         tags = ['9.5.2']
-        fixver = ['9.5.3', '10.0.0', '10.1.0']
-        self.finalize_cascade(branches, tags, destination, fixver)
+        fixver = ['9.5.3', '10.0.1', '10.1.0']
+        c = self.finalize_cascade(branches, tags, destination, fixver)
+        self.assertEqual(c._phantom_hotfixes[0].version, '10.0.0.0')
 
-        # Post-GA: tag 10.0.0.0 advances dev/10.0 to target 10.0.1
-        # dev/10 still targets 10.1.0 (latest_minor=0 unchanged)
+        # Post-GA: tag 10.0.0.0 lands — dev/10.0 still targets 10.0.1
+        # (already reserved pre-GA); dev/10 still targets 10.1.0
+        # (latest_minor=0 unchanged). The hotfix's own version advances
+        # to 10.0.0.1.
         tags = ['9.5.2', '10.0.0.0']
         fixver = ['9.5.3', '10.0.1', '10.1.0']
-        self.finalize_cascade(branches, tags, destination, fixver)
+        c = self.finalize_cascade(branches, tags, destination, fixver)
+        self.assertEqual(c._phantom_hotfixes[0].version, '10.0.0.1')
+
+    def test_branch_cascade_pre_ga_hotfix_after_prior_releases(self):
+        """Pre-GA hotfix cut *after* prior micro releases were already
+        tagged on the same line.
+
+        Scenario: dev/9.5 already has 9.5.0, 9.5.1, 9.5.2 tagged (so its
+        tag-driven `_next_micro` is already resolved to 3), and only then
+        is hotfix/9.5.3 branched off it, pre-GA. This is the common,
+        realistic hotfix scenario (patching an already-released line)
+        as opposed to test_branch_cascade_2digit_with_pre_ga_hotfix's
+        edge case where no prior tag exists at all.
+
+        dev/9.5 must still skip past the now-reserved 9.5.3 and target
+        9.5.4, even though _next_micro was already computed to 3 by the
+        tags before the hotfix branch ever existed.
+        """
+        destination = 'development/9.5'
+        branches = OrderedDict({
+            1: {'name': 'development/9.5', 'ignore': False},
+            2: {'name': 'hotfix/9.5.3', 'ignore': True},
+        })
+        tags = ['9.5.0', '9.5.1', '9.5.2']
+        fixver = ['9.5.4']
+        c = self.finalize_cascade(branches, tags, destination, fixver)
+        self.assertEqual(c._phantom_hotfixes[0].version, '9.5.3.0')
 
     def test_phantom_hotfix_hfrev_updated_by_ga_tag(self):
         """Phantom hotfix hfrev and version must be updated by update_versions.
