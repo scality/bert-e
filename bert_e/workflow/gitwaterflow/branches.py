@@ -1208,6 +1208,7 @@ class BranchCascade(object):
                 if dev_branch.has_minor:
                     # Use the tracked next micro version if available,
                     # otherwise use the micro+1 if this is a three-digit branch
+                    own_version = False
                     if (hasattr(dev_branch, '_next_micro') and
                             dev_branch._next_micro is not None):
                         next_micro = dev_branch._next_micro
@@ -1217,11 +1218,29 @@ class BranchCascade(object):
                             dev_branch.micro)
                         self.target_versions.append(version_current)
                         next_micro = dev_branch.micro
+                        own_version = True
                     else:
                         if hasattr(dev_branch, 'latest_micro'):
                             next_micro = dev_branch.latest_micro + 1
                         else:
                             next_micro = 0
+
+                    if not own_version:
+                        # _next_micro is tag-driven and may have been
+                        # computed before a pre-GA hotfix branch existed.
+                        # A phantom hotfix permanently reserves its micro
+                        # version, so never let a stale _next_micro (or
+                        # latest_micro fallback) collide with it.
+                        reserved_micros = [
+                            hf.micro for hf in self._phantom_hotfixes
+                            if hf.major == dev_branch.major and
+                            hf.minor == dev_branch.minor
+                        ]
+                        if reserved_micros:
+                            next_micro = max(
+                                next_micro, max(reserved_micros) + 1
+                            )
+
                     version_str = '%d.%d.%d' % (
                         dev_branch.major, dev_branch.minor, next_micro
                     )
