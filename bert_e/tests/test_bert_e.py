@@ -2644,6 +2644,347 @@ admins:
                         ],
                         backtrace=True)
 
+    def test_status_command_reports_missing_approvals(self):
+        """Status report shows failing approval check when no approvals."""
+        pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
+        # First run lets send_greetings post the InitMessage; the status
+        # comment must be newer than that greeting for handle_comments.
+        self.handle(pr.id, options=['bypass_jira_check'])
+        pr.add_comment('@%s status' % self.args.robot_username)
+        with self.assertRaises(exns.StatusReport) as ctx:
+            self.handle(pr.id, options=['bypass_jira_check'], backtrace=True)
+        report = ctx.exception.kwargs['status']
+        self.assertIn('approvals', report)
+        approvals_item = report['approvals']
+        self.assertFalse(getattr(approvals_item, 'pass'))
+        self.assertTrue(approvals_item.details)
+
+    def test_status_command_approvals_pass_when_bypassed(self):
+        """Status report shows passing approvals when bypassed."""
+        pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
+        pr_admin = self.admin_bb.get_pull_request(pull_request_id=pr.id)
+        # Admin (project leader) approves
+        pr_admin.approve()
+        # First run lets send_greetings post the InitMessage; the status
+        # comment must be newer than that greeting for handle_comments.
+        self.handle(pr.id, options=['bypass_jira_check'])
+        pr.add_comment('@%s status' % self.args.robot_username)
+        with self.assertRaises(exns.StatusReport) as ctx:
+            self.handle(pr.id, options=['bypass_jira_check',
+                                        'bypass_author_approval',
+                                        'bypass_leader_approval',
+                                        'bypass_peer_approval'],
+                        backtrace=True)
+        report = ctx.exception.kwargs['status']
+        self.assertIn('approvals', report)
+        self.assertTrue(getattr(report['approvals'], 'pass'))
+
+    def test_status_command_history_check(self):
+        """Status report includes a history check once integration branches exist,
+        and correctly detects when a reset is needed.
+        """
+        feature_branch = 'bugfix/TEST-00001'
+        integration_branch = 'w/5.1/bugfix/TEST-00001'
+        pr = self.create_pr(feature_branch, 'development/4.3')
+
+        # Create integration branches (stops at approval check)
+        self.handle(pr.id, options=['bypass_jira_check'])
+
+        # Status should show history is clean
+        pr.add_comment('@%s status' % self.args.robot_username)
+        with self.assertRaises(exns.StatusReport) as ctx:
+            self.handle(pr.id, options=['bypass_jira_check'], backtrace=True)
+        report = ctx.exception.kwargs['status']
+        self.assertIn('history', report)
+        self.assertTrue(getattr(report['history'], 'pass'))
+
+        # Add a commit directly to an integration branch (history mismatch)
+        self.gitrepo.cmd('git pull')
+        add_file_to_branch(self.gitrepo, integration_branch,
+                           'file_added_on_int_branch')
+
+        # Status should now report that a reset may be needed
+        pr.add_comment('@%s status' % self.args.robot_username)
+        with self.assertRaises(exns.StatusReport) as ctx:
+            self.handle(pr.id, options=['bypass_jira_check'], backtrace=True)
+        report = ctx.exception.kwargs['status']
+        self.assertIn('history', report)
+        self.assertFalse(getattr(report['history'], 'pass'))
+
+    def test_status_command_builds_bypassed(self):
+        """Status report shows builds as bypassed when bypass_build_status."""
+        pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
+        self.handle(pr.id, options=['bypass_jira_check'])
+        pr.add_comment('@%s status' % self.args.robot_username)
+        with self.assertRaises(exns.StatusReport) as ctx:
+            self.handle(pr.id, options=['bypass_jira_check',
+                                        'bypass_build_status',
+                                        'bypass_author_approval',
+                                        'bypass_peer_approval'],
+                        backtrace=True)
+        report = ctx.exception.kwargs['status']
+        self.assertIn('builds', report)
+        self.assertTrue(getattr(report['builds'], 'pass'))
+        self.assertIn('bypassed', report['builds'].details)
+
+    def test_status_command_jira_missing_key(self):
+        """Status report: failing fix-versions when branch has no Jira key."""
+        pr = self.create_pr('bugfix/my-feature', 'development/4.3')
+        # First run triggers send_greetings; MissingJiraId is caught silently.
+        self.handle(pr.id)
+        pr.add_comment('@%s status' % self.args.robot_username)
+        with self.assertRaises(exns.StatusReport) as ctx:
+            self.handle(pr.id, backtrace=True)
+        report = ctx.exception.kwargs['status']
+        self.assertIn('fix_versions', report)
+        self.assertFalse(getattr(report['fix_versions'], 'pass'))
+        self.assertIn('missing Jira issue id in branch name',
+                      report['fix_versions'].details)
+
+    def test_status_command_no_build_key(self):
+        """Status report omits builds check when no build_key is set."""
+        settings = DEFAULT_SETTINGS.replace('build_key: pre-merge',
+                                            'build_key: ""')
+        pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
+        self.handle(pr.id, options=['bypass_jira_check'], settings=settings)
+        pr.add_comment('@%s status' % self.args.robot_username)
+        with self.assertRaises(exns.StatusReport) as ctx:
+            self.handle(pr.id, options=['bypass_jira_check'],
+                        settings=settings, backtrace=True)
+        report = ctx.exception.kwargs['status']
+        self.assertNotIn('builds', report)
+
+    def test_status_command_builds_successful(self):
+        """Status report shows builds passing when all builds SUCCESSFUL."""
+        pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
+        self.handle(pr.id, options=['bypass_jira_check'])
+        self.gitrepo.cmd('git fetch --prune')
+        wbranch_refs = self.gitrepo.cmd(
+            'git branch -r --list origin/w/*/bugfix/TEST-00001'
+        ).strip().split()
+        for ref in wbranch_refs:
+            sha = self.gitrepo.cmd('git rev-parse %s' % ref).strip()
+            self.set_build_status(sha, 'SUCCESSFUL')
+        pr.add_comment('@%s status' % self.args.robot_username)
+        with self.assertRaises(exns.StatusReport) as ctx:
+            self.handle(pr.id, options=['bypass_jira_check'], backtrace=True)
+        report = ctx.exception.kwargs['status']
+        self.assertIn('builds', report)
+        self.assertTrue(getattr(report['builds'], 'pass'))
+
+    def test_status_command_leader_author_unapproved(self):
+        """Status report: extra leader approval when author is a leader."""
+        settings = DEFAULT_SETTINGS.replace(
+            'project_leaders:\n  - {admin}',
+            'project_leaders:\n  - {admin}\n  - {contributor}'
+        )
+        pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
+        self.handle(pr.id, options=['bypass_jira_check'], settings=settings)
+        pr.add_comment('@%s status' % self.args.robot_username)
+        with self.assertRaises(exns.StatusReport) as ctx:
+            self.handle(pr.id, options=['bypass_jira_check'],
+                        settings=settings, backtrace=True)
+        report = ctx.exception.kwargs['status']
+        self.assertIn('approvals', report)
+        self.assertFalse(getattr(report['approvals'], 'pass'))
+
+    def test_status_command_jira_issue_not_found(self):
+        """Status report: failing fix-versions when Jira issue not found."""
+        from bert_e.lib import jira as jira_lib
+        from bert_e import exceptions as bert_e_exns
+
+        class _JiraIssueNotFoundMock:
+            def __init__(self, account_url, issue_id, email, token):
+                raise bert_e_exns.JiraIssueNotFound(
+                    issue=issue_id, active_options=[])
+
+        pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
+        self.handle(pr.id, options=['bypass_jira_check'])
+        pr.add_comment('@%s status' % self.args.robot_username)
+        original = jira_lib.JiraIssue
+        jira_lib.JiraIssue = _JiraIssueNotFoundMock
+        try:
+            with self.assertRaises(exns.StatusReport) as ctx:
+                self.handle(pr.id, backtrace=True)
+        finally:
+            jira_lib.JiraIssue = original
+        report = ctx.exception.kwargs['status']
+        self.assertIn('fix_versions', report)
+        self.assertFalse(getattr(report['fix_versions'], 'pass'))
+        self.assertIn('Jira issue not found', report['fix_versions'].details)
+
+    def test_status_command_jira_unreachable(self):
+        """Status report omits fix-versions when Jira is unreachable."""
+        import requests.exceptions
+        from bert_e.lib import jira as jira_lib
+
+        class _JiraUnreachableMock:
+            def __init__(self, account_url, issue_id, email, token):
+                raise requests.exceptions.ConnectionError(
+                    "Jira unreachable")
+
+        pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
+        self.handle(pr.id, options=['bypass_jira_check'])
+        pr.add_comment('@%s status' % self.args.robot_username)
+        original = jira_lib.JiraIssue
+        jira_lib.JiraIssue = _JiraUnreachableMock
+        try:
+            with self.assertRaises(exns.StatusReport) as ctx:
+                self.handle(pr.id, backtrace=True)
+        finally:
+            jira_lib.JiraIssue = original
+        report = ctx.exception.kwargs['status']
+        self.assertNotIn('fix_versions', report)
+
+    def test_status_command_partial_report_on_clone_failure(self):
+        """Status report returns approvals even when git clone fails."""
+        import bert_e.workflow.gitwaterflow.commands as cmd_mod
+
+        def _fail_clone(job):
+            raise RuntimeError("clone failed")
+
+        pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
+        self.handle(pr.id, options=['bypass_jira_check'])
+        pr.add_comment('@%s status' % self.args.robot_username)
+        original = cmd_mod.clone_git_repo
+        cmd_mod.clone_git_repo = _fail_clone
+        try:
+            with self.assertRaises(exns.StatusReport) as ctx:
+                self.handle(pr.id, options=['bypass_jira_check'],
+                            backtrace=True)
+        finally:
+            cmd_mod.clone_git_repo = original
+        report = ctx.exception.kwargs['status']
+        self.assertIn('approvals', report)
+        self.assertNotIn('builds', report)
+        self.assertNotIn('history', report)
+
+    def test_status_command_approve_option_missing_peers(self):
+        """Status report: approve option adds author to approvals set but
+        peer approvals are still required and reported as missing."""
+        pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
+        self.handle(pr.id, options=['bypass_jira_check'])
+        pr.add_comment('@%s status' % self.args.robot_username)
+        with self.assertRaises(exns.StatusReport) as ctx:
+            self.handle(pr.id, options=['bypass_jira_check', 'approve'],
+                        backtrace=True)
+        report = ctx.exception.kwargs['status']
+        self.assertIn('approvals', report)
+        self.assertFalse(getattr(report['approvals'], 'pass'))
+        self.assertTrue(any('peer' in d for d in report['approvals'].details))
+
+    def test_status_command_change_requests(self):
+        """Status report shows change requests in approval failure details."""
+        if self.args.git_host == 'bitbucket':
+            self.skipTest("change requests not supported on bitbucket")
+
+        pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
+        self.handle(pr.id, options=['bypass_jira_check'])
+        pr_admin = self.admin_bb.get_pull_request(pull_request_id=pr.id)
+        pr_admin.request_changes()
+        pr.add_comment('@%s status' % self.args.robot_username)
+        with self.assertRaises(exns.StatusReport) as ctx:
+            self.handle(pr.id, options=['bypass_jira_check'], backtrace=True)
+        report = ctx.exception.kwargs['status']
+        self.assertIn('approvals', report)
+        self.assertFalse(getattr(report['approvals'], 'pass'))
+        self.assertTrue(
+            any('changes requested' in d for d in report['approvals'].details))
+
+    def test_status_command_jira_partial_config(self):
+        """Status report omits fix-versions when Jira email is not set."""
+        settings = DEFAULT_SETTINGS.replace(
+            'jira_email: dummy@mail.com', 'jira_email: ""')
+        pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
+        self.handle(pr.id, options=['bypass_jira_check'], settings=settings)
+        pr.add_comment('@%s status' % self.args.robot_username)
+        with self.assertRaises(exns.StatusReport) as ctx:
+            self.handle(pr.id, settings=settings, backtrace=True)
+        self.assertNotIn('fix_versions', ctx.exception.kwargs['status'])
+
+    def test_status_command_disable_version_checks(self):
+        """Status report omits fix-versions when disable_version_checks is set."""  # noqa
+        settings = DEFAULT_SETTINGS + 'disable_version_checks: true\n'
+        pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
+        self.handle(pr.id, options=['bypass_jira_check'], settings=settings)
+        pr.add_comment('@%s status' % self.args.robot_username)
+        with self.assertRaises(exns.StatusReport) as ctx:
+            self.handle(pr.id, settings=settings, backtrace=True)
+        self.assertNotIn('fix_versions', ctx.exception.kwargs['status'])
+
+    def test_status_command_jira_no_reference(self):
+        """Status report omits fix-versions when the branch has no Jira
+        reference but ticketless PRs are allowed (check_issue_reference
+        returns False)."""
+        import bert_e.workflow.gitwaterflow.jira as jira_mod
+
+        def _return_no_ref(job):
+            return False
+
+        pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
+        self.handle(pr.id, options=['bypass_jira_check'])
+        pr.add_comment('@%s status' % self.args.robot_username)
+        original = jira_mod.check_issue_reference
+        jira_mod.check_issue_reference = _return_no_ref
+        try:
+            with self.assertRaises(exns.StatusReport) as ctx:
+                self.handle(pr.id, backtrace=True)
+        finally:
+            jira_mod.check_issue_reference = original
+        self.assertNotIn('fix_versions', ctx.exception.kwargs['status'])
+
+    def test_status_command_jira_correct_versions(self):
+        """Status report shows passing fix-versions when Jira check succeeds."""  # noqa
+        import bert_e.workflow.gitwaterflow.jira as jira_mod
+
+        class _MockIssue:
+            pass
+
+        pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
+        self.handle(pr.id, options=['bypass_jira_check'])
+        pr.add_comment('@%s status' % self.args.robot_username)
+        original_get = jira_mod.get_jira_issue
+        original_check = jira_mod.check_fix_versions
+        jira_mod.get_jira_issue = lambda job: _MockIssue()
+        jira_mod.check_fix_versions = lambda job, issue: None
+        try:
+            with self.assertRaises(exns.StatusReport) as ctx:
+                self.handle(pr.id, backtrace=True)
+        finally:
+            jira_mod.get_jira_issue = original_get
+            jira_mod.check_fix_versions = original_check
+        report = ctx.exception.kwargs['status']
+        self.assertIn('fix_versions', report)
+        self.assertTrue(getattr(report['fix_versions'], 'pass'))
+
+    def test_status_command_robot_commit_in_history(self):
+        """Status report: robot-authored commits on integration branches are
+        not flagged as foreign (history passes)."""
+        feature_branch = 'bugfix/TEST-00001'
+        integration_branch = 'w/5.1/bugfix/TEST-00001'
+
+        pr = self.create_pr(feature_branch, 'development/4.3')
+        self.handle(pr.id, options=['bypass_jira_check'])
+
+        self.gitrepo.cmd('git fetch --prune')
+        self.gitrepo.cmd('git checkout ' + integration_branch)
+        # An empty commit has no diff, so git show --pretty="%aN" returns only
+        # the author name — which is what rev.author compares against robot.
+        self.gitrepo.cmd(
+            'git commit --allow-empty -m "robot commit" '
+            '--author="%s <robot@nowhere.com>"' % self.args.robot_username
+        )
+        self.gitrepo.cmd('git pull || exit 0')
+        self.gitrepo.cmd(
+            'git push --set-upstream origin ' + integration_branch)
+
+        pr.add_comment('@%s status' % self.args.robot_username)
+        with self.assertRaises(exns.StatusReport) as ctx:
+            self.handle(pr.id, options=['bypass_jira_check'], backtrace=True)
+        report = ctx.exception.kwargs['status']
+        self.assertIn('history', report)
+        self.assertTrue(getattr(report['history'], 'pass'))
+
     def test_bypass_options(self):
         # test bypass all approvals through an incorrect bitbucket comment
         pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
