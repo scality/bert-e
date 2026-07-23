@@ -1170,6 +1170,18 @@ class BranchCascade(object):
                         version_tuple[1] == minor and
                         version_tuple[2] is not None)
                 ]
+
+                # Also include phantom hotfix branches (stored separately to
+                # avoid corrupting the cascade) so that e.g. hotfix/10.0.0
+                # advances dev/10.0's latest_micro to 0 even without a GA
+                # tag: the hotfix branch permanently reserves that micro
+                # version the moment it is cut, so dev/10.0 must target
+                # 10.0.1, not 10.0.0.
+                micros.extend(
+                    hf.micro for hf in self._phantom_hotfixes
+                    if hf.major == major and hf.minor == minor
+                )
+
                 if micros:
                     minor_branch.latest_micro = max(micros)
 
