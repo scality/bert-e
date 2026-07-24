@@ -25,6 +25,7 @@ from ..git_utils import consecutive_merge, robust_merge, push
 from ..pr_utils import notify_user
 from .branches import (branch_factory, build_branch_cascade,
                        GhostIntegrationBranch)
+from .utils import bypass_author_approval
 
 
 def get_integration_branches(job):
@@ -149,7 +150,7 @@ def check_integration_branches(job):
     """Check if the integration branches can be created."""
 
     approvals = set(job.pull_request.get_approvals())
-    if job.settings.approve:
+    if job.settings.approve or bypass_author_approval(job):
         approvals.add(job.pull_request.author)
     approved_by_author = job.pull_request.author in approvals
 
