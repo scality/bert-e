@@ -276,6 +276,12 @@ class QueueBuildFailedMessage(TemplateException):
     template = "queue_build_failed.md"
 
 
+class ForeignCommitsInSourceBranch(TemplateException):
+    code = 137
+    template = "foreign_commits_in_source_branch.md"
+    status = "failure"
+
+
 # internal exceptions
 class UnableToSendEmail(InternalException):
     code = 201
