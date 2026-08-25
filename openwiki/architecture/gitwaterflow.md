@@ -63,24 +63,30 @@ that run. In order:
 5. `clone_git_repo` — from here on the code operates on a real local clone.
 6. `check_branch_compatibility` — source-branch prefix valid for destination
    (`bypass_incompatible_branch`).
-7. `jira_checks` (`jira.py`) — ticket reference, project, issue type vs
+7. `check_source_branch_lineage` — detects cross-branch contamination: raises
+   `ForeignCommitsInSourceBranch` (error 137, `status=failure`) when the
+   source branch shares history (via `git merge-base --all`) with a release
+   line higher than the target — e.g. a feature branch accidentally rebased on
+   a `w/` integration branch instead of `development/4.3` directly
+   (`bypass_source_branch_lineage`).
+8. `jira_checks` (`jira.py`) — ticket reference, project, issue type vs
    branch prefix, Fix Version coherence (`bypass_jira_check`); includes the
    pre-GA hotfix "pending fix version" one-time reminder.
-8. `check_commit_diff` — diff size limit (`max_commit_diff` setting).
-9. `create_integration_branches` / `create_integration_pull_requests`
+9. `check_commit_diff` — diff size limit (`max_commit_diff` setting).
+10. `create_integration_branches` / `create_integration_pull_requests`
    (`integration.py`) — build the `w/<version>/<branch>` branches (and
    optionally PRs) for every destination in the cascade;
    `check_integration_branches` detects manual tampering and offers
    `reset`/`force_reset`.
-10. `check_in_sync` / `check_pull_request_skew` — integration branches still
+11. `check_in_sync` / `check_pull_request_skew` — integration branches still
     match the current PR head and destination.
-11. `check_approvals` — author approval (not on GitHub) and peer/leader
+12. `check_approvals` — author approval (not on GitHub) and peer/leader
     approval counts, with `unanimity`, `bypass_*_approval` options.
-12. `check_build_status` / `revalidate_build_status` — build status on
+13. `check_build_status` / `revalidate_build_status` — build status on
     integration branches must be green; the latter does a **live** re-check
     right before merging to avoid racing a stale cached status
     (`bypass_build_status`).
-13. `merge_integration_branches` — the actual merge. If `use_queue` is
+14. `merge_integration_branches` — the actual merge. If `use_queue` is
     enabled (default), this **adds PRs to the merge queue** instead of
     merging directly to `development/*` (see below); otherwise it merges
     each integration branch straight onto its destination.

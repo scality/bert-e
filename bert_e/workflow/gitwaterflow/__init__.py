@@ -463,27 +463,27 @@ def check_source_branch_lineage(job):
         try:
             # Use pre-resolved SHAs (src_sha, higher_tip) for consistency with
             # the snapshot already used by the backport guard above.
-            merge_base = job.git.repo.cmd(
-                'git merge-base %s %s', src_sha, higher_tip
-            ).strip()
+            # --all covers criss-cross merges where two incomparable common
+            # ancestors exist; without it git picks one arbitrarily, and might
+            # return the ancestor already in dst, producing a false negative.
+            merge_bases = job.git.repo.cmd(
+                'git merge-base --all %s %s', src_sha, higher_tip
+            ).split()
         except CommandError:
             LOG.debug('merge-base(%s, %s) failed, skipping',
                       src.name, higher.name, exc_info=True)
             continue
 
-        # Defensive guard: git merge-base always emits a 40-char SHA on exit 0,
-        # so this is never reached in practice — but an empty result would cause
-        # dst.includes_commit('') to raise CommandError (which returns False),
-        # producing a false-positive contamination flag.
-        if not merge_base:
+        # merge-base --all yields ≥ 1 SHA on exit 0, but guard defensively.
+        if not merge_bases:
             continue
 
-        # Optimisation: if merge_base == higher_tip, we can skip the subprocess
-        # because dst.includes_commit(higher_tip) was already evaluated as False
-        # by the guard at line 452 above (if it were True, the loop would have
-        # continued past that branch). Any merge_base that equals higher_tip is
-        # therefore guaranteed not to be in dst.
-        if merge_base == higher_tip or not dst.includes_commit(merge_base):
+        # Contamination: any merge-base that is not in dst means src carries
+        # history from the higher release line that dst does not know about.
+        # Optimisation: base == higher_tip implies dst.includes_commit was
+        # already evaluated as False above — skip the subprocess for that base.
+        if any(base == higher_tip or not dst.includes_commit(base)
+               for base in merge_bases):
             foreign_branches.append(higher.name)
 
     if not foreign_branches:

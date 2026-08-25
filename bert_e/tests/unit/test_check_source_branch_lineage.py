@@ -358,6 +358,53 @@ class TestCheckSourceBranchLineageContaminated:
         ]
 
 
+class TestCheckSourceBranchLineageMultipleMergeBases:
+    """git merge-base --all can return multiple SHAs for criss-cross merges."""
+
+    def test_one_base_in_dst_one_not_is_contamination(self):
+        """If any merge-base is outside dst, the branch is contaminated.
+
+        Simulates a criss-cross merge: merge-base --all returns two SHAs.
+        One is already in dst (would be a false negative without --all),
+        the other is not. The check must flag contamination.
+        """
+        dst_ancestors = {'base-in-dst'}
+        dst = _make_branch('development/4.3', 'dst-tip',
+                           ancestor_of=dst_ancestors)
+        higher = _make_branch('development/4', 'higher-tip', ancestor_of=set())
+
+        job = _make_job(
+            src_name='feature/ARTESCA-17922-fix',
+            dst_name='development/4.3',
+            dst_ancestors=dst_ancestors,
+            cascade_branches=[dst, higher],
+            # Simulate --all returning two bases: one clean, one foreign.
+            merge_base_map={
+                ('src-tip', 'higher-tip'): 'base-in-dst\nforeign-base',
+            },
+        )
+        with pytest.raises(messages.ForeignCommitsInSourceBranch):
+            check_source_branch_lineage(job)
+
+    def test_all_bases_in_dst_is_clean(self):
+        """If every merge-base is in dst, the branch is clean."""
+        dst_ancestors = {'base1', 'base2'}
+        dst = _make_branch('development/4.3', 'dst-tip',
+                           ancestor_of=dst_ancestors)
+        higher = _make_branch('development/4', 'higher-tip', ancestor_of=set())
+
+        job = _make_job(
+            src_name='feature/ARTESCA-17922-fix',
+            dst_name='development/4.3',
+            dst_ancestors=dst_ancestors,
+            cascade_branches=[dst, higher],
+            merge_base_map={
+                ('src-tip', 'higher-tip'): 'base1\nbase2',
+            },
+        )
+        check_source_branch_lineage(job)  # must not raise
+
+
 class TestCheckSourceBranchLineageKnownLimitations:
     """Document known false-positive scenarios (see function docstring)."""
 
