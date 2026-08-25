@@ -432,7 +432,7 @@ def check_source_branch_lineage(job):
 
     foreign_branches = []
     has_cascade_higher = False  # any branch beyond dst exists in the cascade
-    had_higher = False          # at least one higher branch was successfully resolved
+    had_higher = False  # at least one higher branch was successfully resolved
     for higher in job.git.cascade.dst_branches:
         if higher.name == dst.name:
             continue
@@ -447,16 +447,16 @@ def check_source_branch_lineage(job):
             LOG.debug('get_latest_commit(%s) failed, skipping',
                       higher.name, exc_info=True)
             continue
-        # had_higher is set only after a successful resolution so that a
-        # transient failure on ALL higher branches produces the right diagnostic.
+        # had_higher is set only after a successful resolution so that an
+        # all-branches failure produces the correct diagnostic message.
         had_higher = True
         if dst.includes_commit(higher_tip):
             continue
-        # If src tip is identical to higher's tip, the branch is entirely on the
-        # higher release line — treat as contamination (do NOT fire the backport
-        # guard, because git considers every commit an ancestor of itself).
-        # Otherwise, if src is a strict ancestor of higher, the feature was
-        # previously merged there (legitimate backport), so skip.
+        # src_sha == higher_tip means the branch is entirely on the higher
+        # release line — contamination (do NOT fire the backport guard; git
+        # considers every commit an ancestor of itself so the guard would
+        # incorrectly pass). Otherwise, src is a strict ancestor of higher:
+        # feature was previously merged there (legitimate backport), skip.
         if src_sha != higher_tip and higher.includes_commit(src_sha):
             continue
 

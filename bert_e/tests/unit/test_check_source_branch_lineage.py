@@ -232,7 +232,7 @@ class TestCheckSourceBranchLineageBackport:
             dst_name='development/4.3',
             dst_ancestors=set(),
             cascade_branches=[dst, higher],
-            # merge-base(src-tip, src-tip) = src-tip; not in dst → contamination
+            # merge-base(src, src) = src; not in dst → contamination
             merge_base_map={
                 ('src-tip', 'src-tip'): 'src-tip',
             },
@@ -265,7 +265,7 @@ class TestCheckSourceBranchLineageContaminated:
             check_source_branch_lineage(job)
 
     def test_error_contains_branch_names(self):
-        """Exception kwargs carry the branch names and foreign_branches list."""
+        """Exception kwargs carry branch names and foreign_branches."""
         dst = _make_branch('development/4.3', 'dst-tip', ancestor_of=set())
         higher = _make_branch('development/4', 'higher-tip', ancestor_of=set())
 
@@ -330,10 +330,11 @@ class TestCheckSourceBranchLineageContaminated:
         with pytest.raises(messages.ForeignCommitsInSourceBranch) as exc_info:
             check_source_branch_lineage(job)
 
-        assert exc_info.value.kwargs['foreign_branches'] == ['development/10.0']
+        kwargs = exc_info.value.kwargs
+        assert kwargs['foreign_branches'] == ['development/10.0']
 
     def test_two_higher_branches_both_contaminated(self):
-        """When both higher branches are contaminated, both appear in the error."""
+        """Both branches contaminated: both appear in foreign_branches."""
         dst_ancestors = set()
         dst = _make_branch('development/4.3', 'dst-tip',
                            ancestor_of=dst_ancestors)
@@ -451,7 +452,7 @@ class TestBypassSourceBranchLineage:
     """bypass_source_branch_lineage skips the check entirely."""
 
     def _contaminated_job(self, bypass):
-        """Return a job that would normally raise ForeignCommitsInSourceBranch."""
+        """Return a job that raises ForeignCommitsInSourceBranch."""
         dst_ancestors = set()
         dst = _make_branch('development/4.3', 'dst-tip',
                            ancestor_of=dst_ancestors)
