@@ -32,7 +32,8 @@ from .branches import (
 )
 from .utils import (
     bypass_incompatible_branch, bypass_peer_approval,
-    bypass_author_approval, bypass_leader_approval, bypass_build_status
+    bypass_author_approval, bypass_leader_approval, bypass_build_status,
+    bypass_source_branch_lineage
 )
 from .commands import setup  # noqa
 from .integration import (check_integration_branches,
@@ -414,6 +415,10 @@ def check_source_branch_lineage(job):
     Raises:
         ForeignCommitsInSourceBranch
     """
+    if bypass_source_branch_lineage(job):
+        LOG.info('bypass_source_branch_lineage active, skipping lineage check')
+        return
+
     dst = job.git.dst_branch
     src = job.git.src_branch
     # Hoist to avoid O(N) subprocess calls and ensure the backport guard
@@ -425,39 +430,79 @@ def check_source_branch_lineage(job):
                   src.name, exc_info=True)
         return
 
+    foreign_branches = []
+    has_cascade_higher = False  # any branch beyond dst exists in the cascade
+    had_higher = False          # at least one higher branch was successfully resolved
     for higher in job.git.cascade.dst_branches:
         if higher.name == dst.name:
             continue
-        # Skip branches that dst already fully contains (lower branches).
+        has_cascade_higher = True
+        # Skip branches whose full history is already reachable from dst
+        # (e.g. a higher line that was previously cascaded into dst).
+        # If dst contains higher's tip, any merge-base(src, higher) is also
+        # guaranteed to be in dst, so the contamination check would be a no-op.
         try:
             higher_tip = higher.get_latest_commit()
         except CommandError:
             LOG.debug('get_latest_commit(%s) failed, skipping',
                       higher.name, exc_info=True)
             continue
+        # had_higher is set only after a successful resolution so that a
+        # transient failure on ALL higher branches produces the right diagnostic.
+        had_higher = True
         if dst.includes_commit(higher_tip):
             continue
-        # If src is already an ancestor of higher, the feature was previously
-        # merged there (legitimate backport). No contamination possible.
-        if higher.includes_commit(src_sha):
+        # If src tip is identical to higher's tip, the branch is entirely on the
+        # higher release line — treat as contamination (do NOT fire the backport
+        # guard, because git considers every commit an ancestor of itself).
+        # Otherwise, if src is a strict ancestor of higher, the feature was
+        # previously merged there (legitimate backport), so skip.
+        if src_sha != higher_tip and higher.includes_commit(src_sha):
             continue
 
         try:
+            # Use pre-resolved SHAs (src_sha, higher_tip) for consistency with
+            # the snapshot already used by the backport guard above.
             merge_base = job.git.repo.cmd(
-                'git merge-base %s %s', src.name, higher.name
+                'git merge-base %s %s', src_sha, higher_tip
             ).strip()
         except CommandError:
             LOG.debug('merge-base(%s, %s) failed, skipping',
                       src.name, higher.name, exc_info=True)
             continue
 
-        if not dst.includes_commit(merge_base):
-            raise messages.ForeignCommitsInSourceBranch(
-                src_branch=src.name,
-                dst_branch=dst.name,
-                foreign_branch=higher.name,
-                active_options=job.active_options,
-            )
+        # Defensive guard: git merge-base always emits a 40-char SHA on exit 0,
+        # so this is never reached in practice — but an empty result would cause
+        # dst.includes_commit('') to raise CommandError (which returns False),
+        # producing a false-positive contamination flag.
+        if not merge_base:
+            continue
+
+        # Optimisation: if merge_base == higher_tip, we can skip the subprocess
+        # because dst.includes_commit(higher_tip) was already evaluated as False
+        # by the guard at line 452 above (if it were True, the loop would have
+        # continued past that branch). Any merge_base that equals higher_tip is
+        # therefore guaranteed not to be in dst.
+        if merge_base == higher_tip or not dst.includes_commit(merge_base):
+            foreign_branches.append(higher.name)
+
+    if not foreign_branches:
+        if not has_cascade_higher:
+            LOG.debug('check_source_branch_lineage: no higher branches in '
+                      'cascade for %s (hotfix target?), check is a no-op',
+                      dst.name)
+        elif not had_higher:
+            LOG.debug('check_source_branch_lineage: all higher branches '
+                      'failed to resolve for %s, check was not performed',
+                      dst.name)
+        return
+
+    raise messages.ForeignCommitsInSourceBranch(
+        src_branch=src.name,
+        dst_branch=dst.name,
+        foreign_branches=foreign_branches,
+        active_options=job.active_options,
+    )
 
 
 def check_branch_compatibility(job):

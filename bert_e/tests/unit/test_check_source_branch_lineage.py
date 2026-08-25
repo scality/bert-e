@@ -24,11 +24,14 @@ def _make_branch(name, latest_commit, ancestor_of=None):
 
 
 def _make_job(src_name, dst_name, dst_ancestors, cascade_branches,
-              merge_base_map):
+              merge_base_map, bypass=False):
     """Return a minimal job stub for check_source_branch_lineage.
 
-    merge_base_map: dict[(src, higher)] -> merge-base sha.
+    merge_base_map: dict[(src_sha, higher_tip)] -> merge-base sha.
+    The implementation passes pre-resolved SHAs to git merge-base, so keys
+    must be commit SHAs, not branch names.
     Missing keys raise CommandError (no common ancestor).
+    bypass: if True, sets bypass_source_branch_lineage on settings.
     """
     def fake_cmd(template, *args):
         key = (args[0], args[1])
@@ -47,7 +50,9 @@ def _make_job(src_name, dst_name, dst_ancestors, cascade_branches,
 
     git = SimpleNamespace(src_branch=src, dst_branch=dst, cascade=cascade,
                           repo=repo)
-    return SimpleNamespace(git=git, active_options={})
+    settings = SimpleNamespace(bypass_source_branch_lineage=bypass)
+    return SimpleNamespace(git=git, active_options={}, settings=settings,
+                           author_bypass={})
 
 
 class TestCheckSourceBranchLineageClean:
@@ -78,8 +83,9 @@ class TestCheckSourceBranchLineageClean:
             dst_name='development/4.3',
             dst_ancestors=dst_ancestors,
             cascade_branches=[dst, higher],
+            # keys are (src_sha, higher_tip): 'src-tip' and 'higher-tip'
             merge_base_map={
-                ('feature/BERTE-612-something', 'development/4'): 'common-base'
+                ('src-tip', 'higher-tip'): 'common-base'
             },
         )
         check_source_branch_lineage(job)  # must not raise
@@ -112,8 +118,8 @@ class TestCheckSourceBranchLineageClean:
             dst_ancestors=dst_ancestors,
             cascade_branches=[dst, higher1, higher2],
             merge_base_map={
-                ('feature/BERTE-612-something', 'development/5.1'): 'base',
-                ('feature/BERTE-612-something', 'development/10.0'): 'base',
+                ('src-tip', 'h1-tip'): 'base',
+                ('src-tip', 'h2-tip'): 'base',
             },
         )
         check_source_branch_lineage(job)  # must not raise
@@ -144,7 +150,7 @@ class TestCheckSourceBranchLineageClean:
             dst_ancestors=set(),
             cascade_branches=[dst, higher],
             merge_base_map={
-                ('feature/BERTE-612-something', 'development/4'): 'foreign',
+                ('src-tip', 'higher-tip'): 'foreign',
             },
         )
         # Make src.get_latest_commit() fail
@@ -157,10 +163,9 @@ class TestCheckSourceBranchLineageClean:
         """Branches whose tip is already in dst are skipped without merge-base.
 
         This covers the dst.includes_commit(higher.get_latest_commit()) guard:
-        a branch that is BELOW dst in the cascade (its tip is in dst's history)
-        must never trigger the merge-base check.
+        a branch whose full history is already absorbed into dst is skipped
+        since any merge-base with src would trivially be in dst too.
         """
-        # lower_branch tip is included in dst — it comes before dst
         dst_ancestors = {'lower-tip'}
         dst = _make_branch('development/4.3', 'dst-tip',
                            ancestor_of=dst_ancestors)
@@ -202,10 +207,38 @@ class TestCheckSourceBranchLineageBackport:
             dst_ancestors=set(),
             cascade_branches=[dst, higher],
             merge_base_map={
-                ('bugfix/TEST-0001', 'development/5.1'): 'foreign-commit',
+                ('src-tip', 'higher-tip'): 'foreign-commit',
             },
         )
         check_source_branch_lineage(job)  # must not raise
+
+    def test_src_tip_equals_higher_tip_is_contamination(self):
+        """When src_sha == higher_tip the backport guard must NOT fire.
+
+        A branch created directly from development/5.1 without any new commits
+        has src_sha == higher_tip. git considers every commit an ancestor of
+        itself, so higher.includes_commit(src_sha) would be True — incorrectly
+        treating this as a legitimate backport. The `src_sha != higher_tip`
+        pre-condition prevents this: the merge-base check is reached and
+        correctly detects the contamination.
+        """
+        dst = _make_branch('development/4.3', 'dst-tip', ancestor_of=set())
+        # higher_tip == 'src-tip': developer branched directly from dev/5.1
+        higher = _make_branch('development/5.1', 'src-tip',
+                              ancestor_of={'src-tip'})
+
+        job = _make_job(
+            src_name='feature/DIRECT-BRANCH-FROM-5.1',
+            dst_name='development/4.3',
+            dst_ancestors=set(),
+            cascade_branches=[dst, higher],
+            # merge-base(src-tip, src-tip) = src-tip; not in dst → contamination
+            merge_base_map={
+                ('src-tip', 'src-tip'): 'src-tip',
+            },
+        )
+        with pytest.raises(messages.ForeignCommitsInSourceBranch):
+            check_source_branch_lineage(job)
 
 
 class TestCheckSourceBranchLineageContaminated:
@@ -225,14 +258,14 @@ class TestCheckSourceBranchLineageContaminated:
             dst_ancestors=dst_ancestors,
             cascade_branches=[dst, higher],
             merge_base_map={
-                ('feature/ARTESCA-17922-fix', 'development/4'): 'a5c998726'
+                ('src-tip', 'higher-tip'): 'a5c998726'
             },
         )
         with pytest.raises(messages.ForeignCommitsInSourceBranch):
             check_source_branch_lineage(job)
 
     def test_error_contains_branch_names(self):
-        """Exception kwargs carry the three branch names."""
+        """Exception kwargs carry the branch names and foreign_branches list."""
         dst = _make_branch('development/4.3', 'dst-tip', ancestor_of=set())
         higher = _make_branch('development/4', 'higher-tip', ancestor_of=set())
 
@@ -242,7 +275,7 @@ class TestCheckSourceBranchLineageContaminated:
             dst_ancestors=set(),
             cascade_branches=[dst, higher],
             merge_base_map={
-                ('feature/ARTESCA-17922-fix', 'development/4'): 'a5c998726'
+                ('src-tip', 'higher-tip'): 'a5c998726'
             },
         )
         with pytest.raises(messages.ForeignCommitsInSourceBranch) as exc_info:
@@ -251,16 +284,14 @@ class TestCheckSourceBranchLineageContaminated:
         kwargs = exc_info.value.kwargs
         assert kwargs['src_branch'] == 'feature/ARTESCA-17922-fix'
         assert kwargs['dst_branch'] == 'development/4.3'
-        assert kwargs['foreign_branch'] == 'development/4'
+        assert kwargs['foreign_branches'] == ['development/4']
 
-    def test_two_higher_branches_first_contaminated_raises_immediately(self):
-        """Loop raises on the first contaminated branch; others not checked."""
+    def test_two_higher_branches_one_contaminated(self):
+        """Only the contaminated branch appears in foreign_branches."""
         dst_ancestors = {'base'}
         dst = _make_branch('development/4.3', 'dst-tip',
                            ancestor_of=dst_ancestors)
-        # higher1 is contaminated: merge-base is 'foreign', not in dst
         higher1 = _make_branch('development/5.1', 'h1-tip', ancestor_of=set())
-        # higher2 would also be clean, but we never reach it
         higher2 = _make_branch('development/10.0', 'h2-tip', ancestor_of=set())
 
         job = _make_job(
@@ -269,23 +300,21 @@ class TestCheckSourceBranchLineageContaminated:
             dst_ancestors=dst_ancestors,
             cascade_branches=[dst, higher1, higher2],
             merge_base_map={
-                ('feature/ARTESCA-17922-fix', 'development/5.1'): 'foreign',
-                ('feature/ARTESCA-17922-fix', 'development/10.0'): 'base',
+                ('src-tip', 'h1-tip'): 'foreign',
+                ('src-tip', 'h2-tip'): 'base',  # clean
             },
         )
         with pytest.raises(messages.ForeignCommitsInSourceBranch) as exc_info:
             check_source_branch_lineage(job)
 
-        assert exc_info.value.kwargs['foreign_branch'] == 'development/5.1'
+        assert exc_info.value.kwargs['foreign_branches'] == ['development/5.1']
 
     def test_two_higher_branches_first_clean_second_contaminated(self):
-        """Loop skips clean higher branch and raises on contaminated one."""
+        """Loop skips clean higher branch and includes contaminated one."""
         dst_ancestors = {'base'}
         dst = _make_branch('development/4.3', 'dst-tip',
                            ancestor_of=dst_ancestors)
-        # higher1 is clean: merge-base is 'base', which is in dst
         higher1 = _make_branch('development/5.1', 'h1-tip', ancestor_of=set())
-        # higher2 is contaminated: merge-base is 'foreign', not in dst
         higher2 = _make_branch('development/10.0', 'h2-tip', ancestor_of=set())
 
         job = _make_job(
@@ -294,14 +323,39 @@ class TestCheckSourceBranchLineageContaminated:
             dst_ancestors=dst_ancestors,
             cascade_branches=[dst, higher1, higher2],
             merge_base_map={
-                ('feature/ARTESCA-17922-fix', 'development/5.1'): 'base',
-                ('feature/ARTESCA-17922-fix', 'development/10.0'): 'foreign',
+                ('src-tip', 'h1-tip'): 'base',      # clean
+                ('src-tip', 'h2-tip'): 'foreign',   # contaminated
             },
         )
         with pytest.raises(messages.ForeignCommitsInSourceBranch) as exc_info:
             check_source_branch_lineage(job)
 
-        assert exc_info.value.kwargs['foreign_branch'] == 'development/10.0'
+        assert exc_info.value.kwargs['foreign_branches'] == ['development/10.0']
+
+    def test_two_higher_branches_both_contaminated(self):
+        """When both higher branches are contaminated, both appear in the error."""
+        dst_ancestors = set()
+        dst = _make_branch('development/4.3', 'dst-tip',
+                           ancestor_of=dst_ancestors)
+        higher1 = _make_branch('development/5.1', 'h1-tip', ancestor_of=set())
+        higher2 = _make_branch('development/10.0', 'h2-tip', ancestor_of=set())
+
+        job = _make_job(
+            src_name='feature/ARTESCA-17922-fix',
+            dst_name='development/4.3',
+            dst_ancestors=dst_ancestors,
+            cascade_branches=[dst, higher1, higher2],
+            merge_base_map={
+                ('src-tip', 'h1-tip'): 'foreign-1',
+                ('src-tip', 'h2-tip'): 'foreign-2',
+            },
+        )
+        with pytest.raises(messages.ForeignCommitsInSourceBranch) as exc_info:
+            check_source_branch_lineage(job)
+
+        assert exc_info.value.kwargs['foreign_branches'] == [
+            'development/5.1', 'development/10.0',
+        ]
 
 
 class TestCheckSourceBranchLineageKnownLimitations:
@@ -337,10 +391,48 @@ class TestCheckSourceBranchLineageKnownLimitations:
             merge_base_map={
                 # merge-base is 'old-tip': dev's own past commit, not a
                 # foreign commit from dev/5.1, but indistinguishable here.
-                ('feature/BERTE-001-backport', 'development/5.1'): 'old-tip',
+                ('src-tip', 'h-tip'): 'old-tip',
             },
         )
         # Known false positive: ForeignCommitsInSourceBranch is raised even
         # though the branch is clean. This test documents the limitation.
+        with pytest.raises(messages.ForeignCommitsInSourceBranch):
+            check_source_branch_lineage(job)
+
+
+class TestBypassSourceBranchLineage:
+    """bypass_source_branch_lineage skips the check entirely."""
+
+    def _contaminated_job(self, bypass):
+        """Return a job that would normally raise ForeignCommitsInSourceBranch."""
+        dst_ancestors = set()
+        dst = _make_branch('development/4.3', 'dst-tip',
+                           ancestor_of=dst_ancestors)
+        higher = _make_branch('development/4', 'h-tip', ancestor_of=set())
+        return _make_job(
+            src_name='bugfix/BERTE-001',
+            dst_name='development/4.3',
+            dst_ancestors=dst_ancestors,
+            cascade_branches=[dst, higher],
+            merge_base_map={
+                ('src-tip', 'h-tip'): 'foreign-sha',
+            },
+            bypass=bypass,
+        )
+
+    def test_bypass_via_settings(self):
+        """bypass_source_branch_lineage=True on settings skips the check."""
+        job = self._contaminated_job(bypass=True)
+        check_source_branch_lineage(job)  # must not raise
+
+    def test_bypass_via_author_bypass(self):
+        """bypass_source_branch_lineage in author_bypass skips the check."""
+        job = self._contaminated_job(bypass=False)
+        job.author_bypass['bypass_source_branch_lineage'] = True
+        check_source_branch_lineage(job)  # must not raise
+
+    def test_no_bypass_still_raises(self):
+        """Without bypass, contamination is still detected."""
+        job = self._contaminated_job(bypass=False)
         with pytest.raises(messages.ForeignCommitsInSourceBranch):
             check_source_branch_lineage(job)

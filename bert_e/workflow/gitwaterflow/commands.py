@@ -395,6 +395,11 @@ def setup(defaults={}):
         "Bypass the pull request leaders' approval",
         privileged=True,
         default=defaults.get("bypass_leader_approval", False))
+    Reactor.add_option(
+        "bypass_source_branch_lineage",
+        "Bypass the cross-branch contamination check",
+        privileged=True,
+        default=defaults.get("bypass_source_branch_lineage", False))
 
     # Other options
     Reactor.add_option(

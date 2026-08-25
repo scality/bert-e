@@ -118,6 +118,7 @@ __Bert-E__.
 | bypass_jira_check         | Bypass the Jira issue check | yes | no
 | bypass_peer_approval      | Bypass the pull request peer's approval | yes | no
 | bypass_leader_approval    | Bypass the pull request leader's approval | yes | no
+| bypass_source_branch_lineage | Bypass the cross-branch contamination check | yes | no
 | create_pull_requests      | Let __Bert-E__ create pull requests corresponding to integration branches | no | no
 | create_integration_branches | Request __Bert-E__ to create integration branches and move forward with the gitwaterflow | no | no
 | no_octopus                | Prevent Wall-E from doing any octopus merge and use multiple consecutive merge instead | yes | no
@@ -277,6 +278,21 @@ includes: _feature/..._, _bugfix/..._, _improvement/..._.
 *__Bert-E__ sends message code 105 in case of non-conformance.*
 
 ___
+
+**The source branch does not carry commits from a higher release line.**
+__Bert-E__ verifies that the source branch has not been accidentally rebased
+on a Bert-E integration commit (e.g. a `w/` branch) or another higher
+development branch. Doing so would cause a silent fast-forward that merges
+hundreds of unrelated commits into a maintenance branch.
+
+*__Bert-E__ sends message code 137 in case of non-conformance.*
+
+> This check can be bypassed by an admin with the
+> __bypass_source_branch_lineage__ option.
+> Use only when the detection is a confirmed false positive (e.g. a legitimate
+> backport that shares history with a higher line).
+
+---
 
 **The prefix of the source branch is compatible with the destination branch.**
 __Bert-E__ prevents the merge of a feature in a maintenance branch (only
@@ -490,6 +506,7 @@ to progress to the next step.  message code
 | 122   | Unknown command | One of the participants asked __Bert-E__ to activate an option, or execute a command he doesn't know. Edit the corresponding message if it contains a typo. Delete it otherwise
 | 123   | Not authorized | One of the participants asked __Bert-E__ to activate a privileged option, or execute a privileged command, but doesn't have enough credentials to do so. Delete the corresponding command ask a __Bert-E__ administrator to run/set the desired command/option.
 | 134   | Not author | One of the participants asked __Bert-E__ to activate an authored option, but the participant is not the author of the pull request.
+| 137   | Foreign commits in source branch | The source branch shares history with a higher release line. Rebase the branch directly on the target branch, or ask an administrator to set `bypass_source_branch_lineage` if this is a confirmed false positive.
 
 Queues
 ------
