@@ -48,3 +48,19 @@ file for more details about which credentials are required.
 
 Checkout the [`tox.ini`](./tox.ini) for all available commands to develop with
 bert-e.
+
+## Contributing a new check
+
+Every new check that blocks a merge **must** ship with a corresponding
+`bypass_<check_name>` privileged option. This is a hard requirement — without
+a bypass, a false positive permanently blocks a legitimate PR with no
+administrator escape hatch.
+
+Checklist for a new check:
+
+1. Add `bypass_<check_name>(job)` to `bert_e/workflow/gitwaterflow/utils.py`
+2. Register the option in `commands.py` `setup()` with `privileged=True`
+3. Import and call `bypass_<check_name>(job)` at the top of the check function
+4. Mention the bypass in the error message template
+5. Document the check and bypass in `bert_e/docs/USER_DOC.md`
+6. Add a unit test that verifies the bypass skips the check

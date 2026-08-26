@@ -1,10 +1,28 @@
 
 """Unit tests fixtures."""
 import os
+import sys
 from os.path import abspath
+from types import ModuleType
+from unittest.mock import MagicMock
+
 import pytest
 
 from bert_e.settings import setup_settings
+
+
+def _install_jira_stub():
+    """Stub jira==2.0.0 which imports `imghdr` removed in Python 3.13."""
+    if 'jira' not in sys.modules:
+        _stub = ModuleType('jira')
+        _stub.JIRA = MagicMock()
+        _stub.exceptions = ModuleType('jira.exceptions')
+        _stub.exceptions.JIRAError = Exception
+        sys.modules['jira'] = _stub
+        sys.modules['jira.exceptions'] = _stub.exceptions
+
+
+_install_jira_stub()
 
 
 @pytest.fixture

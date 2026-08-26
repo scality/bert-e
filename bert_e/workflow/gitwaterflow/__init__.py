@@ -22,6 +22,7 @@ import re
 from bert_e import exceptions as messages
 from bert_e.job import handler, CommitJob, PullRequestJob, QueuesJob
 from bert_e.lib.cli import confirm
+from bert_e.lib.simplecmd import CommandError
 from bert_e.reactor import Reactor, NotFound, NotPrivileged, NotAuthored
 from ..git_utils import push, clone_git_repo
 from ..pr_utils import find_comment, notify_user
@@ -31,7 +32,8 @@ from .branches import (
 )
 from .utils import (
     bypass_incompatible_branch, bypass_peer_approval,
-    bypass_author_approval, bypass_leader_approval, bypass_build_status
+    bypass_author_approval, bypass_leader_approval, bypass_build_status,
+    bypass_source_branch_lineage
 )
 from .commands import setup  # noqa
 from .integration import (check_integration_branches,
@@ -158,6 +160,7 @@ def _handle_pull_request(job: PullRequestJob):
     job.git.cascade.validate()
 
     check_branch_compatibility(job)
+    check_source_branch_lineage(job)
     jira_checks(job)
 
     check_integration_branches(job)
@@ -381,6 +384,125 @@ def check_commit_diff(job):
             threshold=threshold,
             active_options=job.active_options
         )
+
+
+def check_source_branch_lineage(job):
+    """Detect cross-branch contamination before any merge occurs.
+
+    Raises ForeignCommitsInSourceBranch when the source branch shares history
+    with a release line that is higher than the target branch. This catches the
+    case where a developer rebased their feature branch on a Bert-E integration
+    commit (e.g. w/4) instead of directly on the target branch (e.g.
+    development/4.3), which would cause git to silently fast-forward the target
+    branch into the higher release line.
+
+    Algorithm: for each development branch in the cascade that is NOT an
+    ancestor of dst, compute merge-base(src, higher). If that commit is not
+    an ancestor of dst, then src carries commits from the higher line that dst
+    does not know about.
+
+    Note: for hotfix PRs, cascade.dst_branches contains only the single
+    matching hotfix branch, so this check is currently a no-op for hotfix
+    targets.
+
+    Known limitation: if a feature branch was previously merged into a higher
+    release line and then extended with new commits before being backported,
+    the backport guard (which only tests the current tip) will not fire and
+    the merge-base check may produce a false positive because the shared
+    ancestor is the developer's own commit. In practice this scenario is rare
+    in GitWaterFlow, which cascades merges upward from the lowest target.
+
+    Raises:
+        ForeignCommitsInSourceBranch
+    """
+    if bypass_source_branch_lineage(job):
+        LOG.info('bypass_source_branch_lineage active, skipping lineage check')
+        return
+
+    dst = job.git.dst_branch
+    src = job.git.src_branch
+    # Hoist to avoid O(N) subprocess calls and ensure the backport guard
+    # uses a consistent snapshot across all loop iterations.
+    try:
+        src_sha = src.get_latest_commit()
+    except CommandError:
+        LOG.debug('get_latest_commit(%s) failed, skipping lineage check',
+                  src.name, exc_info=True)
+        return
+
+    foreign_branches = []
+    has_cascade_higher = False  # any branch beyond dst exists in the cascade
+    had_higher = False  # at least one higher branch was successfully resolved
+    for higher in job.git.cascade.dst_branches:
+        if higher.name == dst.name:
+            continue
+        has_cascade_higher = True
+        # Skip branches whose full history is already reachable from dst
+        # (e.g. a higher line that was previously cascaded into dst).
+        # If dst contains higher's tip, any merge-base(src, higher) is also
+        # guaranteed to be in dst, so the contamination check would be a no-op.
+        try:
+            higher_tip = higher.get_latest_commit()
+        except CommandError:
+            LOG.debug('get_latest_commit(%s) failed, skipping',
+                      higher.name, exc_info=True)
+            continue
+        # had_higher is set only after a successful resolution so that an
+        # all-branches failure produces the correct diagnostic message.
+        had_higher = True
+        if dst.includes_commit(higher_tip):
+            continue
+        # src_sha == higher_tip means the branch is entirely on the higher
+        # release line — contamination (do NOT fire the backport guard; git
+        # considers every commit an ancestor of itself so the guard would
+        # incorrectly pass). Otherwise, src is a strict ancestor of higher:
+        # feature was previously merged there (legitimate backport), skip.
+        if src_sha != higher_tip and higher.includes_commit(src_sha):
+            continue
+
+        try:
+            # Use pre-resolved SHAs (src_sha, higher_tip) for consistency with
+            # the snapshot already used by the backport guard above.
+            # --all covers criss-cross merges where two incomparable common
+            # ancestors exist; without it git picks one arbitrarily, and might
+            # return the ancestor already in dst, producing a false negative.
+            merge_bases = job.git.repo.cmd(
+                'git merge-base --all %s %s', src_sha, higher_tip
+            ).split()
+        except CommandError:
+            LOG.debug('merge-base(%s, %s) failed, skipping',
+                      src.name, higher.name, exc_info=True)
+            continue
+
+        # merge-base --all yields ≥ 1 SHA on exit 0, but guard defensively.
+        if not merge_bases:
+            continue
+
+        # Contamination: any merge-base that is not in dst means src carries
+        # history from the higher release line that dst does not know about.
+        # Optimisation: base == higher_tip implies dst.includes_commit was
+        # already evaluated as False above — skip the subprocess for that base.
+        if any(base == higher_tip or not dst.includes_commit(base)
+               for base in merge_bases):
+            foreign_branches.append(higher.name)
+
+    if not foreign_branches:
+        if not has_cascade_higher:
+            LOG.debug('check_source_branch_lineage: no higher branches in '
+                      'cascade for %s (hotfix target?), check is a no-op',
+                      dst.name)
+        elif not had_higher:
+            LOG.debug('check_source_branch_lineage: all higher branches '
+                      'failed to resolve for %s, check was not performed',
+                      dst.name)
+        return
+
+    raise messages.ForeignCommitsInSourceBranch(
+        src_branch=src.name,
+        dst_branch=dst.name,
+        foreign_branches=foreign_branches,
+        active_options=job.active_options,
+    )
 
 
 def check_branch_compatibility(job):
