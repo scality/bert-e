@@ -19,11 +19,12 @@ from marshmallow import ValidationError, Schema
 class SchemaError(Exception):
     """Base class of all schema related errors."""
 
-    def __init__(self, args):
-        self.args = args
+    def __init__(self, errors):
+        super().__init__(errors)
+        self.errors = errors
 
     def __str__(self):
-        print(self.args)
+        return str(self.errors)
 
 
 def load(cls: Schema, data, **kwargs):
