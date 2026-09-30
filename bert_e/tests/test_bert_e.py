@@ -3021,6 +3021,102 @@ admins:
         self.assertIn('history', report)
         self.assertTrue(getattr(report['history'], 'pass'))
 
+    def test_status_command_lists_every_failing_build(self):
+        """Status report lists every failing integration build, not only the
+        worst one."""
+        pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
+        self.handle(pr.id, options=['bypass_jira_check'])
+        self.gitrepo.cmd('git fetch --prune')
+        wbranch_refs = self.gitrepo.cmd(
+            'git branch -r --list origin/w/*/bugfix/TEST-00001'
+        ).strip().split()
+        self.assertGreaterEqual(len(wbranch_refs), 2)
+        ok_ref, failing_refs = wbranch_refs[0], wbranch_refs[1:]
+        sha = self.gitrepo.cmd('git rev-parse %s' % ok_ref).strip()
+        self.set_build_status(sha, 'SUCCESSFUL')
+        for ref in failing_refs:
+            sha = self.gitrepo.cmd('git rev-parse %s' % ref).strip()
+            self.set_build_status(sha, 'FAILED')
+        pr.add_comment('@%s status' % self.args.robot_username)
+        with self.assertRaises(exns.StatusReport) as ctx:
+            self.handle(pr.id, options=['bypass_jira_check'], backtrace=True)
+        builds = ctx.exception.kwargs['status']['builds']
+        self.assertFalse(getattr(builds, 'pass'))
+        self.assertEqual(len(builds.details), len(failing_refs))
+        for ref in failing_refs:
+            name = ref[len('origin/'):]
+            self.assertTrue(any(d.startswith(name + ': FAILED')
+                                for d in builds.details))
+        self.assertIn('FAILED', ctx.exception.msg)
+
+    def test_status_command_builds_not_yet_evaluated(self):
+        """Status report marks builds as pending when integration branches
+        do not exist yet, and does not create them."""
+        pr = self.create_pr('bugfix/my-feature', 'development/4.3')
+        # Stops at the Jira check, before integration branches are created.
+        self.handle(pr.id)
+        pr.add_comment('@%s status' % self.args.robot_username)
+        with self.assertRaises(exns.StatusReport) as ctx:
+            self.handle(pr.id, backtrace=True)
+        report = ctx.exception.kwargs['status']
+        self.assertIn('builds', report)
+        self.assertTrue(report['builds'].pending)
+        self.assertFalse(getattr(report['builds'], 'pass'))
+        self.assertTrue(
+            any('not yet evaluated' in d for d in report['builds'].details))
+        self.assertNotIn('history', report)
+        self.assertIn(':hourglass:', ctx.exception.msg)
+        self.gitrepo.cmd('git fetch --prune')
+        self.assertEqual(self.gitrepo.cmd(
+            'git branch -r --list origin/w/*/bugfix/my-feature').strip(), '')
+
+    def test_status_command_approvals_bypassed_details(self):
+        """Status report says approvals are bypassed, not just satisfied."""
+        pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
+        self.handle(pr.id, options=['bypass_jira_check'])
+        pr.add_comment('@%s status' % self.args.robot_username)
+        with self.assertRaises(exns.StatusReport) as ctx:
+            self.handle(pr.id, options=['bypass_jira_check',
+                                        'bypass_author_approval',
+                                        'bypass_peer_approval',
+                                        'bypass_leader_approval'],
+                        backtrace=True)
+        approvals = ctx.exception.kwargs['status']['approvals']
+        self.assertTrue(getattr(approvals, 'pass'))
+        self.assertTrue(any('bypassed' in d for d in approvals.details))
+        self.assertIn('bypassed', ctx.exception.msg)
+
+    def test_status_command_wait_option(self):
+        """Status report lists the wait option as a blocker."""
+        pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
+        self.handle(pr.id, options=['bypass_jira_check'])
+        pr.add_comment('@%s status' % self.args.robot_username)
+        with self.assertRaises(exns.StatusReport) as ctx:
+            self.handle(pr.id, options=['bypass_jira_check', 'wait'],
+                        backtrace=True)
+        report = ctx.exception.kwargs['status']
+        self.assertIn('wait', report)
+        self.assertFalse(getattr(report['wait'], 'pass'))
+
+    def test_status_command_no_wait_row_by_default(self):
+        """Status report omits the wait row when the option is not set."""
+        pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
+        self.handle(pr.id, options=['bypass_jira_check'])
+        pr.add_comment('@%s status' % self.args.robot_username)
+        with self.assertRaises(exns.StatusReport) as ctx:
+            self.handle(pr.id, options=['bypass_jira_check'], backtrace=True)
+        self.assertNotIn('wait', ctx.exception.kwargs['status'])
+
+    def test_status_command_help_text(self):
+        """The status command has a real description in the help page."""
+        pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
+        self.handle(pr.id, options=['bypass_jira_check'])
+        pr.add_comment('@%s help' % self.args.robot_username)
+        with self.assertRaises(exns.HelpMessage) as ctx:
+            self.handle(pr.id, options=['bypass_jira_check'], backtrace=True)
+        self.assertIn('Print everything still missing before this pull '
+                      'request can be merged.', ctx.exception.msg)
+
     def test_bypass_options(self):
         # test bypass all approvals through an incorrect bitbucket comment
         pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
