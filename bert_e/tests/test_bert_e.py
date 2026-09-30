@@ -4358,6 +4358,22 @@ always_create_integration_pull_requests: False
         with self.assertRaises(exns.IncorrectCommandSyntax):
             self.handle(blocked_pr.id, options=self.bypass_all, backtrace=True)
 
+    def test_after_pull_request_slash_space_syntax(self):
+        pr_declined = self.create_pr('bugfix/TEST-00002', 'development/4.3')
+        pr_declined.decline()
+        blocked_pr = self.create_pr('bugfix/TEST-00003', 'development/4.3')
+
+        # Commands are only read after Bert-E's last message
+        with self.assertRaises(exns.ApprovalRequired):
+            self.handle(blocked_pr.id, options=['bypass_jira_check',
+                                                'bypass_build_status'],
+                        backtrace=True)
+
+        blocked_pr.add_comment('/after_pull_request %s' % pr_declined.id)
+
+        with self.assertRaises(exns.IncorrectCommandSyntax):
+            self.handle(blocked_pr.id, options=self.bypass_all, backtrace=True)
+
     def test_after_pull_request_wrong_pr_id(self):
         blocked_pr = self.create_pr('bugfix/TEST-00003', 'development/4.3')
 

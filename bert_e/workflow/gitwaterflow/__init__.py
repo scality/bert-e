@@ -23,7 +23,9 @@ from bert_e import exceptions as messages
 from bert_e.job import handler, CommitJob, PullRequestJob, QueuesJob
 from bert_e.lib.cli import confirm
 from bert_e.lib.simplecmd import CommandError
-from bert_e.reactor import Reactor, NotFound, NotPrivileged, NotAuthored
+from bert_e.reactor import (
+    Reactor, NotFound, NotPrivileged, NotAuthored, IncorrectSyntax
+)
 from ..git_utils import push, clone_git_repo
 from ..pr_utils import find_comment, notify_user
 from .branches import (
@@ -359,6 +361,11 @@ def handle_comments(job):
             raise messages.NotEnoughCredentials(
                 active_options=job.active_options, command=err.keyword,
                 author=author, self_pr=(author == pr_author), comment=text
+            ) from err
+        except IncorrectSyntax as err:
+            raise messages.IncorrectCommandSyntax(
+                robot=job.settings.robot, keyword=err.keyword,
+                active_options=job.active_options
             ) from err
 
 

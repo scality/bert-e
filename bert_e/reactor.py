@@ -153,6 +153,13 @@ class NotAuthored(Error):
         self.keyword = keyword
 
 
+class IncorrectSyntax(Error):
+    """An option was called with arguments using a wrong syntax."""
+    def __init__(self, keyword: str):
+        super().__init__()
+        self.keyword = keyword
+
+
 class NotFound(Error):
     """The requested command or option doesn't exist."""
     def __init__(self, keyword: str):
@@ -445,6 +452,11 @@ class Reactor(Dispatcher):
                 return
             raise NotFound(key)
         if not isinstance(command, Command):
+            if slash_shorthand and args and not args[0].startswith("="):
+                # An option followed by free-form arguments (e.g.
+                # ``/after_pull_request 1509``) is not a valid option
+                # declaration: options take their argument as ``key=value``.
+                raise IncorrectSyntax(key)
             return
 
         if command.privileged and not privileged:
