@@ -15,7 +15,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from bert_e.reactor import Command, NotFound, NotPrivileged, Option, Reactor
+from bert_e.reactor import (Command, IncorrectSyntax, NotFound, NotPrivileged,
+                            Option, Reactor)
 
 
 # All tests are run on a Reactor subclass to avoid sharing state.
@@ -391,3 +392,20 @@ def test_reactor_has_close_match(reactor_cls, job):
     assert reactor._has_close_match('gemini') is False
     assert reactor._has_close_match('copilot') is False
     assert reactor._has_close_match('other-bot-name') is False
+
+
+def test_handle_commands_option_with_positional_args_raises(reactor_cls, job):
+    """``/after_pull_request 1509`` must not be silently ignored."""
+
+    @reactor_cls.option(default=set())
+    def after_pull_request(job, pr_id=None):
+        job.settings['after_pull_request'].add(pr_id)
+
+    reactor = reactor_cls()
+
+    with pytest.raises(IncorrectSyntax) as err:
+        reactor.handle_commands(job, '/after_pull_request 1509', '@bert-e')
+    assert err.value.keyword == 'after_pull_request'
+
+    # an option alone is still ignored by handle_commands
+    reactor.handle_commands(job, '/after_pull_request', '@bert-e')

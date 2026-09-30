@@ -160,6 +160,13 @@ class NotFound(Error):
         self.keyword = keyword
 
 
+class IncorrectSyntax(Error):
+    """An option was called with arguments using the command syntax."""
+    def __init__(self, keyword: str):
+        super().__init__()
+        self.keyword = keyword
+
+
 LOG = logging.getLogger(__name__)
 
 Command = namedtuple('Command', ['handler', 'help', 'privileged', 'authored'])
@@ -412,6 +419,8 @@ class Reactor(Dispatcher):
                       registered command to be considered a typo).
             NotPrivileged: when a privileged command call is found
                            and the method is called with privileged=False.
+            IncorrectSyntax: if an option is used like a command, with
+                             positional arguments.
 
         """
         raw = text.strip()
@@ -445,6 +454,10 @@ class Reactor(Dispatcher):
                 return
             raise NotFound(key)
         if not isinstance(command, Command):
+            if args:
+                # An option followed by arguments (e.g. ``/after_pull_request
+                # 1509``) is not valid: options take ``key=value``.
+                raise IncorrectSyntax(key)
             return
 
         if command.privileged and not privileged:
