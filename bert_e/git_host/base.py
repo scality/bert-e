@@ -66,11 +66,11 @@ class BertESession(Session):
         for attempt in range(1, max_attempts + 1):
             try:
                 response = super().request(method, url, **kwargs)
-                LOG.info("request: {method} {url} {status} {time}".format(
+                LOG.info("request: {method} {url} {status} {time:.3f}s".format(
                     method=response.request.method,
                     url=response.request.url,
                     status=response.status_code,
-                    time=response.elapsed.microseconds
+                    time=response.elapsed.total_seconds()
                 ))
             except Exception:
                 LOG.error('{method} {url}'.format(method=method, url=url))

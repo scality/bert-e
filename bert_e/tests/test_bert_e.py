@@ -183,7 +183,7 @@ def fake_answer_internal(status_code, *args, **kwargs):
         response.status_code = 200
     response.request.method = "GET"
     response.request.url = "http://localhost/"
-    response.elapsed.microseconds = 0
+    response.elapsed.total_seconds.return_value = 0.0
 
     return response
 
