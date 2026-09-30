@@ -115,7 +115,8 @@ class AbstractGitHostObject(metaclass=ABCMeta):
         self.data = data
 
     @classmethod
-    def get(cls, client, url=None, params={}, headers={}, **kwargs):
+    def get(cls, client, url=None, params=None, headers=None,
+            **kwargs):
         """Get a Githost object.
 
         The result is parsed using cls.GET_SCHEMA, of cls.SCHEMA if absent.
@@ -129,6 +130,8 @@ class AbstractGitHostObject(metaclass=ABCMeta):
         Returns:
             The result of the query, parsed by the shema.
         """
+        params = {} if params is None else params
+        headers = {} if headers is None else headers
         url = url or cls.GET_URL
         if url is None:
             raise InvalidOperation(
@@ -141,7 +144,8 @@ class AbstractGitHostObject(metaclass=ABCMeta):
         return obj
 
     @classmethod
-    def list(cls, client, url=None, params={}, headers={}, **kwargs):
+    def list(cls, client, url=None, params=None, headers=None,
+            **kwargs):
         """List objects.
 
         The result is parsed using cls.LIST_SCHEMA, or cls.GET_SCHEMA if
@@ -154,6 +158,8 @@ class AbstractGitHostObject(metaclass=ABCMeta):
             The elements of the response as they are parsed by the schema.
 
         """
+        params = {} if params is None else params
+        headers = {} if headers is None else headers
         url = url or cls.LIST_URL
         if url is None:
             raise InvalidOperation(
@@ -180,8 +186,9 @@ class AbstractGitHostObject(metaclass=ABCMeta):
         return cls(**load_schema(schema_cls, data, **kwargs), _validate=False)
 
     @classmethod
-    def create(cls, client, data, headers={}, url=None, **kwargs):
+    def create(cls, client, data, headers=None, url=None, **kwargs):
         """Create an object."""
+        headers = {} if headers is None else headers
         url = url or cls.CREATE_URL
         if url is None:
             raise InvalidOperation(
@@ -196,8 +203,9 @@ class AbstractGitHostObject(metaclass=ABCMeta):
         return obj
 
     @classmethod
-    def update(cls, client, data, headers={}, url=None, **kwargs):
+    def update(cls, client, data, headers=None, url=None, **kwargs):
         """Update an object."""
+        headers = {} if headers is None else headers
         url = url or cls.UPDATE_URL or cls.GET_URL
         if url is None:
             raise InvalidOperation(
