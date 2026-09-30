@@ -159,6 +159,7 @@ __Bert-E__:
 | command name          | description              | requires admin rights? |
 |:--------------------- |:------------------------ |:----------------------:|
 | help                  | Print __Bert-E__'s manual in the pull request | no
+| status                | Print everything still missing before this pull request can be merged (see below) | no
 | reset                 | Let __Bert-E__ reset the integration branches associated to the current pull request with a warning if the developer manually modified one of the the integration branches | no
 | force_reset           | Let __Bert-E__ reset the integration branches associated to the current pull request **without warning**. | no
 
@@ -169,6 +170,29 @@ option -- that way, comments addressed to other bots (e.g.
 ``/coderabbit review``) don't trigger an "unknown command" reply. Comments
 that explicitly address __Bert-E__ via its ``@<robot>`` mention are always
 dispatched normally and will still report unknown commands.
+
+### The status command
+
+``/status`` (or ``@bert-e status``) posts a report listing every check at
+once, instead of only the next blocker. It is read-only: it never creates
+integration branches, merges or queues anything, and any user can run it. A
+new report is posted each time the command is issued.
+
+Each row is marked :sunny: (satisfied, possibly with a note such as
+"bypassed"), :exclamation: (missing) or :hourglass: (not yet evaluated). The
+report covers:
+
+* approvals (author, peer, leader, unanimity, requested changes);
+* the ``wait`` option, when it is set;
+* integration builds: every integration branch whose build is not
+  successful, with a link to its build when available. Before the integration
+  branches exist, this row shows as not yet evaluated;
+* Jira fix versions, when Jira checks are configured;
+* integration branch history (whether a reset may be needed);
+* the merge queue, when queues are enabled.
+
+This command is unrelated to the web status page served by __Bert-E__, which
+shows the merge queue and recent merges for the whole repository.
 
 Integration branches...
 -----------------------
