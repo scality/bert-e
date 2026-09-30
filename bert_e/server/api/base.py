@@ -83,12 +83,20 @@ class APIEndpoint(BaseView):
     def __init_subclass__(cls, **kwargs):
         """Runs some health checks on class properties."""
         super().__init_subclass__(**kwargs)
-        assert cls.rule
-        assert type(cls.rule) == str
-        assert cls.method in ['GET', 'DELETE', 'PATCH', 'POST', 'PUT']
-        assert type(cls.admin) == bool
-        if cls.view == APIEndpoint.view:
-            assert issubclass(cls.job, APIJob)
+        # Explicit checks rather than ``assert``: asserts are stripped
+        # when Python runs with -O, which would silently skip validation.
+        name = cls.__name__
+        if not cls.rule or not isinstance(cls.rule, str):
+            raise TypeError(f"{name}.rule must be a non-empty string")
+        if cls.method not in ('GET', 'DELETE', 'PATCH', 'POST', 'PUT'):
+            raise ValueError(f"{name}.method {cls.method!r} is not a "
+                             "supported HTTP method")
+        if not isinstance(cls.admin, bool):
+            raise TypeError(f"{name}.admin must be a bool")
+        if cls.view == APIEndpoint.view and not (
+                isinstance(cls.job, type) and issubclass(cls.job, APIJob)):
+            raise TypeError(f"{name}.job must be a subclass of APIJob "
+                            "when view() is not overridden")
 
     @staticmethod
     def validate_endpoint_data(*args, **kwargs):
