@@ -23,7 +23,8 @@ LOG = logging.getLogger(__name__)
 
 
 def find_comment(pull_request: AbstractPullRequest, username=None,
-                 startswith=None, max_history=None) -> AbstractComment:
+                 startswith=None, max_history=None,
+                 include_status=False) -> AbstractComment:
     """Look for the most recent pull request comment satisfying given
     criteria.
 
@@ -31,6 +32,7 @@ def find_comment(pull_request: AbstractPullRequest, username=None,
         username: comment's author.
         starswith: preamble of the comment.
         max_history: limit of the comment history to look backwards.
+        include_status: also consider the always up-to-date status comment.
 
     Returns:
         The latest comment if it was found. None otherwise.
@@ -43,7 +45,8 @@ def find_comment(pull_request: AbstractPullRequest, username=None,
     for comment in comments:
         if comment.author != username:
             continue
-        if comment.text.startswith(STATUS_COMMENT_MARKER) and \
+        if not include_status and \
+                comment.text.startswith(STATUS_COMMENT_MARKER) and \
                 not (startswith or '').startswith(STATUS_COMMENT_MARKER):
             # the status comment is not part of the regular history
             continue
@@ -151,7 +154,13 @@ def _update_status_comment(settings, pull_request: AbstractPullRequest,
             existing.update(text)
         except NotImplementedError:
             # no in-place edit on this host: replace the stale comment
-            existing.delete()
+            try:
+                existing.delete()
+            except Exception:
+                # keep the stale comment rather than posting a duplicate
+                LOG.warning("Could not delete stale status comment; "
+                            "skipping status update", exc_info=True)
+                return
             pull_request.add_comment(text)
 
 

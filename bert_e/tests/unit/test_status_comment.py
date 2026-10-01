@@ -229,3 +229,13 @@ def test_find_comment_skips_status_comment_for_regular_lookup():
     pr_utils.notify_user(settings(), pr, exc(t='one'))
     found = pr_utils.find_comment(pr, 'bert-e', 'details one', 10)
     assert found is not None and found.text == 'details one'
+
+
+def test_find_comment_include_status_finds_status_comment():
+    pr = MagicMock()
+    c = MagicMock()
+    c.author = 'bert-e'
+    c.text = pr_utils.STATUS_COMMENT_MARKER + '\nstatus'
+    pr.comments = [c]
+    assert pr_utils.find_comment(pr, 'bert-e') is None
+    assert pr_utils.find_comment(pr, 'bert-e', include_status=True) is c

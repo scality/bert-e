@@ -276,7 +276,8 @@ def send_greetings(job):
 
     """
     username = job.settings.robot
-    if find_comment(job.pull_request, username=username):
+    if find_comment(job.pull_request, username=username,
+                    include_status=True):
         return
 
     init_message = messages.InitMessage(
