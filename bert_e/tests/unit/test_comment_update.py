@@ -1,4 +1,3 @@
-"""Status comments are edited in place instead of being re-posted."""
 from types import SimpleNamespace
 
 import pytest
@@ -8,24 +7,24 @@ from bert_e.workflow import pr_utils
 
 
 class FakeComment:
-    def __init__(self, author, text, editable=True):
+    def __init__(self, author, text, can_update=True):
         self.author = author
         self.text = text
-        self.editable = editable
+        self.can_update = can_update
 
-    def edit(self, msg):
-        if not self.editable:
+    def edit(self, text):
+        if not self.can_update:
             raise NotImplementedError
-        self.text = msg
+        self.text = text
 
 
 class FakePR:
-    def __init__(self, editable=True):
+    def __init__(self, can_update=True):
         self.comments = []
-        self.editable = editable
+        self.can_update = can_update
 
     def add_comment(self, msg):
-        self.comments.append(FakeComment('bert-e', msg, self.editable))
+        self.comments.append(FakeComment('bert-e', msg, self.can_update))
 
 
 @pytest.fixture
@@ -34,56 +33,53 @@ def settings():
                            robot='bert-e')
 
 
-def _send(settings, pr, msg, exc_cls):
-    pr_utils._send_comment(settings, pr, msg,
-                           exc_cls.dont_repeat_if_in_history,
-                           updatable=exc_cls.updatable)
+def send(settings, pr, msg, update=True):
+    pr_utils._send_comment(settings, pr, msg, 0, update)
 
 
-def test_updatable_classes():
-    assert exceptions.ResetComplete.updatable
-    assert exceptions.BranchHistoryMismatch.updatable
-    assert exceptions.IncorrectFixVersion.updatable
-    assert exceptions.IntegrationDataCreated.updatable
-    assert not exceptions.HelpMessage.updatable
-    assert not exceptions.StatusReport.updatable
-
-
-def test_status_comment_is_updated(settings):
+def test_status_comment_is_updated_in_place(settings):
     pr = FakePR()
-    _send(settings, pr, 'reset', exceptions.ResetComplete)
-    _send(settings, pr, 'history mismatch', exceptions.BranchHistoryMismatch)
+    send(settings, pr, 'history conflict')
+    send(settings, pr, 'reset complete')
     assert len(pr.comments) == 1
-    assert pr.comments[0].text.startswith('history mismatch')
-    assert pr.comments[0].text.endswith(pr_utils.STATUS_MARKER)
+    assert pr.comments[0].text.endswith('reset complete')
+    assert pr.comments[0].text.startswith(pr_utils.STATUS_MARKER)
 
 
-def test_identical_status_not_reposted(settings):
+def test_status_comment_updated_even_after_other_comments(settings):
     pr = FakePR()
-    _send(settings, pr, 'reset', exceptions.ResetComplete)
+    send(settings, pr, 'status 1')
+    pr.comments.append(FakeComment('bert-e', 'approved'))
+    send(settings, pr, 'status 2')
+    assert len(pr.comments) == 2
+    assert pr.comments[0].text.endswith('status 2')
+
+
+def test_identical_status_raises(settings):
+    pr = FakePR()
+    send(settings, pr, 'same')
     with pytest.raises(exceptions.CommentAlreadyExists):
-        _send(settings, pr, 'reset', exceptions.ResetComplete)
-    assert len(pr.comments) == 1
+        send(settings, pr, 'same')
 
 
-def test_non_updatable_message_is_posted(settings):
+def test_other_authors_comments_are_not_edited(settings):
     pr = FakePR()
-    _send(settings, pr, 'reset', exceptions.ResetComplete)
-    _send(settings, pr, 'help', exceptions.HelpMessage)
+    pr.comments.append(
+        FakeComment('someone', pr_utils.STATUS_MARKER + '\nfoo'))
+    send(settings, pr, 'status')
     assert len(pr.comments) == 2
-    assert pr_utils.STATUS_MARKER not in pr.comments[1].text
+    assert pr.comments[0].text.endswith('foo')
 
 
-def test_fallback_when_edit_unsupported(settings):
-    pr = FakePR(editable=False)
-    _send(settings, pr, 'reset', exceptions.ResetComplete)
-    _send(settings, pr, 'other', exceptions.BranchHistoryMismatch)
-    assert len(pr.comments) == 2
-
-
-def test_other_authors_comments_untouched(settings):
+def test_regular_comments_are_not_updated(settings):
     pr = FakePR()
-    pr.comments.append(FakeComment('someone', 'hi ' + pr_utils.STATUS_MARKER))
-    _send(settings, pr, 'reset', exceptions.ResetComplete)
+    send(settings, pr, 'a', update=False)
+    send(settings, pr, 'b', update=False)
+    assert [c.text for c in pr.comments] == ['a', 'b']
+
+
+def test_fallback_when_host_cannot_edit(settings):
+    pr = FakePR(can_update=False)
+    send(settings, pr, 'a')
+    send(settings, pr, 'b')
     assert len(pr.comments) == 2
-    assert pr.comments[0].text.startswith('hi')

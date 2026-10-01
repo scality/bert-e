@@ -53,17 +53,38 @@ def find_comment(pull_request: AbstractPullRequest, username=None,
         return comment
 
 
-def find_status_comment(pull_request: AbstractPullRequest,
-                        username) -> AbstractComment:
-    """Return the latest status comment posted by the bot, if any."""
-    for comment in reversed(pull_request.comments):
-        if comment.author == username and comment.text.rstrip().endswith(
-                STATUS_MARKER):
-            return comment
+STATUS_MARKER = '<!-- bert-e-status -->'
+
+
+def _update_status_comment(settings, pull_request: AbstractPullRequest,
+                           msg: str) -> bool:
+    """Edit the bot's status comment in place, or create it.
+
+    Returns True if the message was handled (edited or posted), False if
+    the git host cannot edit comments and a regular comment should be sent.
+
+    Raises:
+        CommentAlreadyExists: if the status comment already has this text.
+
+    """
+    body = f'{STATUS_MARKER}\n{msg}'
+    previous = find_comment(pull_request, settings.robot, STATUS_MARKER)
+    if previous is None:
+        pull_request.add_comment(body)
+        return True
+    if previous.text == body:
+        raise exceptions.CommentAlreadyExists(
+            "The status comment is already up to date.")
+    try:
+        previous.edit(body)
+    except NotImplementedError:
+        return False
+    return True
 
 
 def _send_comment(settings, pull_request: AbstractPullRequest, msg: str,
-                  dont_repeat_if_in_history=10, updatable=False) -> None:
+                  dont_repeat_if_in_history=10,
+                  update_status_comment=False) -> None:
     """Comment a pull request.
 
     Before posting:
@@ -110,6 +131,9 @@ def _send_comment(settings, pull_request: AbstractPullRequest, msg: str,
                 LOG.debug('Comments cannot be edited, posting a new one.')
 
     LOG.debug('SENDING MESSAGE %s', msg)
+    if update_status_comment and _update_status_comment(
+            settings, pull_request, msg):
+        return
     pull_request.add_comment(msg)
 
 
@@ -134,6 +158,6 @@ def notify_user(settings, pull_request: AbstractPullRequest,
         _send_bot_status(settings, pull_request, comment)
         _send_comment(settings, pull_request, str(comment),
                       comment.dont_repeat_if_in_history,
-                      updatable=comment.updatable)
+                      comment.update_status_comment)
     except exceptions.CommentAlreadyExists:
         LOG.info("Comment '%s' already posted", comment.__class__.__name__)

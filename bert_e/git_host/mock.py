@@ -409,8 +409,9 @@ class CommentController(Controller, base.AbstractComment):
     def delete(self):
         self.controlled.delete()
 
-    def edit(self, msg):
-        self['content'] = {"raw": msg, "markup": "markdown", "html": msg}
+    def edit(self, text):
+        self.controlled.content = {"raw": text, "markup": "markdown",
+                                   "html": text}
 
     @property
     def author(self):

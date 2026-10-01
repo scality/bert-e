@@ -269,7 +269,7 @@ class Client(base.AbstractClient):
 
         """
         url = self._patch_url(url)
-        response = self.session.post(url, data=data, **kwargs)
+        response = self.session.patch(url, data=data, **kwargs)
         response.raise_for_status()
         return json.loads(response.text)
 
@@ -1018,10 +1018,10 @@ class Comment(base.AbstractGitHostObject, base.AbstractComment):
     def delete(self) -> None:
         self.client.delete(self.data['url'])
 
-    def edit(self, msg: str) -> None:
-        self.data = self.update(
-            self.client, {'body': msg}, url=self.data['url']
-        ).data
+    def edit(self, text: str) -> None:
+        updated = type(self).update(
+            self.client, {'body': text}, url=self.data['url'])
+        self.data = updated.data
 
 
 class CheckRun(base.AbstractGitHostObject):

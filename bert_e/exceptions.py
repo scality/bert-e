@@ -31,9 +31,9 @@ class TemplateException(BertE_Exception):
     template = None
     # whether to re-publish if the message is already in the history
     dont_repeat_if_in_history = -1
-    # whether the message is a status that supersedes the previous one: it
-    # then updates the existing status comment instead of posting a new one
-    updatable = False
+    # whether to edit the previous status comment of the bot instead of
+    # posting a new one
+    update_status_comment = False
 
     def __init__(self, **kwargs):
         self.kwargs = kwargs
@@ -134,6 +134,7 @@ class MismatchPrefixIssueType(TemplateException):
 class IncorrectFixVersion(TemplateException):
     code = 112
     template = 'incorrect_fix_version.md'
+    update_status_comment = True
     status = "failure"
     updatable = True
 
@@ -141,6 +142,7 @@ class IncorrectFixVersion(TemplateException):
 class BranchHistoryMismatch(TemplateException):
     code = 113
     template = 'history_mismatch.md'
+    update_status_comment = True
     status = "failure"
     updatable = True
 
@@ -148,6 +150,7 @@ class BranchHistoryMismatch(TemplateException):
 class Conflict(TemplateException):
     code = 114
     template = 'conflict.md'
+    update_status_comment = True
     status = "failure"
 
 
@@ -172,6 +175,7 @@ class AfterPullRequest(TemplateException):
 class IntegrationDataCreated(InformationException):
     code = 121
     template = 'integration_data_created.md'
+    update_status_comment = True
 
 
 class UnknownCommand(TemplateException):
@@ -232,7 +236,7 @@ class QueueOutOfOrder(TemplateException):
 class ResetComplete(TemplateException):
     code = 128
     template = "reset_complete.md"
-    updatable = True
+    update_status_comment = True
 
 
 class LossyResetWarning(TemplateException):

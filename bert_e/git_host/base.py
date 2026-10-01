@@ -277,12 +277,12 @@ class AbstractComment(metaclass=ABCMeta):
     def id(self) -> int:
         """The comment's ID"""
 
-    def edit(self, msg: str) -> None:
-        """Replace the comment's contents with `msg`.
+    def edit(self, text: str) -> None:
+        """Replace the comment's contents with the given text.
 
         Git hosts that cannot edit comments raise NotImplementedError.
         """
-        raise NotImplementedError('Comment edition is not supported.')
+        raise NotImplementedError('Comment edition is not supported')
 
 
 class AbstractPullRequest(metaclass=ABCMeta):
