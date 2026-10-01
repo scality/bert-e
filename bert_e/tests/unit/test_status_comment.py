@@ -133,7 +133,17 @@ def test_status_comment_skipped_in_interactive_mode():
 
 
 @pytest.mark.parametrize('cls', [exceptions.StatusReport,
-                                 exceptions.UnknownCommand])
+                                 exceptions.UnknownCommand,
+                                 exceptions.HelpMessage,
+                                 exceptions.InitMessage,
+                                 exceptions.CommandNotImplemented,
+                                 exceptions.ResetComplete,
+                                 exceptions.LossyResetWarning,
+                                 exceptions.IncorrectCommandSyntax,
+                                 exceptions.NotEnoughCredentials,
+                                 exceptions.NotAuthor,
+                                 exceptions.IntegrationDataCreated,
+                                 exceptions.PendingHotfixVersionReminder])
 def test_status_comment_not_replaced_by_command_replies(cls):
     pr = FakePR()
     pr_utils._update_status_comment(settings(), pr, exc(cls, t='one'))

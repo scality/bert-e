@@ -105,6 +105,22 @@ def _send_bot_status(settings, pull_request: AbstractPullRequest,
 STATUS_COMMENT_MARKER = '<!-- bert-e-status -->'
 
 
+# Replies to user commands and purely informational messages: they do not
+# describe the state of the pull request and must not replace the status.
+STATUS_COMMENT_EXCLUDED = (
+    exceptions.InformationException,
+    exceptions.HelpMessage,
+    exceptions.StatusReport,
+    exceptions.UnknownCommand,
+    exceptions.CommandNotImplemented,
+    exceptions.ResetComplete,
+    exceptions.LossyResetWarning,
+    exceptions.IncorrectCommandSyntax,
+    exceptions.NotEnoughCredentials,
+    exceptions.NotAuthor,
+)
+
+
 def render_status_comment(comment: exceptions.TemplateException) -> str:
     """Render the content of the always up-to-date status comment."""
     return (f"{STATUS_COMMENT_MARKER}\n"
@@ -121,9 +137,7 @@ def _update_status_comment(settings, pull_request: AbstractPullRequest,
     """
     if not getattr(settings, 'status_comment', False) or \
             settings.no_comment or settings.interactive or isinstance(
-                comment, (exceptions.InitMessage, exceptions.HelpMessage,
-                          exceptions.StatusReport,
-                          exceptions.UnknownCommand)):
+                comment, STATUS_COMMENT_EXCLUDED):
         return
     text = render_status_comment(comment)
     existing = next(
