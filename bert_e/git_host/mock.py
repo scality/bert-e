@@ -409,6 +409,10 @@ class CommentController(Controller, base.AbstractComment):
     def delete(self):
         self.controlled.delete()
 
+    def update(self, msg):
+        self.controlled.content = {"raw": msg, "markup": "markdown",
+                                   "html": msg}
+
     @property
     def author(self):
         return self['user']['username'].lower()

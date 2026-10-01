@@ -21,6 +21,9 @@ from bert_e.lib.cli import confirm
 
 LOG = logging.getLogger(__name__)
 
+# Hidden marker identifying the single, continuously edited status comment.
+STATUS_MARKER = '<!-- bert-e-status -->'
+
 
 def find_comment(pull_request: AbstractPullRequest, username=None,
                  startswith=None, max_history=None) -> AbstractComment:
@@ -51,7 +54,7 @@ def find_comment(pull_request: AbstractPullRequest, username=None,
 
 
 def _send_comment(settings, pull_request: AbstractPullRequest, msg: str,
-                  dont_repeat_if_in_history=10) -> None:
+                  dont_repeat_if_in_history=10, updatable=False) -> None:
     """Comment a pull request.
 
     Before posting:
@@ -80,6 +83,30 @@ def _send_comment(settings, pull_request: AbstractPullRequest, msg: str,
         if not confirm('Do you want to send this comment?'):
             return
 
+    if updatable:
+        msg = f'{msg}\n{STATUS_MARKER}'
+        # Only edit the status comment if it is the last comment of the
+        # pull request: commands are looked up in the comments posted after
+        # Bert-E's last one, so editing an older comment would make already
+        # handled commands look new again.
+        comments = pull_request.comments
+        previous = comments[-1] if comments else None
+        if previous is not None:
+            is_status = (previous.author == settings.robot and
+                         STATUS_MARKER in previous.text)
+            if not is_status:
+                previous = None
+        if previous is not None:
+            if previous.text == msg:
+                raise exceptions.CommentAlreadyExists(
+                    "The status comment is already up to date.")
+            try:
+                LOG.debug('UPDATING MESSAGE %s', msg)
+                previous.update(msg)
+                return
+            except NotImplementedError:
+                pass
+
     LOG.debug('SENDING MESSAGE %s', msg)
     pull_request.add_comment(msg)
 
@@ -104,6 +131,7 @@ def notify_user(settings, pull_request: AbstractPullRequest,
     try:
         _send_bot_status(settings, pull_request, comment)
         _send_comment(settings, pull_request, str(comment),
-                      comment.dont_repeat_if_in_history)
+                      comment.dont_repeat_if_in_history,
+                      getattr(comment, 'updatable', False))
     except exceptions.CommentAlreadyExists:
         LOG.info("Comment '%s' already posted", comment.__class__.__name__)

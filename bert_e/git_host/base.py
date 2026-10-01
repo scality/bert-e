@@ -257,6 +257,13 @@ class AbstractComment(metaclass=ABCMeta):
     def delete(self) -> None:
         """Delete the comment."""
 
+    def update(self, msg: str) -> None:
+        """Replace the comment's contents with msg.
+
+        Raises NotImplementedError if the git host cannot edit comments.
+        """
+        raise NotImplementedError('Comment edition is not supported')
+
     @property
     @abstractmethod
     def author(self) -> str:

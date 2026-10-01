@@ -1493,10 +1493,8 @@ admins:
             with self.assertRaises(exns.ApprovalRequired):
                 self.handle(pr.id, options=options, backtrace=True)
 
-            self.assertEqual(len(list(pr.get_comments())), 3)
-
-            self.assertIn(
-                'Integration data created', list(pr.get_comments())[-2].text)
+            # the status comment is updated in place
+            self.assertEqual(len(list(pr.get_comments())), 2)
 
             self.assertIn(
                 'Waiting for approval', self.get_last_pr_comment(pr))
@@ -2250,7 +2248,9 @@ admins:
             returns the md5 digest of the last comment for easier comparison.
 
             """
-            return md5(list(pr.get_comments())[-1].text.encode()).digest()
+            text = list(pr.get_comments())[-1].text
+            text = text.replace('\n<!-- bert-e-status -->', '')
+            return md5(text.encode()).digest()
 
         pr = self.create_pr('bugfix/TEST-01334', 'development/4.3',
                             file_='toto.txt')

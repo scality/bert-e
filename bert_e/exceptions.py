@@ -31,6 +31,9 @@ class TemplateException(BertE_Exception):
     template = None
     # whether to re-publish if the message is already in the history
     dont_repeat_if_in_history = -1
+    # whether this message is a transient status that should edit the
+    # previous status comment instead of posting a new one
+    updatable = False
 
     def __init__(self, **kwargs):
         self.kwargs = kwargs
@@ -93,78 +96,91 @@ class StatusReport(TemplateException):
 
 class IncompatibleSourceBranchPrefix(TemplateException):
     code = 106
+    updatable = True
     template = 'incompatible_source_branch_prefix.md'
     status = "failure"
 
 
 class MissingJiraId(TemplateException):
     code = 107
+    updatable = True
     template = 'missing_jira_id.md'
     status = "failure"
 
 
 class JiraIssueNotFound(TemplateException):
     code = 108
+    updatable = True
     template = 'jira_issue_not_found.md'
     status = "failure"
 
 
 class IssueTypeNotSupported(TemplateException):
     code = 109
+    updatable = True
     template = 'issue_type_not_supported.md'
     status = "failure"
 
 
 class IncorrectJiraProject(TemplateException):
     code = 110
+    updatable = True
     template = 'incorrect_jira_project.md'
     status = "failure"
 
 
 class MismatchPrefixIssueType(TemplateException):
     code = 111
+    updatable = True
     template = 'mismatch_prefix_issue_type.md'
     status = "failure"
 
 
 class IncorrectFixVersion(TemplateException):
     code = 112
+    updatable = True
     template = 'incorrect_fix_version.md'
     status = "failure"
 
 
 class BranchHistoryMismatch(TemplateException):
     code = 113
+    updatable = True
     template = 'history_mismatch.md'
     status = "failure"
 
 
 class Conflict(TemplateException):
     code = 114
+    updatable = True
     template = 'conflict.md'
     status = "failure"
 
 
 class ApprovalRequired(TemplateException):
     code = 115
+    updatable = True
     template = 'need_approval.md'
     status = "queued"
 
 
 class BuildFailed(TemplateException):
     code = 118
+    updatable = True
     template = 'build_failed.md'
     status = "failure"
 
 
 class AfterPullRequest(TemplateException):
     code = 120
+    updatable = True
     template = 'after_pull_request.md'
     status = "queued"
 
 
 class IntegrationDataCreated(InformationException):
     code = 121
+    updatable = True
     template = 'integration_data_created.md'
 
 
@@ -182,6 +198,7 @@ class NotEnoughCredentials(TemplateException):
 
 class QueueConflict(TemplateException):
     code = 124
+    updatable = True
     template = "queue_conflict.md"
     status = "failure"
 
@@ -225,11 +242,13 @@ class QueueOutOfOrder(TemplateException):
 
 class ResetComplete(TemplateException):
     code = 128
+    updatable = True
     template = "reset_complete.md"
 
 
 class LossyResetWarning(TemplateException):
     code = 129
+    updatable = True
     template = "lossy_reset.md"
     status = "failure"
 
@@ -248,6 +267,7 @@ class IncorrectPullRequestNumber(TemplateException):
 
 class SourceBranchTooOld(TemplateException):
     code = 132
+    updatable = True
     template = "source_branch_too_old.md"
     status = "failure"
 
@@ -266,6 +286,7 @@ class NotAuthor(TemplateException):
 
 class RequestIntegrationBranches(TemplateException):
     code = 135
+    updatable = True
     template = "request_integration_branches.md"
     # TODO: review if it should be failure.
     status = "queued"
