@@ -62,7 +62,6 @@ class SilentException(BertE_Exception):
 # template for informative exceptions
 class InformationException(TemplateException):
     dont_repeat_if_in_history = NEVER_REPEAT
-    updatable = True
 
 
 # template exceptions
@@ -136,7 +135,6 @@ class IncorrectFixVersion(TemplateException):
     template = 'incorrect_fix_version.md'
     update_status_comment = True
     status = "failure"
-    updatable = True
 
 
 class BranchHistoryMismatch(TemplateException):
@@ -144,7 +142,6 @@ class BranchHistoryMismatch(TemplateException):
     template = 'history_mismatch.md'
     update_status_comment = True
     status = "failure"
-    updatable = True
 
 
 class Conflict(TemplateException):

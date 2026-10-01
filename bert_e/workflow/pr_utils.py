@@ -21,9 +21,6 @@ from bert_e.lib.cli import confirm
 
 LOG = logging.getLogger(__name__)
 
-# Hidden marker identifying the comment holding the bot's latest status.
-STATUS_MARKER = '<!-- bert-e:status -->'
-
 
 def find_comment(pull_request: AbstractPullRequest, username=None,
                  startswith=None, max_history=None) -> AbstractComment:
@@ -92,8 +89,6 @@ def _send_comment(settings, pull_request: AbstractPullRequest, msg: str,
         request comments history.
         Optionally (if settings.interactive is set) ask confirmation to the
         user.
-        If `updatable` is set, edit the bot's previous status comment in place
-        (when there is one) instead of posting a new comment.
 
     Raises:
         CommentAlreadyExists: if the comment was already posted.
@@ -114,21 +109,6 @@ def _send_comment(settings, pull_request: AbstractPullRequest, msg: str,
         print(msg, '\n')
         if not confirm('Do you want to send this comment?'):
             return
-
-    if updatable:
-        status_comment = find_status_comment(pull_request, settings.robot)
-        msg = f'{msg}\n\n{STATUS_MARKER}'
-        if status_comment is not None:
-            if status_comment.text.strip() == msg.strip():
-                raise exceptions.CommentAlreadyExists(
-                    "The status comment is already up to date."
-                )
-            try:
-                LOG.debug('UPDATING STATUS COMMENT %s', msg)
-                status_comment.edit(msg)
-                return
-            except NotImplementedError:
-                LOG.debug('Comments cannot be edited, posting a new one.')
 
     LOG.debug('SENDING MESSAGE %s', msg)
     if update_status_comment and _update_status_comment(
