@@ -489,6 +489,9 @@ class Comment(base.AbstractGitHostObject, base.AbstractComment):
                               pull_request_id=self.data['pullrequest']['id'],
                               comment_id=self.id)
 
+    def update(self, msg):
+        raise NotImplementedError('"update" feature is not available')
+
     @classmethod
     def create(cls, client, data, **kwargs):
         return super().create(client, {'content': {'raw': data}}, **kwargs)
