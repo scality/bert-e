@@ -90,7 +90,7 @@ def test_github_comment_update_sends_patch_request():
     client.session.patch.return_value = MagicMock(
         text=json.dumps({'id': 1, 'body': 'new',
                          'url': 'https://api.github.com/c/1',
-                         'user': {'login': 'Bert-E'},
+                         'user': {'id': 1, 'login': 'Bert-E'},
                          'created_at': '2020-01-01T00:00:00Z'}))
     comment = _github_comment(client)
     comment.update('new')
@@ -109,18 +109,77 @@ def test_bitbucket_comment_has_no_update():
         comment.update('x')
 
 
-def test_notify_user_without_update_support_still_comments():
+def test_notify_user_without_update_support_replaces_status():
     class NoUpdateComment(FakeComment):
         def update(self, msg):
             raise NotImplementedError
 
     pr = FakePR()
-    pr.comments.append(NoUpdateComment(
-        'bert-e', pr_utils.STATUS_COMMENT_MARKER + ' stale'))
+    old = NoUpdateComment('bert-e', pr_utils.STATUS_COMMENT_MARKER + ' stale')
+    old.delete = lambda: pr.comments.remove(old)
+    pr.comments.append(old)
     pr_utils.notify_user(settings(), pr, exc(t='one'))
-    # status was not updated, but the regular comment was still posted
-    assert pr.comments[0].text.endswith('stale')
+    status = [c for c in pr.comments
+              if c.text.startswith(pr_utils.STATUS_COMMENT_MARKER)]
+    assert len(status) == 1 and 'stale' not in status[0].text
     assert pr.comments[-1].text == 'details one'
+
+
+def test_status_comment_skipped_in_interactive_mode():
+    pr = FakePR()
+    pr_utils._update_status_comment(settings(interactive=True), pr,
+                                    exc(t='one'))
+    assert pr.comments == []
+
+
+@pytest.mark.parametrize('cls', [exceptions.StatusReport,
+                                 exceptions.UnknownCommand])
+def test_status_comment_not_replaced_by_command_replies(cls):
+    pr = FakePR()
+    pr_utils._update_status_comment(settings(), pr, exc(cls, t='one'))
+    assert pr.comments == []
+
+
+def test_default_dedupe_minus_one_does_not_duplicate():
+    pr = FakePR()
+    s = settings()
+    e = exc(t='one')
+    e.dont_repeat_if_in_history = -1
+    pr_utils.notify_user(s, pr, e)
+    pr_utils.notify_user(s, pr, e)
+    assert len([c for c in pr.comments if c.text == 'details one']) == 1
+
+
+def test_bitbucket_add_comment_invalidates_cache():
+    from bert_e.git_host.bitbucket import PullRequest, Comment
+    pr = PullRequest.__new__(PullRequest)
+    pr._comments = ['stale']
+    pr.client = None
+    pr.full_name = lambda: 'o/r'
+    pr._json_data = {'id': 1}
+    orig = Comment.create
+    Comment.create = classmethod(lambda cls, *a, **k: 'new')
+    try:
+        assert pr.add_comment('x') == 'new'
+    finally:
+        Comment.create = orig
+    assert not pr._comments
+
+
+def test_github_update_keeps_datetime():
+    import json
+    import datetime
+    from bert_e.git_host.github import Client
+    client = Client(login='l', password='p', email='e@o.com')
+    client.session = MagicMock()
+    client.session.patch.return_value = MagicMock(
+        text=json.dumps({'id': 1, 'body': 'new',
+                         'url': 'https://api.github.com/c/1',
+                         'user': {'id': 1, 'login': 'Bert-E'},
+                         'created_at': '2020-01-01T00:00:00Z'}))
+    comment = _github_comment(client)
+    comment.update('new')
+    assert isinstance(comment.created_on, datetime.datetime)
 
 
 # --- interaction with comment deduplication --------------------------------

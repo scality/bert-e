@@ -43,6 +43,10 @@ def find_comment(pull_request: AbstractPullRequest, username=None,
     for comment in comments:
         if comment.author != username:
             continue
+        if comment.text.startswith(STATUS_COMMENT_MARKER) and \
+                not (startswith or '').startswith(STATUS_COMMENT_MARKER):
+            # the status comment is not part of the regular history
+            continue
         if startswith and not comment.text.startswith(startswith):
             if max_history == -1:
                 return
@@ -116,8 +120,10 @@ def _update_status_comment(settings, pull_request: AbstractPullRequest,
     dedicated comment, edited in place whenever the state changes.
     """
     if not getattr(settings, 'status_comment', False) or \
-            settings.no_comment or isinstance(
-                comment, (exceptions.InitMessage, exceptions.HelpMessage)):
+            settings.no_comment or settings.interactive or isinstance(
+                comment, (exceptions.InitMessage, exceptions.HelpMessage,
+                          exceptions.StatusReport,
+                          exceptions.UnknownCommand)):
         return
     text = render_status_comment(comment)
     existing = next(
@@ -127,7 +133,12 @@ def _update_status_comment(settings, pull_request: AbstractPullRequest,
     if existing is None:
         pull_request.add_comment(text)
     elif existing.text != text:
-        existing.update(text)
+        try:
+            existing.update(text)
+        except NotImplementedError:
+            # no in-place edit on this host: replace the stale comment
+            existing.delete()
+            pull_request.add_comment(text)
 
 
 def notify_user(settings, pull_request: AbstractPullRequest,

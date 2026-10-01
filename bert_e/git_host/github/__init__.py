@@ -1019,8 +1019,10 @@ class Comment(base.AbstractGitHostObject, base.AbstractComment):
         self.client.delete(self.data['url'])
 
     def update(self, msg: str) -> None:
-        self.data = self.client.patch(self.data['url'],
-                                      data=json.dumps({'body': msg}))
+        data = self.client.patch(self.data['url'],
+                                 data=json.dumps({'body': msg}))
+        # go through the schema so that e.g. dates stay datetime objects
+        self.data = self.load(data, self.SCHEMA).data
 
 
 class CheckRun(base.AbstractGitHostObject):

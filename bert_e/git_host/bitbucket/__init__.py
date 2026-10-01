@@ -348,12 +348,15 @@ class PullRequest(BitBucketObject, base.AbstractPullRequest):
         return self['destination']['repository']['full_name']
 
     def add_comment(self, msg):
-        return Comment.create(
+        comment = Comment.create(
             self.client,
             data=msg,
             full_name=self.full_name(),
             pull_request_id=self['id']
         )
+        # invalidate the cache so that the new comment is visible
+        self._comments = None
+        return comment
 
     def set_bot_status(self, status: str | None, title: str, summary: str):
         raise NotImplementedError('"set_bot_status" feature '
