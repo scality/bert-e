@@ -1018,6 +1018,11 @@ class Comment(base.AbstractGitHostObject, base.AbstractComment):
     def delete(self) -> None:
         self.client.delete(self.data['url'])
 
+    def edit(self, msg: str) -> None:
+        self.data = self.update(
+            self.client, {'body': msg}, url=self.data['url']
+        ).data
+
 
 class CheckRun(base.AbstractGitHostObject):
     GET_URL = '/repos/{owner}/{repo}/check-runs/{id}'

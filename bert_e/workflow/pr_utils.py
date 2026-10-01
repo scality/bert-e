@@ -21,6 +21,9 @@ from bert_e.lib.cli import confirm
 
 LOG = logging.getLogger(__name__)
 
+# Hidden marker identifying the comment holding the bot's latest status.
+STATUS_MARKER = '<!-- bert-e:status -->'
+
 
 def find_comment(pull_request: AbstractPullRequest, username=None,
                  startswith=None, max_history=None) -> AbstractComment:
@@ -50,8 +53,17 @@ def find_comment(pull_request: AbstractPullRequest, username=None,
         return comment
 
 
+def find_status_comment(pull_request: AbstractPullRequest,
+                        username) -> AbstractComment:
+    """Return the latest status comment posted by the bot, if any."""
+    for comment in reversed(pull_request.comments):
+        if comment.author == username and comment.text.rstrip().endswith(
+                STATUS_MARKER):
+            return comment
+
+
 def _send_comment(settings, pull_request: AbstractPullRequest, msg: str,
-                  dont_repeat_if_in_history=10) -> None:
+                  dont_repeat_if_in_history=10, updatable=False) -> None:
     """Comment a pull request.
 
     Before posting:
@@ -59,6 +71,8 @@ def _send_comment(settings, pull_request: AbstractPullRequest, msg: str,
         request comments history.
         Optionally (if settings.interactive is set) ask confirmation to the
         user.
+        If `updatable` is set, edit the bot's previous status comment in place
+        (when there is one) instead of posting a new comment.
 
     Raises:
         CommentAlreadyExists: if the comment was already posted.
@@ -79,6 +93,21 @@ def _send_comment(settings, pull_request: AbstractPullRequest, msg: str,
         print(msg, '\n')
         if not confirm('Do you want to send this comment?'):
             return
+
+    if updatable:
+        status_comment = find_status_comment(pull_request, settings.robot)
+        msg = f'{msg}\n\n{STATUS_MARKER}'
+        if status_comment is not None:
+            if status_comment.text.strip() == msg.strip():
+                raise exceptions.CommentAlreadyExists(
+                    "The status comment is already up to date."
+                )
+            try:
+                LOG.debug('UPDATING STATUS COMMENT %s', msg)
+                status_comment.edit(msg)
+                return
+            except NotImplementedError:
+                LOG.debug('Comments cannot be edited, posting a new one.')
 
     LOG.debug('SENDING MESSAGE %s', msg)
     pull_request.add_comment(msg)
@@ -104,6 +133,7 @@ def notify_user(settings, pull_request: AbstractPullRequest,
     try:
         _send_bot_status(settings, pull_request, comment)
         _send_comment(settings, pull_request, str(comment),
-                      comment.dont_repeat_if_in_history)
+                      comment.dont_repeat_if_in_history,
+                      updatable=comment.updatable)
     except exceptions.CommentAlreadyExists:
         LOG.info("Comment '%s' already posted", comment.__class__.__name__)
