@@ -98,9 +98,45 @@ def _send_bot_status(settings, pull_request: AbstractPullRequest,
     )
 
 
+STATUS_COMMENT_MARKER = '<!-- bert-e-status -->'
+
+
+def render_status_comment(comment: exceptions.TemplateException) -> str:
+    """Render the content of the always up-to-date status comment."""
+    return (f"{STATUS_COMMENT_MARKER}\n"
+            f"## Bert-E status: {comment.title}\n\n"
+            f"{comment}")
+
+
+def _update_status_comment(settings, pull_request: AbstractPullRequest,
+                           comment: exceptions.TemplateException):
+    """Create or update the single status comment of the pull request.
+
+    The pull request description is left untouched: the status lives in a
+    dedicated comment, edited in place whenever the state changes.
+    """
+    if not getattr(settings, 'status_comment', False) or \
+            settings.no_comment or isinstance(
+                comment, (exceptions.InitMessage, exceptions.HelpMessage)):
+        return
+    text = render_status_comment(comment)
+    existing = next(
+        (c for c in pull_request.comments
+         if c.author == settings.robot and
+         c.text.startswith(STATUS_COMMENT_MARKER)), None)
+    if existing is None:
+        pull_request.add_comment(text)
+    elif existing.text != text:
+        existing.update(text)
+
+
 def notify_user(settings, pull_request: AbstractPullRequest,
                 comment: exceptions.TemplateException):
     """Notify user by sending a comment or a build status in a pull request."""
+    try:
+        _update_status_comment(settings, pull_request, comment)
+    except NotImplementedError:
+        LOG.warning("Status comment is not supported by this git host")
     try:
         _send_bot_status(settings, pull_request, comment)
         _send_comment(settings, pull_request, str(comment),

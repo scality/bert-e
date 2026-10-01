@@ -257,6 +257,10 @@ class AbstractComment(metaclass=ABCMeta):
     def delete(self) -> None:
         """Delete the comment."""
 
+    def update(self, msg: str) -> None:
+        """Replace the comment's contents (optional feature)."""
+        raise NotImplementedError('"update" feature is not available')
+
     @property
     @abstractmethod
     def author(self) -> str:

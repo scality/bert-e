@@ -195,6 +195,8 @@ class SettingsSchema(Schema):
     github_installation_id = fields.Int(required=False, load_default='')
 
     send_bot_status = fields.Bool(required=False, load_default=False)
+    # keep a single, always up-to-date status comment on each pull request
+    status_comment = fields.Bool(required=False, load_default=False)
 
     @pre_load(pass_many=True)
     def load_env(self, data, **kwargs):
