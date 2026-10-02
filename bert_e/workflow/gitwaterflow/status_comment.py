@@ -149,26 +149,10 @@ def render_status(job, state, with_git=True):
     if (with_git and not state.final and
             job.git.src_branch and job.git.dst_branch):
         clone_git_repo(job)
-        repo = job.project_repo
-        had_own = 'get_build_status' in vars(repo)
-        original = repo.get_build_status
-        cache = {}
-
-        def cached_build_status(revision, key):
-            if (revision, key) not in cache:
-                cache[(revision, key)] = original(revision, key)
-            return cache[(revision, key)]
-
-        # share the build statuses between the table and the checklist
-        repo.get_build_status = cached_build_status
-        try:
-            integration = _integration_rows(job)
-            report = _build_status_report(job)
-        finally:
-            if had_own:
-                repo.get_build_status = original
-            else:
-                del repo.get_build_status
+        # the git hosts cache build statuses, which are thus shared between
+        # the table and the checklist
+        integration = _integration_rows(job)
+        report = _build_status_report(job)
     msg = render('pr_status.md', icon=state.icon, label=state.label,
                  code=state.code, integration=integration, status=report,
                  active_options=job.active_options)
@@ -190,8 +174,7 @@ def publish_status(job, outcome, pull_request=None, with_git=True):
     if state is None:
         return
     existing = None
-    waiting = (isinstance(outcome, exceptions.NothingToDo) and
-               'wait option' in str(outcome))
+    waiting = isinstance(outcome, exceptions.WaitOptionSet)
     if waiting:
         state = State('Waiting (wait option is set)', 'queued', final=True)
     try:

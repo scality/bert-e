@@ -596,6 +596,10 @@ class NothingToDo(SilentException):
     code = 302
 
 
+class WaitOptionSet(NothingToDo):
+    """Nothing is done on purpose because the wait option is set."""
+
+
 class BuildInProgress(SilentException):
     code = 303
     status = "in_progress"

@@ -553,7 +553,7 @@ def check_dependencies(job):
 
     """
     if job.settings.wait:
-        raise messages.NothingToDo('wait option is set')
+        raise messages.WaitOptionSet('wait option is set')
 
     after_prs = job.settings.after_pull_request
 
