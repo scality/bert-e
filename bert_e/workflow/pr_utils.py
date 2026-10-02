@@ -76,12 +76,17 @@ def find_status_comment(pull_request: AbstractPullRequest, username
 
 
 def upsert_status_comment(settings, pull_request: AbstractPullRequest,
-                          msg: str) -> None:
-    """Create the status comment, or edit it if its contents changed."""
+                          msg: str, comment=None) -> None:
+    """Create the status comment, or edit it if its contents changed.
+
+    `comment` is the already known status comment, if any, which saves
+    listing the pull request comments again.
+    """
     if settings.no_comment or settings.interactive:
         LOG.debug('Not sending the status comment.')
         return
-    comment = find_status_comment(pull_request, settings.robot)
+    if comment is None:
+        comment = find_status_comment(pull_request, settings.robot)
     if comment is None:
         LOG.debug('CREATING STATUS COMMENT %s', msg)
         pull_request.add_comment(msg)

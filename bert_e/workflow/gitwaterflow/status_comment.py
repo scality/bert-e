@@ -150,6 +150,7 @@ def render_status(job, state, with_git=True):
             job.git.src_branch and job.git.dst_branch):
         clone_git_repo(job)
         repo = job.project_repo
+        had_own = 'get_build_status' in vars(repo)
         original = repo.get_build_status
         cache = {}
 
@@ -164,7 +165,10 @@ def render_status(job, state, with_git=True):
             integration = _integration_rows(job)
             report = _build_status_report(job)
         finally:
-            del repo.get_build_status
+            if had_own:
+                repo.get_build_status = original
+            else:
+                del repo.get_build_status
     msg = render('pr_status.md', icon=state.icon, label=state.label,
                  code=state.code, integration=integration, status=report,
                  active_options=job.active_options)
@@ -185,8 +189,15 @@ def publish_status(job, outcome, pull_request=None, with_git=True):
         State.from_exception(outcome)
     if state is None:
         return
+    existing = None
+    waiting = (isinstance(outcome, exceptions.NothingToDo) and
+               'wait option' in str(outcome))
+    if waiting:
+        state = State('Waiting (wait option is set)', 'queued', final=True)
     try:
-        if isinstance(outcome, UPDATE_ONLY):
+        if waiting:
+            pass  # the wait option is meaningful: replace any state
+        elif isinstance(outcome, UPDATE_ONLY):
             existing = find_status_comment(pull_request or job.pull_request,
                                            job.settings.robot)
             # do not add comments on closed pull requests which never had one
@@ -199,7 +210,7 @@ def publish_status(job, outcome, pull_request=None, with_git=True):
                 return
         upsert_status_comment(
             job.settings, pull_request or job.pull_request,
-            render_status(job, state, with_git))
+            render_status(job, state, with_git), existing)
     except EXPECTED_ERRORS:
         LOG.warning("Could not update the status comment of pull request %s",
                     (pull_request or job.pull_request).id, exc_info=True)
