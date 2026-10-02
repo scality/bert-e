@@ -257,6 +257,17 @@ class AbstractComment(metaclass=ABCMeta):
     def delete(self) -> None:
         """Delete the comment."""
 
+    @abstractmethod
+    def edit(self, msg: str) -> None:
+        """Replace the comment's contents with `msg`.
+
+        The comment keeps its place in the pull request's history.
+
+        Args:
+            - msg: the new raw plaintext of the comment.
+
+        """
+
     @property
     @abstractmethod
     def author(self) -> str:

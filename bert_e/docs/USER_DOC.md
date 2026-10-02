@@ -34,6 +34,17 @@ and associated tickets. __Bert-E__ helps the participants in a pull request
 correct the items that do not follow the rules, by issuing a status report and
 specific messages.
 
+__Bert-E__ also maintains a single **status comment** in each pull request,
+titled `Bert-E status`. It is posted right after the first greetings, edited in
+place (the description of the pull request is never modified) and always shows
+the latest state of the pull request (for instance `Conflict`, `Queued` or
+`Merged`), the integration branches with their open integration pull requests
+and the status of their builds, and the checklist of the `status` command.
+Information messages (greetings, help, status report...) do not change the
+state shown. Pull requests which were opened before the status comment was
+introduced get it at the next run of __Bert-E__ on them, below the existing
+comments. The feature can be disabled with the `pr_status_comment` setting.
+
 * There are different stages in the merge of a pull request
 
     * verification that the minimum information required for the process is

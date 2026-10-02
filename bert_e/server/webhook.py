@@ -60,6 +60,14 @@ def handle_bitbucket_repo_event(bert_e, event, json_data):
 
 def handle_bitbucket_pr_event(bert_e, event, json_data):
     """Handle a Bitbucket webhook sent on a pull request event."""
+    commenter = (json_data.get('comment') or {}).get('user') or {}
+    if event.startswith('comment') and bert_e.settings.robot in (
+            commenter.get('nickname'), commenter.get('username'),
+            commenter.get('account_id')):
+        # Bert-E's own comments (including its status comment) must not
+        # trigger new runs
+        LOG.debug('Comment written by the robot, ignoring event')
+        return
     pr_id = json_data['pullrequest']['id']
     pr = PullRequest(bert_e.client, **json_data['pullrequest'])
     LOG.info('The pull request <%s> has been updated', pr_id)
@@ -78,6 +86,12 @@ def handle_github_pr_event(bert_e, json_data):
 
 def handle_github_issue_comment(bert_e, json_data):
     """Handle a GitHub webhook sent on an issue comment event."""
+    sender = (json_data.get('comment') or {}).get('user') or {}
+    if sender.get('login') == bert_e.settings.robot:
+        # Bert-E's own comments (including its status comment) must not
+        # trigger new runs
+        LOG.debug('Comment written by the robot, ignoring event')
+        return
     event = github.IssueCommentEvent(client=bert_e.client, **json_data)
     pr = event.pull_request
     if pr:

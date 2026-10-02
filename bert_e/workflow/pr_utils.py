@@ -21,6 +21,21 @@ from bert_e.lib.cli import confirm
 
 LOG = logging.getLogger(__name__)
 
+# Every status comment starts with this line: this is how we recognize it.
+STATUS_COMMENT_HEADER = '# Bert-E status'
+
+
+def is_status_comment(comment: AbstractComment, username=None) -> bool:
+    """Tell whether the comment is the bot's pull request status comment.
+
+    Args:
+        username: if given, the comment must also be authored by this user.
+
+    """
+    if username is not None and comment.author != username:
+        return False
+    return comment.text.startswith(STATUS_COMMENT_HEADER)
+
 
 def find_comment(pull_request: AbstractPullRequest, username=None,
                  startswith=None, max_history=None) -> AbstractComment:
@@ -36,8 +51,10 @@ def find_comment(pull_request: AbstractPullRequest, username=None,
         The latest comment if it was found. None otherwise.
 
     """
-    # check last commits
-    comments = reversed(pull_request.comments)
+    # The status comment is edited in place and is not part of the
+    # conversation: it must neither count as a message nor hide one.
+    comments = (c for c in reversed(pull_request.comments)
+                if not is_status_comment(c, username))
     if max_history not in (None, -1):
         comments = itertools.islice(comments, 0, max_history)
     for comment in comments:
@@ -48,6 +65,34 @@ def find_comment(pull_request: AbstractPullRequest, username=None,
                 return
             continue
         return comment
+
+
+def find_status_comment(pull_request: AbstractPullRequest, username
+                        ) -> AbstractComment:
+    """Return the status comment of the pull request, if any."""
+    for comment in pull_request.comments:
+        if is_status_comment(comment, username):
+            return comment
+
+
+def upsert_status_comment(settings, pull_request: AbstractPullRequest,
+                          msg: str, comment=None) -> None:
+    """Create the status comment, or edit it if its contents changed.
+
+    `comment` is the already known status comment, if any, which saves
+    listing the pull request comments again.
+    """
+    if settings.no_comment or settings.interactive:
+        LOG.debug('Not sending the status comment.')
+        return
+    if comment is None:
+        comment = find_status_comment(pull_request, settings.robot)
+    if comment is None:
+        LOG.debug('CREATING STATUS COMMENT %s', msg)
+        pull_request.add_comment(msg)
+    elif comment.text != msg:
+        LOG.debug('UPDATING STATUS COMMENT %s', msg)
+        comment.edit(msg)
 
 
 def _send_comment(settings, pull_request: AbstractPullRequest, msg: str,

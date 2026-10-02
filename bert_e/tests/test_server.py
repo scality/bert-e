@@ -61,6 +61,7 @@ class MockBertE(bert_e.BertE):
         self.settings.repository_owner = 'owner'
         self.settings.repository_slug = 'slug'
         self.settings.build_key = 'pre-merge'
+        self.settings.robot = 'robot'
         self.settings.pull_request_base_url = \
             'https://bitbucket.org/foo/bar/pull-requests/{pr_id}'
         self.settings.commit_base_url = \
