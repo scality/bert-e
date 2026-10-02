@@ -69,11 +69,9 @@ SILENT_STATES = {
 UPDATE_ONLY = (exceptions.PullRequestDeclined, exceptions.NothingToDo)
 
 # States for which the integration data and the checklist (approvals,
-# builds...) are meaningless, or not worth the git host API calls (build
-# states are very frequent and the API is rate limited).
+# builds...) are meaningless.
 FINAL_STATES = (exceptions.SuccessMessage, exceptions.PartialMerge,
-                exceptions.PullRequestDeclined, exceptions.NothingToDo,
-                exceptions.BuildInProgress, exceptions.BuildNotStarted)
+                exceptions.PullRequestDeclined, exceptions.NothingToDo)
 
 
 class State:
@@ -188,11 +186,17 @@ def publish_status(job, outcome, pull_request=None, with_git=True):
     if state is None:
         return
     try:
-        if (isinstance(outcome, UPDATE_ONLY) and
-                find_status_comment(pull_request or job.pull_request,
-                                    job.settings.robot) is None):
+        if isinstance(outcome, UPDATE_ONLY):
+            existing = find_status_comment(pull_request or job.pull_request,
+                                           job.settings.robot)
             # do not add comments on closed pull requests which never had one
-            return
+            if existing is None:
+                return
+            # NothingToDo must not overwrite a meaningful state (queued,
+            # merged, declined, wait...): only replace the initial one
+            if (isinstance(outcome, exceptions.NothingToDo) and
+                    State.initial().label not in existing.text):
+                return
         upsert_status_comment(
             job.settings, pull_request or job.pull_request,
             render_status(job, state, with_git))
