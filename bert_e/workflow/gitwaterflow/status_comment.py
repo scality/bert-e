@@ -144,12 +144,27 @@ def render_status(job, state, with_git=True):
     if (with_git and not state.final and
             job.git.src_branch and job.git.dst_branch):
         clone_git_repo(job)
-        integration = _integration_rows(job)
-        report = _build_status_report(job)
+        repo = job.project_repo
+        original = repo.get_build_status
+        cache = {}
+
+        def cached_build_status(revision, key):
+            if (revision, key) not in cache:
+                cache[(revision, key)] = original(revision, key)
+            return cache[(revision, key)]
+
+        # share the build statuses between the table and the checklist
+        repo.get_build_status = cached_build_status
+        try:
+            integration = _integration_rows(job)
+            report = _build_status_report(job)
+        finally:
+            del repo.get_build_status
     msg = render('pr_status.md', icon=state.icon, label=state.label,
                  code=state.code, integration=integration, status=report,
                  active_options=job.active_options)
-    assert msg.startswith(STATUS_COMMENT_HEADER)
+    if not msg.startswith(STATUS_COMMENT_HEADER):
+        LOG.error("The status comment lacks its header")
     return msg
 
 
@@ -165,6 +180,11 @@ def publish_status(job, outcome, pull_request=None, with_git=True):
         State.from_exception(outcome)
     if state is None:
         return
+    if (isinstance(outcome, exceptions.PullRequestDeclined) and
+            find_status_comment(pull_request or job.pull_request,
+                                job.settings.robot) is None):
+        # do not add comments on closed pull requests which never had one
+        return
     try:
         upsert_status_comment(
             job.settings, pull_request or job.pull_request,
@@ -172,6 +192,10 @@ def publish_status(job, outcome, pull_request=None, with_git=True):
     except EXPECTED_ERRORS:
         LOG.warning("Could not update the status comment of pull request %s",
                     (pull_request or job.pull_request).id, exc_info=True)
+    except Exception:
+        LOG.exception("Unexpected error while updating the status comment "
+                      "of pull request %s",
+                      (pull_request or job.pull_request).id)
 
 
 def ensure_status_comment(job):

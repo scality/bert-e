@@ -184,12 +184,14 @@ class IntegrationDataCreated(InformationException):
 
 class UnknownCommand(TemplateException):
     code = 122
+    reports_state = False
     template = 'unknown_command.md'
     status = "failure"
 
 
 class NotEnoughCredentials(TemplateException):
     code = 123
+    reports_state = False
     template = "not_enough_credentials.md"
     status = "failure"
 
@@ -252,12 +254,14 @@ class LossyResetWarning(TemplateException):
 
 class IncorrectCommandSyntax(TemplateException):
     code = 130
+    reports_state = False
     template = "incorrect_command_syntax.md"
     status = "failure"
 
 
 class IncorrectPullRequestNumber(TemplateException):
     code = 131
+    reports_state = False
     template = "incorrect_pull_request_number.md"
     status = "failure"
 
@@ -270,12 +274,14 @@ class SourceBranchTooOld(TemplateException):
 
 class FlakyGitHost(TemplateException):
     code = 133
+    reports_state = False
     template = "flaky_git_host.md"
     status = "failure"
 
 
 class NotAuthor(TemplateException):
     code = 134
+    reports_state = False
     template = "not_author.md"
     status = "failure"
 

@@ -179,11 +179,23 @@ def test_publish_never_fails_on_expected_errors():
     publish_status(job, instance(exceptions.Conflict), with_git=False)
 
 
-def test_publish_does_not_hide_unexpected_errors():
+def test_publish_never_raises_on_unexpected_errors():
     job = make_job()
     job.pull_request.add_comment = MagicMock(side_effect=ValueError('bug'))
-    with pytest.raises(ValueError):
-        publish_status(job, instance(exceptions.Conflict), with_git=False)
+    publish_status(job, instance(exceptions.Conflict), with_git=False)
+
+
+def test_publish_ignores_command_answers():
+    job = make_job()
+    publish_status(job, instance(exceptions.UnknownCommand), with_git=False)
+    assert job.pull_request.comments == []
+
+
+def test_publish_does_not_comment_old_declined_pull_requests():
+    job = make_job()
+    publish_status(job, instance(exceptions.PullRequestDeclined),
+                   with_git=False)
+    assert job.pull_request.comments == []
 
 
 def test_ensure_creates_a_placeholder_only_once():
