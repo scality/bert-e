@@ -65,7 +65,7 @@ def handle_pull_request(job: PullRequestJob):
         notify_user(job.settings, job.pull_request, err)
         raise
     except (messages.BuildInProgress, messages.BuildNotStarted,
-            messages.PullRequestDeclined) as err:
+            messages.PullRequestDeclined, messages.NothingToDo) as err:
         publish_status(job, err)
         raise
 

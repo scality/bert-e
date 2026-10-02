@@ -61,12 +61,19 @@ SILENT_STATES = {
     exceptions.BuildInProgress: 'Waiting for the builds to complete',
     exceptions.BuildNotStarted: 'Waiting for the builds to start',
     exceptions.PullRequestDeclined: 'Declined',
+    exceptions.NothingToDo: 'Nothing to do',
 }
 
-# States after which the integration data and the checklist (approvals,
-# builds...) are meaningless.
+# Silent states which are only published when a status comment already exists
+# (never create a comment on closed or already merged pull requests).
+UPDATE_ONLY = (exceptions.PullRequestDeclined, exceptions.NothingToDo)
+
+# States for which the integration data and the checklist (approvals,
+# builds...) are meaningless, or not worth the git host API calls (build
+# states are very frequent and the API is rate limited).
 FINAL_STATES = (exceptions.SuccessMessage, exceptions.PartialMerge,
-                exceptions.PullRequestDeclined)
+                exceptions.PullRequestDeclined, exceptions.NothingToDo,
+                exceptions.BuildInProgress, exceptions.BuildNotStarted)
 
 
 class State:
@@ -180,12 +187,12 @@ def publish_status(job, outcome, pull_request=None, with_git=True):
         State.from_exception(outcome)
     if state is None:
         return
-    if (isinstance(outcome, exceptions.PullRequestDeclined) and
-            find_status_comment(pull_request or job.pull_request,
-                                job.settings.robot) is None):
-        # do not add comments on closed pull requests which never had one
-        return
     try:
+        if (isinstance(outcome, UPDATE_ONLY) and
+                find_status_comment(pull_request or job.pull_request,
+                                    job.settings.robot) is None):
+            # do not add comments on closed pull requests which never had one
+            return
         upsert_status_comment(
             job.settings, pull_request or job.pull_request,
             render_status(job, state, with_git))

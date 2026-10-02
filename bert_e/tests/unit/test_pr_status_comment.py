@@ -77,6 +77,7 @@ def instance(exc_class):
      'in_progress'),
     (exceptions.BuildNotStarted, 'Waiting for the builds to start', None),
     (exceptions.PullRequestDeclined, 'Declined', None),
+    (exceptions.NothingToDo, 'Nothing to do', None),
 ])
 def test_states(exc_class, label, status):
     state = State.from_exception(instance(exc_class))
@@ -88,7 +89,7 @@ def test_states(exc_class, label, status):
     exceptions.CommandNotImplemented, exceptions.LossyResetWarning,
     exceptions.IntegrationDataCreated,
     exceptions.PendingHotfixVersionReminder,
-    exceptions.NothingToDo, exceptions.NotMyJob,
+    exceptions.NotMyJob,
     exceptions.CommentAlreadyExists, exceptions.JobSuccess,
 ])
 def test_information_is_not_a_state(exc_class):
@@ -340,7 +341,7 @@ def test_silent_states_are_published(exc_class):
     notify.assert_not_called()
 
 
-def test_nothing_to_do_is_not_published():
+def test_nothing_to_do_updates_the_status_comment():
     job = make_job()
     job.pull_request.author = 'someone'
     job.pull_request.src_branch = 'feature/x'
@@ -349,7 +350,7 @@ def test_nothing_to_do_is_not_published():
             patch('bert_e.workflow.gitwaterflow.publish_status') as publish:
         with pytest.raises(exceptions.NothingToDo):
             handle_pull_request(job)
-    publish.assert_not_called()
+    publish.assert_called_once()
 
 
 def test_commands_are_looked_for_past_the_status_comment():
