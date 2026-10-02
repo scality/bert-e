@@ -135,6 +135,9 @@ class SettingsSchema(Schema):
 
     frontend_url = fields.Str(required=False, load_default='')
 
+    # Maintain an always up-to-date status comment in the pull requests
+    pr_status_comment = fields.Bool(required=False, load_default=True)
+
     repository_owner = fields.Str(required=True)
     repository_slug = fields.Str(required=False, load_default=None)
 

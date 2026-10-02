@@ -348,12 +348,16 @@ class PullRequest(BitBucketObject, base.AbstractPullRequest):
         return self['destination']['repository']['full_name']
 
     def add_comment(self, msg):
-        return Comment.create(
+        comment = Comment.create(
             self.client,
             data=msg,
             full_name=self.full_name(),
             pull_request_id=self['id']
         )
+        # keep the cache of comments (see `comments`) consistent
+        if getattr(self, '_comments', None):
+            self._comments.append(comment)
+        return comment
 
     def set_bot_status(self, status: str | None, title: str, summary: str):
         raise NotImplementedError('"set_bot_status" feature '
@@ -488,6 +492,17 @@ class Comment(base.AbstractGitHostObject, base.AbstractComment):
         return super().delete(self.client, full_name=self.full_name(),
                               pull_request_id=self.data['pullrequest']['id'],
                               comment_id=self.id)
+
+    def edit(self, msg):
+        url = self.GET_URL.format(
+            full_name=self.full_name(),
+            pull_request_id=self.data['pullrequest']['id'],
+            comment_id=self.id)
+        response = self.client.put(
+            url, data=json.dumps({'content': {'raw': msg}}))
+        response.raise_for_status()
+        # the pull request caches its comments: keep them up to date
+        self.data['content']['raw'] = msg
 
     @classmethod
     def create(cls, client, data, **kwargs):

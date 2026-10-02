@@ -50,6 +50,7 @@ from bert_e.lib import jira as jira_api
 from bert_e.lib.git import Repository as GitRepository
 from bert_e.lib.git import Branch, MergeFailedException
 from bert_e.lib.retry import RetryHandler
+from bert_e.workflow.pr_utils import is_status_comment
 from bert_e.lib.simplecmd import CommandError, cmd
 from bert_e.settings import setup_settings
 from bert_e.workflow import gitwaterflow as gwf
@@ -938,8 +939,18 @@ class RepositoryTests(unittest.TestCase):
         'bypass_leader_approval'
     ]
 
+    def count_comments(self, pr):
+        """Count the comments of a pull request, except Bert-E's status
+        comment: it is edited in place and is not part of the conversation.
+        """
+        return len([c for c in pr.get_comments()
+                    if not is_status_comment(c)])
+
     def get_last_pr_comment(self, pr):
-        return list(pr.get_comments())[-1].text
+        """Text of the last message of a pull request (the status comment,
+        edited in place, is not a message)."""
+        return [c for c in pr.get_comments()
+                if not is_status_comment(c)][-1].text
 
     def bypass_all_but(self, exceptions):
         self.assertIsInstance(exceptions, list)
@@ -1351,7 +1362,7 @@ admins:
         options = self.bypass_all_but(['bypass_build_status'])
         pr = self.create_pr('feature/TEST-0042', 'development/10')
         self.handle(pr.id, settings=settings, options=options)
-        self.assertIs(len(list(pr.get_comments())), 1)
+        self.assertIs(self.count_comments(pr), 1)
         self.assertIn('Hello %s' % self.args.contributor_username,
                       self.get_last_pr_comment(pr))
 
@@ -1387,7 +1398,7 @@ admins:
         with self.assertRaises(exns.RequestIntegrationBranches):
             self.handle(
                 pr.id, settings=settings, options=options, backtrace=True)
-        self.assertEqual(len(list(pr.get_comments())), 2)
+        self.assertEqual(self.count_comments(pr), 2)
         self.assertIn(
             'Request integration branches', self.get_last_pr_comment(pr))
         self.assertIn(
@@ -1397,7 +1408,7 @@ admins:
         with self.assertRaises(exns.BuildNotStarted):
             self.handle(
                 pr.id, settings=settings, options=options, backtrace=True)
-        self.assertEqual(len(list(pr.get_comments())), 4)
+        self.assertEqual(self.count_comments(pr), 4)
         self.assertIn('Integration data created', self.get_last_pr_comment(pr))
         self.assertIn(
             'create_integration_branches', self.get_last_pr_comment(pr))
@@ -1444,7 +1455,7 @@ admins:
         with self.assertRaises(exns.BuildNotStarted):
             self.handle(
                 pr.id, settings=settings, options=options, backtrace=True)
-        self.assertEqual(len(list(pr.get_comments())), 4)
+        self.assertEqual(self.count_comments(pr), 4)
         self.assertIn('Integration data created', self.get_last_pr_comment(pr))
 
         options = self.bypass_all
@@ -1493,7 +1504,7 @@ admins:
             with self.assertRaises(exns.ApprovalRequired):
                 self.handle(pr.id, options=options, backtrace=True)
 
-            self.assertEqual(len(list(pr.get_comments())), 3)
+            self.assertEqual(self.count_comments(pr), 3)
 
             self.assertIn(
                 'Integration data created', list(pr.get_comments())[-2].text)
@@ -1548,7 +1559,7 @@ admins:
         options = self.bypass_all_but(['bypass_build_status'])
         pr = self.create_pr('feature/TEST-0069', 'development/10')
         self.handle(pr.id, settings=settings, options=options)
-        self.assertEqual(len(list(pr.get_comments())), 1)
+        self.assertEqual(self.count_comments(pr), 1)
 
         with self.assertRaises(exns.BuildNotStarted):
             self.handle(
@@ -1587,7 +1598,7 @@ admins:
         options = self.bypass_all_but(['bypass_build_status'])
         pr = self.create_pr('feature/TEST-0069', 'development/4.3')
         self.handle(pr.id, settings=settings, options=options)
-        self.assertEqual(len(list(pr.get_comments())), 2)
+        self.assertEqual(self.count_comments(pr), 2)
         self.assertIn('Integration data created', self.get_last_pr_comment(pr))
         self.assertIn('You can set option', self.get_last_pr_comment(pr))
         self.assertNotIn('if you would like to be',
@@ -1595,22 +1606,22 @@ admins:
 
         pr.add_comment('Ok ok')
         self.handle(pr.id, settings=settings, options=options)
-        self.assertEqual(len(list(pr.get_comments())), 3)
+        self.assertEqual(self.count_comments(pr), 3)
 
         comment = pr.add_comment('@%s create_pull_requests' %
                                  self.args.robot_username)
         self.handle(pr.id, settings=settings, options=options)
-        self.assertEqual(len(list(pr.get_comments())), 5)
+        self.assertEqual(self.count_comments(pr), 5)
         self.assertIn('Integration data created', self.get_last_pr_comment(pr))
         self.assertNotIn('You can set option', self.get_last_pr_comment(pr))
         self.assertIn('if you would like to be', self.get_last_pr_comment(pr))
 
         self.handle(pr.id, settings=settings, options=options)
-        self.assertEqual(len(list(pr.get_comments())), 5)
+        self.assertEqual(self.count_comments(pr), 5)
 
         comment.delete()
         self.handle(pr.id, settings=settings, options=options)
-        self.assertEqual(len(list(pr.get_comments())), 4)
+        self.assertEqual(self.count_comments(pr), 4)
 
     def test_merge_without_integration_prs(self):
         """Test a normal Bert-E workflow with no integration PR.
@@ -3533,7 +3544,7 @@ pr_author_options:
 """ # noqa
         pr = self.create_pr('feature/TEST-0042', 'development/10')
         self.handle(pr.id, settings=settings)
-        self.assertIs(len(list(pr.get_comments())), 2)
+        self.assertIs(self.count_comments(pr), 2)
         self.assertIn('bypass_jira_check', self.get_last_pr_comment(pr))
         settings = """
 repository_owner: {owner}
@@ -3555,7 +3566,7 @@ pr_author_options:
 """ # noqa
         pr = self.create_pr('feature/TEST-0043', 'development/10')
         self.handle(pr.id, settings=settings)
-        self.assertIs(len(list(pr.get_comments())), 2)
+        self.assertIs(self.count_comments(pr), 2)
         self.assertIn('bypass_author_approval', self.get_last_pr_comment(pr))
 
         settings = """
@@ -3578,7 +3589,7 @@ pr_author_options:
 """ # noqa
         pr = self.create_pr('feature/TEST-0044', 'development/10')
         self.handle(pr.id, settings=settings)
-        self.assertIs(len(list(pr.get_comments())), 2)
+        self.assertIs(self.count_comments(pr), 2)
         self.assertIn('bypass_peer_approval', self.get_last_pr_comment(pr))
 
         settings = """
@@ -3601,7 +3612,7 @@ pr_author_options:
 """ # noqa
         pr = self.create_pr('feature/TEST-0045', 'development/10')
         self.handle(pr.id, settings=settings)
-        self.assertIs(len(list(pr.get_comments())), 2)
+        self.assertIs(self.count_comments(pr), 2)
         self.assertIn('bypass_build_status', self.get_last_pr_comment(pr))
 
     def test_bypass_author_jira(self):
@@ -4541,6 +4552,90 @@ always_create_integration_pull_requests: False
                 pr.id,
                 options=self.bypass_all_but(['bypass_build_status']),
                 backtrace=True)
+
+    def get_status_comments(self, pr):
+        return [c for c in pr.get_comments()
+                if is_status_comment(c, self.args.robot_username)]
+
+    def test_status_comment(self):
+        """The status comment follows the real flow of a pull request.
+
+        1. it is created next to the greetings, with the integration branches,
+           their pull requests and their build status;
+        2. it is edited in place (never duplicated) when the state changes:
+           conflict, reset, merge;
+        3. it does not replace the messages and is not part of the
+           description.
+
+        """
+        pr1 = self.create_pr('bugfix/TEST-0006', 'development/10.0',
+                             file_='toto.txt')
+        pr2 = self.create_pr('bugfix/TEST-0006-other', 'development/10.0',
+                             file_='toto.txt')
+        description = pr2.description
+        wbranch = 'w/10/bugfix/TEST-0006-other'
+
+        # Integration branch & pull request are created, build not started
+        with self.assertRaises(exns.BuildNotStarted):
+            self.handle(
+                pr2.id, backtrace=True,
+                options=self.bypass_all_but(['bypass_build_status']))
+        status, = self.get_status_comments(pr2)
+        comments = list(pr2.get_comments())
+        self.assertIn('Hello', comments[0].text)
+        self.assertEqual(comments[1].id, status.id)
+        integration_pr, = self.contributor_bb.get_pull_requests(
+            src_branch=wbranch)
+        self.assertIn('Waiting for the builds to start', status.text)
+        self.assertIn(
+            '`%s` | #%s | NOTSTARTED' % (wbranch, integration_pr.id),
+            status.text)
+
+        # Same state: the comment is left untouched
+        with self.assertRaises(exns.BuildNotStarted):
+            self.handle(
+                pr2.id, backtrace=True,
+                options=self.bypass_all_but(['bypass_build_status']))
+        self.assertEqual(
+            [c.text for c in self.get_status_comments(pr2)], [status.text])
+
+        # The first pull request is merged
+        with self.assertRaises(exns.SuccessMessage):
+            self.handle(pr1.id, options=self.bypass_all, backtrace=True)
+        status1, = self.get_status_comments(pr1)
+        self.assertIn('Merged', status1.text)
+        self.assertNotIn('Waiting', status1.text)
+
+        # The second one now conflicts: same comment, new state
+        with self.assertRaises(exns.Conflict):
+            self.handle(pr2.id, options=self.bypass_all, backtrace=True)
+        status, = self.get_status_comments(pr2)
+        self.assertIn('Conflict', status.text)
+        self.assertNotIn('Waiting', status.text)
+        self.assertIn('`%s` | #%s |' % (wbranch, integration_pr.id),
+                      status.text)
+        self.assertIn('Conflict', self.get_last_pr_comment(pr2))
+
+        # Reset: the integration data disappears from the status
+        pr2.add_comment('@%s reset' % self.args.robot_username)
+        with self.assertRaises(exns.ResetComplete):
+            self.handle(pr2.id, options=self.bypass_all, backtrace=True)
+        status, = self.get_status_comments(pr2)
+        self.assertIn('Reset complete', status.text)
+        self.assertIn('No integration branch', status.text)
+        self.assertNotIn(wbranch, status.text)
+
+        # Information and answers to commands do not change the state
+        pr2.add_comment('@%s help' % self.args.robot_username)
+        with self.assertRaises(exns.HelpMessage):
+            self.handle(pr2.id, options=self.bypass_all, backtrace=True)
+        status, = self.get_status_comments(pr2)
+        self.assertIn('Reset complete', status.text)
+
+        # The description is never modified
+        self.assertEqual(
+            self.contributor_bb.get_pull_request(pr2.id).description,
+            description)
 
     def test_integration_pr_declined(self):
         pr = self.create_pr('bugfix/TEST-0001', 'development/4.3')

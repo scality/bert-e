@@ -108,6 +108,20 @@ system**; raising the right exception *is* how you send a message or stop
 processing. When adding a new check, add a matching exception + template
 pair here, and reference the message-code table in `USER_DOC.md`.
 
+### The status comment
+
+`gitwaterflow/status_comment.py` keeps one robot comment per pull request
+(header `# Bert-E status`, see `pr_utils.STATUS_COMMENT_HEADER`) up to date.
+It is created right after the greetings (`ensure_status_comment`) and
+edited in place (`AbstractComment.edit`) by `handle_pull_request` and the
+queue handlers (`publish_status`) from the exception that ended the run.
+`TemplateException.reports_state` tells states (`Conflict`, `Queued`...) from
+information/answers to commands (`InitMessage`, `HelpMessage`...), which leave
+the state untouched. Integration branches, their open pull requests and
+builds are read from the repository and the git host at each update, and the
+checklist reuses `commands._build_status_report`. `find_comment` and the
+command scan of `handle_comments` ignore this comment: it is not a message.
+
 ## The merge queue (`bert_e/workflow/gitwaterflow/queueing.py`)
 
 When `use_queue` is enabled (the default, toggled by `disable_queues`

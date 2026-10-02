@@ -25,7 +25,7 @@ from bert_e.lib.cli import confirm
 from bert_e.lib.simplecmd import CommandError
 from bert_e.reactor import Reactor, NotFound, NotPrivileged, NotAuthored
 from ..git_utils import push, clone_git_repo
-from ..pr_utils import find_comment, notify_user
+from ..pr_utils import find_comment, is_status_comment, notify_user
 from .branches import (
     branch_factory, build_branch_cascade, is_cascade_consumer,
     is_cascade_producer, BranchCascade, QueueBranch, IntegrationBranch
@@ -43,6 +43,7 @@ from .integration import (check_integration_branches,
                           notify_integration_data,
                           update_integration_branches)
 from .jira import jira_checks
+from .status_comment import ensure_status_comment, publish_status
 from . import queueing
 
 
@@ -58,7 +59,14 @@ def handle_pull_request(job: PullRequestJob):
     try:
         _handle_pull_request(job)
     except messages.TemplateException as err:
+        # The status comment goes first: the message must stay the most
+        # recent comment of the pull request.
+        publish_status(job, err)
         notify_user(job.settings, job.pull_request, err)
+        raise
+    except (messages.BuildInProgress, messages.BuildNotStarted,
+            messages.PullRequestDeclined) as err:
+        publish_status(job, err)
         raise
 
 
@@ -127,6 +135,7 @@ def _handle_pull_request(job: PullRequestJob):
 
     early_checks(job)
     send_greetings(job)
+    ensure_status_comment(job)
     src = job.git.src_branch = branch_factory(job.git.repo,
                                               job.pull_request.src_branch)
     dst = job.git.dst_branch = branch_factory(job.git.repo,
@@ -343,6 +352,9 @@ def handle_comments(job):
     # Look for commands in comments posted after BertE's last message.
     for comment in reversed(job.pull_request.comments):
         author = comment.author
+        if is_status_comment(comment, job.settings.robot):
+            # not a message: it is edited in place
+            continue
         if author == job.settings.robot:
             return
         privileged = author in admins and author != pr_author

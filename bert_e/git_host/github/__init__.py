@@ -269,7 +269,7 @@ class Client(base.AbstractClient):
 
         """
         url = self._patch_url(url)
-        response = self.session.post(url, data=data, **kwargs)
+        response = self.session.patch(url, data=data, **kwargs)
         response.raise_for_status()
         return json.loads(response.text)
 
@@ -1014,6 +1014,13 @@ class Comment(base.AbstractGitHostObject, base.AbstractComment):
     @property
     def id(self) -> int:
         return self.data['id']
+
+    def edit(self, msg: str) -> None:
+        self.client.patch(
+            self.data['url'],
+            data=json.dumps({'body': msg})
+        )
+        self.data['body'] = msg
 
     def delete(self) -> None:
         self.client.delete(self.data['url'])

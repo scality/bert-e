@@ -31,6 +31,14 @@ class TemplateException(BertE_Exception):
     template = None
     # whether to re-publish if the message is already in the history
     dont_repeat_if_in_history = -1
+    # whether this message describes the current state of the pull request
+    # (and thus must be reflected in the pull request's status comment), as
+    # opposed to a one-shot information or the answer to a command.
+    reports_state = True
+    # human readable name of the state, defaults to the class name
+    state_label = None
+    # status displayed with the state, defaults to `status`
+    state_status = None
 
     def __init__(self, **kwargs):
         self.kwargs = kwargs
@@ -59,6 +67,7 @@ class SilentException(BertE_Exception):
 # template for informative exceptions
 class InformationException(TemplateException):
     dont_repeat_if_in_history = NEVER_REPEAT
+    reports_state = False
 
 
 # template exceptions
@@ -71,24 +80,28 @@ class HelpMessage(TemplateException):
     code = 101
     template = 'help.md'
     dont_repeat_if_in_history = 0  # allow repeating if requested by user
+    reports_state = False
 
 
 class SuccessMessage(TemplateException):
     code = 102
     template = 'successful_merge.md'
     status = "success"
+    state_label = "Merged"
 
 
 class CommandNotImplemented(TemplateException):
     code = 103
     template = 'not_implemented.md'
     dont_repeat_if_in_history = 0  # allow repeating if requested by user
+    reports_state = False
 
 
 class StatusReport(TemplateException):
     code = 104
     template = 'status.md'
     dont_repeat_if_in_history = 0  # allow repeating if requested by user
+    reports_state = False
 
 
 class IncompatibleSourceBranchPrefix(TemplateException):
@@ -161,6 +174,7 @@ class AfterPullRequest(TemplateException):
     code = 120
     template = 'after_pull_request.md'
     status = "queued"
+    state_label = "Waiting for another pull request"
 
 
 class IntegrationDataCreated(InformationException):
@@ -215,6 +229,7 @@ class PartialMerge(TemplateException):
     template = 'partial_merge.md'
     dont_repeat_if_in_history = 0  # allow repeating as many times as it occurs
     status = "success"
+    state_label = "Partially merged"
 
 
 class QueueOutOfOrder(TemplateException):
@@ -232,6 +247,7 @@ class LossyResetWarning(TemplateException):
     code = 129
     template = "lossy_reset.md"
     status = "failure"
+    reports_state = False
 
 
 class IncorrectCommandSyntax(TemplateException):
@@ -274,6 +290,8 @@ class RequestIntegrationBranches(TemplateException):
 class QueueBuildFailedMessage(TemplateException):
     code = 136
     template = "queue_build_failed.md"
+    state_label = "Queue build failed"
+    state_status = "failure"  # no bot status check is sent for this one
 
 
 class ForeignCommitsInSourceBranch(TemplateException):

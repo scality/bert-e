@@ -28,6 +28,7 @@ from .branches import (BranchCascade, DevelopmentBranch, GWFBranch,
                        QueueCollection, QueueIntegrationBranch, branch_factory,
                        build_queue_collection)
 from .integration import get_integration_branches
+from .status_comment import publish_status
 from typing import List
 
 
@@ -46,11 +47,11 @@ def notify_queue_build_failed(failed_prs: List[int], job: QueuesJob):
     # only through build status checks.
     for pr_id in failed_prs:
         pull_request = job.project_repo.get_pull_request(pr_id)
-        notify_user(
-            job.settings, pull_request, exceptions.QueueBuildFailedMessage(
-                active_options=job.active_options,
-                frontend_url=job.bert_e.settings.frontend_url)
-        )
+        message = exceptions.QueueBuildFailedMessage(
+            active_options=job.active_options,
+            frontend_url=job.bert_e.settings.frontend_url)
+        publish_status(job, message, pull_request, with_git=False)
+        notify_user(job.settings, pull_request, message)
 
 
 @job_handler(QueuesJob)
@@ -213,15 +214,15 @@ def close_queued_pull_request(job, pr_id, cascade):
 
     if dst.includes_commit(src.get_latest_commit()):
         # Everything went fine, send a success message
-        notify_user(
-            job.settings, pull_request, exceptions.SuccessMessage(
-                branches=target_branches,
-                ignored=job.git.cascade.ignored_branches,
-                pending_hotfixes=job.git.cascade.pending_hotfix_branches,
-                issue=src.jira_issue_key,
-                author=pull_request.author_display_name,
-                active_options=[])
-        )
+        message = exceptions.SuccessMessage(
+            branches=target_branches,
+            ignored=job.git.cascade.ignored_branches,
+            pending_hotfixes=job.git.cascade.pending_hotfix_branches,
+            issue=src.jira_issue_key,
+            author=pull_request.author_display_name,
+            active_options=[])
+        publish_status(job, message, pull_request, with_git=False)
+        notify_user(job.settings, pull_request, message)
 
     else:
         # Frown at the author for adding posterior changes. This
@@ -229,11 +230,11 @@ def close_queued_pull_request(job, pr_id, cascade):
         # have disappeared, so the normal pre-queuing workflow will restart
         # naturally.
         commits = list(src.get_commit_diff(dst))
-        notify_user(
-            job.settings, pull_request, exceptions.PartialMerge(
-                commits=commits, branches=job.git.cascade.dst_branches,
-                active_options=[])
-        )
+        message = exceptions.PartialMerge(
+            commits=commits, branches=job.git.cascade.dst_branches,
+            active_options=[])
+        publish_status(job, message, pull_request, with_git=False)
+        notify_user(job.settings, pull_request, message)
 
     # Remove integration branches (potentially let Bert-E rebuild them if
     # the merge was partial)
