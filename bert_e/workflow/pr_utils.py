@@ -14,12 +14,19 @@
 """Pull Requests messaging utility functions."""
 import itertools
 import logging
+import re
 
 from bert_e import exceptions
 from bert_e.git_host.base import AbstractComment, AbstractPullRequest
 from bert_e.lib.cli import confirm
+from bert_e.lib.template_loader import render
 
 LOG = logging.getLogger(__name__)
+
+STATUS_COMMENT_MARKER = '<!-- bert-e-status -->'
+STATUS_PR_RE = re.compile(
+    r'^\* #(?P<id>\d+): `(?P<src>[^`]+)` \u2192 `(?P<dst>[^`]+)`',
+    re.MULTILINE)
 
 
 def find_comment(pull_request: AbstractPullRequest, username=None,
@@ -98,10 +105,68 @@ def _send_bot_status(settings, pull_request: AbstractPullRequest,
     )
 
 
+def find_status_comment(pull_request: AbstractPullRequest, username):
+    """Return the pinned status comment posted by the bot, if any."""
+    for comment in pull_request.comments:
+        if comment.author == username and \
+                comment.text.startswith(STATUS_COMMENT_MARKER):
+            return comment
+    return None
+
+
+def _integration_pull_requests(comment, previous_text=None):
+    """List the integration pull requests known for a status comment.
+
+    Use those carried by the message when available, otherwise keep the
+    ones listed in the previous status comment.
+    """
+    child_prs = comment.kwargs.get('child_prs')
+    if child_prs:
+        return [{'id': pr.id, 'dst': pr.dst_branch, 'src': pr.src_branch}
+                for pr in child_prs]
+    if previous_text:
+        return [
+            {'id': m.group('id'), 'dst': m.group('dst'),
+             'src': m.group('src')}
+            for m in STATUS_PR_RE.finditer(previous_text)
+        ]
+    return []
+
+
+def update_status_comment(settings, pull_request: AbstractPullRequest,
+                          comment: exceptions.TemplateException):
+    """Create or update the single comment showing the latest bot state.
+
+    The comment is edited in place so that the current status is always at
+    the same (early) position in the pull request conversation, and the
+    description of the pull request is left untouched.
+    """
+    if settings.no_comment or settings.interactive:
+        return
+    existing = find_status_comment(pull_request, settings.robot)
+    prs = _integration_pull_requests(
+        comment, existing.text if existing else None)
+    text = render('pr_status_comment.md', marker=STATUS_COMMENT_MARKER,
+                  state=comment.title, code=comment.code,
+                  status=getattr(comment, 'status', None),
+                  integration_prs=prs,
+                  active_options=comment.kwargs.get('active_options'))
+    if existing is None:
+        pull_request.add_comment(text)
+    elif existing.text.strip() != text.strip():
+        existing.update(text)
+
+
 def notify_user(settings, pull_request: AbstractPullRequest,
                 comment: exceptions.TemplateException):
     """Notify user by sending a comment or a build status in a pull request."""
     try:
+        # Must happen before the message so that the status comment is never
+        # the last bot comment (see dont_repeat_if_in_history).
+        try:
+            update_status_comment(settings, pull_request, comment)
+        except Exception:
+            LOG.warning("Could not update the status comment", exc_info=True)
         _send_bot_status(settings, pull_request, comment)
         _send_comment(settings, pull_request, str(comment),
                       comment.dont_repeat_if_in_history)
