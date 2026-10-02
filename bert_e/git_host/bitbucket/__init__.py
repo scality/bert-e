@@ -489,6 +489,14 @@ class Comment(base.AbstractGitHostObject, base.AbstractComment):
                               pull_request_id=self.data['pullrequest']['id'],
                               comment_id=self.id)
 
+    def edit(self, text):
+        updated = super().update(
+            self.client, {'content': {'raw': text}},
+            full_name=self.full_name(),
+            pull_request_id=self.data['pullrequest']['id'],
+            comment_id=self.id)
+        self.data = updated.data
+
     @classmethod
     def create(cls, client, data, **kwargs):
         return super().create(client, {'content': {'raw': data}}, **kwargs)

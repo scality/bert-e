@@ -406,7 +406,7 @@ class PullRequestController(Controller, base.AbstractPullRequest):
 
 class CommentController(Controller, base.AbstractComment):
 
-    def update(self, text):
+    def edit(self, text):
         self.controlled.content = {
             "raw": text, "markup": "markdown", "html": text}
         self.controlled.updated_on = datetime.now()

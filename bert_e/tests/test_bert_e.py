@@ -1387,7 +1387,7 @@ admins:
         with self.assertRaises(exns.RequestIntegrationBranches):
             self.handle(
                 pr.id, settings=settings, options=options, backtrace=True)
-        self.assertEqual(len(list(pr.get_comments())), 2)
+        self.assertEqual(len(list(pr.get_comments())), 3)
         self.assertIn(
             'Request integration branches', self.get_last_pr_comment(pr))
         self.assertIn(
@@ -1397,7 +1397,7 @@ admins:
         with self.assertRaises(exns.BuildNotStarted):
             self.handle(
                 pr.id, settings=settings, options=options, backtrace=True)
-        self.assertEqual(len(list(pr.get_comments())), 4)
+        self.assertEqual(len(list(pr.get_comments())), 5)
         self.assertIn('Integration data created', self.get_last_pr_comment(pr))
         self.assertIn(
             'create_integration_branches', self.get_last_pr_comment(pr))
@@ -1444,7 +1444,7 @@ admins:
         with self.assertRaises(exns.BuildNotStarted):
             self.handle(
                 pr.id, settings=settings, options=options, backtrace=True)
-        self.assertEqual(len(list(pr.get_comments())), 4)
+        self.assertEqual(len(list(pr.get_comments())), 5)
         self.assertIn('Integration data created', self.get_last_pr_comment(pr))
 
         options = self.bypass_all
@@ -1493,10 +1493,10 @@ admins:
             with self.assertRaises(exns.ApprovalRequired):
                 self.handle(pr.id, options=options, backtrace=True)
 
-            self.assertEqual(len(list(pr.get_comments())), 3)
+            self.assertEqual(len(list(pr.get_comments())), 4)
 
             self.assertIn(
-                'Integration data created', list(pr.get_comments())[-2].text)
+                'Integration data created', list(pr.get_comments())[-3].text)
 
             self.assertIn(
                 'Waiting for approval', self.get_last_pr_comment(pr))
@@ -3533,7 +3533,7 @@ pr_author_options:
 """ # noqa
         pr = self.create_pr('feature/TEST-0042', 'development/10')
         self.handle(pr.id, settings=settings)
-        self.assertIs(len(list(pr.get_comments())), 2)
+        self.assertIs(len(list(pr.get_comments())), 3)
         self.assertIn('bypass_jira_check', self.get_last_pr_comment(pr))
         settings = """
 repository_owner: {owner}
@@ -3555,7 +3555,7 @@ pr_author_options:
 """ # noqa
         pr = self.create_pr('feature/TEST-0043', 'development/10')
         self.handle(pr.id, settings=settings)
-        self.assertIs(len(list(pr.get_comments())), 2)
+        self.assertIs(len(list(pr.get_comments())), 3)
         self.assertIn('bypass_author_approval', self.get_last_pr_comment(pr))
 
         settings = """
@@ -3578,7 +3578,7 @@ pr_author_options:
 """ # noqa
         pr = self.create_pr('feature/TEST-0044', 'development/10')
         self.handle(pr.id, settings=settings)
-        self.assertIs(len(list(pr.get_comments())), 2)
+        self.assertIs(len(list(pr.get_comments())), 3)
         self.assertIn('bypass_peer_approval', self.get_last_pr_comment(pr))
 
         settings = """
@@ -3601,7 +3601,7 @@ pr_author_options:
 """ # noqa
         pr = self.create_pr('feature/TEST-0045', 'development/10')
         self.handle(pr.id, settings=settings)
-        self.assertIs(len(list(pr.get_comments())), 2)
+        self.assertIs(len(list(pr.get_comments())), 3)
         self.assertIn('bypass_build_status', self.get_last_pr_comment(pr))
 
     def test_bypass_author_jira(self):

@@ -1015,7 +1015,7 @@ class Comment(base.AbstractGitHostObject, base.AbstractComment):
     def id(self) -> int:
         return self.data['id']
 
-    def update(self, text: str) -> None:
+    def edit(self, text: str) -> None:
         self.data = self.client.patch(
             self.data['url'], data=json.dumps({'body': text}))
 

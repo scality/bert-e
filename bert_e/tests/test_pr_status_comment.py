@@ -3,7 +3,8 @@ from types import SimpleNamespace
 
 from bert_e import exceptions
 from bert_e.workflow.pr_utils import (
-    find_status_comment, notify_user, update_status_comment,
+    STATUS_COMMENT_MARKER, find_comment, find_status_comment, notify_user,
+    update_status_comment,
 )
 
 
@@ -12,7 +13,7 @@ class FakeComment:
         self.author = author
         self.text = text
 
-    def update(self, text):
+    def edit(self, text):
         self.text = text
 
 
@@ -32,7 +33,10 @@ SETTINGS = SimpleNamespace(robot='bert-e', no_comment=False,
 
 
 def _conflict():
-    return exceptions.CommandNotImplemented(active_options=[])
+    src = SimpleNamespace(name='x')
+    dst = SimpleNamespace(name='development/1.1', allow_prefixes=['feature'])
+    return exceptions.IncompatibleSourceBranchPrefix(
+        active_options=[], source=src, destination=dst)
 
 
 def test_status_comment_created_once_and_updated():
@@ -42,13 +46,29 @@ def test_status_comment_created_once_and_updated():
     assert len(pr.comments) == 2
     # the pinned status comment comes first
     assert pr.comments[0] is find_status_comment(pr, 'bert-e')
-    assert 'CommandNotImplemented' in pr.comments[0].text
+    assert 'IncompatibleSourceBranchPrefix' in pr.comments[0].text
 
-    other = exceptions.HelpMessage(
-        options={}, commands={}, active_options=[])
+    other = exceptions.MissingJiraId(
+        active_options=[], source_branch='x', dest_branch='b')
     update_status_comment(SETTINGS, pr, other)
     assert len(pr.comments) == 2
-    assert 'HelpMessage' in pr.comments[0].text
+    assert 'MissingJiraId' in pr.comments[0].text
+
+
+def test_informational_message_leaves_status_untouched():
+    pr = FakePR()
+    update_status_comment(SETTINGS, pr, _conflict())
+    before = pr.comments[0].text
+    update_status_comment(SETTINGS, pr, exceptions.HelpMessage(
+        options={}, commands={}, active_options=[]))
+    assert pr.comments[0].text == before
+
+
+def test_find_comment_skips_status_comment():
+    pr = FakePR()
+    pr.add_comment('hello')
+    pr.add_comment(STATUS_COMMENT_MARKER + ' status')
+    assert find_comment(pr, 'bert-e', 'hello', -1) is pr.comments[0]
 
 
 def test_integration_prs_kept_between_updates():

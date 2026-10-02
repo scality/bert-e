@@ -254,7 +254,7 @@ class AbstractComment(metaclass=ABCMeta):
     """Abstract class defining the interface of a pull requests's comment."""
 
     @abstractmethod
-    def update(self, text: str) -> None:
+    def edit(self, text: str) -> None:
         """Replace the text of the comment."""
 
     @abstractmethod

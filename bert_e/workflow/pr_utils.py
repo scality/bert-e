@@ -16,7 +16,10 @@ import itertools
 import logging
 import re
 
+import requests
+
 from bert_e import exceptions
+from bert_e.git_host import base as git_host_base
 from bert_e.git_host.base import AbstractComment, AbstractPullRequest
 from bert_e.lib.cli import confirm
 from bert_e.lib.template_loader import render
@@ -49,6 +52,8 @@ def find_comment(pull_request: AbstractPullRequest, username=None,
         comments = itertools.islice(comments, 0, max_history)
     for comment in comments:
         if comment.author != username:
+            continue
+        if comment.text.startswith(STATUS_COMMENT_MARKER):
             continue
         if startswith and not comment.text.startswith(startswith):
             if max_history == -1:
@@ -143,6 +148,10 @@ def update_status_comment(settings, pull_request: AbstractPullRequest,
     """
     if settings.no_comment or settings.interactive:
         return
+    if getattr(comment, 'status', None) is None:
+        # informational messages (greetings, help...) do not change the
+        # state of the pull request
+        return
     existing = find_status_comment(pull_request, settings.robot)
     prs = _integration_pull_requests(
         comment, existing.text if existing else None)
@@ -154,18 +163,16 @@ def update_status_comment(settings, pull_request: AbstractPullRequest,
     if existing is None:
         pull_request.add_comment(text)
     elif existing.text.strip() != text.strip():
-        existing.update(text)
+        existing.edit(text)
 
 
 def notify_user(settings, pull_request: AbstractPullRequest,
                 comment: exceptions.TemplateException):
     """Notify user by sending a comment or a build status in a pull request."""
     try:
-        # Must happen before the message so that the status comment is never
-        # the last bot comment (see dont_repeat_if_in_history).
         try:
             update_status_comment(settings, pull_request, comment)
-        except Exception:
+        except (requests.HTTPError, git_host_base.Error):
             LOG.warning("Could not update the status comment", exc_info=True)
         _send_bot_status(settings, pull_request, comment)
         _send_comment(settings, pull_request, str(comment),
