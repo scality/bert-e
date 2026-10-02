@@ -102,7 +102,8 @@ class State:
                 r'(?<=[a-z])(?=[A-Z])', ' ', type(exc).__name__).capitalize()
             return cls(label, exc.state_status or exc.status, exc.code,
                        final=isinstance(exc, FINAL_STATES))
-        label = SILENT_STATES.get(type(exc))
+        label = next((v for k, v in SILENT_STATES.items()
+                      if isinstance(exc, k)), None)
         if label is None:
             return None
         return cls(label, exc.status, final=isinstance(exc, FINAL_STATES))

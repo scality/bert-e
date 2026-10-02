@@ -371,3 +371,13 @@ def test_commands_are_looked_for_past_the_status_comment():
     reactor = reactor_class.return_value
     reactor.handle_commands.assert_called_once_with(
         job, '@robot status', '@robot', False)
+
+
+def test_wait_option_replaces_any_state():
+    assert State.from_exception(instance(exceptions.WaitOptionSet)) is not None
+    job = make_job()
+    publish_status(job, instance(exceptions.Conflict), with_git=False)
+    publish_status(job, instance(exceptions.WaitOptionSet), with_git=False)
+    comment, = job.pull_request.comments
+    assert 'Waiting (wait option is set)' in comment.text
+    assert 'Conflict' not in comment.text
