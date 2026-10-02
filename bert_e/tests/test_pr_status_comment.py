@@ -73,12 +73,15 @@ def test_find_comment_skips_status_comment():
 
 def test_integration_prs_kept_between_updates():
     pr = FakePR()
-    child = SimpleNamespace(id=7, src_branch='w/1.1/x',
+    update_status_comment(SETTINGS, pr, _conflict())
+    child = SimpleNamespace(id=7, src_branch='w/1.1/x', name='w/1.1/x',
                             dst_branch='development/1.1')
-    err = _conflict()
-    err.kwargs['child_prs'] = [child]
-    update_status_comment(SETTINGS, pr, err)
+    info = exceptions.IntegrationDataCreated(
+        active_options=[], child_prs=[child, child], wbranches=[child, child],
+        ignored=[], githost='mock', owner='o', slug='r', bert_e='bert-e')
+    update_status_comment(SETTINGS, pr, info)
     assert '#7' in pr.comments[0].text
+    assert 'IncompatibleSourceBranchPrefix' in pr.comments[0].text
     update_status_comment(SETTINGS, pr, _conflict())
     assert '#7' in pr.comments[0].text
 

@@ -490,12 +490,14 @@ class Comment(base.AbstractGitHostObject, base.AbstractComment):
                               comment_id=self.id)
 
     def edit(self, text):
-        updated = super().update(
-            self.client, {'content': {'raw': text}},
+        # Bitbucket Cloud only supports PUT to update a comment
+        url = self.GET_URL.format(
             full_name=self.full_name(),
             pull_request_id=self.data['pullrequest']['id'],
             comment_id=self.id)
-        self.data = updated.data
+        response = self.client.put(
+            url, data=json.dumps({'content': {'raw': text}}))
+        self.data = self.load(response).data
 
     @classmethod
     def create(cls, client, data, **kwargs):

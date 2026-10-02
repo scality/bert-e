@@ -27,6 +27,10 @@ from bert_e.lib.template_loader import render
 LOG = logging.getLogger(__name__)
 
 STATUS_COMMENT_MARKER = '<!-- bert-e-status -->'
+STATUS_STATE_RE = re.compile(r'^## Bert-E status: (?P<state>.*)$',
+                             re.MULTILINE)
+STATUS_RESULT_RE = re.compile(r'^Result: \*\*(?P<status>.*)\*\*$',
+                              re.MULTILINE)
 STATUS_PR_RE = re.compile(
     r'^\* #(?P<id>\d+): `(?P<src>[^`]+)` \u2192 `(?P<dst>[^`]+)`',
     re.MULTILINE)
@@ -148,16 +152,27 @@ def update_status_comment(settings, pull_request: AbstractPullRequest,
     """
     if settings.no_comment or settings.interactive:
         return
-    if getattr(comment, 'status', None) is None:
+    status = getattr(comment, 'status', None)
+    child_prs = comment.kwargs.get('child_prs')
+    if status is None and not child_prs:
         # informational messages (greetings, help...) do not change the
         # state of the pull request
         return
     existing = find_status_comment(pull_request, settings.robot)
+    state, code = comment.title, comment.code
+    if status is None:
+        # only the integration pull requests changed: keep the state
+        if existing is None:
+            return
+        m = STATUS_STATE_RE.search(existing.text)
+        state = m.group('state') if m else state
+        m = STATUS_RESULT_RE.search(existing.text)
+        status = m.group('status') if m else None
+        code = None
     prs = _integration_pull_requests(
         comment, existing.text if existing else None)
     text = render('pr_status_comment.md', marker=STATUS_COMMENT_MARKER,
-                  state=comment.title, code=comment.code,
-                  status=getattr(comment, 'status', None),
+                  state=state, code=code, status=status,
                   integration_prs=prs,
                   active_options=comment.kwargs.get('active_options'))
     if existing is None:
