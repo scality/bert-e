@@ -45,7 +45,7 @@ class RetryHandler(object):
         self._cur_delay = 1
         self._elapsed = 0
 
-    def wait(self, err=RetryTimeout()):
+    def wait(self, err=None):
         """Wait until next retry.
 
         If wait limit was exceeded (first try happened more than `limit`
@@ -61,7 +61,7 @@ class RetryHandler(object):
         if self.limit is not None and self._elapsed >= self.limit:
             if self._log:
                 self._log.error("Reached timeout (%ds)", self.limit)
-            raise err
+            raise err if err is not None else RetryTimeout()
         sleep(self._cur_delay)
         self._elapsed += self._cur_delay
         self._cur_delay = min(self._max_delay, self._cur_delay * 2)
@@ -80,7 +80,6 @@ class RetryHandler(object):
             the result of func(*args, **kwargs)
 
         """
-        # Python 2 doesn't support mixing optional args with **kwargs syntax
         catch = kwargs.pop('catch', Exception)
         fail_msg = kwargs.pop('fail_msg',
                               "Call to '%s' failed" % func.__name__)
