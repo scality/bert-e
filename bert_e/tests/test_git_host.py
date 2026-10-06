@@ -244,6 +244,14 @@ class TestBasicFunctionality:
         assert cmt1.text == 'First comment'
         assert cmt2.text == 'Last comment'
 
+        # Edit a comment in place
+        cmt2.edit('Edited comment')
+        assert cmt2.text == 'Edited comment'
+        edited = list(pull_request.get_comments())[-1]
+        assert edited.id == cmt2.id
+        assert edited.text == 'Edited comment'
+        assert edited.author == workspace.client.login
+
     def test_build_status(self, workspace):
         pull_request = make_pull_request(workspace, 'test_build_status',
                                          'master')

@@ -257,6 +257,20 @@ class AbstractComment(metaclass=ABCMeta):
     def delete(self) -> None:
         """Delete the comment."""
 
+    @abstractmethod
+    def edit(self, text: str) -> None:
+        """Replace the comment's contents in place.
+
+        The comment object (and any cached list holding it) reflects the
+        new contents once the call returns.
+
+        Args:
+            - text: the new raw plaintext of the comment.
+
+        Raises: requests.HTTPError if the git host rejects the edition.
+
+        """
+
     @property
     @abstractmethod
     def author(self) -> str:

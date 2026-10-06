@@ -18,10 +18,15 @@
 used by Bert-E) are declared.
 
 """
-from marshmallow import Schema, fields
+from marshmallow import EXCLUDE, Schema, fields
 
 
 class Comment(Schema):
+    class Meta:
+        # Bitbucket comment payloads carry many more fields (id, type,
+        # inline, ...) than the subset declared here.
+        unknown = EXCLUDE
+
     content = fields.Dict()
     created_on = fields.DateTime()
     updated_on = fields.DateTime(allow_none=True)

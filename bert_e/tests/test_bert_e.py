@@ -5249,6 +5249,46 @@ project_leaders:
         for i in range(len(comments)):
             self.assertEqual(comments[i], comments_sorted[i])
 
+    def test_robot_comment_edited_in_place(self):
+        """Test that Bert-E's flow is unaffected by the edition of its own
+        comments.
+
+        1. Let Bert-E greet the author,
+        2. edit that robot comment in place,
+        3. post an option after it and handle the pull request again,
+        4. check the edition is visible, kept its author and position,
+           and that neither the greeting nor the option are disturbed.
+
+        """
+        pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
+        self.handle(pr.id, options=['bypass_jira_check'])
+        robot_pr = self.robot_bb.get_pull_request(pull_request_id=pr.id)
+        greeting, *others = robot_pr.get_comments()
+        self.assertIn('Hello %s' % self.args.contributor_username,
+                      greeting.text)
+
+        greeting.edit('edited by the robot')
+
+        comments = list(pr.get_comments())
+        self.assertEqual(len(comments), len(others) + 1)
+        self.assertEqual(comments[0].id, greeting.id)
+        self.assertEqual(comments[0].text, 'edited by the robot')
+        self.assertEqual(comments[0].author, self.args.robot_username)
+        self.assertEqual([c.text for c in comments[1:]],
+                         [c.text for c in others])
+
+        # Commands and options posted after the edited robot comment are
+        # still read
+        pr.add_comment('@%s wait' % self.args.robot_username)
+        with self.assertRaises(exns.NothingToDo):
+            self.handle(pr.id, options=['bypass_jira_check'], backtrace=True)
+
+        # The edited comment is still recognized as the robot's greeting
+        texts = [comment.text for comment in pr.get_comments()]
+        self.assertEqual(texts[0], 'edited by the robot')
+        self.assertFalse(any('Hello %s' % self.args.contributor_username in t
+                             for t in texts))
+
     def test_dependabot_pr(self):
         """Test a simple dependabot PR.
 
