@@ -237,6 +237,7 @@ class Issue(GitHubSchema):
 class IssueCommentEvent(GitHubSchema):
     action = fields.Str()
     issue = fields.Nested(Issue)
+    sender = fields.Nested(User)
 
 
 class PullRequestReviewEvent(GitHubSchema):

@@ -58,9 +58,29 @@ def handle_bitbucket_repo_event(bert_e, event, json_data):
         return CommitJob(bert_e=bert_e, commit=commit_sha1)
 
 
+def is_robot_bitbucket_comment(bert_e, event, json_data):
+    """Tell whether a Bitbucket pull request event is a robot's comment.
+
+    Bert-E creates, edits or deletes its comments while it processes that
+    very pull request, so re-running it on their webhook is redundant. Its
+    messages never start with the command prefix: they carry no option or
+    command for itself.
+
+    """
+    if not event.startswith('comment_'):
+        return False
+    # Bitbucket identifies users by account_id, like Comment.author does.
+    account_id = json_data['actor'].get('account_id')
+    return bool(account_id) and account_id == bert_e.settings.robot
+
+
 def handle_bitbucket_pr_event(bert_e, event, json_data):
     """Handle a Bitbucket webhook sent on a pull request event."""
     pr_id = json_data['pullrequest']['id']
+    if is_robot_bitbucket_comment(bert_e, event, json_data):
+        LOG.debug('Ignoring %s by the robot on pull request <%s>',
+                  event, pr_id)
+        return
     pr = PullRequest(bert_e.client, **json_data['pullrequest'])
     LOG.info('The pull request <%s> has been updated', pr_id)
     return PullRequestJob(bert_e=bert_e, pull_request=pr)
@@ -79,6 +99,12 @@ def handle_github_pr_event(bert_e, json_data):
 def handle_github_issue_comment(bert_e, json_data):
     """Handle a GitHub webhook sent on an issue comment event."""
     event = github.IssueCommentEvent(client=bert_e.client, **json_data)
+    # Ignore Bert-E's own comments (see is_robot_bitbucket_comment).
+    # Check before fetching the pull request: it saves an API call.
+    if event.sender == bert_e.settings.robot:
+        LOG.debug('Ignoring comment %s by the robot on issue #%s',
+                  event.data.get('action'), event.data['issue']['number'])
+        return
     pr = event.pull_request
     if pr:
         return PullRequestJob(bert_e=bert_e, pull_request=pr)

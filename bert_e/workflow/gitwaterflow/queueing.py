@@ -224,16 +224,19 @@ def close_queued_pull_request(job, pr_id, cascade):
         )
 
     else:
-        # Frown at the author for adding posterior changes. This
-        # message will wake Bert-E up on the Pull Request, and the queues
-        # have disappeared, so the normal pre-queuing workflow will restart
-        # naturally.
+        # Frown at the author for adding posterior changes.
         commits = list(src.get_commit_diff(dst))
         notify_user(
             job.settings, pull_request, exceptions.PartialMerge(
                 commits=commits, branches=job.git.cascade.dst_branches,
                 active_options=[])
         )
+        # Wake Bert-E up on the Pull Request: the queues have disappeared,
+        # so the normal pre-queuing workflow will restart naturally. The
+        # webhook of the comment above can't do it, the robot's comment
+        # webhooks are ignored.
+        job.bert_e.put_job(
+            PullRequestJob(bert_e=job.bert_e, pull_request=pull_request))
 
     # Remove integration branches (potentially let Bert-E rebuild them if
     # the merge was partial)

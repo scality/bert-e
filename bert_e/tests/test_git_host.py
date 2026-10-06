@@ -244,6 +244,24 @@ class TestBasicFunctionality:
         assert cmt1.text == 'First comment'
         assert cmt2.text == 'Last comment'
 
+    def test_pull_request_comment_edit(self, workspace):
+        pull_request = make_pull_request(
+            workspace, 'test_pull_request_comment_edit', 'master'
+        )
+        pull_request.add_comment('First comment')
+        comment = pull_request.add_comment('Status: Conflict')
+        comment_id = comment.id
+
+        comment.edit('Status: Queued')
+        assert comment.text == 'Status: Queued'
+
+        # The edit is visible to new listings, in place, without a new comment
+        comments = list(pull_request.get_comments())
+        assert [cmt.text for cmt in comments] == ['First comment',
+                                                  'Status: Queued']
+        assert comments[1].id == comment_id
+        assert comments[1].author == workspace.client.login.lower()
+
     def test_build_status(self, workspace):
         pull_request = make_pull_request(workspace, 'test_build_status',
                                          'master')

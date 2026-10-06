@@ -5232,6 +5232,38 @@ project_leaders:
                 settings=settings,
                 backtrace=True)
 
+    def test_robot_comment_edited_in_place(self):
+        """Bert-E's comment edited in place stays a robot comment.
+
+        The edit keeps the comment (same id, robot author, new text), and the
+        user commands posted after it are still handled.
+
+        """
+        pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
+        options = ['bypass_jira_check', 'bypass_build_status']
+        with self.assertRaises(exns.ApprovalRequired):
+            self.handle(pr.id, options=options, backtrace=True)
+
+        robot_pr = self.robot_bb.get_pull_request(pull_request_id=pr.id)
+        robot_comment = robot_pr.comments[-1]
+        self.assertEqual(robot_comment.author, self.args.robot_username)
+        nb_comments = len(pr.comments)
+        robot_comment.edit('Status: waiting for approvals.')
+
+        comments = pr.comments
+        self.assertEqual(len(comments), nb_comments)
+        self.assertEqual(comments[-1].id, robot_comment.id)
+        self.assertEqual(comments[-1].text, 'Status: waiting for approvals.')
+        self.assertEqual(comments[-1].author, self.args.robot_username)
+
+        with self.assertRaises(exns.ApprovalRequired):
+            self.handle(pr.id, options=options, backtrace=True)
+
+        # A user's option posted after the robot's comments is handled
+        pr.add_comment('@%s wait' % self.args.robot_username)
+        with self.assertRaises(exns.NothingToDo):
+            self.handle(pr.id, options=options, backtrace=True)
+
     def test_comments_sorted(self):
         """Test that the comments on the githost are sorted by date.
 
@@ -6827,6 +6859,43 @@ class TaskQueueTests(RepositoryTests):
         merged_pr = self.berte.status.get('merged PRs', [])
         self.assertEqual(len(merged_pr), 1)
         self.assertEqual(merged_pr[0]['id'], 1)
+
+    def test_partial_merge_wakes_pull_request_up(self):
+        """After a partial merge, Bert-E re-runs the pull request itself.
+
+        It used to rely on the webhook of its own PartialMerge comment, which
+        is now ignored like all the robot's comment webhooks.
+
+        """
+        self.init_berte(options=self.bypass_all)
+        pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
+        self.process_pr_job(pr, 'Queued')
+
+        # The author adds a commit after queueing
+        self.gitrepo.cmd('git fetch')
+        self.gitrepo.cmd('git checkout bugfix/TEST-00001')
+        self.gitrepo.cmd('touch abc')
+        self.gitrepo.cmd('git add abc')
+        self.gitrepo.cmd('git commit -m "add new file"')
+        self.gitrepo.cmd('git push origin')
+        self.process_pr_job(pr, 'NothingToDo')
+
+        self.gitrepo.cmd('git fetch --prune')
+        sha1_q_10_0 = self.gitrepo.cmd('git rev-parse origin/q/10.0').strip()
+        self.process_sha1_job(sha1_q_10_0, 'NothingToDo')
+        for _, sha1 in self.berte.status['merge queue'][1]:
+            self.set_build_status(sha1=sha1, state='SUCCESSFUL')
+        self.process_sha1_job(sha1_q_10_0, 'Merged')
+        self.assertIn('Partial merge', pr.comments[-1].text)
+
+        queued = list(self.berte.task_queue.queue)
+        self.assertEqual(len(queued), 1)
+        self.assertIsInstance(queued[0], PullRequestJob)
+        self.assertEqual(queued[0].pull_request.id, pr.id)
+
+        # The woken-up job re-queues the pull request with the new commit
+        self.berte.process_task()
+        self.assertEqual(queued[0].status, 'Queued')
 
     def test_status_with_queue_without_octopus(self):
         # monkey patch to skip octopus merge in favor of regular 2-way merges

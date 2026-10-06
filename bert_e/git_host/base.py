@@ -257,6 +257,21 @@ class AbstractComment(metaclass=ABCMeta):
     def delete(self) -> None:
         """Delete the comment."""
 
+    @abstractmethod
+    def edit(self, text: str) -> None:
+        """Replace the comment's contents in place on the git host.
+
+        The comment object is updated with the host's response, so that any
+        cached list holding it (e.g. PullRequest.comments) shows the new text.
+
+        Named `edit` rather than `update` so as not to shadow the
+        AbstractGitHostObject.update() classmethod.
+
+        Args:
+            - text: the new raw plaintext of the comment.
+
+        """
+
     @property
     @abstractmethod
     def author(self) -> str:

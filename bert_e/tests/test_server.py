@@ -37,6 +37,7 @@ from ..git_host import bitbucket as bitbucket_api
 from ..git_host import cache
 from ..git_host import mock as mock_api
 from ..lib.settings_dict import SettingsDict
+from ..settings import UserSettingSchema
 from .test_server_data import COMMENT_CREATED, COMMIT_STATUS_CREATED
 
 bitbucket_api.PullRequest = mock_api.PullRequest
@@ -66,6 +67,9 @@ class MockBertE(bert_e.BertE):
         self.settings.commit_base_url = \
             'https://bitbucket.org/foo/bar/commits/{commit_id}'
         self.settings.admins = ['test_admin', 'test_admin_2']
+        # As loaded from settings, with account_id set by BertE.__init__
+        self.settings.robot = UserSettingSchema().load('robot_username')
+        self.settings.robot.account_id = 'robot-account-id'
 
 
 class TestServer(unittest.TestCase):
@@ -136,6 +140,26 @@ class TestServer(unittest.TestCase):
 
         server.BERTE.task_queue.task_done()
         self.assertEqual(server.BERTE.task_queue.unfinished_tasks, 0)
+
+    def test_robot_comment_ignored(self):
+        """Comments created or edited by the robot do not create jobs."""
+        robot_actor = dict(deepcopy(COMMENT_CREATED['actor']),
+                           account_id='robot-account-id')
+        data = dict(COMMENT_CREATED, actor=robot_actor)
+        for event in ('pullrequest:comment_created',
+                      'pullrequest:comment_updated'):
+            resp = self.handle_webhook(event, data)
+            self.assertEqual(200, resp.status_code)
+            self.assertEqual(server.BERTE.task_queue.unfinished_tasks, 0)
+
+        # The same comment by a human still creates a job
+        human_actor = dict(robot_actor, account_id='human-account-id')
+        resp = self.handle_webhook('pullrequest:comment_updated',
+                                   dict(COMMENT_CREATED, actor=human_actor))
+        self.assertEqual(200, resp.status_code)
+        self.assertEqual(server.BERTE.task_queue.unfinished_tasks, 1)
+        server.BERTE.task_queue.get()
+        server.BERTE.task_queue.task_done()
 
     def test_build_status_filtered(self):
         data = deepcopy(COMMIT_STATUS_CREATED)

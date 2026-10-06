@@ -269,7 +269,7 @@ class Client(base.AbstractClient):
 
         """
         url = self._patch_url(url)
-        response = self.session.post(url, data=data, **kwargs)
+        response = self.session.patch(url, data=data, **kwargs)
         response.raise_for_status()
         return json.loads(response.text)
 
@@ -997,6 +997,7 @@ class Comment(base.AbstractGitHostObject, base.AbstractComment):
 
     SCHEMA = schema.Comment
     CREATE_SCHEMA = schema.CreateComment
+    UPDATE_SCHEMA = schema.CreateComment
 
     @property
     def author(self) -> str:
@@ -1017,6 +1018,11 @@ class Comment(base.AbstractGitHostObject, base.AbstractComment):
 
     def delete(self) -> None:
         self.client.delete(self.data['url'])
+
+    def edit(self, text: str) -> None:
+        updated = self.update(self.client, {'body': text},
+                              url=self.data['url'])
+        self.data = updated.data
 
 
 class CheckRun(base.AbstractGitHostObject):
@@ -1093,6 +1099,11 @@ class PullRequestEvent(base.AbstractGitHostObject):
 
 class IssueCommentEvent(base.AbstractGitHostObject):
     SCHEMA = schema.IssueCommentEvent
+
+    @property
+    def sender(self) -> str:
+        """Login of the user who created, edited or deleted the comment."""
+        return self.data['sender']['login'].lower()
 
     @property
     def pull_request(self) -> PullRequest:

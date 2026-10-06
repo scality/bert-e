@@ -21,6 +21,8 @@ from urllib.parse import quote_plus as quote, urlparse
 from requests import HTTPError
 from requests.auth import HTTPBasicAuth
 
+from bert_e.lib.schema import dumps as dump_schema
+
 from . import schema
 from .. import base, cache, factory
 
@@ -488,6 +490,20 @@ class Comment(base.AbstractGitHostObject, base.AbstractComment):
         return super().delete(self.client, full_name=self.full_name(),
                               pull_request_id=self.data['pullrequest']['id'],
                               comment_id=self.id)
+
+    def edit(self, text):
+        # Bitbucket updates comments with PUT, whereas the generic
+        # AbstractGitHostObject.update() sends a PATCH.
+        url = self.GET_URL.format(
+            full_name=self.full_name(),
+            pull_request_id=self.data['pullrequest']['id'],
+            comment_id=self.id)
+        payload = dump_schema(self.CREATE_SCHEMA,
+                              {'content': {'raw': text}})
+        updated = self.load(self.client.put(url, data=payload))
+        # Mutate in place so that PullRequest._comments, which holds this
+        # same object, shows the new text without a new listing.
+        self.data = updated.data
 
     @classmethod
     def create(cls, client, data, **kwargs):
