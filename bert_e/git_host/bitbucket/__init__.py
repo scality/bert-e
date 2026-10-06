@@ -490,18 +490,12 @@ class Comment(base.AbstractGitHostObject, base.AbstractComment):
                               pull_request_id=self.data['pullrequest']['id'],
                               comment_id=self.id)
 
-    def edit(self, text):
-        # Bitbucket edits comments with PUT, not with the PATCH used by
-        # AbstractGitHostObject.update().
-        url = self.GET_URL.format(full_name=self.full_name(),
-                                  pull_request_id=self.data['pullrequest'][
-                                      'id'],
-                                  comment_id=self.id)
-        payload = dump_schema(self.CREATE_SCHEMA, {'content': {'raw': text}})
-        updated = self.load(self.client.put(url, data=payload))
-        # Mutate in place so that the PullRequest._comments cache, which
-        # holds this very object, sees the new contents.
-        self.data = updated.data
+    def edit(self, msg):
+        data = dump_schema(self.CREATE_SCHEMA, {'content': {'raw': msg}})
+        response = self.client.put(self.data['links']['self']['href'],
+                                   data=data)
+        # Update in place: the pull request's cached comments hold this object
+        self.data = self.load(response).data
 
     @classmethod
     def create(cls, client, data, **kwargs):

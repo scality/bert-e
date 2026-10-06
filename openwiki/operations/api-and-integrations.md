@@ -57,6 +57,10 @@ onto `BertE`'s queue (`bert_e.put_job`, see
   `handle_github_issue_comment` (issue/PR comments), and check-suite/status
   events → `CommitJob`. GitHub events are parsed into typed objects (e.g.
   `github.PullRequestEvent`) via each provider's `schema.py`.
+- Comment events sent by the robot itself (GitHub `sender.login`, Bitbucket
+  `actor.account_id`/`username`, matched against `settings.robot` by
+  `is_robot`) produce no job, so that Bert-E creating or editing its own
+  comments (`AbstractComment.edit`) does not re-trigger itself.
 
 Build-status events are cached in `BUILD_STATUS_CACHE`
 (`bert_e/git_host/cache.py`) to avoid redundant lookups when many statuses

@@ -1019,9 +1019,9 @@ class Comment(base.AbstractGitHostObject, base.AbstractComment):
     def delete(self) -> None:
         self.client.delete(self.data['url'])
 
-    def edit(self, text: str) -> None:
-        updated = self.update(self.client, {'body': text},
-                              url=self.data['url'])
+    def edit(self, msg: str) -> None:
+        updated = Comment.update(self.client, {'body': msg},
+                                 url=self.data['url'])
         self.data = updated.data
 
 

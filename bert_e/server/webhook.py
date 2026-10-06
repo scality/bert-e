@@ -29,6 +29,21 @@ LOG = logging.getLogger(__name__)
 blueprint = Blueprint('Bert-E server webhook endpoints', __name__)
 
 
+def is_robot(bert_e, user_id):
+    """Tell whether a git host user identifier designates Bert-E's robot.
+
+    Args:
+        - bert_e: the BertE instance whose settings define the robot.
+        - user_id: a username, login or account_id sent by the git host.
+
+    """
+    if not user_id:
+        return False
+    robot = bert_e.settings.robot
+    robot_ids = (robot.username, robot.account_id)
+    return user_id.lower() in (str(rid).lower() for rid in robot_ids if rid)
+
+
 def handle_bitbucket_repo_event(bert_e, event, json_data):
     """Handle a Bitbucket webhook sent on a repository event."""
     if event in ['commit_status_created', 'commit_status_updated']:
@@ -58,26 +73,15 @@ def handle_bitbucket_repo_event(bert_e, event, json_data):
         return CommitJob(bert_e=bert_e, commit=commit_sha1)
 
 
-def is_robot(bert_e, login):
-    """Tell whether a git host login/account id designates Bert-E's robot.
-
-    The login is lowercased like comment authors are, so that the result
-    matches the ``comment.author == settings.robot`` checks of the workflow.
-
-    """
-    return bool(login) and bert_e.settings.robot == login.lower()
-
-
 def handle_bitbucket_pr_event(bert_e, event, json_data):
     """Handle a Bitbucket webhook sent on a pull request event."""
     pr_id = json_data['pullrequest']['id']
     if event.startswith('comment_'):
         actor = json_data.get('actor') or {}
-        # Payloads expose account_id; older ones only carried a username.
-        login = actor.get('account_id') or actor.get('username')
-        if is_robot(bert_e, login):
-            LOG.debug('Ignoring %s by the robot on pull request <%s>',
-                      event, pr_id)
+        if any(is_robot(bert_e, actor.get(key))
+               for key in ('account_id', 'username')):
+            LOG.debug('Ignoring %s event on pull request <%s> sent by '
+                      'the robot', event, pr_id)
             return
     pr = PullRequest(bert_e.client, **json_data['pullrequest'])
     LOG.info('The pull request <%s> has been updated', pr_id)
@@ -98,9 +102,7 @@ def handle_github_issue_comment(bert_e, json_data):
     """Handle a GitHub webhook sent on an issue comment event."""
     sender = json_data.get('sender') or {}
     if is_robot(bert_e, sender.get('login')):
-        # Checked before fetching the pull request: saves an API call.
-        LOG.debug('Ignoring issue comment %s by the robot',
-                  json_data.get('action'))
+        LOG.debug("Ignoring issue comment event sent by the robot")
         return
     event = github.IssueCommentEvent(client=bert_e.client, **json_data)
     pr = event.pull_request

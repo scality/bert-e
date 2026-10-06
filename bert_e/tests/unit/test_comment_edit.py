@@ -1,138 +1,152 @@
-"""Edition of pull request comments on every git host implementation."""
+"""Unit tests of the comment edition on the GitHub and Bitbucket hosts."""
 import json
+from unittest.mock import patch
 
 import pytest
-import requests
-import requests_mock
+from requests import HTTPError, Response
 
-from bert_e.git_host import base, bitbucket, github, mock
-
-# test_server.py replaces bitbucket.PullRequest by the mock class at import
-# time: fetch the real Bitbucket implementation.
-BitbucketPullRequest = next(
-    cls for cls in base.AbstractPullRequest.__subclasses__()
-    if cls.__module__ == bitbucket.__name__)
-
-GH_BASE = 'https://api.github.com'
-GH_COMMENT_URL = GH_BASE + '/repos/octo/repo/issues/comments/42'
-BB_COMMENTS_URL = ('https://api.bitbucket.org/2.0/repositories/'
-                   'octo/repo/pullrequests/7/comments')
+from bert_e.git_host import bitbucket, github
 
 
-def gh_comment(body):
+def make_response(status_code, payload):
+    response = Response()
+    response.status_code = status_code
+    response._content = json.dumps(payload).encode()
+    response.headers['Content-Type'] = 'application/json'
+    return response
+
+
+GH_COMMENT_URL = \
+    'https://api.github.com/repos/octo-org/hello/issues/comments/42'
+
+
+def github_comment_json(body):
     return {
         'id': 42,
         'body': body,
-        'created_at': '2024-01-01T00:00:00Z',
-        'updated_at': '2024-01-01T00:00:00Z',
-        'user': {'id': 1, 'login': 'Robot_Username'},
+        'created_at': '2026-10-06T10:00:00Z',
+        'updated_at': '2026-10-06T10:00:00Z',
+        'user': {'id': 1, 'login': 'Robot', 'type': 'User'},
         'url': GH_COMMENT_URL,
     }
 
 
-def bb_comment(raw, comment_id=12):
+@pytest.fixture
+def github_client():
+    return github.Client(login='login', password='password',
+                         email='email@org.com',
+                         base_url='http://localhost:4010',
+                         accept_header='application/json')
+
+
+def test_github_comment_edit(github_client):
+    comment = github.Comment(client=github_client,
+                             **github_comment_json('old status'))
+    with patch.object(github_client.session, 'post',
+                      return_value=make_response(
+                          200, github_comment_json('new status'))) as post:
+        comment.edit('new status')
+
+    post.assert_called_once()
+    url = post.call_args.args[0]
+    assert url == GH_COMMENT_URL
+    assert json.loads(post.call_args.kwargs['data']) == {'body': 'new status'}
+    assert comment.text == 'new status'
+    assert comment.id == 42
+    assert comment.author == 'robot'
+    assert comment.client is github_client
+
+
+def test_github_comment_edit_http_error(github_client):
+    comment = github.Comment(client=github_client,
+                             **github_comment_json('old status'))
+    with patch.object(github_client.session, 'post',
+                      return_value=make_response(
+                          404, {'message': 'Not Found'})):
+        with pytest.raises(HTTPError):
+            comment.edit('new status')
+    assert comment.text == 'old status'
+
+
+BB_PR_API = ('https://api.bitbucket.org/2.0/repositories/'
+             'test_owner/test_repo/pullrequests/4')
+
+
+def bitbucket_comment_json(comment_id, raw, created_on):
     return {
+        'id': comment_id,
         'content': {'raw': raw, 'markup': 'markdown', 'html': raw},
-        'created_on': '2024-01-01T00:00:00+00:00',
-        'updated_on': '2024-01-01T00:00:00+00:00',
-        'user': {'account_id': 'robot-id'},
-        'links': {'self': {'href': '%s/%d' % (BB_COMMENTS_URL, comment_id)}},
+        'created_on': created_on,
+        'updated_on': created_on,
+        'user': {'account_id': '557058:robot', 'display_name': 'Robot'},
+        'links': {
+            'self': {'href': '%s/comments/%d' % (BB_PR_API, comment_id)},
+            'html': {'href': 'https://bitbucket.org/test_owner/test_repo/'
+                             'pull-requests/4/_/diff#comment-%d'
+                             % comment_id},
+        },
         'deleted': False,
         'type': 'pullrequest_comment',
-        'pullrequest': {'id': 7},
-        'id': comment_id,
-        'inline': None,
+        'pullrequest': {'id': 4},
     }
 
 
 @pytest.fixture
-def gh_client():
-    return github.Client(login='login', password='password',
-                         email='email@org.com', base_url=GH_BASE)
+def bitbucket_client():
+    return bitbucket.Client('login', 'password', 'login@example.com')
 
 
-@pytest.fixture
-def bb_client():
-    return bitbucket.Client('login', 'password', 'email@org.com')
+def test_bitbucket_comment_edit(bitbucket_client):
+    comment = bitbucket.Comment.load(
+        bitbucket_comment_json(7, 'old status', '2026-10-06T10:00:00+00:00'))
+    comment.client = bitbucket_client
+    updated = bitbucket_comment_json(7, 'new status',
+                                     '2026-10-06T10:00:00+00:00')
+    with patch.object(bitbucket_client, 'put',
+                      return_value=make_response(200, updated)) as put:
+        comment.edit('new status')
+
+    put.assert_called_once()
+    assert put.call_args.args[0] == BB_PR_API + '/comments/7'
+    assert json.loads(put.call_args.kwargs['data']) == \
+        {'content': {'raw': 'new status'}}
+    assert comment.text == 'new status'
+    assert comment.id == '7'
+    assert comment.client is bitbucket_client
 
 
-def test_github_comment_edit(gh_client):
-    comment = github.Comment.load(gh_comment('before'))
-    comment.client = gh_client
-    with requests_mock.Mocker() as m:
-        # github.Client.patch() sends the update as a POST on the object
-        # URL (GitHub accepts POST in place of PATCH), like
-        # PullRequest.decline() does through the same update() path.
-        m.post(GH_COMMENT_URL, json=gh_comment('after'))
-        comment.edit('after')
-
-    assert m.call_count == 1
-    assert json.loads(m.last_request.body) == {'body': 'after'}
-    assert comment.text == 'after'
-    assert comment.id == 42
-    assert comment.author == 'robot_username'
+def test_bitbucket_comment_edit_http_error(bitbucket_client):
+    comment = bitbucket.Comment.load(
+        bitbucket_comment_json(7, 'old status', '2026-10-06T10:00:00+00:00'))
+    comment.client = bitbucket_client
+    with patch.object(bitbucket_client, 'put',
+                      return_value=make_response(403, {'error': {}})):
+        with pytest.raises(HTTPError):
+            comment.edit('new status')
+    assert comment.text == 'old status'
 
 
-def test_github_comment_edit_http_error(gh_client):
-    comment = github.Comment.load(gh_comment('before'))
-    comment.client = gh_client
-    with requests_mock.Mocker() as m:
-        m.post(GH_COMMENT_URL, status_code=403, json={})
-        with pytest.raises(requests.HTTPError):
-            comment.edit('after')
-    assert comment.text == 'before'
+def test_bitbucket_cached_comments_refreshed_after_edit(bitbucket_client):
+    """The comments cached on a pull request reflect an edition."""
+    pull_request = bitbucket.PullRequest(
+        bitbucket_client, id=4,
+        destination={'repository': {'full_name': 'test_owner/test_repo'}})
+    listed = [
+        bitbucket_comment_json(7, 'hello', '2026-10-06T10:00:00+00:00'),
+        bitbucket_comment_json(8, 'old status', '2026-10-06T11:00:00+00:00'),
+    ]
+    with patch.object(bitbucket_client, 'iter_get',
+                      return_value=iter(listed)) as iter_get:
+        comments = pull_request.comments
+        assert [c.text for c in comments] == ['hello', 'old status']
 
+        updated = bitbucket_comment_json(8, 'new status',
+                                         '2026-10-06T11:00:00+00:00')
+        with patch.object(bitbucket_client, 'put',
+                          return_value=make_response(200, updated)):
+            comments[-1].edit('new status')
 
-def test_bitbucket_comment_edit_refreshes_pr_cache(bb_client):
-    pr = BitbucketPullRequest(
-        bb_client, id=7,
-        destination={'repository': {'full_name': 'octo/repo'}})
-    with requests_mock.Mocker() as m:
-        m.get(BB_COMMENTS_URL, json={'values': [bb_comment('before')]})
-        cached = pr.comments
-        assert [c.text for c in cached] == ['before']
-
-        m.put(BB_COMMENTS_URL + '/12', json=bb_comment('after'))
-        cached[0].edit('after')
-
-        put = [r for r in m.request_history if r.method == 'PUT']
-        assert len(put) == 1
-        assert json.loads(put[0].body) == {'content': {'raw': 'after'}}
-        # The cached list of the pull request now holds the new text, no
-        # further GET request is needed to see it.
-        gets = len([r for r in m.request_history if r.method == 'GET'])
-        assert [c.text for c in pr.comments] == ['after']
-        assert len([r for r in m.request_history
-                    if r.method == 'GET']) == gets
-    assert pr.comments[0].id == '12'
-    assert pr.comments[0].author == 'robot-id'
-
-
-def test_bitbucket_comment_edit_http_error(bb_client):
-    comment = bitbucket.Comment.load(bb_comment('before'))
-    comment.client = bb_client
-    with requests_mock.Mocker() as m:
-        m.put(BB_COMMENTS_URL + '/12', status_code=404, json={})
-        with pytest.raises(requests.HTTPError):
-            comment.edit('after')
-    assert comment.text == 'before'
-
-
-def test_mock_comment_edit():
-    client = mock.Client('robot', 'password', 'robot@example.com')
-    repo = client.create_repository('test_mock_comment_edit')
-    try:
-        repo.get_git_url()
-        pr = mock.PullRequest(
-            repo, 'title', 'name', {'branch': {'name': 'feature'}},
-            {'branch': {'name': 'master'}}, False, [], 'description'
-        ).create()
-        pr = mock.PullRequestController(client, pr)
-        pr.add_comment('first')
-        comment = pr.add_comment('before')
-        comment.edit('after')
-        assert [c.text for c in pr.get_comments()] == ['first', 'after']
-        assert pr.comments[-1].author == 'robot'
-        assert pr.comments[-1].id == comment.id
-    finally:
-        client.delete_repository('test_mock_comment_edit')
+        # Still served from the cache, without any new listing request
+        assert [c.text for c in pull_request.comments] == \
+            ['hello', 'new status']
+        iter_get.assert_called_once()

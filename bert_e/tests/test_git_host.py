@@ -18,6 +18,7 @@ from time import sleep
 from types import SimpleNamespace
 
 import pytest
+from requests import HTTPError
 
 from bert_e.git_host import NoSuchRepository, RepositoryExists, client_factory
 from bert_e.lib.git import Repository as GitRepository
@@ -244,13 +245,30 @@ class TestBasicFunctionality:
         assert cmt1.text == 'First comment'
         assert cmt2.text == 'Last comment'
 
-        # Edit a comment in place
-        cmt2.edit('Edited comment')
-        assert cmt2.text == 'Edited comment'
-        edited = list(pull_request.get_comments())[-1]
-        assert edited.id == cmt2.id
-        assert edited.text == 'Edited comment'
-        assert edited.author == workspace.client.login
+    def test_edit_pull_request_comment(self, workspace):
+        pull_request = make_pull_request(
+            workspace, 'test_edit_pull_request_comment', 'master'
+        )
+        pull_request.add_comment('First comment')
+        pull_request.add_comment('Status: building')
+        pull_request.add_comment('Last comment')
+        first, status, last = pull_request.get_comments()
+
+        status.edit('Status: conflict')
+        assert status.text == 'Status: conflict'
+
+        comments = list(pull_request.get_comments())
+        # Edition happens in place: same id, author and position
+        assert [cmt.id for cmt in comments] == [first.id, status.id, last.id]
+        assert [cmt.text for cmt in comments] == [
+            'First comment', 'Status: conflict', 'Last comment']
+        assert comments[1].author == workspace.client.login
+
+        # A deleted comment cannot be edited
+        last.delete()
+        if workspace.host != 'bitbucket':
+            with pytest.raises(HTTPError):
+                last.edit('Too late')
 
     def test_build_status(self, workspace):
         pull_request = make_pull_request(workspace, 'test_build_status',

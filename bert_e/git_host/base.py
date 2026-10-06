@@ -258,16 +258,14 @@ class AbstractComment(metaclass=ABCMeta):
         """Delete the comment."""
 
     @abstractmethod
-    def edit(self, text: str) -> None:
-        """Replace the comment's contents in place.
+    def edit(self, msg: str) -> None:
+        """Replace the contents of the comment.
 
-        The comment object (and any cached list holding it) reflects the
-        new contents once the call returns.
+        The comment object is updated in place, so that any list of comments
+        holding it (e.g. a pull request's cached comments) sees the new text.
 
         Args:
-            - text: the new raw plaintext of the comment.
-
-        Raises: requests.HTTPError if the git host rejects the edition.
+            - msg: the new raw plaintext of the comment.
 
         """
 

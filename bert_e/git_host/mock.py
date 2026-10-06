@@ -409,10 +409,11 @@ class CommentController(Controller, base.AbstractComment):
     def delete(self):
         self.controlled.delete()
 
-    def edit(self, text):
-        self.controlled.content = {
-            "raw": text, "markup": "markdown", "html": text}
-        self.controlled.updated_on = datetime.now()
+    def edit(self, msg):
+        if self.controlled not in Comment.items:
+            raise requests.exceptions.HTTPError(response=Error404Response())
+        self.controlled.content = {"raw": msg, "markup": "markdown",
+                                   "html": msg}
 
     @property
     def author(self):

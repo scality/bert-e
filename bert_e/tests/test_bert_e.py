@@ -5163,6 +5163,43 @@ admins:
                         ],
                         backtrace=True)
 
+    def test_edited_comment_command(self):
+        """Commands added to a pull request by editing a comment are applied.
+
+        1. The author comments without any command: the approval of the
+           author is still required.
+        2. The author edits this comment into an approval command: the
+           pull request gets merged.
+
+        """
+        settings = """
+repository_owner: {owner}
+repository_slug: {slug}
+repository_host: {host}
+robot: {robot}
+robot_email: nobody@nowhere.com
+pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
+commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
+build_key: pre-merge
+required_peer_approvals: 1
+need_author_approval: True
+admins:
+  - {admin}
+""" # noqa
+        options = ['bypass_build_status', 'bypass_jira_check']
+        pr = self.create_pr('bugfix/TEST-995', 'development/4.3')
+        pr_peer = self.admin_bb.get_pull_request(pull_request_id=pr.id)
+        pr_peer.approve()
+        comment = pr.add_comment('I will approve once ready')
+        with self.assertRaises(exns.ApprovalRequired):
+            self.handle(pr.id, settings=settings, options=options,
+                        backtrace=True)
+
+        comment.edit('@%s approve' % self.args.robot_username)
+        with self.assertRaises(exns.SuccessMessage):
+            self.handle(pr.id, settings=settings, options=options,
+                        backtrace=True)
+
     def test_author_approval_option(self):
         """Test the author approval option."""
         settings = """
@@ -5248,46 +5285,6 @@ project_leaders:
         comments_sorted = sorted(comments, key=lambda c: c.created_on)
         for i in range(len(comments)):
             self.assertEqual(comments[i], comments_sorted[i])
-
-    def test_robot_comment_edited_in_place(self):
-        """Test that Bert-E's flow is unaffected by the edition of its own
-        comments.
-
-        1. Let Bert-E greet the author,
-        2. edit that robot comment in place,
-        3. post an option after it and handle the pull request again,
-        4. check the edition is visible, kept its author and position,
-           and that neither the greeting nor the option are disturbed.
-
-        """
-        pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
-        self.handle(pr.id, options=['bypass_jira_check'])
-        robot_pr = self.robot_bb.get_pull_request(pull_request_id=pr.id)
-        greeting, *others = robot_pr.get_comments()
-        self.assertIn('Hello %s' % self.args.contributor_username,
-                      greeting.text)
-
-        greeting.edit('edited by the robot')
-
-        comments = list(pr.get_comments())
-        self.assertEqual(len(comments), len(others) + 1)
-        self.assertEqual(comments[0].id, greeting.id)
-        self.assertEqual(comments[0].text, 'edited by the robot')
-        self.assertEqual(comments[0].author, self.args.robot_username)
-        self.assertEqual([c.text for c in comments[1:]],
-                         [c.text for c in others])
-
-        # Commands and options posted after the edited robot comment are
-        # still read
-        pr.add_comment('@%s wait' % self.args.robot_username)
-        with self.assertRaises(exns.NothingToDo):
-            self.handle(pr.id, options=['bypass_jira_check'], backtrace=True)
-
-        # The edited comment is still recognized as the robot's greeting
-        texts = [comment.text for comment in pr.get_comments()]
-        self.assertEqual(texts[0], 'edited by the robot')
-        self.assertFalse(any('Hello %s' % self.args.contributor_username in t
-                             for t in texts))
 
     def test_dependabot_pr(self):
         """Test a simple dependabot PR.

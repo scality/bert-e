@@ -23,8 +23,7 @@ from marshmallow import EXCLUDE, Schema, fields
 
 class Comment(Schema):
     class Meta:
-        # Bitbucket comment payloads carry many more fields (id, type,
-        # inline, ...) than the subset declared here.
+        # Bitbucket payloads hold many more fields (id, type, ...)
         unknown = EXCLUDE
 
     content = fields.Dict()

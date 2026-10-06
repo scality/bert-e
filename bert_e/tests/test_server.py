@@ -37,7 +37,7 @@ from ..git_host import bitbucket as bitbucket_api
 from ..git_host import cache
 from ..git_host import mock as mock_api
 from ..lib.settings_dict import SettingsDict
-from ..settings import UserSettingSchema
+from ..settings import UserDict
 from .test_server_data import COMMENT_CREATED, COMMIT_STATUS_CREATED
 
 bitbucket_api.PullRequest = mock_api.PullRequest
@@ -52,7 +52,7 @@ class MockBertE(bert_e.BertE):
             owner='test_owner',
             slug='test_repo'
         )
-        self.settings = SettingsDict()
+        self.settings = SettingsDict
         self.git_repo = SimpleNamespace()
         self.task_queue = Queue()
         self.tasks_done = deque(maxlen=1000)
@@ -67,9 +67,10 @@ class MockBertE(bert_e.BertE):
         self.settings.commit_base_url = \
             'https://bitbucket.org/foo/bar/commits/{commit_id}'
         self.settings.admins = ['test_admin', 'test_admin_2']
-        # Same type and Bitbucket account id as filled by BertE.__init__
-        self.settings.robot = UserSettingSchema().load('robot_username')
-        self.settings.robot.account_id = '557058:robot-account'
+        # settings.robot is required; on Bitbucket, BertE.__init__ sets its
+        # account_id from the robot's credentials
+        self.settings.robot = UserDict({'username': 'robot_username',
+                                        'account_id': '557058:robot-id'})
 
 
 class TestServer(unittest.TestCase):
@@ -141,12 +142,16 @@ class TestServer(unittest.TestCase):
         server.BERTE.task_queue.task_done()
         self.assertEqual(server.BERTE.task_queue.unfinished_tasks, 0)
 
-    def test_robot_comment_filtered(self):
-        for event in ('comment_created', 'comment_updated'):
+    def test_robot_comment_ignored(self):
+        for event_type in ('pullrequest:comment_created',
+                           'pullrequest:comment_updated'):
             data = deepcopy(COMMENT_CREATED)
-            data['actor'] = {'account_id': '557058:robot-account',
-                             'display_name': 'Bert-E'}
-            resp = self.handle_webhook('pullrequest:%s' % event, data)
+            data['actor'] = {'account_id': '557058:robot-id',
+                             'display_name': 'Robot',
+                             'nickname': 'robot_username',
+                             'type': 'user'}
+            data['comment']['user'] = dict(data['actor'])
+            resp = self.handle_webhook(event_type, data)
             self.assertEqual(200, resp.status_code)
             self.assertEqual(server.BERTE.task_queue.unfinished_tasks, 0)
 
@@ -992,11 +997,3 @@ class TestServer(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main(failfast=True)
-
-
-def test_mock_bert_e_settings_do_not_leak():
-    """MockBertE settings must not leak into other settings objects."""
-    from ..settings import setup_settings
-    MockBertE()
-    settings = setup_settings(str(SETTINGS_FILE))
-    assert settings.robot.account_id is None
