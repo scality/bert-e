@@ -264,7 +264,8 @@ class TestBasicFunctionality:
             'First comment', 'Status: conflict', 'Last comment']
         assert comments[1].author == workspace.client.login
 
-        # A deleted comment cannot be edited
+        # A deleted comment cannot be edited (Bitbucket only soft-deletes
+        # comments, see get_comments(deleted=True), so it is not checked)
         last.delete()
         if workspace.host != 'bitbucket':
             with pytest.raises(HTTPError):
