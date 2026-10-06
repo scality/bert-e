@@ -132,3 +132,17 @@ def test_bitbucket_edit_refreshes_cached_comments(bb_client):
     assert texts == ['greetings', 'new status']
     # The cache was used: a single listing, then the edit
     assert [r.method for r in mocker.request_history] == ['GET', 'PUT']
+
+
+def test_bitbucket_comment_edit_full_api_response(bb_client):
+    """Bitbucket returns the comment's `id` and `type` along with the
+    fields Bert-E uses: they must not make the edit fail."""
+    comment = bitbucket.Comment.load(bb_comment('old status'))
+    comment.client = bb_client
+    response = dict(bb_comment('new status'), id=42,
+                    type='pullrequest_comment')
+    with requests_mock.Mocker() as mocker:
+        mocker.put(BB_COMMENT_URL, json=response)
+        comment.edit('new status')
+    assert comment.text == 'new status'
+    assert comment.id == '42'

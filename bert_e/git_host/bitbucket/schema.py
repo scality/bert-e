@@ -18,17 +18,20 @@
 used by Bert-E) are declared.
 
 """
-from marshmallow import Schema, fields
+from marshmallow import EXCLUDE, Schema, fields
 
 
 class Comment(Schema):
+    class Meta:
+        unknown = EXCLUDE
+
     content = fields.Dict()
     created_on = fields.DateTime()
     updated_on = fields.DateTime(allow_none=True)
     user = fields.Dict(allow_none=True)
     links = fields.Dict()
     deleted = fields.Boolean()
-    type_ = fields.String(load_from='type', dump_to='type')
+    type_ = fields.String(data_key='type')
     pullrequest = fields.Dict()
 
 
