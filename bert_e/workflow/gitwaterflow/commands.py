@@ -34,10 +34,13 @@ LOG = logging.getLogger(__name__)
 class _StatusItem:
     """A single row in the pull request status report."""
 
-    def __init__(self, display_name, passed, details=None):
+    def __init__(self, display_name, passed, details=None, pending=False):
         self.display_name = display_name
         setattr(self, 'pass', passed)
         self.details = details or []
+        # A pending item is neither satisfied nor failing: it cannot be
+        # evaluated yet (e.g. integration branches do not exist yet).
+        self.pending = pending
 
 
 def _check_approvals_status(job):
@@ -59,7 +62,16 @@ def _check_approvals_status(job):
             peer_count >= required_peer and
             leader_count >= required_leader and
             not job.settings.unanimity):
-        return _StatusItem('Approvals', True)
+        bypassed = [
+            name for name, active in (
+                ('author', bypass_author_approval(job)),
+                ('peer', bypass_peer_approval(job)),
+                ('leader', bypass_leader_approval(job)),
+            ) if active
+        ]
+        details = (["{} approval bypassed".format('/'.join(bypassed))]
+                   if bypassed else [])
+        return _StatusItem('Approvals', True, details=details)
 
     participants = set(job.pull_request.get_participants()) - {robot}
     approvals = set(job.pull_request.get_approvals())
@@ -107,42 +119,40 @@ def _check_approvals_status(job):
 
 def _check_builds_status(job):
     """Return a _StatusItem for integration branch build status, or None if
-    no integration branches exist or no build key is configured.
+    no build key is configured.
+
+    Every integration branch whose build is not successful is listed (with a
+    link to its build when the git host provides one), not only the worst.
+    When integration branches do not exist yet, the item is pending.
     """
     key = job.settings.build_key
     if not key:
         return None
 
     from .utils import bypass_build_status
-    wbranches = list(get_integration_branches(job))
-    if not wbranches:
-        return None
-
     if bypass_build_status(job):
         return _StatusItem('Integration builds', True, ['bypassed'])
 
-    ordered = {
-        'SUCCESSFUL': 0, 'INPROGRESS': 1,
-        'NOTSTARTED': 2, 'STOPPED': 3, 'FAILED': 4,
-    }
-    worst_rank = 0
-    worst_branch = None
-    worst_state = 'SUCCESSFUL'
-    for branch in wbranches:
-        state = job.project_repo.get_build_status(
-            branch.get_latest_commit(), key)
-        rank = ordered.get(state, 5)
-        if rank > worst_rank:
-            worst_rank = rank
-            worst_branch = branch
-            worst_state = state
+    wbranches = list(get_integration_branches(job))
+    if not wbranches:
+        return _StatusItem(
+            'Integration builds', False, pending=True,
+            details=["not yet evaluated - will be checked once Bert-E "
+                     "creates integration branches"])
 
-    if worst_state == 'SUCCESSFUL':
-        return _StatusItem('Integration builds', True)
-    return _StatusItem(
-        'Integration builds', False,
-        details=["{}: {}".format(worst_branch.name, worst_state)]
-    )
+    details = []
+    for branch in wbranches:
+        commit = branch.get_latest_commit()
+        state = job.project_repo.get_build_status(commit, key)
+        if state == 'SUCCESSFUL':
+            continue
+        detail = "{}: {}".format(branch.name, state)
+        build_url = job.project_repo.get_build_url(commit, key)
+        if build_url:
+            detail += " ([build]({}))".format(build_url)
+        details.append(detail)
+
+    return _StatusItem('Integration builds', not details, details=details)
 
 
 def _check_fix_versions_status(job):
@@ -232,12 +242,51 @@ def _check_history_status(job):
     return _StatusItem('History', True)
 
 
+def _check_wait_status(job):
+    """Return a failing _StatusItem when the `wait` option is active, or
+    None otherwise.
+    """
+    if not job.settings.wait:
+        return None
+    return _StatusItem('Wait', False,
+                       details=['`wait` option is set: Bert-E will not '
+                                'merge until it is removed'])
+
+
+def _check_queue_status(job):
+    """Return a _StatusItem describing whether the pull request is in the
+    merge queue, or None if queues are disabled or integration branches do
+    not exist yet.
+    """
+    if not job.settings.use_queue:
+        return None
+
+    from .queueing import already_in_queue
+    wbranches = list(get_integration_branches(job))
+    if not wbranches:
+        return None
+
+    if already_in_queue(job, wbranches):
+        return _StatusItem('Queue', True, details=['queued'])
+    return _StatusItem('Queue', False, pending=True,
+                       details=['not queued yet'])
+
+
 def _build_status_report(job):
-    """Collect all available status checks for the pull request."""
+    """Collect all available status checks for the pull request.
+
+    Checks are read-only and are not short-circuited: every check that can
+    be evaluated is reported, so the author sees everything that is still
+    missing rather than only the next blocker.
+    """
     from .branches import build_branch_cascade
 
     report = {}
     report['approvals'] = _check_approvals_status(job)
+
+    wait = _check_wait_status(job)
+    if wait is not None:
+        report['wait'] = wait
 
     try:
         clone_git_repo(job)
@@ -258,6 +307,10 @@ def _build_status_report(job):
     history = _check_history_status(job)
     if history is not None:
         report['history'] = history
+
+    queue = _check_queue_status(job)
+    if queue is not None:
+        report['queue'] = queue
 
     return report
 
@@ -292,7 +345,8 @@ def print_help(job, *args):
 
 @Reactor.command
 def status(job, *args):
-    """Print Bert-E's current status in the pull request."""
+    """Print everything still missing before this pull request can be
+    merged."""
     report = _build_status_report(job)
     raise StatusReport(status=report, active_options=job.active_options)
 
