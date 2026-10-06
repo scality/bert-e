@@ -17,6 +17,7 @@ import logging
 
 from bert_e import exceptions
 from bert_e.git_host.base import AbstractComment, AbstractPullRequest
+from bert_e.jobs.eval_pull_request import EvalPullRequestJob
 from bert_e.lib.cli import confirm
 
 LOG = logging.getLogger(__name__)
@@ -107,3 +108,18 @@ def notify_user(settings, pull_request: AbstractPullRequest,
                       comment.dont_repeat_if_in_history)
     except exceptions.CommentAlreadyExists:
         LOG.info("Comment '%s' already posted", comment.__class__.__name__)
+
+
+def wake_up_pull_request(job, pr_id):
+    """Queue a new run of Bert-E on a pull request.
+
+    Use it when Bert-E has more work to do on the pull request once the
+    current job is done: the webhooks of its own comments are ignored, so
+    they can't trigger that run.
+
+    The pull request is fetched when the queued job runs, so that it sees the
+    comments, approvals and commits added in the meantime.
+
+    """
+    job.bert_e.put_job(
+        EvalPullRequestJob(bert_e=job.bert_e, settings={'pr_id': pr_id}))

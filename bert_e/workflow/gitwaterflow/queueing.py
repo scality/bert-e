@@ -22,7 +22,7 @@ from bert_e.job import QueuesJob, PullRequestJob
 from bert_e.lib import git
 
 from ..git_utils import clone_git_repo, consecutive_merge, robust_merge, push
-from ..pr_utils import notify_user
+from ..pr_utils import notify_user, wake_up_pull_request
 from .branches import (BranchCascade, DevelopmentBranch, GWFBranch,
                        HotfixBranch, IntegrationBranch, QueueBranch,
                        QueueCollection, QueueIntegrationBranch, branch_factory,
@@ -235,8 +235,7 @@ def close_queued_pull_request(job, pr_id, cascade):
         # so the normal pre-queuing workflow will restart naturally. The
         # webhook of the comment above can't do it, the robot's comment
         # webhooks are ignored.
-        job.bert_e.put_job(
-            PullRequestJob(bert_e=job.bert_e, pull_request=pull_request))
+        wake_up_pull_request(job, pull_request.id)
 
     # Remove integration branches (potentially let Bert-E rebuild them if
     # the merge was partial)

@@ -226,6 +226,9 @@ class QueueOutOfOrder(TemplateException):
 class ResetComplete(TemplateException):
     code = 128
     template = "reset_complete.md"
+    # Acknowledge every reset: the comment closes the command, otherwise the
+    # run woken up after the reset would execute it again.
+    dont_repeat_if_in_history = 0
 
 
 class LossyResetWarning(TemplateException):

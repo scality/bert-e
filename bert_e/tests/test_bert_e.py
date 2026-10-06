@@ -6890,12 +6890,65 @@ class TaskQueueTests(RepositoryTests):
 
         queued = list(self.berte.task_queue.queue)
         self.assertEqual(len(queued), 1)
-        self.assertIsInstance(queued[0], PullRequestJob)
-        self.assertEqual(queued[0].pull_request.id, pr.id)
+        # The pull request is fetched when the job runs, not reused from the
+        # merge job: its comments and approvals may have changed meanwhile.
+        self.assertIsInstance(queued[0], EvalPullRequestJob)
+        self.assertEqual(queued[0].settings.pr_id, pr.id)
 
-        # The woken-up job re-queues the pull request with the new commit
+        # A user's option posted before the woken-up job runs is honoured
+        pr.add_comment('@%s wait' % self.args.robot_username)
         self.berte.process_task()
-        self.assertEqual(queued[0].status, 'Queued')
+        self.assertEqual(queued[0].status, 'NothingToDo')
+
+    def test_reset_wakes_pull_request_up(self):
+        """After a reset, Bert-E re-runs the pull request itself.
+
+        It used to rely on the webhook of its own ResetComplete comment, which
+        is now ignored like all the robot's comment webhooks.
+
+        """
+        self.init_berte(options=self.bypass_all)
+        pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
+        self.process_pr_job(pr, 'Queued')
+        self.assertTrue(self.berte.task_queue.empty())
+
+        pr.add_comment('@%s reset' % self.args.robot_username)
+        self.process_pr_job(pr, 'ResetComplete')
+
+        queued = list(self.berte.task_queue.queue)
+        self.assertEqual(len(queued), 1)
+        self.assertIsInstance(queued[0], EvalPullRequestJob)
+        self.assertEqual(queued[0].settings.pr_id, pr.id)
+
+    def test_repeated_reset_does_not_loop(self):
+        """A second reset is acknowledged, so its wake-up doesn't redo it."""
+        self.init_berte(
+            options=self.bypass_all_but(['bypass_build_status']))
+        pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
+        self.process_pr_job(pr, 'BuildNotStarted')
+        pr.add_comment('@%s reset' % self.args.robot_username)
+        self.process_pr_job(pr, 'ResetComplete')
+        # The user resets again before the woken-up run
+        pr.add_comment('@%s reset' % self.args.robot_username)
+
+        statuses = []
+        while not self.berte.task_queue.empty() and len(statuses) < 4:
+            woken_up = self.berte.task_queue.queue[0]
+            self.berte.process_task()
+            statuses.append(woken_up.status)
+        self.assertEqual(statuses, ['ResetComplete', 'BuildNotStarted'])
+
+        resets = [c for c in pr.comments
+                  if c.text.startswith('# Reset complete')]
+        self.assertEqual(len(resets), 2)
+
+    def test_reset_with_no_comment_does_not_loop(self):
+        """Without the ResetComplete comment, no run is woken up."""
+        self.init_berte(options=self.bypass_all, no_comment=True)
+        pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
+        pr.add_comment('@%s reset' % self.args.robot_username)
+        self.process_pr_job(pr, 'ResetComplete')
+        self.assertTrue(self.berte.task_queue.empty())
 
     def test_status_with_queue_without_octopus(self):
         # monkey patch to skip octopus merge in favor of regular 2-way merges
