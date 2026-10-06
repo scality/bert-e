@@ -37,6 +37,7 @@ from ..git_host import bitbucket as bitbucket_api
 from ..git_host import cache
 from ..git_host import mock as mock_api
 from ..lib.settings_dict import SettingsDict
+from ..settings import UserDict
 from .test_server_data import COMMENT_CREATED, COMMIT_STATUS_CREATED
 
 bitbucket_api.PullRequest = mock_api.PullRequest
@@ -66,6 +67,8 @@ class MockBertE(bert_e.BertE):
         self.settings.commit_base_url = \
             'https://bitbucket.org/foo/bar/commits/{commit_id}'
         self.settings.admins = ['test_admin', 'test_admin_2']
+        self.settings.robot = UserDict({'username': 'robot',
+                                        'account_id': 'robot-account-id'})
 
 
 class TestServer(unittest.TestCase):
@@ -136,6 +139,14 @@ class TestServer(unittest.TestCase):
 
         server.BERTE.task_queue.task_done()
         self.assertEqual(server.BERTE.task_queue.unfinished_tasks, 0)
+
+    def test_robot_comment_ignored(self):
+        data = dict(COMMENT_CREATED, actor=dict(
+            COMMENT_CREATED['actor'], account_id='robot-account-id'))
+        for event in ('comment_created', 'comment_updated'):
+            resp = self.handle_webhook('pullrequest:%s' % event, data)
+            self.assertEqual(200, resp.status_code)
+            self.assertEqual(server.BERTE.task_queue.unfinished_tasks, 0)
 
     def test_build_status_filtered(self):
         data = deepcopy(COMMIT_STATUS_CREATED)

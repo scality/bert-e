@@ -25,6 +25,7 @@ from urllib.parse import quote_plus as quote
 from bert_e.lib.lru_cache import LRUCache
 from . import schema
 from .. import base, cache, factory
+from ...lib.schema import dumps as dump_schema
 
 LOG = logging.getLogger(__name__)
 
@@ -269,7 +270,7 @@ class Client(base.AbstractClient):
 
         """
         url = self._patch_url(url)
-        response = self.session.post(url, data=data, **kwargs)
+        response = self.session.patch(url, data=data, **kwargs)
         response.raise_for_status()
         return json.loads(response.text)
 
@@ -997,6 +998,7 @@ class Comment(base.AbstractGitHostObject, base.AbstractComment):
 
     SCHEMA = schema.Comment
     CREATE_SCHEMA = schema.CreateComment
+    UPDATE_SCHEMA = schema.CreateComment
 
     @property
     def author(self) -> str:
@@ -1017,6 +1019,13 @@ class Comment(base.AbstractGitHostObject, base.AbstractComment):
 
     def delete(self) -> None:
         self.client.delete(self.data['url'])
+
+    def update(self, msg: str) -> None:
+        # This instance method shadows AbstractGitHostObject.update(),
+        # hence the explicit PATCH request.
+        data = dump_schema(self.UPDATE_SCHEMA, {'body': msg})
+        self.data = self.load(self.client.patch(self.data['url'],
+                                                data=data)).data
 
 
 class CheckRun(base.AbstractGitHostObject):
@@ -1093,6 +1102,15 @@ class PullRequestEvent(base.AbstractGitHostObject):
 
 class IssueCommentEvent(base.AbstractGitHostObject):
     SCHEMA = schema.IssueCommentEvent
+
+    @property
+    def action(self) -> str:
+        return self.data.get('action')
+
+    @property
+    def sender(self) -> str:
+        """Login of the user who triggered the event, if known."""
+        return self.data.get('sender', {}).get('login')
 
     @property
     def pull_request(self) -> PullRequest:

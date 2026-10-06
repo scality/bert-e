@@ -23,6 +23,7 @@ from requests.auth import HTTPBasicAuth
 
 from . import schema
 from .. import base, cache, factory
+from ...lib.schema import dumps as dump_schema
 
 MAX_PR_TITLE_LEN = 255
 
@@ -488,6 +489,17 @@ class Comment(base.AbstractGitHostObject, base.AbstractComment):
         return super().delete(self.client, full_name=self.full_name(),
                               pull_request_id=self.data['pullrequest']['id'],
                               comment_id=self.id)
+
+    def update(self, msg):
+        # Bitbucket edits comments with PUT, not with the PATCH request
+        # used by AbstractGitHostObject.update()
+        url = self.GET_URL.format(
+            full_name=self.full_name(),
+            pull_request_id=self.data['pullrequest']['id'],
+            comment_id=self.id)
+        data = dump_schema(self.CREATE_SCHEMA, {'content': {'raw': msg}})
+        response = self.client.put(url, data=data)
+        self.data = self.load(response).data
 
     @classmethod
     def create(cls, client, data, **kwargs):

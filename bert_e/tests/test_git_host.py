@@ -204,6 +204,23 @@ class TestBasicFunctionality:
         assert list(repo.get_pull_requests(src_branch=branch_name,
                                            status='MERGED'))
 
+    def test_pull_request_comment_update(self, workspace):
+        pull_request = make_pull_request(
+            workspace, 'test_pull_request_comment_update', 'master'
+        )
+        comment = pull_request.add_comment('Initial content')
+        pull_request.add_comment('Other comment')
+
+        comment.update('Updated content')
+        assert comment.text == 'Updated content'
+
+        comments = list(pull_request.get_comments())
+        assert len(comments) == 2
+        assert comments[0].id == comment.id
+        assert comments[0].text == 'Updated content'
+        assert comments[0].author == workspace.client.login
+        assert comments[1].text == 'Other comment'
+
     def test_pull_request_comments(self, workspace):
         pull_request = make_pull_request(
             workspace, 'test_pull_request_comments', 'master'

@@ -5232,6 +5232,42 @@ project_leaders:
                 settings=settings,
                 backtrace=True)
 
+    def test_edited_comment_is_reread(self):
+        """An edited comment keeps its identity and its new text is used."""
+        settings = """
+repository_owner: {owner}
+repository_slug: {slug}
+repository_host: {host}
+robot: {robot}
+robot_email: nobody@nowhere.com
+pull_request_base_url: https://bitbucket.org/{owner}/{slug}/bar/pull-requests/{{pr_id}}
+commit_base_url: https://bitbucket.org/{owner}/{slug}/commits/{{commit_id}}
+build_key: pre-merge
+required_peer_approvals: 1
+need_author_approval: True
+admins:
+  - {admin}
+""" # noqa
+        options = ['bypass_build_status', 'bypass_jira_check']
+        pr = self.create_pr('bugfix/TEST-995', 'development/4.3')
+        pr_peer = self.admin_bb.get_pull_request(pull_request_id=pr.id)
+        pr_peer.approve()
+        comment = pr.add_comment('I will approve later')
+        with self.assertRaises(exns.ApprovalRequired):
+            self.handle(pr.id, settings=settings, options=options,
+                        backtrace=True)
+        nb_comments = len(list(pr.get_comments()))
+
+        comment.update('@%s approve' % self.args.robot_username)
+        edited = [c for c in pr.get_comments() if c.id == comment.id]
+        self.assertEqual(len(edited), 1)
+        self.assertEqual(edited[0].text,
+                         '@%s approve' % self.args.robot_username)
+        self.assertEqual(len(list(pr.get_comments())), nb_comments)
+        with self.assertRaises(exns.SuccessMessage):
+            self.handle(pr.id, settings=settings, options=options,
+                        backtrace=True)
+
     def test_comments_sorted(self):
         """Test that the comments on the githost are sorted by date.
 

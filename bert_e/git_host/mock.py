@@ -409,6 +409,9 @@ class CommentController(Controller, base.AbstractComment):
     def delete(self):
         self.controlled.delete()
 
+    def update(self, msg):
+        self.controlled.update(msg)
+
     @property
     def author(self):
         return self['user']['username'].lower()
@@ -510,6 +513,12 @@ class Comment(BitBucketObject):
     def create(self):
         self.__class__.items.append(self)
         return self
+
+    def update(self, content):
+        if self not in self.__class__.items:
+            raise requests.exceptions.HTTPError(response=Error404Response())
+        self.content = {"raw": content, "markup": "markdown", "html": content}
+        self.updated_on = datetime.now()
 
     @staticmethod
     def get_list(client, full_name, pull_request_id):

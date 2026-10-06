@@ -257,6 +257,15 @@ class AbstractComment(metaclass=ABCMeta):
     def delete(self) -> None:
         """Delete the comment."""
 
+    @abstractmethod
+    def update(self, msg: str) -> None:
+        """Replace the contents of the comment.
+
+        Args:
+            - msg: the new raw plaintext of the comment.
+
+        """
+
     @property
     @abstractmethod
     def author(self) -> str:

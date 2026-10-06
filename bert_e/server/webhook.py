@@ -29,6 +29,18 @@ LOG = logging.getLogger(__name__)
 blueprint = Blueprint('Bert-E server webhook endpoints', __name__)
 
 
+BITBUCKET_COMMENT_EVENTS = ('comment_created', 'comment_updated',
+                            'comment_deleted')
+
+
+def is_robot(bert_e, account_id=None, username=None):
+    """Check whether a webhook was triggered by Bert-E's own account."""
+    robot = bert_e.settings.robot
+    if account_id and robot == account_id:
+        return True
+    return bool(username) and robot == username.lower()
+
+
 def handle_bitbucket_repo_event(bert_e, event, json_data):
     """Handle a Bitbucket webhook sent on a repository event."""
     if event in ['commit_status_created', 'commit_status_updated']:
@@ -61,6 +73,12 @@ def handle_bitbucket_repo_event(bert_e, event, json_data):
 def handle_bitbucket_pr_event(bert_e, event, json_data):
     """Handle a Bitbucket webhook sent on a pull request event."""
     pr_id = json_data['pullrequest']['id']
+    actor = json_data.get('actor') or {}
+    if event in BITBUCKET_COMMENT_EVENTS and is_robot(
+            bert_e, actor.get('account_id'), actor.get('username')):
+        LOG.debug('Ignoring %s by the robot on pull request <%s>',
+                  event, pr_id)
+        return
     pr = PullRequest(bert_e.client, **json_data['pullrequest'])
     LOG.info('The pull request <%s> has been updated', pr_id)
     return PullRequestJob(bert_e=bert_e, pull_request=pr)
@@ -79,6 +97,10 @@ def handle_github_pr_event(bert_e, json_data):
 def handle_github_issue_comment(bert_e, json_data):
     """Handle a GitHub webhook sent on an issue comment event."""
     event = github.IssueCommentEvent(client=bert_e.client, **json_data)
+    if is_robot(bert_e, username=event.sender):
+        LOG.debug('Ignoring comment %s by the robot on issue #%s',
+                  event.action, event.data['issue']['number'])
+        return
     pr = event.pull_request
     if pr:
         return PullRequestJob(bert_e=bert_e, pull_request=pr)
