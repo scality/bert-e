@@ -27,7 +27,6 @@ from bert_e.exceptions import (
 from bert_e.reactor import Reactor
 from .integration import get_integration_branches
 from ..git_utils import clone_git_repo, push
-from ..pr_utils import wake_up_pull_request
 
 LOG = logging.getLogger(__name__)
 
@@ -306,19 +305,6 @@ def not_implemented(job):
     raise CommandNotImplemented(active_options=job.active_options)
 
 
-def _wake_up_after_reset(job):
-    """Rebuild the integration branches in a new run.
-
-    The webhook of the ResetComplete comment can't trigger it, the robot's
-    comment webhooks are ignored. Without that comment (no_comment), the
-    reset command stays unanswered and the new run would reset again, and
-    so on: let the next event trigger the run instead.
-
-    """
-    if not job.settings.no_comment:
-        wake_up_pull_request(job, job.pull_request.id)
-
-
 def _reset(job, force=False):
     """Snippet to reset integration branches; deleting them both locally
     and remotely.
@@ -327,7 +313,6 @@ def _reset(job, force=False):
     wbranches = list(get_integration_branches(job))
 
     if not wbranches:
-        _wake_up_after_reset(job)
         raise ResetComplete(couldnt_decline=[],
                             active_options=job.active_options)
 
@@ -353,7 +338,6 @@ def _reset(job, force=False):
             pr.decline()
         except Exception:
             error_prs.append(pr)
-    _wake_up_after_reset(job)
     raise ResetComplete(couldnt_decline=error_prs,
                         active_options=job.active_options)
 

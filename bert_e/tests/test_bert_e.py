@@ -6950,6 +6950,35 @@ class TaskQueueTests(RepositoryTests):
         self.process_pr_job(pr, 'ResetComplete')
         self.assertTrue(self.berte.task_queue.empty())
 
+    def test_reset_failed_comment_does_not_wake_up(self):
+        """If ResetComplete can't be posted, no run is woken up.
+
+        The reset command would stay unanswered, so the woken-up run would
+        reset again, and so on for as long as posting fails.
+
+        """
+        self.init_berte(options=self.bypass_all)
+        pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
+        self.process_pr_job(pr, 'Queued')
+        pr.add_comment('@%s reset' % self.args.robot_username)
+        job = self.make_pr_job(pr)
+        pr_class = type(job.pull_request)
+        add_comment = pr_class.add_comment
+
+        def failing_add_comment(self, msg):
+            if msg.startswith('# Reset complete'):
+                raise RuntimeError('API down')
+            return add_comment(self, msg)
+
+        with patch.object(pr_class, 'add_comment', failing_add_comment):
+            self.berte.put_job(job)
+            try:
+                self.berte.process_task()
+            except RuntimeError:
+                pass
+        self.assertNotEqual(job.status, 'ResetComplete')
+        self.assertTrue(self.berte.task_queue.empty())
+
     def test_status_with_queue_without_octopus(self):
         # monkey patch to skip octopus merge in favor of regular 2-way merges
         gwfi.octopus_merge = git_utils.consecutive_merge

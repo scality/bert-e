@@ -25,7 +25,7 @@ from bert_e.lib.cli import confirm
 from bert_e.lib.simplecmd import CommandError
 from bert_e.reactor import Reactor, NotFound, NotPrivileged, NotAuthored
 from ..git_utils import push, clone_git_repo
-from ..pr_utils import find_comment, notify_user
+from ..pr_utils import find_comment, notify_user, wake_up_pull_request
 from .branches import (
     branch_factory, build_branch_cascade, is_cascade_consumer,
     is_cascade_producer, BranchCascade, QueueBranch, IntegrationBranch
@@ -59,7 +59,23 @@ def handle_pull_request(job: PullRequestJob):
         _handle_pull_request(job)
     except messages.TemplateException as err:
         notify_user(job.settings, job.pull_request, err)
+        if isinstance(err, messages.ResetComplete):
+            _wake_up_after_reset(job)
         raise
+
+
+def _wake_up_after_reset(job):
+    """Rebuild the integration branches in a new run.
+
+    The webhook of the ResetComplete comment can't trigger it, the robot's
+    comment webhooks are ignored. Wake up only once that comment is posted:
+    without it (no_comment, or posting failed), the reset command stays
+    unanswered and the new run would reset again, and so on. Let the next
+    event trigger the run instead.
+
+    """
+    if not job.settings.no_comment:
+        wake_up_pull_request(job, job.pull_request.id)
 
 
 @handler(CommitJob)
