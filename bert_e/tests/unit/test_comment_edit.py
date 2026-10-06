@@ -5,7 +5,13 @@ import pytest
 import requests
 import requests_mock
 
-from bert_e.git_host import bitbucket, github, mock
+from bert_e.git_host import base, bitbucket, github, mock
+
+# test_server.py replaces bitbucket.PullRequest by the mock class at import
+# time: fetch the real Bitbucket implementation.
+BitbucketPullRequest = next(
+    cls for cls in base.AbstractPullRequest.__subclasses__()
+    if cls.__module__ == bitbucket.__name__)
 
 GH_BASE = 'https://api.github.com'
 GH_COMMENT_URL = GH_BASE + '/repos/octo/repo/issues/comments/42'
@@ -78,7 +84,7 @@ def test_github_comment_edit_http_error(gh_client):
 
 
 def test_bitbucket_comment_edit_refreshes_pr_cache(bb_client):
-    pr = bitbucket.PullRequest(
+    pr = BitbucketPullRequest(
         bb_client, id=7,
         destination={'repository': {'full_name': 'octo/repo'}})
     with requests_mock.Mocker() as m:

@@ -52,7 +52,7 @@ class MockBertE(bert_e.BertE):
             owner='test_owner',
             slug='test_repo'
         )
-        self.settings = SettingsDict
+        self.settings = SettingsDict()
         self.git_repo = SimpleNamespace()
         self.task_queue = Queue()
         self.tasks_done = deque(maxlen=1000)
@@ -992,3 +992,11 @@ class TestServer(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main(failfast=True)
+
+
+def test_mock_bert_e_settings_do_not_leak():
+    """MockBertE settings must not leak into other settings objects."""
+    from ..settings import setup_settings
+    MockBertE()
+    settings = setup_settings(str(SETTINGS_FILE))
+    assert settings.robot.account_id is None
