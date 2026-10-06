@@ -244,6 +244,23 @@ class TestBasicFunctionality:
         assert cmt1.text == 'First comment'
         assert cmt2.text == 'Last comment'
 
+    def test_pull_request_comment_edit(self, workspace):
+        pull_request = make_pull_request(
+            workspace, 'test_pull_request_comment_edit', 'master'
+        )
+        first = pull_request.add_comment('First comment')
+        pull_request.add_comment('Second comment')
+
+        assert first.edit('Edited comment') is None
+        assert first.text == 'Edited comment'
+
+        # The comment is edited in place, the other one is untouched
+        comments = list(pull_request.get_comments())
+        assert comments[0].id == first.id
+        texts = [cmt.text for cmt in comments]
+        assert texts == ['Edited comment', 'Second comment']
+        assert comments[0].author == workspace.client.login
+
     def test_build_status(self, workspace):
         pull_request = make_pull_request(workspace, 'test_build_status',
                                          'master')

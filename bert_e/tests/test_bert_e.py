@@ -5282,6 +5282,37 @@ project_leaders:
         for command in ['help', 'reset']:
             assert command in init_message
 
+    def test_edited_robot_comment(self):
+        """Bert-E reads back the edited contents of its own comments.
+
+        The no-repeat strategy compares a new message with the robot's
+        comment history: once its last message was edited into something
+        else, the same message must be posted again.
+        """
+        options = ['bypass_jira_check', 'bypass_build_status']
+        pr = self.create_pr('bugfix/TEST-00303', 'development/4.3')
+        self.handle(pr.id, options=options)
+        robot_pr = self.robot_bb.get_pull_request(pull_request_id=pr.id)
+        comments = list(robot_pr.get_comments())
+        status = comments[-1].text
+        self.assertIn('approval', status.lower())
+
+        # Same status: not repeated
+        self.handle(pr.id, options=options)
+        self.assertEqual(len(list(robot_pr.get_comments())), len(comments))
+
+        comments[-1].edit('outdated status')
+        self.assertEqual(comments[-1].text, 'outdated status')
+        edited = list(robot_pr.get_comments())
+        self.assertEqual([c.id for c in edited], [c.id for c in comments])
+        self.assertEqual(edited[-1].text, 'outdated status')
+
+        self.handle(pr.id, options=options)
+        after = list(robot_pr.get_comments())
+        self.assertEqual(len(after), len(comments) + 1)
+        self.assertEqual(after[-2].text, 'outdated status')
+        self.assertEqual(after[-1].text, status)
+
     def test_set_bot_status(self):
         """Test Bert-E's capability to its own status on PRs"""
         settings = DEFAULT_SETTINGS + "send_bot_status: true"

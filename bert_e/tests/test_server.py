@@ -37,6 +37,7 @@ from ..git_host import bitbucket as bitbucket_api
 from ..git_host import cache
 from ..git_host import mock as mock_api
 from ..lib.settings_dict import SettingsDict
+from ..settings import UserSettingSchema
 from .test_server_data import COMMENT_CREATED, COMMIT_STATUS_CREATED
 
 bitbucket_api.PullRequest = mock_api.PullRequest
@@ -51,13 +52,15 @@ class MockBertE(bert_e.BertE):
             owner='test_owner',
             slug='test_repo'
         )
-        self.settings = SettingsDict
+        self.settings = SettingsDict()
         self.git_repo = SimpleNamespace()
         self.task_queue = Queue()
         self.tasks_done = deque(maxlen=1000)
         self.status = {}
 
         self.settings.repository_host = 'bitbucket'
+        # The webhooks ignore the comments posted by the robot itself
+        self.settings.robot = UserSettingSchema().load('robot')
         self.settings.repository_owner = 'owner'
         self.settings.repository_slug = 'slug'
         self.settings.build_key = 'pre-merge'

@@ -58,9 +58,23 @@ def handle_bitbucket_repo_event(bert_e, event, json_data):
         return CommitJob(bert_e=bert_e, commit=commit_sha1)
 
 
+def is_robot(bert_e, username=None, account_id=None):
+    """Check whether a webhook was triggered by Bert-E's own account."""
+    robot = bert_e.settings.robot
+    if account_id and robot == account_id:
+        return True
+    return bool(username) and robot == username.lower()
+
+
 def handle_bitbucket_pr_event(bert_e, event, json_data):
     """Handle a Bitbucket webhook sent on a pull request event."""
     pr_id = json_data['pullrequest']['id']
+    actor = json_data.get('actor') or {}
+    if event.startswith('comment_') and is_robot(
+            bert_e, actor.get('username'), actor.get('account_id')):
+        LOG.debug('Comment event %s on PR #%s sent by the robot, ignoring',
+                  event, pr_id)
+        return
     pr = PullRequest(bert_e.client, **json_data['pullrequest'])
     LOG.info('The pull request <%s> has been updated', pr_id)
     return PullRequestJob(bert_e=bert_e, pull_request=pr)
@@ -78,6 +92,11 @@ def handle_github_pr_event(bert_e, json_data):
 
 def handle_github_issue_comment(bert_e, json_data):
     """Handle a GitHub webhook sent on an issue comment event."""
+    sender = json_data.get('sender') or {}
+    if is_robot(bert_e, sender.get('login')):
+        LOG.debug('Comment event on issue #%s sent by the robot, ignoring',
+                  json_data.get('issue', {}).get('number'))
+        return
     event = github.IssueCommentEvent(client=bert_e.client, **json_data)
     pr = event.pull_request
     if pr:

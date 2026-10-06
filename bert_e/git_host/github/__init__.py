@@ -997,6 +997,7 @@ class Comment(base.AbstractGitHostObject, base.AbstractComment):
 
     SCHEMA = schema.Comment
     CREATE_SCHEMA = schema.CreateComment
+    UPDATE_SCHEMA = schema.CreateComment
 
     @property
     def author(self) -> str:
@@ -1017,6 +1018,12 @@ class Comment(base.AbstractGitHostObject, base.AbstractComment):
 
     def delete(self) -> None:
         self.client.delete(self.data['url'])
+
+    def edit(self, msg: str) -> None:
+        # Named edit() because update() is AbstractGitHostObject's classmethod
+        updated = Comment.update(self.client, {'body': msg},
+                                 url=self.data['url'])
+        self.data = updated.data
 
 
 class CheckRun(base.AbstractGitHostObject):
