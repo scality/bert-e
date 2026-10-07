@@ -58,24 +58,26 @@ def handle_pull_request(job: PullRequestJob):
     try:
         _handle_pull_request(job)
     except messages.TemplateException as err:
-        notify_user(job.settings, job.pull_request, err)
-        if isinstance(err, messages.ResetComplete):
-            _wake_up_after_reset(job)
+        posted = notify_user(job.settings, job.pull_request, err)
+        if err.answers_command and posted:
+            _wake_up_after_command(job)
         raise
 
 
-def _wake_up_after_reset(job):
-    """Rebuild the integration branches in a new run.
+def _wake_up_after_command(job):
+    """Evaluate the pull request in a new run once a command is answered.
 
-    The webhook of the ResetComplete comment can't trigger it, the robot's
-    comment webhooks are ignored. Wake up only once that comment is posted:
-    without it (no_comment, or posting failed), the reset command stays
-    unanswered and the new run would reset again, and so on. Let the next
-    event trigger the run instead.
+    The reply stops the run before the pull request is evaluated (e.g. a
+    reset must rebuild the integration branches), and its webhook can't
+    trigger that evaluation: the robot's comment webhooks are ignored.
+
+    Wake up only once the reply is posted: without it (no_comment, already
+    in the history, or posting failed), the command stays unanswered and the
+    new run would execute it again, and so on. Let the next event trigger the
+    run instead.
 
     """
-    if not job.settings.no_comment:
-        wake_up_pull_request(job, job.pull_request.id)
+    wake_up_pull_request(job, job.pull_request.id)
 
 
 @handler(CommitJob)
@@ -356,7 +358,15 @@ def handle_comments(job):
             ) from err
 
     # Handle commands
-    # Look for commands in comments posted after BertE's last message.
+    try:
+        _handle_commands(job, reactor, admins, pr_author, prefix)
+    except messages.TemplateException as err:
+        err.answers_command = True
+        raise
+
+
+def _handle_commands(job, reactor, admins, pr_author, prefix):
+    """Handle the commands posted after BertE's last message."""
     for comment in reversed(job.pull_request.comments):
         author = comment.author
         if author == job.settings.robot:

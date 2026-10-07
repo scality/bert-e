@@ -31,6 +31,8 @@ class TemplateException(BertE_Exception):
     template = None
     # whether to re-publish if the message is already in the history
     dont_repeat_if_in_history = -1
+    # whether the message answers a command (set when it is raised)
+    answers_command = False
 
     def __init__(self, **kwargs):
         self.kwargs = kwargs

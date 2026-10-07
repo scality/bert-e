@@ -61,6 +61,9 @@ def _send_comment(settings, pull_request: AbstractPullRequest, msg: str,
         Optionally (if settings.interactive is set) ask confirmation to the
         user.
 
+    Returns:
+        True if the comment was posted.
+
     Raises:
         CommentAlreadyExists: if the comment was already posted.
 
@@ -83,6 +86,7 @@ def _send_comment(settings, pull_request: AbstractPullRequest, msg: str,
 
     LOG.debug('SENDING MESSAGE %s', msg)
     pull_request.add_comment(msg)
+    return True
 
 
 def _send_bot_status(settings, pull_request: AbstractPullRequest,
@@ -101,13 +105,19 @@ def _send_bot_status(settings, pull_request: AbstractPullRequest,
 
 def notify_user(settings, pull_request: AbstractPullRequest,
                 comment: exceptions.TemplateException):
-    """Notify user by sending a comment or a build status in a pull request."""
+    """Notify user by sending a comment or a build status in a pull request.
+
+    Returns:
+        True if the comment was posted.
+
+    """
     try:
         _send_bot_status(settings, pull_request, comment)
-        _send_comment(settings, pull_request, str(comment),
-                      comment.dont_repeat_if_in_history)
+        return bool(_send_comment(settings, pull_request, str(comment),
+                                  comment.dont_repeat_if_in_history))
     except exceptions.CommentAlreadyExists:
         LOG.info("Comment '%s' already posted", comment.__class__.__name__)
+        return False
 
 
 def wake_up_pull_request(job, pr_id):

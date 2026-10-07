@@ -6979,6 +6979,67 @@ class TaskQueueTests(RepositoryTests):
         self.assertNotEqual(job.status, 'ResetComplete')
         self.assertTrue(self.berte.task_queue.empty())
 
+    def test_command_reply_wakes_pull_request_up(self):
+        """After answering a command, Bert-E re-runs the pull request itself.
+
+        The command's reply stops the run before the pull request is
+        evaluated. The webhook of that reply used to trigger the evaluation,
+        it is now ignored like all the robot's comment webhooks.
+
+        """
+        self.init_berte(
+            options=self.bypass_all_but(['bypass_author_approval']))
+        pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
+        self.process_pr_job(pr, 'ApprovalRequired')
+        # The approval and the command are handled by the same run
+        pr.approve()
+        pr.add_comment('@%s help' % self.args.robot_username)
+        self.process_pr_job(pr, 'HelpMessage')
+
+        queued = list(self.berte.task_queue.queue)
+        self.assertEqual(len(queued), 1)
+        self.assertIsInstance(queued[0], EvalPullRequestJob)
+        self.assertEqual(queued[0].settings.pr_id, pr.id)
+        self.berte.process_task()
+        self.assertEqual(queued[0].status, 'Queued')
+        self.assertTrue(self.berte.task_queue.empty())
+
+    def test_other_command_reply_wakes_pull_request_up(self):
+        """The reply to any command wakes the pull request up."""
+        self.init_berte(options=self.bypass_all)
+        pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
+        self.process_pr_job(pr, 'Queued')
+        pr.add_comment('@%s build' % self.args.robot_username)
+        self.process_pr_job(pr, 'CommandNotImplemented')
+        self.assertEqual(len(self.berte.task_queue.queue), 1)
+        woken_up = self.berte.task_queue.queue[0]
+        self.berte.process_task()
+        # Evaluated (already queued), without answering the command again
+        self.assertEqual(woken_up.status, 'NothingToDo')
+        self.assertTrue(self.berte.task_queue.empty())
+
+    def test_command_reply_with_no_comment_does_not_wake_up(self):
+        """Without the reply, the command stays unanswered: no wake-up."""
+        self.init_berte(options=self.bypass_all, no_comment=True)
+        pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
+        pr.add_comment('@%s help' % self.args.robot_username)
+        self.process_pr_job(pr, 'HelpMessage')
+        self.assertTrue(self.berte.task_queue.empty())
+
+    def test_option_error_does_not_wake_up(self):
+        """Errors on options are not command replies: no wake-up.
+
+        Options are read in all the comments, so the woken-up run would only
+        raise the same error again.
+
+        """
+        self.init_berte(options=self.bypass_all)
+        pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
+        self.process_pr_job(pr, 'Queued')
+        pr.add_comment('@%s foo' % self.args.robot_username)
+        self.process_pr_job(pr, 'UnknownCommand')
+        self.assertTrue(self.berte.task_queue.empty())
+
     def test_status_with_queue_without_octopus(self):
         # monkey patch to skip octopus merge in favor of regular 2-way merges
         gwfi.octopus_merge = git_utils.consecutive_merge
