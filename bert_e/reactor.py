@@ -422,7 +422,10 @@ class Reactor(Dispatcher):
                          canonical_raw[len(canonical_prefix):])
         match = re.match(r'\s*(?P<keywords>(\s+[\w=]+)+)\s*$', cleaned)
         if not match:
-            self._check_malformed_option(cleaned, privileged, authored)
+            # Check the uncleaned text: separators glued between two words
+            # (``wait-for-ci``) must be seen to avoid blaming ``wait``.
+            self._check_malformed_option(
+                canonical_raw[len(canonical_prefix):], privileged, authored)
             LOG.debug('Ignoring comment. Unknown format')
             return
 
