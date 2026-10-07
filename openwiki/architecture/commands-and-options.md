@@ -35,8 +35,11 @@ runnable doctest-style example).
   are safe to share across registrations).
 - `Reactor.handle_options` / `Reactor.handle_commands` — scan a comment's
   text for `@robot <keyword>[=value]` tokens and invoke the matching
-  handler, raising `NotFound` / `NotPrivileged` / `NotAuthored` for the
-  caller to translate into a user-facing message.
+  handler, raising `NotFound` / `NotPrivileged` / `NotAuthored` /
+  `InvalidSyntax` (exact option keyword followed by a malformed rest, e.g.
+  `/after_pull_request 1509`; the blamed option is the one followed by the
+  malformed text, rights are checked first; options can declare a `usage=`
+  string) for the caller to translate into a user-facing message.
 
 ## Wiring in GitWaterFlow (`bert_e/workflow/gitwaterflow/commands.py` and `.../utils.py`)
 
@@ -63,7 +66,8 @@ actually driven for a given PR:
    `settings.admins`) and `authored` (comment author is the PR author) per
    comment, and turns `NotFound`/`NotPrivileged`/`NotAuthored` into the
    corresponding `bert_e.exceptions` messages (`UnknownCommand`,
-   `NotEnoughCredentials`, `NotAuthor`).
+   `NotEnoughCredentials`, `NotAuthor`, and `IncorrectCommandSyntax` for
+   `InvalidSyntax`).
 2. It then walks comments **in reverse** through `reactor.handle_commands`,
    stopping as soon as it reaches a comment authored by the robot itself
    (so commands are only executed from comments posted *after* Bert-E's

@@ -160,11 +160,18 @@ class NotFound(Error):
         self.keyword = keyword
 
 
+class InvalidSyntax(Error):
+    """A registered option was called with a malformed syntax."""
+    def __init__(self, keyword: str):
+        super().__init__()
+        self.keyword = keyword
+
+
 LOG = logging.getLogger(__name__)
 
 Command = namedtuple('Command', ['handler', 'help', 'privileged', 'authored'])
 Option = namedtuple('Option', ['handler', 'default', 'help', 'privileged',
-                               'authored'])
+                               'authored', 'usage'], defaults=(None,))
 
 
 def normalize_whitespace(msg):
@@ -222,7 +229,7 @@ class Reactor(Dispatcher):
 
     @classmethod
     def add_option(cls, key, help_=None, privileged=False, default=None,
-                   authored=False):
+                   authored=False, usage=None):
         """Add a basic option to the reactor."""
 
         def set_option(job, arg=True):
@@ -230,15 +237,18 @@ class Reactor(Dispatcher):
 
         help_ = normalize_whitespace(help_)
         cls.set_callback(key, Option(set_option, default, help_, privileged,
-                                     authored))
+                                     authored, usage))
 
     @classmethod
     def option(cls, key=None, default=None, help_=None, privileged=False,
-               authored=False):
+               authored=False, usage=None):
         """Decorator to register an option handler.
 
         Args:
             default: the setting's default value. Defaults to None.
+            usage: the expected syntax of the option, without prefix
+                   (e.g. ``after_pull_request=<pr_id>``). Defaults to the
+                   option's key.
 
         See Reactor.commands() for detail on other args.
 
@@ -250,7 +260,7 @@ class Reactor(Dispatcher):
             help_ = normalize_whitespace(help_ or func.__doc__)
             cls.set_callback(
                 func.__name__, Option(func, default, help_, privileged,
-                                      authored)
+                                      authored, usage)
             )
             return func
 
@@ -259,7 +269,7 @@ class Reactor(Dispatcher):
             _key = key or func.__name__
             _help = normalize_whitespace(help_ or func.__doc__)
             cls.set_callback(_key, Option(func, default, _help, privileged,
-                                          authored))
+                                          authored, usage))
             return func
         return decorator
 
@@ -274,6 +284,17 @@ class Reactor(Dispatcher):
         """Return a dictionary depicting currently registered commands."""
         return {key: val for key, val in cls.__callbacks__.items()
                 if isinstance(val, Command)}
+
+    @classmethod
+    def get_usage(cls, key):
+        """Return the expected syntax of the option registered to ``key``
+        (without prefix), or None if ``key`` isn't a registered option.
+
+        """
+        option = cls.get_options().get(key)
+        if option is None:
+            return None
+        return option.usage or key
 
     def init_settings(self, job):
         """Initialize a job's settings to the registered options' default
@@ -295,6 +316,49 @@ class Reactor(Dispatcher):
         known = [k.lower() for k in self.__callbacks__.keys()]
         return bool(difflib.get_close_matches(
             key.lower(), known, n=1, cutoff=_CLOSE_MATCH_CUTOFF))
+
+    def _check_malformed_option(self, text, privileged=False,
+                                authored=False):
+        """Raise InvalidSyntax if the first keyword of ``text`` (the comment
+        without its prefix) is exactly a registered option.
+
+        Called once ``text`` is known not to be a well-formed option
+        declaration: an exact option keyword followed by free text (e.g.
+        ``/after_pull_request 1509``) is a mistyped option, not a comment
+        addressed to someone else.
+
+        The blamed option is the last one of the leading run of option
+        declarations, i.e. the one directly followed by the offending text
+        (``/approve /after_pull_request 12`` blames ``after_pull_request``).
+        Options of that run that the author isn't allowed to use raise
+        NotPrivileged or NotAuthored, as a well-formed declaration would.
+        """
+        keyword = None
+        # Separators glued between two words (``wait-for-ci``) are kept so
+        # that a word merely starting with an option name isn't taken for it.
+        # A separator glued to a number (``after_pull_request:1509``) is a
+        # mistyped value, not a compound word.
+        text = re.sub(r'/|(?<![\w=])[,.\-:;|+]|[,.\-:;|+](?![\w=])', ' ',
+                      text)
+        for token in text.split():
+            match = re.match(r'\w+', token)
+            if match and re.match(r'[,.\-:;|+][^\W\d]',
+                                  token[match.end():]):
+                break
+            option = match and self.dispatch(match.group())
+            if not isinstance(option, Option):
+                break
+            key = match.group()
+            if option.privileged and not privileged:
+                raise NotPrivileged(key)
+            if option.authored and not authored:
+                raise NotAuthored(key)
+            keyword = key
+            if not re.fullmatch(r'[\w=]+', token):
+                # Trailing garbage (e.g. ``wait!``): this one is malformed.
+                break
+        if keyword is not None:
+            raise InvalidSyntax(keyword)
 
     def handle_options(self, job, text, prefix, privileged=False,
                        authored=False):
@@ -330,6 +394,12 @@ class Reactor(Dispatcher):
                            and the method is called with privileged=False.
             NotAuthored: when an authored option declaration is found and the
                          method is called with authored=False.
+            InvalidSyntax: when the first keyword (after the ``@<robot>``
+                           prefix or the leading ``/``) is exactly a
+                           registered option but the rest of the text is
+                           not a valid option declaration (e.g.
+                           ``/after_pull_request 1509`` or
+                           ``/wait please``).
 
         """
         raw = text.strip()
@@ -343,6 +413,10 @@ class Reactor(Dispatcher):
             slash_shorthand = True
             canonical_raw = " " + raw
             canonical_prefix = ""
+        elif re.match(r'/\w', raw):
+            # Only a keyword glued to the slash is an option attempt:
+            # ``// wait, I will fix it`` or ``/ wait`` is free text.
+            self._check_malformed_option(raw, privileged, authored)
         if not canonical_raw:
             return
         LOG.debug('Found a potential option: %r', raw)
@@ -350,6 +424,10 @@ class Reactor(Dispatcher):
                          canonical_raw[len(canonical_prefix):])
         match = re.match(r'\s*(?P<keywords>(\s+[\w=]+)+)\s*$', cleaned)
         if not match:
+            # Check the uncleaned text: separators glued between two words
+            # (``wait-for-ci``) must be seen to avoid blaming ``wait``.
+            self._check_malformed_option(
+                canonical_raw[len(canonical_prefix):], privileged, authored)
             LOG.debug('Ignoring comment. Unknown format')
             return
 

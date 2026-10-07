@@ -15,7 +15,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from bert_e.reactor import Command, NotFound, NotPrivileged, Option, Reactor
+from bert_e.reactor import (Command, InvalidSyntax, NotAuthored, NotFound,
+                            NotPrivileged, Option, Reactor)
 
 
 # All tests are run on a Reactor subclass to avoid sharing state.
@@ -391,3 +392,209 @@ def test_reactor_has_close_match(reactor_cls, job):
     assert reactor._has_close_match('gemini') is False
     assert reactor._has_close_match('copilot') is False
     assert reactor._has_close_match('other-bot-name') is False
+
+
+@pytest.fixture
+def option_reactor(reactor_cls):
+    """Reactor holding a few options and commands mimicking GitWaterFlow's."""
+
+    @reactor_cls.option(key='after_pull_request', default=set(),
+                        usage='after_pull_request=<pr_id>')
+    def after_pull_request(job, pr_id=None):
+        if pr_id is None:
+            raise InvalidSyntax('after_pull_request')
+        job.settings['after_pull_request'].add(pr_id)
+
+    reactor_cls.add_option('wait')
+    reactor_cls.add_option('approve', authored=True)
+    reactor_cls.add_option('bypass_build_status', privileged=True)
+
+    @reactor_cls.command
+    def status(job, *args):
+        job.settings['status'] = args
+
+    @reactor_cls.command
+    def help(job, *args):
+        job.settings['help'] = args
+
+    return reactor_cls
+
+
+@pytest.mark.parametrize('text,keyword', [
+    ('/after_pull_request 1509', 'after_pull_request'),
+    ('/after_pull_request=1509 please', 'after_pull_request'),
+    ('/wait please', 'wait'),
+    ('/approve LGTM', 'approve'),
+    ('/approve\nLGTM, nice work', 'approve'),
+    ('@bert-e after_pull_request #1509', 'after_pull_request'),
+    ('@bert-e: wait!', 'wait'),
+    ('/after_pull_request:1509', 'after_pull_request'),
+    ('/after_pull_request-1509', 'after_pull_request'),
+    ('/approve /after_pull_request:1509', 'after_pull_request'),
+])
+def test_handle_options_malformed_option_raises(option_reactor, job, text,
+                                                keyword):
+    """An exact option keyword followed by a malformed rest raises
+    InvalidSyntax naming the option."""
+    reactor = option_reactor()
+    reactor.init_settings(job)
+
+    with pytest.raises(InvalidSyntax) as excinfo:
+        reactor.handle_options(job, text, '@bert-e', authored=True)
+
+    assert excinfo.value.keyword == keyword
+    assert job.settings['after_pull_request'] == set()
+
+
+@pytest.mark.parametrize('text', [
+    '/coderabbit review',
+    '/gemini review this PR',
+    '/status please',
+    '/status',
+    '/help',
+    '@bert-e status please',
+    'free text mentioning /after_pull_request 1509',
+    '/After_pull_request 1509',
+    '/after_pull_requests 1509',
+    '/wait-for-ci',
+    '/wait-for-ci please',
+    '/wait.ci please',
+    '@bert-e wait-for-ci, is it broken?',
+    '@bert-e: approve-deploy failed?',
+    '@bert-e approve-deploy, please?',
+    '// wait, I will fix it',
+    '/ wait for me',
+])
+def test_handle_options_malformed_ignored(option_reactor, job, text):
+    """Comments whose first keyword is not exactly an option are left to the
+    existing logic and do not raise InvalidSyntax."""
+    reactor = option_reactor()
+    reactor.init_settings(job)
+
+    reactor.handle_options(job, text, '@bert-e', authored=True)
+
+    assert job.settings['after_pull_request'] == set()
+    assert job.settings['wait'] is None
+
+
+@pytest.mark.parametrize('text', [
+    '/approve /wait',
+    '@bert-e approve wait',
+])
+def test_handle_options_multi_options(option_reactor, job, text):
+    reactor = option_reactor()
+    reactor.init_settings(job)
+
+    reactor.handle_options(job, text, '@bert-e', authored=True)
+
+    assert job.settings['approve'] is True
+    assert job.settings['wait'] is True
+
+
+@pytest.mark.parametrize('text', [
+    '/after_pull_request=1509 /wait',
+    '@bert-e after_pull_request=1509 wait',
+])
+def test_handle_options_multi_options_with_value(option_reactor, job, text):
+    reactor = option_reactor()
+    reactor.init_settings(job)
+
+    reactor.handle_options(job, text, '@bert-e')
+
+    assert job.settings['after_pull_request'] == {'1509'}
+    assert job.settings['wait'] is True
+
+
+def test_handle_options_handler_raises_invalid_syntax(option_reactor, job):
+    """A handler can raise InvalidSyntax itself (missing argument)."""
+    reactor = option_reactor()
+    reactor.init_settings(job)
+
+    with pytest.raises(InvalidSyntax):
+        reactor.handle_options(job, '/after_pull_request', '@bert-e')
+
+
+def test_handle_commands_ignore_malformed_option(option_reactor, job):
+    """handle_commands keeps ignoring option keywords silently, so the
+    syntax error is only reported once, by handle_options."""
+    reactor = option_reactor()
+    reactor.init_settings(job)
+
+    reactor.handle_commands(job, '/after_pull_request 1509', '@bert-e')
+    reactor.handle_commands(job, '/wait please', '@bert-e')
+    reactor.handle_commands(job, '/status please', '@bert-e')
+    assert job.settings['status'] == ('please',)
+    with pytest.raises(NotFound):
+        reactor.handle_commands(job, '/hlep', '@bert-e')
+
+
+def test_get_usage(option_reactor):
+    assert option_reactor.get_usage('after_pull_request') == \
+        'after_pull_request=<pr_id>'
+    assert option_reactor.get_usage('wait') == 'wait'
+    assert option_reactor.get_usage('status') is None
+    assert option_reactor.get_usage('unknown') is None
+
+
+@pytest.mark.parametrize('text,keyword', [
+    ('/approve /after_pull_request 12', 'after_pull_request'),
+    ('@bert-e approve after_pull_request #12', 'after_pull_request'),
+    ('/wait /approve please', 'approve'),
+    ('/approve /wait\nLGTM', 'wait'),
+    ('/approve /wait-for-ci', 'approve'),
+])
+def test_handle_options_malformed_later_option(option_reactor, job, text,
+                                               keyword):
+    """The malformed option is blamed, not the first (valid) keyword."""
+    reactor = option_reactor()
+    reactor.init_settings(job)
+
+    with pytest.raises(InvalidSyntax) as excinfo:
+        reactor.handle_options(job, text, '@bert-e', authored=True)
+
+    assert excinfo.value.keyword == keyword
+
+
+@pytest.mark.parametrize('text,exc', [
+    ('/approve LGTM', NotAuthored),
+    ('@bert-e approve LGTM', NotAuthored),
+    ('/bypass_build_status please', NotPrivileged),
+    ('/wait /bypass_build_status please', NotPrivileged),
+    ('/bypass_build_status /approve please', NotPrivileged),
+])
+def test_handle_options_malformed_unauthorized(option_reactor, job, text,
+                                               exc):
+    """A malformed option posted by a user who may not use it reports the
+    missing rights, as a well-formed declaration would, instead of an
+    incorrect syntax message suggesting the forbidden option."""
+    reactor = option_reactor()
+    reactor.init_settings(job)
+
+    with pytest.raises(exc):
+        reactor.handle_options(job, text, '@bert-e')
+
+
+def test_handle_options_malformed_authorized(option_reactor, job):
+    reactor = option_reactor()
+    reactor.init_settings(job)
+
+    with pytest.raises(InvalidSyntax) as excinfo:
+        reactor.handle_options(job, '/bypass_build_status please', '@bert-e',
+                               privileged=True)
+    assert excinfo.value.keyword == 'bypass_build_status'
+
+
+@pytest.mark.parametrize('text', [
+    '/approve-deploy',
+    '/bypass_build_status-check please',
+])
+def test_handle_options_compound_word_unauthorized_ignored(option_reactor,
+                                                           job, text):
+    """A ``/`` word that only starts with an option name (e.g.
+    ``/approve-deploy``) is not an option: no rights error is raised."""
+    reactor = option_reactor()
+    reactor.init_settings(job)
+
+    reactor.handle_options(job, text, '@bert-e')
+
+    assert job.settings['approve'] is None

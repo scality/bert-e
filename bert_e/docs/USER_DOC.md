@@ -170,6 +170,20 @@ option -- that way, comments addressed to other bots (e.g.
 that explicitly address __Bert-E__ via its ``@<robot>`` mention are always
 dispatched normally and will still report unknown commands.
 
+Options can use the same ``/<option>`` shorthand (e.g. ``/wait`` or
+``/after_pull_request=1509``). A ``/`` option must be alone in its comment,
+or only followed by other ``/`` options (e.g. ``/approve /wait``), without
+any free text, **including on the following lines**. When the first keyword
+of a comment (after ``/`` or ``@<robot>``) is exactly the name of an option
+but the rest of the comment is malformed (e.g. ``/after_pull_request 1509``,
+``/wait please``, ``@bert-e after_pull_request=abc``, or ``/approve``
+followed by ``LGTM`` on the next line), __Bert-E__ replies with an
+"Incorrect command syntax" message (code 130) naming the malformed option
+(e.g. ``after_pull_request`` in ``/approve /after_pull_request 1509``) and
+showing its expected usage, and blocks until the comment is edited or
+deleted. If the author of the comment isn't allowed to use that option, the
+usual "Not authorized" or "Not author" message is sent instead.
+
 Integration branches...
 -----------------------
 __*Bert-E* creates temporary branches during the merge process. These are
@@ -505,6 +519,7 @@ to progress to the next step.  message code
 | 121   | Integration data created | __Bert-E__ notifies the owner that he succesfully created the integration branches and the related pull requests, and provides a link to them. No action required
 | 122   | Unknown command | One of the participants asked __Bert-E__ to activate an option, or execute a command he doesn't know. Edit the corresponding message if it contains a typo. Delete it otherwise
 | 123   | Not authorized | One of the participants asked __Bert-E__ to activate a privileged option, or execute a privileged command, but doesn't have enough credentials to do so. Delete the corresponding command ask a __Bert-E__ administrator to run/set the desired command/option.
+| 130   | Incorrect command syntax | An option was used with an incorrect syntax (e.g. ``/after_pull_request 1509`` instead of ``/after_pull_request=1509``, free text after a ``/`` option, or a non-numeric pull request id). The message shows the expected usage. Edit or delete the corresponding comment
 | 134   | Not author | One of the participants asked __Bert-E__ to activate an authored option, but the participant is not the author of the pull request.
 | 137   | Foreign commits in source branch | The source branch shares history with a higher release line. Rebase the branch directly on the target branch, or ask an administrator to set `bypass_source_branch_lineage` if this is a confirmed false positive.
 

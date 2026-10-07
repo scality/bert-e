@@ -1,6 +1,17 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+# Changed
+- A comment whose first keyword (after `/` or `@<robot>`) is exactly the name
+  of an option but whose rest is malformed (e.g. `/after_pull_request 1509`,
+  `/wait please`, `/approve` followed by `LGTM` on the next line, `/approve.`,
+  `@bert-e: wait!`) now gets an "Incorrect command syntax" reply (code 130)
+  and blocks the pull request until the comment is edited or deleted. Such
+  comments used to be silently ignored. All the comments of a pull request
+  are checked, including the ones posted before this release: open pull
+  requests containing such old comments will be blocked after the upgrade.
+
 ## [4.0.0] - 2024-08-09
 # Removed
 - Support of tasks as it unused to due its incompatibility with GitHub.
