@@ -413,7 +413,9 @@ class Reactor(Dispatcher):
             slash_shorthand = True
             canonical_raw = " " + raw
             canonical_prefix = ""
-        elif raw.startswith('/'):
+        elif re.match(r'/\w', raw):
+            # Only a keyword glued to the slash is an option attempt:
+            # ``// wait, I will fix it`` or ``/ wait`` is free text.
             self._check_malformed_option(raw, privileged, authored)
         if not canonical_raw:
             return

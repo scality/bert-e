@@ -462,6 +462,8 @@ def test_handle_options_malformed_option_raises(option_reactor, job, text,
     '@bert-e wait-for-ci, is it broken?',
     '@bert-e: approve-deploy failed?',
     '@bert-e approve-deploy, please?',
+    '// wait, I will fix it',
+    '/ wait for me',
 ])
 def test_handle_options_malformed_ignored(option_reactor, job, text):
     """Comments whose first keyword is not exactly an option are left to the
