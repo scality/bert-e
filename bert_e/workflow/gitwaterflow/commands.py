@@ -22,9 +22,9 @@ import logging
 
 from bert_e.exceptions import (
     CommandNotImplemented, LossyResetWarning, ResetComplete, HelpMessage,
-    StatusReport, IncorrectCommandSyntax
+    StatusReport
 )
-from bert_e.reactor import Reactor
+from bert_e.reactor import InvalidSyntax, Reactor
 from .integration import get_integration_branches
 from ..git_utils import clone_git_repo, push
 
@@ -262,21 +262,19 @@ def _build_status_report(job):
     return report
 
 
-@Reactor.option(default=set())
+@Reactor.option(default=set(), usage='after_pull_request=<pr_id>')
 def after_pull_request(job, pr_id=None, **kwargs):
     """Wait for the given pull request id to be merged before continuing with
     the current one.
 
     """
     if pr_id is None:
-        raise IncorrectCommandSyntax(
-            robot=job.bert_e.client.login,
-            active_options=job.active_options)
+        raise InvalidSyntax('after_pull_request')
 
     try:
         int(pr_id)
-    except ValueError:
-        return
+    except ValueError as err:
+        raise InvalidSyntax('after_pull_request') from err
 
     job.settings.after_pull_request.add(pr_id)
 

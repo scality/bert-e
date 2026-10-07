@@ -23,7 +23,8 @@ from bert_e import exceptions as messages
 from bert_e.job import handler, CommitJob, PullRequestJob, QueuesJob
 from bert_e.lib.cli import confirm
 from bert_e.lib.simplecmd import CommandError
-from bert_e.reactor import Reactor, NotFound, NotPrivileged, NotAuthored
+from bert_e.reactor import (Reactor, NotFound, NotPrivileged, NotAuthored,
+                            InvalidSyntax)
 from ..git_utils import push, clone_git_repo
 from ..pr_utils import find_comment, notify_user
 from .branches import (
@@ -296,6 +297,8 @@ def handle_comments(job):
 
     Raises:
         UnknownCommand: if an unrecognized command is sent to BertE.
+        IncorrectCommandSyntax: if an option is called with a malformed
+                                syntax.
         NotEnoughCredentials: if the author of a message is trying to set an
                               option or call a command he is not allowed to.
 
@@ -334,9 +337,16 @@ def handle_comments(job):
                 active_options=job.active_options, command=err.keyword,
                 author=author, pr_author=pr_author, authored=authored
             ) from err
+        except InvalidSyntax as err:
+            raise messages.IncorrectCommandSyntax(
+                active_options=job.active_options, robot=job.settings.robot,
+                command=err.keyword, usage=reactor.get_usage(err.keyword),
+                author=author, comment=text
+            ) from err
         except TypeError as err:
             raise messages.IncorrectCommandSyntax(
-                extra_message=str(err), active_options=job.active_options
+                extra_message=str(err), active_options=job.active_options,
+                robot=job.settings.robot, author=author, comment=text
             ) from err
 
     # Handle commands

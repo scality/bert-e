@@ -4358,6 +4358,98 @@ always_create_integration_pull_requests: False
         with self.assertRaises(exns.IncorrectCommandSyntax):
             self.handle(blocked_pr.id, options=self.bypass_all, backtrace=True)
 
+    def test_after_pull_request_malformed_syntax(self):
+        """Malformed after_pull_request options are reported (code 130) with
+        the offending key and the expected usage, instead of being silently
+        ignored."""
+        robot = self.args.robot_username
+        pr_declined = self.create_pr('bugfix/TEST-00002', 'development/4.3')
+        pr_declined.decline()
+        blocked_pr = self.create_pr('bugfix/TEST-00003', 'development/4.3')
+
+        malformed = [
+            '/after_pull_request %s' % pr_declined.id,
+            '/after_pull_request=%s please' % pr_declined.id,
+            '/after_pull_request=abc',
+            '@%s after_pull_request #%s' % (robot, pr_declined.id),
+            '@%s after_pull_request=abc' % robot,
+            '@%s after_pull_request %s' % (robot, pr_declined.id),
+        ]
+        for text in malformed:
+            comment = blocked_pr.add_comment(text)
+            with self.assertRaises(exns.IncorrectCommandSyntax):
+                self.handle(blocked_pr.id, options=self.bypass_all,
+                            backtrace=True)
+            message = self.get_last_pr_comment(blocked_pr)
+            self.assertIn('`after_pull_request`', message)
+            self.assertIn('@%s after_pull_request=<pr_id>' % robot, message)
+            self.assertIn('/after_pull_request=<pr_id>', message)
+            self.assertIn('> %s' % text, message)
+            nb_comments = len(list(blocked_pr.get_comments()))
+
+            # The robot's own message (quoting the bad comment) doesn't
+            # trigger another error, and it isn't posted twice.
+            with self.assertRaises(exns.IncorrectCommandSyntax):
+                self.handle(blocked_pr.id, options=self.bypass_all,
+                            backtrace=True)
+            self.assertEqual(nb_comments,
+                             len(list(blocked_pr.get_comments())))
+            comment.delete()
+
+        # The valid shorthand form still works
+        blocked_pr.add_comment('/after_pull_request=%s' % pr_declined.id)
+        with self.assertRaises(exns.AfterPullRequest):
+            self.handle(blocked_pr.id, options=self.bypass_all,
+                        backtrace=True)
+
+    def test_malformed_shorthand_options(self):
+        robot = self.args.robot_username
+        pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
+
+        for text in ('/wait please', '/approve\nLGTM, nice work'):
+            comment = pr.add_comment(text)
+            with self.assertRaises(exns.IncorrectCommandSyntax):
+                self.handle(pr.id, options=self.bypass_all, backtrace=True)
+            message = self.get_last_pr_comment(pr)
+            keyword = text[1:].split()[0]
+            self.assertIn('`%s`' % keyword, message)
+            self.assertIn('@%s %s\n' % (robot, keyword), message)
+            comment.delete()
+
+        # Multi-options shorthand still applies every option
+        comment = pr.add_comment('/approve /wait')
+        with self.assertRaises(exns.NothingToDo):
+            self.handle(pr.id, options=self.bypass_all, backtrace=True)
+        comment.delete()
+
+        other_pr = self.create_pr('bugfix/TEST-00004', 'development/4.3')
+        comment = pr.add_comment('/after_pull_request=%s /wait' % other_pr.id)
+        with self.assertRaises(exns.NothingToDo):
+            self.handle(pr.id, options=self.bypass_all, backtrace=True)
+        comment.delete()
+
+        # Comments to other bots and commands with arguments are unaffected
+        pr.add_comment('/coderabbit review')
+        pr.add_comment('/gemini review this PR')
+        pr.add_comment('/status please')
+        with self.assertRaises(exns.StatusReport):
+            self.handle(pr.id, options=self.bypass_all, backtrace=True)
+
+        pr.add_comment('/hlep')
+        with self.assertRaises(exns.UnknownCommand):
+            self.handle(pr.id, options=self.bypass_all, backtrace=True)
+
+    def test_incorrect_option_arguments_shows_robot(self):
+        """The generic syntax error (wrong number of option arguments) shows
+        the actual robot name."""
+        robot = self.args.robot_username
+        pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
+        pr.add_comment('@%s wait=1=2' % robot)
+        with self.assertRaises(exns.IncorrectCommandSyntax):
+            self.handle(pr.id, options=self.bypass_all, backtrace=True)
+        self.assertIn('@%s option[=argument]' % robot,
+                      self.get_last_pr_comment(pr))
+
     def test_after_pull_request_wrong_pr_id(self):
         blocked_pr = self.create_pr('bugfix/TEST-00003', 'development/4.3')
 
