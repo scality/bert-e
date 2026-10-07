@@ -336,11 +336,14 @@ class Reactor(Dispatcher):
         keyword = None
         # Separators glued between two words (``wait-for-ci``) are kept so
         # that a word merely starting with an option name isn't taken for it.
+        # A separator glued to a number (``after_pull_request:1509``) is a
+        # mistyped value, not a compound word.
         text = re.sub(r'/|(?<![\w=])[,.\-:;|+]|[,.\-:;|+](?![\w=])', ' ',
                       text)
         for token in text.split():
             match = re.match(r'\w+', token)
-            if match and re.match(r'[,.\-:;|+]\w', token[match.end():]):
+            if match and re.match(r'[,.\-:;|+][^\W\d]',
+                                  token[match.end():]):
                 break
             option = match and self.dispatch(match.group())
             if not isinstance(option, Option):

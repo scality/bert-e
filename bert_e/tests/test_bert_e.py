@@ -4406,14 +4406,17 @@ always_create_integration_pull_requests: False
         robot = self.args.robot_username
         pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
 
-        for text in ('/wait please', '/approve\nLGTM, nice work'):
+        for text in ('/wait please', '/approve\nLGTM, nice work',
+                     '/after_pull_request:1509'):
             comment = pr.add_comment(text)
             with self.assertRaises(exns.IncorrectCommandSyntax):
                 self.handle(pr.id, options=self.bypass_all, backtrace=True)
             message = self.get_last_pr_comment(pr)
-            keyword = text[1:].split()[0]
+            keyword = re.match(r'/(\w+)', text).group(1)
             self.assertIn('`%s`' % keyword, message)
-            self.assertIn('@%s %s\n' % (robot, keyword), message)
+            usage = {'after_pull_request': 'after_pull_request=<pr_id>'}
+            self.assertIn('@%s %s\n' % (robot, usage.get(keyword, keyword)),
+                          message)
             comment.delete()
 
         # Multi-options shorthand still applies every option

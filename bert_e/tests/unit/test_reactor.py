@@ -428,6 +428,9 @@ def option_reactor(reactor_cls):
     ('/approve\nLGTM, nice work', 'approve'),
     ('@bert-e after_pull_request #1509', 'after_pull_request'),
     ('@bert-e: wait!', 'wait'),
+    ('/after_pull_request:1509', 'after_pull_request'),
+    ('/after_pull_request-1509', 'after_pull_request'),
+    ('/approve /after_pull_request:1509', 'after_pull_request'),
 ])
 def test_handle_options_malformed_option_raises(option_reactor, job, text,
                                                 keyword):
