@@ -4450,6 +4450,33 @@ always_create_integration_pull_requests: False
         self.assertIn('@%s option[=argument]' % robot,
                       self.get_last_pr_comment(pr))
 
+    def test_malformed_option_blames_offender_and_checks_rights(self):
+        """The malformed option is named (not the first valid one), and
+        users who may not use the option get the rights error."""
+        robot = self.args.robot_username
+        pr = self.create_pr('bugfix/TEST-00001', 'development/4.3')
+
+        comment = pr.add_comment('/approve /after_pull_request 12')
+        with self.assertRaises(exns.IncorrectCommandSyntax):
+            self.handle(pr.id, options=self.bypass_all, backtrace=True)
+        message = self.get_last_pr_comment(pr)
+        self.assertIn('`after_pull_request`', message)
+        self.assertIn('@%s after_pull_request=<pr_id>' % robot, message)
+        comment.delete()
+
+        # The PR author isn't an admin
+        comment = pr.add_comment('/bypass_build_status please')
+        with self.assertRaises(exns.NotEnoughCredentials):
+            self.handle(pr.id, options=self.bypass_all, backtrace=True)
+        comment.delete()
+
+        # The admin isn't the PR author
+        pr_peer = self.admin_bb.get_pull_request(pull_request_id=pr.id)
+        comment = pr_peer.add_comment('/approve LGTM')
+        with self.assertRaises(exns.NotAuthor):
+            self.handle(pr.id, options=self.bypass_all, backtrace=True)
+        comment.delete()
+
     def test_after_pull_request_wrong_pr_id(self):
         blocked_pr = self.create_pr('bugfix/TEST-00003', 'development/4.3')
 

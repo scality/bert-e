@@ -15,8 +15,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from bert_e.reactor import (Command, InvalidSyntax, NotFound, NotPrivileged,
-                            Option, Reactor)
+from bert_e.reactor import (Command, InvalidSyntax, NotAuthored, NotFound,
+                            NotPrivileged, Option, Reactor)
 
 
 # All tests are run on a Reactor subclass to avoid sharing state.
@@ -407,6 +407,7 @@ def option_reactor(reactor_cls):
 
     reactor_cls.add_option('wait')
     reactor_cls.add_option('approve', authored=True)
+    reactor_cls.add_option('bypass_build_status', privileged=True)
 
     @reactor_cls.command
     def status(job, *args):
@@ -522,3 +523,50 @@ def test_get_usage(option_reactor):
     assert option_reactor.get_usage('wait') == 'wait'
     assert option_reactor.get_usage('status') is None
     assert option_reactor.get_usage('unknown') is None
+
+
+@pytest.mark.parametrize('text,keyword', [
+    ('/approve /after_pull_request 12', 'after_pull_request'),
+    ('@bert-e approve after_pull_request #12', 'after_pull_request'),
+    ('/wait /approve please', 'approve'),
+    ('/approve /wait\nLGTM', 'wait'),
+])
+def test_handle_options_malformed_later_option(option_reactor, job, text,
+                                               keyword):
+    """The malformed option is blamed, not the first (valid) keyword."""
+    reactor = option_reactor()
+    reactor.init_settings(job)
+
+    with pytest.raises(InvalidSyntax) as excinfo:
+        reactor.handle_options(job, text, '@bert-e', authored=True)
+
+    assert excinfo.value.keyword == keyword
+
+
+@pytest.mark.parametrize('text,exc', [
+    ('/approve LGTM', NotAuthored),
+    ('@bert-e approve LGTM', NotAuthored),
+    ('/bypass_build_status please', NotPrivileged),
+    ('/wait /bypass_build_status please', NotPrivileged),
+    ('/bypass_build_status /approve please', NotPrivileged),
+])
+def test_handle_options_malformed_unauthorized(option_reactor, job, text,
+                                               exc):
+    """A malformed option posted by a user who may not use it reports the
+    missing rights, as a well-formed declaration would, instead of an
+    incorrect syntax message suggesting the forbidden option."""
+    reactor = option_reactor()
+    reactor.init_settings(job)
+
+    with pytest.raises(exc):
+        reactor.handle_options(job, text, '@bert-e')
+
+
+def test_handle_options_malformed_authorized(option_reactor, job):
+    reactor = option_reactor()
+    reactor.init_settings(job)
+
+    with pytest.raises(InvalidSyntax) as excinfo:
+        reactor.handle_options(job, '/bypass_build_status please', '@bert-e',
+                               privileged=True)
+    assert excinfo.value.keyword == 'bypass_build_status'

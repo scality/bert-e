@@ -178,8 +178,11 @@ of a comment (after ``/`` or ``@<robot>``) is exactly the name of an option
 but the rest of the comment is malformed (e.g. ``/after_pull_request 1509``,
 ``/wait please``, ``@bert-e after_pull_request=abc``, or ``/approve``
 followed by ``LGTM`` on the next line), __Bert-E__ replies with an
-"Incorrect command syntax" message (code 130) showing the expected usage,
-and blocks until the comment is edited or deleted.
+"Incorrect command syntax" message (code 130) naming the malformed option
+(e.g. ``after_pull_request`` in ``/approve /after_pull_request 1509``) and
+showing its expected usage, and blocks until the comment is edited or
+deleted. If the author of the comment isn't allowed to use that option, the
+usual "Not authorized" or "Not author" message is sent instead.
 
 Integration branches...
 -----------------------

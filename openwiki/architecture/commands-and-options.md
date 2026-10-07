@@ -37,8 +37,9 @@ runnable doctest-style example).
   text for `@robot <keyword>[=value]` tokens and invoke the matching
   handler, raising `NotFound` / `NotPrivileged` / `NotAuthored` /
   `InvalidSyntax` (exact option keyword followed by a malformed rest, e.g.
-  `/after_pull_request 1509`; options can declare a `usage=` string) for the
-  caller to translate into a user-facing message.
+  `/after_pull_request 1509`; the blamed option is the one followed by the
+  malformed text, rights are checked first; options can declare a `usage=`
+  string) for the caller to translate into a user-facing message.
 
 ## Wiring in GitWaterFlow (`bert_e/workflow/gitwaterflow/commands.py` and `.../utils.py`)
 
