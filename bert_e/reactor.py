@@ -334,8 +334,14 @@ class Reactor(Dispatcher):
         NotPrivileged or NotAuthored, as a well-formed declaration would.
         """
         keyword = None
-        for token in re.sub(r'[,.\-/:;|+]', ' ', text).split():
+        # Separators glued between two words (``wait-for-ci``) are kept so
+        # that a word merely starting with an option name isn't taken for it.
+        text = re.sub(r'/|(?<![\w=])[,.\-:;|+]|[,.\-:;|+](?![\w=])', ' ',
+                      text)
+        for token in text.split():
             match = re.match(r'\w+', token)
+            if match and re.match(r'[,.\-:;|+]\w', token[match.end():]):
+                break
             option = match and self.dispatch(match.group())
             if not isinstance(option, Option):
                 break

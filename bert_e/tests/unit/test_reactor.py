@@ -453,6 +453,9 @@ def test_handle_options_malformed_option_raises(option_reactor, job, text,
     'free text mentioning /after_pull_request 1509',
     '/After_pull_request 1509',
     '/after_pull_requests 1509',
+    '/wait-for-ci',
+    '/wait-for-ci please',
+    '/wait.ci please',
 ])
 def test_handle_options_malformed_ignored(option_reactor, job, text):
     """Comments whose first keyword is not exactly an option are left to the
@@ -530,6 +533,7 @@ def test_get_usage(option_reactor):
     ('@bert-e approve after_pull_request #12', 'after_pull_request'),
     ('/wait /approve please', 'approve'),
     ('/approve /wait\nLGTM', 'wait'),
+    ('/approve /wait-for-ci', 'approve'),
 ])
 def test_handle_options_malformed_later_option(option_reactor, job, text,
                                                keyword):
@@ -570,3 +574,19 @@ def test_handle_options_malformed_authorized(option_reactor, job):
         reactor.handle_options(job, '/bypass_build_status please', '@bert-e',
                                privileged=True)
     assert excinfo.value.keyword == 'bypass_build_status'
+
+
+@pytest.mark.parametrize('text', [
+    '/approve-deploy',
+    '/bypass_build_status-check please',
+])
+def test_handle_options_compound_word_unauthorized_ignored(option_reactor,
+                                                           job, text):
+    """A ``/`` word that only starts with an option name (e.g.
+    ``/approve-deploy``) is not an option: no rights error is raised."""
+    reactor = option_reactor()
+    reactor.init_settings(job)
+
+    reactor.handle_options(job, text, '@bert-e')
+
+    assert job.settings['approve'] is None
